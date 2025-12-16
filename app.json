@@ -33,7 +33,8 @@
       "permissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -66,8 +67,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "c8da7472-a27b-474e-8d01-cb39f50e5de7"
       }
-    }
+    },
+    "owner": "marzlogs-organization"
   }
 }
