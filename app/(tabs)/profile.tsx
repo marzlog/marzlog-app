@@ -1,9 +1,10 @@
 import { useColorScheme } from '@/components/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@src/store/authStore';
-import { router } from 'expo-router';
 import React from 'react';
 import {
+  Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,12 +17,28 @@ export default function ProfileScreen() {
   const isDark = colorScheme === 'dark';
   const { user, logout } = useAuthStore();
 
-  const handleLogout = async () => {
-    // 웹에서는 confirm 사용
-    const confirmed = window.confirm('정말 로그아웃하시겠습니까?');
-    if (confirmed) {
-      await logout();
-      router.replace('/login');
+  const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('정말 로그아웃하시겠습니까?')) {
+        logout();
+        // _layout.tsx에서 isAuthenticated 변경 감지하여 자동 리디렉션
+      }
+    } else {
+      Alert.alert(
+        '로그아웃',
+        '정말 로그아웃하시겠습니까?',
+        [
+          { text: '취소', style: 'cancel' },
+          {
+            text: '로그아웃',
+            style: 'destructive',
+            onPress: () => {
+              logout();
+              // _layout.tsx에서 isAuthenticated 변경 감지하여 자동 리디렉션
+            },
+          },
+        ]
+      );
     }
   };
 
