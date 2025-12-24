@@ -9,11 +9,14 @@ import {
   Dimensions,
   RefreshControl,
   ActivityIndicator,
+  Modal,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import timelineApi, { TimelineItem } from '@/src/api/timeline';
 import { useAuthStore } from '@/src/store/authStore';
+import { useImageUpload } from '@/src/hooks/useImageUpload';
 
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 48) / 3;
@@ -39,12 +42,25 @@ export default function TimelineScreen() {
   const [total, setTotal] = useState(0);
   const [loadedCount, setLoadedCount] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const allItemsRef = useRef<TimelineItem[]>([]);
   const offsetRef = useRef(0);
   const loadingRef = useRef(true);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(true);
+
+  // Upload hook
+  const {
+    items: uploadItems,
+    isUploading,
+    stats: uploadStats,
+    pickFromGallery,
+    takePhoto,
+    startUpload,
+    removeItem,
+    reset: resetUpload,
+  } = useImageUpload();
 
   const loadTimeline = useCallback(async (showLoading = true) => {
     // 토큰이 없으면 API 호출하지 않음
@@ -153,6 +169,43 @@ export default function TimelineScreen() {
     return item.media?.download_url || item.media?.thumbnail_url || '';
   };
 
+  // 업로드 관련 핸들러
+  const handleFabPress = () => {
+    setShowUploadModal(true);
+  };
+
+  const handlePickFromGallery = async () => {
+    setShowUploadModal(false);
+    const items = await pickFromGallery(true);
+    if (items && items.length > 0) {
+      // 자동으로 업로드 시작
+      const results = await startUpload();
+      if (results.length > 0) {
+        // 업로드 완료 후 타임라인 새로고침
+        setTimeout(() => {
+          loadTimeline(false);
+          resetUpload();
+        }, 1000);
+      }
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    setShowUploadModal(false);
+    const item = await takePhoto();
+    if (item) {
+      // 자동으로 업로드 시작
+      const results = await startUpload();
+      if (results.length > 0) {
+        // 업로드 완료 후 타임라인 새로고침
+        setTimeout(() => {
+          loadTimeline(false);
+          resetUpload();
+        }, 1000);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.centerContainer, isDark && styles.containerDark]}>
@@ -234,9 +287,66 @@ export default function TimelineScreen() {
           </View>
         }
       />
-      <TouchableOpacity style={styles.fab} activeOpacity={0.8}>
-        <Ionicons name="add" size={28} color="#fff" />
+      {/* FAB 버튼 */}
+      <TouchableOpacity
+        style={[styles.fab, isUploading && styles.fabUploading]}
+        activeOpacity={0.8}
+        onPress={handleFabPress}
+        disabled={isUploading}
+      >
+        {isUploading ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <Ionicons name="add" size={28} color="#fff" />
+        )}
       </TouchableOpacity>
+
+      {/* 업로드 진행 상태 */}
+      {isUploading && uploadItems.length > 0 && (
+        <View style={styles.uploadProgress}>
+          <ActivityIndicator size="small" color="#6366F1" />
+          <Text style={styles.uploadProgressText}>
+            업로드 중... {uploadStats.done}/{uploadStats.total}
+          </Text>
+        </View>
+      )}
+
+      {/* 업로드 모달 */}
+      <Modal
+        visible={showUploadModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUploadModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowUploadModal(false)}
+        >
+          <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
+            <Text style={[styles.modalTitle, isDark && styles.textLight]}>사진 추가</Text>
+
+            <TouchableOpacity style={styles.modalOption} onPress={handlePickFromGallery}>
+              <Ionicons name="images-outline" size={24} color="#6366F1" />
+              <Text style={[styles.modalOptionText, isDark && styles.textLight]}>갤러리에서 선택</Text>
+            </TouchableOpacity>
+
+            {Platform.OS !== 'web' && (
+              <TouchableOpacity style={styles.modalOption} onPress={handleTakePhoto}>
+                <Ionicons name="camera-outline" size={24} color="#6366F1" />
+                <Text style={[styles.modalOptionText, isDark && styles.textLight]}>카메라로 촬영</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.modalCancel}
+              onPress={() => setShowUploadModal(false)}
+            >
+              <Text style={styles.modalCancelText}>취소</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -262,8 +372,21 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 18, fontWeight: '600', color: '#374151', marginTop: 16 },
   emptySubtext: { fontSize: 14, color: '#9CA3AF', marginTop: 8 },
   fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#6366F1', alignItems: 'center', justifyContent: 'center', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
+  fabUploading: { backgroundColor: '#9CA3AF' },
   loadingMore: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20, gap: 8 },
   loadingMoreText: { fontSize: 14, color: '#6B7280' },
   endOfList: { alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
   endOfListText: { fontSize: 14, color: '#9CA3AF' },
+  // Upload progress
+  uploadProgress: { position: 'absolute', bottom: 88, right: 20, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 4 },
+  uploadProgressText: { fontSize: 14, color: '#374151', fontWeight: '500' },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
+  modalContentDark: { backgroundColor: '#1F2937' },
+  modalTitle: { fontSize: 20, fontWeight: '600', color: '#1F2937', marginBottom: 20, textAlign: 'center' },
+  modalOption: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  modalOptionText: { fontSize: 16, color: '#374151' },
+  modalCancel: { marginTop: 16, paddingVertical: 16, alignItems: 'center' },
+  modalCancelText: { fontSize: 16, color: '#6B7280', fontWeight: '500' },
 });
