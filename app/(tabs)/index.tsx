@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
 import timelineApi, { TimelineItem } from '@/src/api/timeline';
 import { useAuthStore } from '@/src/store/authStore';
@@ -33,6 +34,7 @@ export default function TimelineScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { accessToken } = useAuthStore();
+  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -169,6 +171,11 @@ export default function TimelineScreen() {
     return item.media?.download_url || item.media?.thumbnail_url || '';
   };
 
+  // 사진 클릭 → 상세 페이지로 이동
+  const handlePhotoPress = (mediaId: string) => {
+    router.push(`/media/${mediaId}`);
+  };
+
   // 업로드 관련 핸들러
   const handleFabPress = () => {
     setShowUploadModal(true);
@@ -235,12 +242,14 @@ export default function TimelineScreen() {
       <Text style={[styles.dateHeader, isDark && styles.textLight]}>{formatDate(item.date)}</Text>
       <View style={styles.gridContainer}>
         {item.items.map((photo) => (
-          <TouchableOpacity key={photo.id} style={styles.gridItem} activeOpacity={0.8}>
+          <TouchableOpacity
+            key={photo.id}
+            style={styles.gridItem}
+            activeOpacity={0.8}
+            onPress={() => handlePhotoPress(photo.media_id)}
+          >
             <Image
-              source={{
-                uri: getImageUrl(photo),
-                
-              }}
+              source={{ uri: getImageUrl(photo) }}
               style={styles.gridImage}
               resizeMode="cover"
             />
