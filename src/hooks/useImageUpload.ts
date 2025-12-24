@@ -111,9 +111,11 @@ export function useImageUpload() {
     );
   }, []);
 
-  // 업로드 시작
-  const startUpload = useCallback(async (): Promise<UploadCompleteResponse[]> => {
-    const pendingItems = items.filter((i) => i.status === 'idle' || i.status === 'error');
+  // 업로드 시작 (직접 아이템을 전달받거나 상태에서 가져옴)
+  const startUpload = useCallback(async (directItems?: UploadItem[]): Promise<UploadCompleteResponse[]> => {
+    const pendingItems = directItems
+      ? directItems.filter((i) => i.status === 'idle' || i.status === 'error')
+      : items.filter((i) => i.status === 'idle' || i.status === 'error');
 
     if (pendingItems.length === 0) {
       Alert.alert('알림', '업로드할 사진이 없습니다.');

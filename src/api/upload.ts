@@ -141,6 +141,29 @@ export async function uploadToS3(
 }
 
 /**
+ * 파일 크기 가져오기 (웹에서는 blob size 사용)
+ */
+async function getFileSize(uri: string, providedSize: number): Promise<number> {
+  if (providedSize > 0) {
+    return providedSize;
+  }
+
+  // 웹: fetch로 blob 크기 확인
+  if (Platform.OS === 'web') {
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      return blob.size;
+    } catch (err) {
+      console.warn('[Upload] Failed to get file size:', err);
+      return 1024 * 1024; // fallback 1MB
+    }
+  }
+
+  return providedSize || 1024 * 1024; // fallback 1MB
+}
+
+/**
  * 전체 업로드 프로세스
  * 1. SHA256 해시 계산 (중복 체크용)
  * 2. Presigned URL 발급
@@ -152,6 +175,10 @@ export async function uploadImage(
   onProgress?: (progress: number) => void,
   onStatusChange?: (status: string) => void
 ): Promise<UploadCompleteResponse> {
+  // 0. 파일 크기 확인
+  const fileSize = await getFileSize(image.uri, image.fileSize);
+  console.log('[Upload] File size:', fileSize, 'bytes');
+
   // 1. SHA256 해시 계산 (0-10%)
   onStatusChange?.('해시 계산 중...');
   onProgress?.(5);
@@ -174,7 +201,7 @@ export async function uploadImage(
   const prepareResponse = await prepareUpload({
     filename: image.filename,
     content_type: image.mimeType,
-    size: image.fileSize,
+    size: fileSize,
     sha256,
     metadata: {
       width: image.width,

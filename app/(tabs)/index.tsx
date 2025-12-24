@@ -176,10 +176,10 @@ export default function TimelineScreen() {
 
   const handlePickFromGallery = async () => {
     setShowUploadModal(false);
-    const items = await pickFromGallery(true);
-    if (items && items.length > 0) {
-      // 자동으로 업로드 시작
-      const results = await startUpload();
+    const pickedItems = await pickFromGallery(true);
+    if (pickedItems && pickedItems.length > 0) {
+      // 선택한 아이템을 직접 전달하여 업로드 시작
+      const results = await startUpload(pickedItems);
       if (results.length > 0) {
         // 업로드 완료 후 타임라인 새로고침
         setTimeout(() => {
@@ -192,10 +192,10 @@ export default function TimelineScreen() {
 
   const handleTakePhoto = async () => {
     setShowUploadModal(false);
-    const item = await takePhoto();
-    if (item) {
-      // 자동으로 업로드 시작
-      const results = await startUpload();
+    const takenItem = await takePhoto();
+    if (takenItem) {
+      // 촬영한 아이템을 직접 전달하여 업로드 시작
+      const results = await startUpload([takenItem]);
       if (results.length > 0) {
         // 업로드 완료 후 타임라인 새로고침
         setTimeout(() => {
