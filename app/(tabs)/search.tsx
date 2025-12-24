@@ -1,6 +1,7 @@
 import { useColorScheme } from '@/components/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
-import searchApi, { SearchResult } from '@src/api/search';
+import { useRouter } from 'expo-router';
+import searchApi, { SearchResult } from '@/src/api/search';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -22,6 +23,7 @@ const SUGGESTIONS = ['해변 일몰', '산 풍경', '도시 야경', '음식 사
 export default function SearchScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const router = useRouter();
 
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -54,12 +56,19 @@ export default function SearchScreen() {
   };
 
   const getImageUrl = (item: SearchResult) => {
-    if (item.thumbnail_url) return item.thumbnail_url;
-    return `https://picsum.photos/400/400?random=${item.id}`;
+    return item.thumbnail_url || '';
+  };
+
+  const handleResultPress = (mediaId: string) => {
+    router.push(`/media/${mediaId}`);
   };
 
   const renderResultItem = ({ item }: { item: SearchResult }) => (
-    <TouchableOpacity style={styles.resultItem} activeOpacity={0.8}>
+    <TouchableOpacity
+      style={styles.resultItem}
+      activeOpacity={0.8}
+      onPress={() => handleResultPress(item.media_id)}
+    >
       <Image source={{ uri: getImageUrl(item) }} style={styles.resultImage} />
       <View style={styles.resultCaption}>
         <Text style={styles.captionText} numberOfLines={2}>
