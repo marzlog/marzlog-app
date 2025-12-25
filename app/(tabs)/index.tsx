@@ -85,6 +85,12 @@ export default function TimelineScreen() {
       hasMoreRef.current = true;
 
       const response = await timelineApi.getTimeline(PAGE_SIZE, 0);
+      console.log('[Timeline] API Response - total:', response.total, 'items:', response.items.length);
+      console.log('[Timeline] First 3 items:', response.items.slice(0, 3).map(item => ({
+        id: item.id,
+        created_at: item.created_at,
+        taken_at: item.media?.taken_at,
+      })));
       setTotal(response.total);
       allItemsRef.current = response.items;
       offsetRef.current = response.items.length;
@@ -136,10 +142,11 @@ export default function TimelineScreen() {
   const groupByDate = (items: TimelineItem[]): DateGroup[] => {
     const grouped: Record<string, TimelineItem[]> = {};
     items.forEach((item) => {
-      const dateStr = item.media?.taken_at || item.created_at;
-      const date = new Date(dateStr).toISOString().split('T')[0];
-      if (!grouped[date]) grouped[date] = [];
-      grouped[date].push(item);
+      // created_at (등록일) 기준으로 그룹핑
+      const date = new Date(item.created_at);
+      const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      if (!grouped[dateKey]) grouped[dateKey] = [];
+      grouped[dateKey].push(item);
     });
     return Object.entries(grouped)
       .sort(([a], [b]) => b.localeCompare(a))

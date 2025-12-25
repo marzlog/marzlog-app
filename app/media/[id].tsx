@@ -6,21 +6,23 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  Pressable,
-  Alert,
+  TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { getMediaDetail, getMediaAnalysis, deleteMedia } from '@/src/api/media';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getMediaDetail, getMediaAnalysis } from '@/src/api/media';
 import { colors } from '@/src/theme';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const IMAGE_SIZE = SCREEN_WIDTH - 40;
 
 export default function MediaDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [media, setMedia] = useState<MediaDetail | null>(null);
   const [analysis, setAnalysis] = useState<MediaAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,10 +39,9 @@ export default function MediaDetailScreen() {
       setLoading(true);
       setError(null);
 
-      // 미디어 상세 + 분석 결과 동시 요청
       const [mediaData, analysisData] = await Promise.all([
         getMediaDetail(id!),
-        getMediaAnalysis(id!).catch(() => null), // 분석 없으면 null
+        getMediaAnalysis(id!).catch(() => null),
       ]);
 
       setMedia(mediaData);
@@ -53,32 +54,29 @@ export default function MediaDetailScreen() {
     }
   };
 
-  const handleDelete = () => {
-    Alert.alert(
-      '사진 삭제',
-      '이 사진을 삭제하시겠습니까?\n삭제된 사진은 복구할 수 없습니다.',
-      [
-        { text: '취소', style: 'cancel' },
-        {
-          text: '삭제',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteMedia(id!);
-              Alert.alert('완료', '사진이 삭제되었습니다.');
-              router.back();
-            } catch (err) {
-              Alert.alert('오류', '삭제에 실패했습니다.');
-            }
-          },
-        },
-      ]
-    );
+  const handleClose = () => {
+    router.back();
+  };
+
+  const handleConfirm = () => {
+    router.back();
+  };
+
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const period = hours >= 12 ? '오후' : '오전';
+    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+    return `${year}년 ${month}월 ${day}일 ${period} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
   };
 
   if (loading) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={colors.brand.primary} />
         <Text style={styles.loadingText}>불러오는 중...</Text>
       </View>
@@ -87,117 +85,92 @@ export default function MediaDetailScreen() {
 
   if (error || !media) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { paddingTop: insets.top }]}>
         <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
         <Text style={styles.errorText}>{error || '사진을 찾을 수 없습니다'}</Text>
-        <Pressable style={styles.retryButton} onPress={loadData}>
+        <TouchableOpacity style={styles.retryButton} onPress={loadData}>
           <Text style={styles.retryText}>다시 시도</Text>
-        </Pressable>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  const sceneTypeKorean: Record<string, string> = {
-    people: '인물',
-    landscape: '풍경',
-    food: '음식',
-    animal: '동물',
-    text: '문서/텍스트',
-    object: '사물',
-  };
-
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: '사진 상세',
-          headerRight: () => (
-            <Pressable onPress={handleDelete} style={{ padding: 8 }}>
-              <Ionicons name="trash-outline" size={24} color="#EF4444" />
-            </Pressable>
-          ),
-        }}
-      />
-      <ScrollView style={styles.container}>
-        {/* 이미지 */}
-        <Image
-          source={{ uri: media.download_url }}
-          style={styles.image}
-          resizeMode="contain"
-        />
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerSpacer} />
+        <Text style={styles.headerTitle}>상세보기</Text>
+        <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+          <Ionicons name="close" size={24} color={colors.text.primary} />
+        </TouchableOpacity>
+      </View>
 
-        {/* AI 캡션 */}
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Image */}
+        <View style={styles.imageContainer}>
+          <Image
+            source={{ uri: media.download_url }}
+            style={styles.image}
+            resizeMode="cover"
+          />
+        </View>
+
+        {/* AI Caption */}
         {analysis?.caption && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="chatbubble-outline" size={20} color={colors.brand.primary} />
-              <Text style={styles.sectionTitle}>AI 캡션</Text>
+              <Text style={styles.sectionIcon}>✨</Text>
+              <Text style={styles.sectionTitle}>AI Caption</Text>
             </View>
-            <Text style={styles.caption}>{analysis.caption}</Text>
+            <Text style={styles.captionText}>{analysis.caption}</Text>
           </View>
         )}
 
-        {/* Scene 타입 */}
+        {/* Scene Type */}
         {analysis?.scene_type && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="image-outline" size={20} color="#8B5CF6" />
-              <Text style={styles.sectionTitle}>장면 분류</Text>
+              <Text style={styles.sectionIcon}>📋</Text>
+              <Text style={styles.sectionTitle}>Scene Type</Text>
             </View>
-            <View style={styles.sceneBadge}>
-              <Text style={styles.sceneText}>
-                {sceneTypeKorean[analysis.scene_type] || analysis.scene_type}
-              </Text>
-            </View>
-            {/* Scene Scores */}
-            {analysis.scene_scores && (
-              <View style={styles.sceneScores}>
-                {Object.entries(analysis.scene_scores)
-                  .sort(([, a], [, b]) => b - a)
-                  .slice(0, 3)
-                  .map(([type, score]) => (
-                    <View key={type} style={styles.scoreRow}>
-                      <Text style={styles.scoreLabel}>
-                        {sceneTypeKorean[type] || type}
-                      </Text>
-                      <View style={styles.scoreBarBg}>
-                        <View
-                          style={[styles.scoreBar, { width: `${score * 100}%` }]}
-                        />
-                      </View>
-                      <Text style={styles.scoreValue}>
-                        {(score * 100).toFixed(0)}%
-                      </Text>
-                    </View>
-                  ))}
+            <View style={styles.chipContainer}>
+              <View style={styles.chip}>
+                <Text style={styles.chipText}>
+                  {analysis.scene_type.charAt(0).toUpperCase() + analysis.scene_type.slice(1)}
+                </Text>
               </View>
-            )}
+            </View>
           </View>
         )}
 
-        {/* 태그 */}
+        {/* Tags */}
         {analysis?.tags && analysis.tags.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="pricetags-outline" size={20} color="#10B981" />
-              <Text style={styles.sectionTitle}>태그</Text>
+              <Text style={styles.sectionIcon}>🏷️</Text>
+              <Text style={styles.sectionTitle}>Tags</Text>
             </View>
             <View style={styles.tagsContainer}>
               {analysis.tags.map((tag, index) => (
-                <View key={index} style={styles.tag}>
-                  <Text style={styles.tagText}>#{tag}</Text>
+                <View key={index} style={styles.tagChip}>
+                  <Text style={styles.tagText}>{tag}</Text>
                 </View>
               ))}
             </View>
           </View>
         )}
 
-        {/* OCR 텍스트 */}
+        {/* OCR Text */}
         {analysis?.ocr_text && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="text-outline" size={20} color="#F59E0B" />
-              <Text style={styles.sectionTitle}>인식된 텍스트 (OCR)</Text>
+              <Text style={styles.sectionIcon}>📝</Text>
+              <Text style={styles.sectionTitle}>Detected Text (OCR)</Text>
             </View>
             <View style={styles.ocrBox}>
               <Text style={styles.ocrText}>{analysis.ocr_text}</Text>
@@ -205,86 +178,60 @@ export default function MediaDetailScreen() {
           </View>
         )}
 
-        {/* 메타데이터 */}
+        {/* Photo Details */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="information-circle-outline" size={20} color="#6B7280" />
-            <Text style={styles.sectionTitle}>정보</Text>
+            <Text style={styles.sectionIcon}>📷</Text>
+            <Text style={styles.sectionTitle}>Photo Details</Text>
           </View>
-          <View style={styles.metadataList}>
-            {(analysis?.taken_at || media.taken_at) && (
-              <MetadataRow
-                icon="calendar-outline"
-                label="촬영일"
-                value={new Date(analysis?.taken_at || media.taken_at!).toLocaleString('ko-KR')}
-              />
-            )}
+          <View style={styles.detailsContainer}>
             {analysis?.exif?.width && analysis?.exif?.height && (
-              <MetadataRow
-                icon="resize-outline"
-                label="해상도"
-                value={`${analysis.exif.width} × ${analysis.exif.height}`}
-              />
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Resolution</Text>
+                <Text style={styles.detailValue}>
+                  {analysis.exif.width} x {analysis.exif.height}
+                </Text>
+              </View>
+            )}
+            {(analysis?.taken_at || media.taken_at) && (
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Taken</Text>
+                <Text style={styles.detailValue}>
+                  {formatDateTime(analysis?.taken_at || media.taken_at!)}
+                </Text>
+              </View>
             )}
             {analysis?.exif?.camera_model && (
-              <MetadataRow
-                icon="camera-outline"
-                label="카메라"
-                value={`${analysis.exif.camera_make || ''} ${analysis.exif.camera_model}`.trim()}
-              />
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Camera</Text>
+                <Text style={styles.detailValue}>
+                  {`${analysis.exif.camera_make || ''} ${analysis.exif.camera_model}`.trim()}
+                </Text>
+              </View>
             )}
-            {analysis?.exif?.has_gps && analysis?.exif?.gps && (
-              <MetadataRow
-                icon="location-outline"
-                label="위치"
-                value={`${analysis.exif.gps.latitude.toFixed(4)}, ${analysis.exif.gps.longitude.toFixed(4)}`}
-              />
-            )}
-            <MetadataRow
-              icon="document-outline"
-              label="파일명"
-              value={media.metadata?.original_filename || '-'}
-            />
-            <MetadataRow
-              icon="time-outline"
-              label="업로드"
-              value={new Date(media.created_at).toLocaleString('ko-KR')}
-            />
           </View>
         </View>
 
-        {/* 분석 상태 */}
+        {/* Pending Analysis */}
         {!analysis?.caption && (
           <View style={styles.section}>
             <View style={styles.pendingBox}>
-              <Ionicons name="hourglass-outline" size={24} color="#6B7280" />
+              <Ionicons name="hourglass-outline" size={24} color={colors.neutral[5]} />
               <Text style={styles.pendingText}>AI 분석 대기 중...</Text>
             </View>
           </View>
         )}
 
-        {/* 하단 여백 */}
-        <View style={{ height: 40 }} />
+        {/* Bottom Spacer for button */}
+        <View style={{ height: 100 }} />
       </ScrollView>
-    </>
-  );
-}
 
-// 메타데이터 행 컴포넌트
-function MetadataRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-}) {
-  return (
-    <View style={styles.metadataRow}>
-      <Ionicons name={icon} size={16} color="#9CA3AF" />
-      <Text style={styles.metadataLabel}>{label}</Text>
-      <Text style={styles.metadataValue} numberOfLines={1}>{value}</Text>
+      {/* Confirm Button - Fixed at bottom */}
+      <View style={[styles.bottomContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+        <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
+          <Text style={styles.confirmButtonText}>확인</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -292,18 +239,18 @@ function MetadataRow({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
+    color: colors.neutral[5],
   },
   errorText: {
     marginTop: 12,
@@ -317,138 +264,176 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     backgroundColor: colors.brand.primary,
-    borderRadius: 8,
+    borderRadius: 12,
   },
   retryText: {
-    color: '#FFFFFF',
+    color: colors.text.inverse,
     fontSize: 16,
     fontWeight: '600',
   },
+  header: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[2],
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  closeButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    padding: 20,
+  },
+  imageContainer: {
+    width: IMAGE_SIZE,
+    height: IMAGE_SIZE,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: colors.neutral[2],
+    marginBottom: 24,
+  },
   image: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH,
-    backgroundColor: '#F3F4F6',
+    width: '100%',
+    height: '100%',
   },
   section: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginLeft: 8,
-  },
-  caption: {
-    fontSize: 16,
-    color: '#1F2937',
-    lineHeight: 24,
-  },
-  sceneBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#EDE9FE',
-    borderRadius: 16,
-  },
-  sceneText: {
-    fontSize: 14,
-    color: '#7C3AED',
-    fontWeight: '500',
-  },
-  sceneScores: {
-    marginTop: 12,
     gap: 8,
   },
-  scoreRow: {
+  sectionIcon: {
+    fontSize: 16,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  captionText: {
+    fontSize: 15,
+    fontWeight: '400',
+    color: colors.text.primary,
+    lineHeight: 22,
+    backgroundColor: colors.neutral[2],
+    padding: 16,
+    borderRadius: 16,
+  },
+  chipContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
   },
-  scoreLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    width: 60,
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: colors.neutral[2],
+    borderRadius: 20,
   },
-  scoreBarBg: {
-    flex: 1,
-    height: 8,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 4,
-    marginHorizontal: 8,
-  },
-  scoreBar: {
-    height: 8,
-    backgroundColor: '#8B5CF6',
-    borderRadius: 4,
-  },
-  scoreValue: {
-    fontSize: 12,
-    color: '#6B7280',
-    width: 36,
-    textAlign: 'right',
+  chipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text.primary,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  tag: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#D1FAE5',
+  tagChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: colors.neutral[2],
     borderRadius: 16,
   },
   tagText: {
-    fontSize: 14,
-    color: '#059669',
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.text.primary,
   },
   ocrBox: {
-    padding: 12,
-    backgroundColor: '#FFFBEB',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
+    padding: 16,
+    backgroundColor: colors.neutral[2],
+    borderRadius: 16,
   },
   ocrText: {
     fontSize: 14,
-    color: '#92400E',
+    fontWeight: '400',
+    color: colors.text.primary,
     lineHeight: 20,
   },
-  metadataList: {
+  detailsContainer: {
+    backgroundColor: colors.neutral[2],
+    borderRadius: 16,
+    padding: 16,
     gap: 12,
   },
-  metadataRow: {
+  detailRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  metadataLabel: {
+  detailLabel: {
     fontSize: 14,
-    color: '#6B7280',
-    marginLeft: 8,
-    width: 60,
+    fontWeight: '500',
+    color: colors.text.secondary,
   },
-  metadataValue: {
+  detailValue: {
     fontSize: 14,
-    color: '#1F2937',
-    flex: 1,
+    fontWeight: '500',
+    color: colors.text.primary,
   },
   pendingBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    gap: 8,
+    padding: 20,
+    backgroundColor: colors.neutral[2],
+    borderRadius: 16,
+    gap: 12,
   },
   pendingText: {
     fontSize: 14,
-    color: '#6B7280',
+    fontWeight: '500',
+    color: colors.neutral[5],
+  },
+  bottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 20,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[2],
+  },
+  confirmButton: {
+    height: 56,
+    backgroundColor: colors.brand.primary,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text.inverse,
   },
 });

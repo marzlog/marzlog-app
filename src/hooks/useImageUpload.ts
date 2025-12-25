@@ -237,5 +237,9 @@ export function useImageUpload() {
   };
 }
 
+// Type alias for external use
+export type ImagePickerItem = UploadItem;
+
 export { MAX_SELECTION };
+export type { UploadItem };
 export default useImageUpload;
