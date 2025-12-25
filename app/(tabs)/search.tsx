@@ -2,6 +2,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import searchApi, { SearchResult } from '@/src/api/search';
+import { colors } from '@/src/theme';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -109,7 +110,7 @@ export default function SearchScreen() {
       {/* Content */}
       {isSearching ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366F1" />
+          <ActivityIndicator size="large" color={colors.brand.primary} />
           <Text style={[styles.loadingText, isDark && styles.textLight]}>
             검색 중...
           </Text>
@@ -131,7 +132,7 @@ export default function SearchScreen() {
                 style={[styles.suggestionChip, isDark && styles.chipDark]}
                 onPress={() => handleSuggestionPress(suggestion)}
               >
-                <Ionicons name="search-outline" size={14} color="#6366F1" />
+                <Ionicons name="search-outline" size={14} color={colors.brand.primary} />
                 <Text style={styles.suggestionText}>{suggestion}</Text>
               </TouchableOpacity>
             ))}
@@ -139,7 +140,7 @@ export default function SearchScreen() {
 
           <View style={[styles.aiFeatureCard, isDark && styles.cardDark]}>
             <View style={styles.aiIconContainer}>
-              <Ionicons name="sparkles" size={24} color="#6366F1" />
+              <Ionicons name="sparkles" size={24} color={colors.brand.primary} />
             </View>
             <View style={styles.aiTextContainer}>
               <Text style={[styles.aiTitle, isDark && styles.textLight]}>
@@ -250,18 +251,18 @@ const styles = StyleSheet.create({
   suggestionChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EEF2FF',
+    backgroundColor: colors.primary[50],
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     gap: 6,
   },
   chipDark: {
-    backgroundColor: '#1E1B4B',
+    backgroundColor: colors.primary[900],
   },
   suggestionText: {
     fontSize: 14,
-    color: '#6366F1',
+    color: colors.brand.primary,
   },
   aiFeatureCard: {
     flexDirection: 'row',
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 12,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: colors.primary[50],
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,

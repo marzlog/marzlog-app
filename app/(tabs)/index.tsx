@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
 import timelineApi, { TimelineItem } from '@/src/api/timeline';
+import { colors } from '@/src/theme';
 import { useAuthStore } from '@/src/store/authStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 
@@ -216,7 +217,7 @@ export default function TimelineScreen() {
   if (loading) {
     return (
       <View style={[styles.centerContainer, isDark && styles.containerDark]}>
-        <ActivityIndicator size="large" color="#6366F1" />
+        <ActivityIndicator size="large" color={colors.brand.primary} />
         <Text style={[styles.loadingText, isDark && styles.textLight]}>타임라인 불러오는 중...</Text>
       </View>
     );
@@ -275,11 +276,11 @@ export default function TimelineScreen() {
         showsVerticalScrollIndicator={false}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#6366F1']} tintColor="#6366F1" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.brand.primary]} tintColor={colors.brand.primary} />}
         ListFooterComponent={
           loadingMore ? (
             <View style={styles.loadingMore}>
-              <ActivityIndicator size="small" color="#6366F1" />
+              <ActivityIndicator size="small" color={colors.brand.primary} />
               <Text style={styles.loadingMoreText}>더 불러오는 중...</Text>
             </View>
           ) : !hasMore && dateGroups.length > 0 ? (
@@ -313,7 +314,7 @@ export default function TimelineScreen() {
       {/* 업로드 진행 상태 */}
       {isUploading && uploadItems.length > 0 && (
         <View style={styles.uploadProgress}>
-          <ActivityIndicator size="small" color="#6366F1" />
+          <ActivityIndicator size="small" color={colors.brand.primary} />
           <Text style={styles.uploadProgressText}>
             업로드 중... {uploadStats.done}/{uploadStats.total}
           </Text>
@@ -336,13 +337,13 @@ export default function TimelineScreen() {
             <Text style={[styles.modalTitle, isDark && styles.textLight]}>사진 추가</Text>
 
             <TouchableOpacity style={styles.modalOption} onPress={handlePickFromGallery}>
-              <Ionicons name="images-outline" size={24} color="#6366F1" />
+              <Ionicons name="images-outline" size={24} color={colors.brand.primary} />
               <Text style={[styles.modalOptionText, isDark && styles.textLight]}>갤러리에서 선택</Text>
             </TouchableOpacity>
 
             {Platform.OS !== 'web' && (
               <TouchableOpacity style={styles.modalOption} onPress={handleTakePhoto}>
-                <Ionicons name="camera-outline" size={24} color="#6366F1" />
+                <Ionicons name="camera-outline" size={24} color={colors.brand.primary} />
                 <Text style={[styles.modalOptionText, isDark && styles.textLight]}>카메라로 촬영</Text>
               </TouchableOpacity>
             )}
@@ -366,7 +367,7 @@ const styles = StyleSheet.create({
   centerContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9FAFB' },
   loadingText: { marginTop: 16, fontSize: 16, color: '#6B7280' },
   errorText: { marginTop: 16, fontSize: 16, color: '#374151', textAlign: 'center', paddingHorizontal: 32 },
-  retryButton: { marginTop: 24, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#6366F1', borderRadius: 8 },
+  retryButton: { marginTop: 24, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.brand.primary, borderRadius: 8 },
   retryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   statsBar: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   statsText: { fontSize: 14, color: '#6B7280' },
@@ -380,7 +381,7 @@ const styles = StyleSheet.create({
   emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 },
   emptyText: { fontSize: 18, fontWeight: '600', color: '#374151', marginTop: 16 },
   emptySubtext: { fontSize: 14, color: '#9CA3AF', marginTop: 8 },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#6366F1', alignItems: 'center', justifyContent: 'center', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
+  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brand.primary, alignItems: 'center', justifyContent: 'center', shadowColor: colors.brand.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
   fabUploading: { backgroundColor: '#9CA3AF' },
   loadingMore: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20, gap: 8 },
   loadingMoreText: { fontSize: 14, color: '#6B7280' },

@@ -13,6 +13,7 @@ import {
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getMediaDetail, getMediaAnalysis, deleteMedia } from '@/src/api/media';
+import { colors } from '@/src/theme';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -78,7 +79,7 @@ export default function MediaDetailScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#6366F1" />
+        <ActivityIndicator size="large" color={colors.brand.primary} />
         <Text style={styles.loadingText}>불러오는 중...</Text>
       </View>
     );
@@ -129,7 +130,7 @@ export default function MediaDetailScreen() {
         {analysis?.caption && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Ionicons name="chatbubble-outline" size={20} color="#6366F1" />
+              <Ionicons name="chatbubble-outline" size={20} color={colors.brand.primary} />
               <Text style={styles.sectionTitle}>AI 캡션</Text>
             </View>
             <Text style={styles.caption}>{analysis.caption}</Text>
@@ -315,7 +316,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#6366F1',
+    backgroundColor: colors.brand.primary,
     borderRadius: 8,
   },
   retryText: {
