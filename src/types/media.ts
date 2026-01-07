@@ -15,9 +15,15 @@ export interface MediaAnalysis {
     camera_make: string | null;
     camera_model: string | null;
     has_gps: boolean;
-    gps: { latitude: number; longitude: number } | null;
+    gps: { latitude: number; longitude: number; altitude?: number | null } | null;
     width: number | null;
     height: number | null;
+    // Camera settings
+    aperture: number | null;  // F-number (e.g., 2.8)
+    shutter_speed: [number, number] | number | null;  // (1, 60) for 1/60s or decimal
+    iso: number | null;
+    focal_length: number | null;  // mm
+    flash: boolean | null;  // true if fired
   } | null;
 }
 

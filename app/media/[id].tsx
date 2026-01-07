@@ -11,6 +11,7 @@ import {
   Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -169,6 +170,47 @@ export default function MediaDetailScreen() {
       '아픔': '🤕',
     };
     return emotionMap[emotion] || '😶';
+  };
+
+  // 파일 크기 포맷 (bytes → MB/KB)
+  const formatFileSize = (bytes: number): string => {
+    if (bytes >= 1024 * 1024) {
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    } else if (bytes >= 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    return `${bytes} B`;
+  };
+
+  // 셔터스피드 포맷
+  const formatShutterSpeed = (speed: [number, number] | number | null): string => {
+    if (!speed) return '';
+    if (Array.isArray(speed)) {
+      const [num, den] = speed;
+      if (num === 1) {
+        return `1/${den}s`;
+      } else if (den === 1) {
+        return `${num}s`;
+      } else {
+        return `${num}/${den}s`;
+      }
+    }
+    if (speed >= 1) {
+      return `${speed}s`;
+    }
+    return `1/${Math.round(1 / speed)}s`;
+  };
+
+  // 조리개 포맷
+  const formatAperture = (aperture: number | null): string => {
+    if (!aperture) return '';
+    return `f/${aperture.toFixed(1)}`;
+  };
+
+  // GPS 좌표로 구글맵 열기
+  const openMapWithGPS = (lat: number, lon: number) => {
+    const url = `https://maps.google.com/?q=${lat},${lon}`;
+    Linking.openURL(url);
   };
 
   if (loading) {
@@ -405,6 +447,17 @@ export default function MediaDetailScreen() {
             <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Photo Details</Text>
           </View>
           <View style={[styles.detailsContainer, isDark && styles.boxDark]}>
+            {/* 카메라 모델 */}
+            {analysis?.exif?.camera_model && (
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Camera</Text>
+                <Text style={[styles.detailValue, isDark && styles.textLight]}>
+                  {`${analysis.exif.camera_make || ''} ${analysis.exif.camera_model}`.trim()}
+                </Text>
+              </View>
+            )}
+
+            {/* 해상도 */}
             {analysis?.exif?.width && analysis?.exif?.height && (
               <View style={styles.detailRow}>
                 <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Resolution</Text>
@@ -413,6 +466,18 @@ export default function MediaDetailScreen() {
                 </Text>
               </View>
             )}
+
+            {/* 파일 크기 */}
+            {media.metadata?.size && (
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>File Size</Text>
+                <Text style={[styles.detailValue, isDark && styles.textLight]}>
+                  {formatFileSize(media.metadata.size)}
+                </Text>
+              </View>
+            )}
+
+            {/* 촬영일 */}
             {(analysis?.taken_at || media.taken_at) && (
               <View style={styles.detailRow}>
                 <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Taken</Text>
@@ -421,13 +486,56 @@ export default function MediaDetailScreen() {
                 </Text>
               </View>
             )}
-            {analysis?.exif?.camera_model && (
+
+            {/* 카메라 설정 (조리개/셔터/ISO) */}
+            {(analysis?.exif?.aperture || analysis?.exif?.shutter_speed || analysis?.exif?.iso) && (
               <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Camera</Text>
+                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Settings</Text>
                 <Text style={[styles.detailValue, isDark && styles.textLight]}>
-                  {`${analysis.exif.camera_make || ''} ${analysis.exif.camera_model}`.trim()}
+                  {[
+                    analysis.exif.aperture && formatAperture(analysis.exif.aperture),
+                    analysis.exif.shutter_speed && formatShutterSpeed(analysis.exif.shutter_speed),
+                    analysis.exif.iso && `ISO ${analysis.exif.iso}`,
+                  ].filter(Boolean).join(' · ')}
                 </Text>
               </View>
+            )}
+
+            {/* 초점거리 */}
+            {analysis?.exif?.focal_length && (
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Focal Length</Text>
+                <Text style={[styles.detailValue, isDark && styles.textLight]}>
+                  {analysis.exif.focal_length.toFixed(0)}mm
+                </Text>
+              </View>
+            )}
+
+            {/* 플래시 */}
+            {analysis?.exif?.flash !== null && analysis?.exif?.flash !== undefined && (
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Flash</Text>
+                <Text style={[styles.detailValue, isDark && styles.textLight]}>
+                  {analysis.exif.flash ? 'Fired' : 'Not fired'}
+                </Text>
+              </View>
+            )}
+
+            {/* GPS 위치 */}
+            {analysis?.exif?.gps && (
+              <TouchableOpacity
+                style={styles.detailRow}
+                onPress={() => openMapWithGPS(analysis.exif!.gps!.latitude, analysis.exif!.gps!.longitude)}
+              >
+                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Location</Text>
+                <View style={styles.locationValue}>
+                  <Ionicons name="location" size={14} color={colors.brand.primary} />
+                  <Text style={[styles.detailValueLink, isDark && styles.textLight]}>
+                    {analysis.exif.gps.latitude.toFixed(4)}, {analysis.exif.gps.longitude.toFixed(4)}
+                  </Text>
+                  <Ionicons name="open-outline" size={14} color={colors.brand.primary} />
+                </View>
+              </TouchableOpacity>
             )}
           </View>
         </View>
@@ -713,6 +821,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.text.primary,
+  },
+  locationValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  detailValueLink: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.brand.primary,
   },
   pendingBox: {
     flexDirection: 'row',
