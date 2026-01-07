@@ -14,6 +14,7 @@ interface ScheduleCardProps {
   time: string;
   imageUrl: string;
   emoji?: string;
+  groupCount?: number;  // 그룹 내 이미지 수 (2 이상이면 배지 표시)
   onPress?: () => void;
   onEmojiPress?: () => void;
 }
@@ -25,6 +26,7 @@ export function ScheduleCard({
   time,
   imageUrl,
   emoji,
+  groupCount,
   onPress,
   onEmojiPress,
 }: ScheduleCardProps) {
@@ -72,6 +74,14 @@ export function ScheduleCard({
             <Text style={styles.timeText}>{time}</Text>
           </View>
         </View>
+
+        {/* Group Count Badge (+N 형식) */}
+        {groupCount && groupCount > 1 && (
+          <View style={styles.groupBadge}>
+            <Ionicons name="copy-outline" size={14} color="#fff" />
+            <Text style={styles.groupBadgeText}>+{groupCount - 1}</Text>
+          </View>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -150,6 +160,23 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     letterSpacing: -0.24,
     lineHeight: 18,
+  },
+  groupBadge: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 12,
+  },
+  groupBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
 

@@ -4,17 +4,19 @@
  * - S3 직접 업로드
  * - 업로드 완료 콜백
  */
-import { Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system';
-import { apiClient } from './client';
+import { Platform } from 'react-native';
 import type {
-  UploadPrepareRequest,
-  UploadPrepareResponse,
+  GroupUploadCompleteRequest,
+  GroupUploadCompleteResponse,
+  SelectedImage,
   UploadCompleteRequest,
   UploadCompleteResponse,
-  SelectedImage,
+  UploadPrepareRequest,
+  UploadPrepareResponse,
 } from '../types/upload';
+import { apiClient } from './client';
 
 /**
  * 파일의 SHA256 해시 계산
@@ -253,9 +255,57 @@ export async function uploadImage(
   return result;
 }
 
+/**
+ * 그룹 업로드 완료 콜백
+ * 여러 이미지를 하나의 그룹으로 묶어서 완료 처리
+ */
+export async function completeGroupUpload(
+  request: GroupUploadCompleteRequest
+): Promise<GroupUploadCompleteResponse> {
+  const response = await apiClient.post<GroupUploadCompleteResponse>(
+    '/media/upload/group-complete',
+    request
+  );
+  return response.data;
+}
+
+/**
+ * 기존 그룹에 이미지 추가
+ */
+export interface AddToGroupItem {
+  upload_id: string;
+  storage_key: string;
+  sha256: string;
+}
+
+export interface AddToGroupRequest {
+  items: AddToGroupItem[];
+}
+
+export interface AddToGroupResponse {
+  group_id: string;
+  added_images: number;
+  total_images: number;
+  images: { media_id: string; storage_key: string; is_primary: string }[];
+  status: string;
+  message: string;
+}
+
+export async function addImagesToGroup(
+  groupId: string,
+  request: AddToGroupRequest
+): Promise<AddToGroupResponse> {
+  const response = await apiClient.post<AddToGroupResponse>(
+    `/media/${groupId}/add-images`,
+    request
+  );
+  return response.data;
+}
+
 export default {
   prepareUpload,
   completeUpload,
+  completeGroupUpload,
   uploadToS3,
   uploadImage,
   calculateSHA256,

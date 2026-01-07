@@ -1,10 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
 import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 
+// Expo Auth Session 설정
+WebBrowser.maybeCompleteAuthSession();
+
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
+const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '';
 
 interface Props {
   onSuccess?: () => void;
@@ -53,23 +60,80 @@ function WebGoogleButton({ onSuccess, onError }: Props) {
   );
 }
 
-function NativeButton({ onSuccess, onError }: Props) {
-  const { mockLogin } = useAuthStore();
+function NativeGoogleButton({ onSuccess, onError }: Props) {
+  const { loginWithGoogle } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handlePress = async () => {
-    setIsLoading(true);
+  // expo-auth-session Google OAuth 설정
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+  });
+
+  // OAuth 응답 처리
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { authentication } = response;
+      if (authentication?.idToken) {
+        handleGoogleLogin(authentication.idToken);
+      } else if (authentication?.accessToken) {
+        // ID Token이 없으면 Access Token으로 사용자 정보 조회 후 처리
+        fetchUserInfoAndLogin(authentication.accessToken);
+      }
+    } else if (response?.type === 'error') {
+      console.log('[NativeGoogleLogin] Error:', response.error);
+      onError?.(response.error?.message || 'Google 로그인 실패');
+      setIsLoading(false);
+    } else if (response?.type === 'cancel' || response?.type === 'dismiss') {
+      console.log('[NativeGoogleLogin] Cancelled');
+      setIsLoading(false);
+    }
+  }, [response]);
+
+  const handleGoogleLogin = async (idToken: string) => {
     try {
-      console.log('[NativeLogin] Using dev-login...');
-      await mockLogin();
-      console.log('[NativeLogin] Login success!');
+      console.log('[NativeGoogleLogin] Got ID token, logging in...');
+      await loginWithGoogle(idToken);
+      console.log('[NativeGoogleLogin] Login success!');
       onSuccess?.();
     } catch (e: any) {
-      console.log('[NativeLogin] Login error:', e.message);
+      console.log('[NativeGoogleLogin] Login error:', e.message);
       onError?.(e.message);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fetchUserInfoAndLogin = async (accessToken: string) => {
+    try {
+      console.log('[NativeGoogleLogin] Fetching user info with access token...');
+      const userInfoResponse = await fetch('https://www.googleapis.com/userinfo/v2/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const userInfo = await userInfoResponse.json();
+      console.log('[NativeGoogleLogin] User info:', userInfo.email);
+
+      // Access Token을 ID Token처럼 사용 (백엔드에서 처리 필요할 수 있음)
+      // 또는 백엔드에 별도의 access token 처리 엔드포인트 필요
+      await loginWithGoogle(accessToken);
+      onSuccess?.();
+    } catch (e: any) {
+      console.log('[NativeGoogleLogin] Error fetching user info:', e.message);
+      onError?.(e.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePress = async () => {
+    if (!request) {
+      onError?.('Google 로그인을 준비 중입니다...');
+      return;
+    }
+    setIsLoading(true);
+    console.log('[NativeGoogleLogin] Starting Google OAuth...');
+    await promptAsync();
   };
 
   if (isLoading) {
@@ -82,20 +146,51 @@ function NativeButton({ onSuccess, onError }: Props) {
   }
 
   return (
-    <TouchableOpacity style={styles.btn} onPress={handlePress}>
+    <TouchableOpacity
+      style={[styles.googleBtn, !request && styles.btnDisabled]}
+      onPress={handlePress}
+      disabled={!request}
+    >
       <Ionicons name="logo-google" size={20} color="#4285F4" />
-      <Text style={styles.btnText}>Continue with Google (Dev)</Text>
+      <Text style={styles.googleBtnText}>Continue with Google</Text>
     </TouchableOpacity>
   );
 }
 
 export default function GoogleLoginButton(props: Props) {
-  return Platform.OS === 'web' ? <WebGoogleButton {...props} /> : <NativeButton {...props} />;
+  return Platform.OS === 'web' ? <WebGoogleButton {...props} /> : <NativeGoogleButton {...props} />;
 }
 
 const styles = StyleSheet.create({
-  loading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 16 },
-  loadingText: { marginLeft: 8, color: '#374151' },
-  btn: { backgroundColor: '#fff', padding: 16, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', alignItems: 'center' },
-  btnText: { color: '#333', fontWeight: '600' },
+  loading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  loadingText: {
+    marginLeft: 8,
+    color: '#374151',
+  },
+  googleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 12,
+  },
+  googleBtnText: {
+    color: '#1F2937',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  btnDisabled: {
+    opacity: 0.5,
+  },
 });

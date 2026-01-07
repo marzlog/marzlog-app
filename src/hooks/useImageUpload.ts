@@ -7,10 +7,10 @@
 import { useState, useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Alert, Platform } from 'react-native';
-import { uploadImage } from '../api/upload';
-import type { SelectedImage, UploadItem, UploadCompleteResponse, UploadStatus } from '../types/upload';
+import { uploadImage, prepareUpload, uploadToS3, calculateSHA256, completeGroupUpload, addImagesToGroup } from '../api/upload';
+import type { SelectedImage, UploadItem, UploadCompleteResponse, UploadStatus, GroupUploadCompleteResponse, GroupUploadItem } from '../types/upload';
 
-const MAX_SELECTION = 10;
+const MAX_SELECTION = 5; // 대표 1개 + 서브 4개
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 export function useImageUpload() {
@@ -214,6 +214,239 @@ export function useImageUpload() {
     setError(null);
   }, []);
 
+  // 그룹 업로드 시작 (여러 이미지를 하나의 그룹으로)
+  const startGroupUpload = useCallback(async (
+    directItems: UploadItem[],
+    primaryIndex: number = 0
+  ): Promise<GroupUploadCompleteResponse | null> => {
+    if (directItems.length === 0) {
+      Alert.alert('알림', '업로드할 사진이 없습니다.');
+      return null;
+    }
+
+    setIsUploading(true);
+    setError(null);
+
+    const uploadedItems: GroupUploadItem[] = [];
+
+    try {
+      // 1. 각 이미지를 S3에 업로드하고 정보 수집
+      for (let i = 0; i < directItems.length; i++) {
+        const item = directItems[i];
+
+        // 파일 크기 체크
+        if (item.fileSize > MAX_FILE_SIZE) {
+          throw new Error(`파일이 너무 큽니다: ${item.filename}`);
+        }
+
+        updateItem(item.id, { status: 'hashing', progress: 0 });
+
+        // SHA256 해시 계산
+        let sha256: string;
+        try {
+          sha256 = await calculateSHA256(item.uri);
+        } catch {
+          sha256 = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+        }
+
+        updateItem(item.id, { status: 'preparing', progress: 10 });
+
+        // Presigned URL 발급
+        const prepareResponse = await prepareUpload({
+          filename: item.filename,
+          content_type: item.mimeType,
+          size: item.fileSize || 1024 * 1024,
+          sha256,
+          metadata: {
+            width: item.width,
+            height: item.height,
+          },
+        });
+
+        // 중복 체크 - 그룹 업로드에서는 중복도 포함
+        if (prepareResponse.duplicate && prepareResponse.existing_media_id) {
+          console.log(`[GroupUpload] Duplicate found: ${item.filename}`);
+          updateItem(item.id, { status: 'done', progress: 100, mediaId: prepareResponse.existing_media_id });
+          continue; // 중복은 그룹에 포함하지 않음
+        }
+
+        updateItem(item.id, { status: 'uploading', progress: 15 });
+
+        // S3 업로드
+        const uploadUrl = prepareResponse.presigned_put_url || prepareResponse.upload_url;
+        if (!uploadUrl) {
+          throw new Error('No presigned URL received');
+        }
+
+        await uploadToS3(uploadUrl, item.uri, item.mimeType, (progress) => {
+          updateItem(item.id, { progress: 15 + Math.round(progress * 0.75) });
+        });
+
+        updateItem(item.id, { status: 'completing', progress: 90 });
+
+        // 업로드 정보 수집
+        if (prepareResponse.upload_id && prepareResponse.storage_key) {
+          uploadedItems.push({
+            upload_id: prepareResponse.upload_id,
+            storage_key: prepareResponse.storage_key,
+            sha256,
+          });
+        }
+
+        updateItem(item.id, { progress: 95 });
+      }
+
+      // 2. 그룹 업로드 완료 API 호출
+      if (uploadedItems.length === 0) {
+        Alert.alert('알림', '새로 업로드할 사진이 없습니다. (모두 중복)');
+        setIsUploading(false);
+        return null;
+      }
+
+      // primary_index 조정 (중복으로 제외된 이미지 고려)
+      const adjustedPrimaryIndex = Math.min(primaryIndex, uploadedItems.length - 1);
+
+      const result = await completeGroupUpload({
+        items: uploadedItems,
+        primary_index: adjustedPrimaryIndex,
+        analysis_mode: 'light',
+      });
+
+      // 모든 아이템 완료 처리
+      directItems.forEach(item => {
+        updateItem(item.id, { status: 'done', progress: 100 });
+      });
+
+      console.log(`✅ 그룹 업로드 완료: ${result.total_images}장, group_id: ${result.group_id}`);
+
+      Alert.alert(
+        '업로드 완료',
+        `${result.total_images}장이 그룹으로 업로드되었습니다.\nAI 분석이 시작됩니다.`
+      );
+
+      setIsUploading(false);
+      return result;
+
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : '그룹 업로드 실패';
+      setError(errorMsg);
+      console.error('❌ 그룹 업로드 실패:', err);
+      Alert.alert('오류', errorMsg);
+      setIsUploading(false);
+      return null;
+    }
+  }, [updateItem]);
+
+  // 기존 그룹에 이미지 추가
+  const addToExistingGroup = useCallback(async (
+    groupId: string,
+    newItems: UploadItem[]
+  ): Promise<boolean> => {
+    // 새 이미지만 필터 (isExisting이 없는 것들)
+    const itemsToUpload = newItems.filter((item: any) => !item.isExisting);
+
+    if (itemsToUpload.length === 0) {
+      console.log('[GroupUpload] No new images to add');
+      return true;
+    }
+
+    setIsUploading(true);
+    setError(null);
+
+    const uploadedItems: GroupUploadItem[] = [];
+
+    try {
+      // 각 이미지를 S3에 업로드
+      for (let i = 0; i < itemsToUpload.length; i++) {
+        const item = itemsToUpload[i];
+
+        if (item.fileSize > MAX_FILE_SIZE) {
+          throw new Error(`파일이 너무 큽니다: ${item.filename}`);
+        }
+
+        updateItem(item.id, { status: 'hashing', progress: 0 });
+
+        // SHA256 해시 계산
+        let sha256: string;
+        try {
+          sha256 = await calculateSHA256(item.uri);
+        } catch {
+          sha256 = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('');
+        }
+
+        updateItem(item.id, { status: 'preparing', progress: 10 });
+
+        // Presigned URL 발급
+        const prepareResponse = await prepareUpload({
+          filename: item.filename,
+          content_type: item.mimeType,
+          size: item.fileSize || 1024 * 1024,
+          sha256,
+          metadata: {
+            width: item.width,
+            height: item.height,
+          },
+        });
+
+        // 중복 체크
+        if (prepareResponse.duplicate && prepareResponse.existing_media_id) {
+          console.log(`[GroupUpload] Duplicate found: ${item.filename}`);
+          updateItem(item.id, { status: 'done', progress: 100, mediaId: prepareResponse.existing_media_id });
+          continue;
+        }
+
+        updateItem(item.id, { status: 'uploading', progress: 15 });
+
+        // S3 업로드
+        const uploadUrl = prepareResponse.presigned_put_url || prepareResponse.upload_url;
+        if (!uploadUrl) {
+          throw new Error('No presigned URL received');
+        }
+
+        await uploadToS3(uploadUrl, item.uri, item.mimeType, (progress) => {
+          updateItem(item.id, { progress: 15 + Math.round(progress * 0.75) });
+        });
+
+        updateItem(item.id, { status: 'completing', progress: 90 });
+
+        if (prepareResponse.upload_id && prepareResponse.storage_key) {
+          uploadedItems.push({
+            upload_id: prepareResponse.upload_id,
+            storage_key: prepareResponse.storage_key,
+            sha256,
+          });
+        }
+
+        updateItem(item.id, { progress: 95 });
+      }
+
+      // 그룹에 이미지 추가 API 호출
+      if (uploadedItems.length > 0) {
+        const result = await addImagesToGroup(groupId, { items: uploadedItems });
+        console.log(`✅ 그룹에 ${result.added_images}장 추가됨, total: ${result.total_images}`);
+      }
+
+      // 모든 아이템 완료 처리
+      itemsToUpload.forEach(item => {
+        updateItem(item.id, { status: 'done', progress: 100 });
+      });
+
+      setIsUploading(false);
+      return true;
+
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : '이미지 추가 실패';
+      setError(errorMsg);
+      console.error('❌ 그룹 이미지 추가 실패:', err);
+      setIsUploading(false);
+      return false;
+    }
+  }, [updateItem]);
+
   // 통계
   const stats = {
     total: items.length,
@@ -231,6 +464,8 @@ export function useImageUpload() {
     pickFromGallery,
     takePhoto,
     startUpload,
+    startGroupUpload,
+    addToExistingGroup,
     removeItem,
     clearCompleted,
     reset,

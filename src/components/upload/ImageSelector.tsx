@@ -1,21 +1,20 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   Image,
+  Image as RNImage,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme';
 import type { UploadItem } from '@/src/hooks/useImageUpload';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PRIMARY_IMAGE_SIZE = SCREEN_WIDTH - 40;
-const GRID_GAP = 8;
-const GRID_COLUMNS = 3;
-const GRID_IMAGE_SIZE = (SCREEN_WIDTH - 40 - (GRID_COLUMNS - 1) * GRID_GAP) / GRID_COLUMNS;
+// Figma MO_HOM_0102 기준
+const GRID_GAP = 12;
+const DEFAULT_ASPECT_RATIO = 4 / 3;
+const MAX_PRIMARY_HEIGHT = 350;
 
 interface ImageSelectorProps {
   images: UploadItem[];
@@ -39,6 +38,28 @@ export function ImageSelector({
   const primaryImage = images[primaryIndex];
   const additionalImages = images.filter((_, i) => i !== primaryIndex);
 
+  // 대표 이미지 비율 동적 계산
+  const [imageAspectRatio, setImageAspectRatio] = useState(DEFAULT_ASPECT_RATIO);
+
+  useEffect(() => {
+    if (primaryImage?.uri) {
+      RNImage.getSize(
+        primaryImage.uri,
+        (width, height) => {
+          if (width && height) {
+            setImageAspectRatio(width / height);
+          }
+        },
+        (error) => {
+          console.log('[ImageSelector] Failed to get image size:', error);
+          setImageAspectRatio(DEFAULT_ASPECT_RATIO);
+        }
+      );
+    } else {
+      setImageAspectRatio(DEFAULT_ASPECT_RATIO);
+    }
+  }, [primaryImage?.uri]);
+
   return (
     <View style={styles.container}>
       {/* Primary Image Section */}
@@ -51,7 +72,7 @@ export function ImageSelector({
         </View>
 
         {primaryImage ? (
-          <View style={styles.primaryImageContainer}>
+          <View style={[styles.primaryImageContainer, { aspectRatio: imageAspectRatio }]}>
             <Image
               source={{ uri: primaryImage.uri }}
               style={styles.primaryImage}
@@ -127,8 +148,8 @@ export function ImageSelector({
             </TouchableOpacity>
           )}
 
-          {/* Empty placeholders */}
-          {Array.from({ length: Math.max(0, 5 - additionalImages.length - (images.length < maxImages ? 1 : 0)) }).map(
+          {/* Empty placeholders - 2열 그리드에 맞게 조정 */}
+          {Array.from({ length: Math.max(0, 3 - additionalImages.length - (images.length < maxImages ? 1 : 0)) }).map(
             (_, index) => (
               <View key={`empty-${index}`} style={styles.emptyPlaceholder} />
             )
@@ -169,9 +190,10 @@ const styles = StyleSheet.create({
     color: colors.text.inverse,
   },
   primaryImageContainer: {
-    width: PRIMARY_IMAGE_SIZE,
-    height: PRIMARY_IMAGE_SIZE * 0.75,
-    borderRadius: 20,
+    width: '100%',
+    // aspectRatio는 동적으로 적용됨 (이미지 원본 비율)
+    maxHeight: MAX_PRIMARY_HEIGHT,
+    borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -180,9 +202,10 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   primaryPlaceholder: {
-    width: PRIMARY_IMAGE_SIZE,
-    height: PRIMARY_IMAGE_SIZE * 0.75,
-    borderRadius: 20,
+    width: '100%',
+    aspectRatio: DEFAULT_ASPECT_RATIO, // 기본 4:3 비율
+    maxHeight: MAX_PRIMARY_HEIGHT,
+    borderRadius: 16,
     backgroundColor: colors.neutral[2],
     alignItems: 'center',
     justifyContent: 'center',
@@ -212,8 +235,8 @@ const styles = StyleSheet.create({
     gap: GRID_GAP,
   },
   gridItem: {
-    width: GRID_IMAGE_SIZE,
-    height: GRID_IMAGE_SIZE,
+    width: '48%', // Figma: 2열 그리드, 각 약 170x170
+    aspectRatio: 1, // 1:1 정사각형
     borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
@@ -256,16 +279,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   addMoreButton: {
-    width: GRID_IMAGE_SIZE,
-    height: GRID_IMAGE_SIZE,
+    width: '48%', // Figma: 2열 그리드
+    aspectRatio: 1,
     borderRadius: 12,
     backgroundColor: colors.neutral[2],
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyPlaceholder: {
-    width: GRID_IMAGE_SIZE,
-    height: GRID_IMAGE_SIZE,
+    width: '48%', // Figma: 2열 그리드
+    aspectRatio: 1,
     borderRadius: 12,
     backgroundColor: colors.neutral[2],
     opacity: 0.5,

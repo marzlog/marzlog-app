@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,17 +7,22 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  Pressable,
   Dimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getMediaDetail, getMediaAnalysis } from '@/src/api/media';
+import { timelineApi, GroupImageItem } from '@/src/api/timeline';
 import { colors } from '@/src/theme';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_SIZE = SCREEN_WIDTH - 40;
+const CAROUSEL_IMAGE_WIDTH = SCREEN_WIDTH; // 캐러셀은 화면 전체 너비 사용
 
 export default function MediaDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -27,6 +32,11 @@ export default function MediaDetailScreen() {
   const [analysis, setAnalysis] = useState<MediaAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // 그룹 이미지 관련 상태
+  const [groupImages, setGroupImages] = useState<GroupImageItem[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const carouselRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (id) {
@@ -41,11 +51,29 @@ export default function MediaDetailScreen() {
 
       const [mediaData, analysisData] = await Promise.all([
         getMediaDetail(id!),
-        getMediaAnalysis(id!).catch(() => null),
+        getMediaAnalysis(id!).catch((err) => {
+          console.log('[MediaDetail] Analysis API error:', err);
+          return null;
+        }),
       ]);
+
+      console.log('[MediaDetail] Media data:', JSON.stringify(mediaData, null, 2));
+      console.log('[MediaDetail] Analysis data:', JSON.stringify(analysisData, null, 2));
 
       setMedia(mediaData);
       setAnalysis(analysisData);
+
+      // 그룹 이미지 로드 (group_id가 있는 경우)
+      if (mediaData.group_id) {
+        try {
+          const groupData = await timelineApi.getGroupImages(mediaData.group_id);
+          setGroupImages(groupData.items || []);
+          console.log('[MediaDetail] Loaded group images:', groupData.items?.length);
+        } catch (groupErr) {
+          console.log('[MediaDetail] Failed to load group images:', groupErr);
+          // 그룹 이미지 로드 실패해도 단일 이미지는 보여줌
+        }
+      }
     } catch (err) {
       console.error('Load error:', err);
       setError(err instanceof Error ? err.message : '로딩 실패');
@@ -62,6 +90,46 @@ export default function MediaDetailScreen() {
     router.back();
   };
 
+  // 캐러셀 스크롤 핸들러
+  const handleCarouselScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / CAROUSEL_IMAGE_WIDTH);
+    if (index !== currentImageIndex && index >= 0 && index < displayImages.length) {
+      setCurrentImageIndex(index);
+    }
+  };
+
+  // 이전 이미지로 이동
+  const goToPrevious = () => {
+    if (currentImageIndex > 0) {
+      const newIndex = currentImageIndex - 1;
+      setCurrentImageIndex(newIndex);
+      carouselRef.current?.scrollTo({
+        x: newIndex * CAROUSEL_IMAGE_WIDTH,
+        animated: true,
+      });
+    }
+  };
+
+  // 다음 이미지로 이동
+  const goToNext = () => {
+    if (currentImageIndex < displayImages.length - 1) {
+      const newIndex = currentImageIndex + 1;
+      setCurrentImageIndex(newIndex);
+      carouselRef.current?.scrollTo({
+        x: newIndex * CAROUSEL_IMAGE_WIDTH,
+        animated: true,
+      });
+    }
+  };
+
+  // 표시할 이미지 목록 (그룹 이미지가 있으면 그룹, 없으면 단일)
+  const displayImages = groupImages.length > 0
+    ? groupImages
+    : media
+      ? [{ id: media.id, download_url: media.download_url, thumbnail_url: media.thumbnail_url || '' }]
+      : [];
+
   const formatDateTime = (dateStr: string) => {
     const date = new Date(dateStr);
     const year = date.getFullYear();
@@ -72,6 +140,25 @@ export default function MediaDetailScreen() {
     const period = hours >= 12 ? '오후' : '오전';
     const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
     return `${year}년 ${month}월 ${day}일 ${period} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
+  };
+
+  // 감정 이모지 헬퍼
+  const getEmotionEmoji = (emotion: string): string => {
+    const emotionMap: Record<string, string> = {
+      '기쁨': '😊',
+      '평온': '😌',
+      '사랑': '❤️',
+      '감사': '🙏',
+      '놀람': '😮',
+      '불안': '😰',
+      '슬픔': '😢',
+      '분노': '😠',
+      '몰입': '🎯',
+      '생각': '🤔',
+      '피곤': '😫',
+      '아픔': '🤕',
+    };
+    return emotionMap[emotion] || '😶';
   };
 
   if (loading) {
@@ -95,29 +182,152 @@ export default function MediaDetailScreen() {
     );
   }
 
+  // 편집 화면으로 이동
+  const handleEdit = () => {
+    router.push({
+      pathname: '/upload',
+      params: {
+        editMode: 'true',
+        mediaId: id,
+        groupId: media?.group_id || '',
+      },
+    });
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.headerSpacer} />
-        <Text style={styles.headerTitle}>상세보기</Text>
-        <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-          <Ionicons name="close" size={24} color={colors.text.primary} />
+        <TouchableOpacity style={styles.headerButton} onPress={handleClose}>
+          <Ionicons name="chevron-back" size={24} color={colors.text.primary} />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>상세보기</Text>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.headerButton} onPress={handleEdit}>
+            <Ionicons name="pencil" size={20} color={colors.text.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerButton} onPress={handleClose}>
+            <Ionicons name="close" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
+      {/* Image Carousel - 세로 스크롤과 분리하여 스와이프 충돌 방지 */}
+      <View style={styles.carouselWrapper}>
+        <ScrollView
+          ref={carouselRef}
+          horizontal={true}
+          pagingEnabled={true}
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={handleCarouselScroll}
+          scrollEventThrottle={16}
+          style={{ width: CAROUSEL_IMAGE_WIDTH }}
+        >
+          {displayImages.map((img, index) => (
+            <View key={img.id || index} style={styles.carouselImageContainer}>
+              <Image
+                source={{ uri: img.download_url || img.thumbnail_url }}
+                style={styles.carouselImage}
+                resizeMode="contain"
+              />
+            </View>
+          ))}
+        </ScrollView>
+
+        {/* 좌측 버튼 (이전) */}
+        {displayImages.length > 1 && currentImageIndex > 0 && (
+          <Pressable
+            style={[styles.carouselButton, styles.carouselButtonLeft]}
+            onPress={goToPrevious}
+          >
+            <Ionicons name="chevron-back" size={28} color="#fff" />
+          </Pressable>
+        )}
+
+        {/* 우측 버튼 (다음) */}
+        {displayImages.length > 1 && currentImageIndex < displayImages.length - 1 && (
+          <Pressable
+            style={[styles.carouselButton, styles.carouselButtonRight]}
+            onPress={goToNext}
+          >
+            <Ionicons name="chevron-forward" size={28} color="#fff" />
+          </Pressable>
+        )}
+
+        {/* Pagination Dots */}
+        {displayImages.length > 1 && (
+          <View style={styles.paginationContainer}>
+            {displayImages.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.paginationDot,
+                  index === currentImageIndex && styles.paginationDotActive,
+                ]}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+
+      {/* 분석 정보 등 나머지 컨텐츠 */}
       <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
+        style={styles.detailContent}
+        contentContainerStyle={styles.detailContentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Image */}
-        <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: media.download_url }}
-            style={styles.image}
-            resizeMode="cover"
-          />
+        {/* 감정 + 강도 */}
+        {media.emotion && (
+          <View style={styles.emotionSection}>
+            <Text style={styles.emotionText}>
+              {getEmotionEmoji(media.emotion)} {media.emotion}
+            </Text>
+            {media.intensity && (
+              <View style={styles.intensityBar}>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.intensityDot,
+                      i <= media.intensity! && styles.intensityDotActive,
+                    ]}
+                  />
+                ))}
+                <Text style={styles.intensityText}>({media.intensity}/5)</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* 제목 */}
+        {media.title && (
+          <View style={styles.userSection}>
+            <Text style={styles.titleText}>{media.title}</Text>
+          </View>
+        )}
+
+        {/* 내용 */}
+        {media.content && (
+          <View style={styles.userSection}>
+            <Text style={styles.userSectionLabel}>내용</Text>
+            <Text style={styles.contentText}>{media.content}</Text>
+          </View>
+        )}
+
+        {/* 메모 */}
+        {media.memo && (
+          <View style={styles.userSection}>
+            <Text style={styles.userSectionLabel}>메모</Text>
+            <Text style={styles.memoText}>{media.memo}</Text>
+          </View>
+        )}
+
+        {/* 등록일 */}
+        <View style={styles.userSection}>
+          <Text style={styles.userSectionLabel}>등록일</Text>
+          <Text style={styles.dateText}>
+            {formatDateTime(media.created_at)}
+          </Text>
         </View>
 
         {/* AI Caption */}
@@ -280,12 +490,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[2],
   },
-  headerSpacer: {
+  headerButton: {
     width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerTitle: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
     color: colors.text.primary,
   },
   closeButton: {
@@ -300,17 +519,74 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 20,
   },
+  carouselWrapper: {
+    width: SCREEN_WIDTH,
+    backgroundColor: colors.neutral[1],
+    position: 'relative',
+  },
+  carouselImageContainer: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH * 0.75, // 4:3 비율
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  carouselImage: {
+    width: '100%',
+    height: '100%',
+  },
+  carouselButton: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -24, // 버튼 높이의 절반
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  carouselButtonLeft: {
+    left: 12,
+  },
+  carouselButtonRight: {
+    right: 12,
+  },
+  detailContent: {
+    flex: 1,
+  },
+  detailContentContainer: {
+    padding: 20,
+    paddingBottom: 100,
+  },
+  // 기존 스타일 유지 (단일 이미지용)
   imageContainer: {
     width: IMAGE_SIZE,
     height: IMAGE_SIZE,
     borderRadius: 24,
     overflow: 'hidden',
     backgroundColor: colors.neutral[2],
-    marginBottom: 24,
   },
   image: {
     width: '100%',
     height: '100%',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 8,
+  },
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.neutral[3],
+  },
+  paginationDotActive: {
+    backgroundColor: colors.brand.primary,
+    width: 24,
   },
   section: {
     marginBottom: 24,
@@ -413,6 +689,73 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.neutral[5],
+  },
+  // 사용자 입력 정보 스타일
+  emotionSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[2],
+    marginBottom: 16,
+  },
+  emotionText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text.primary,
+  },
+  intensityBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  intensityDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.neutral[3],
+  },
+  intensityDotActive: {
+    backgroundColor: colors.brand.primary,
+  },
+  intensityText: {
+    fontSize: 12,
+    color: colors.text.secondary,
+    marginLeft: 4,
+  },
+  userSection: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[2],
+    marginBottom: 8,
+  },
+  userSectionLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.text.secondary,
+    marginBottom: 6,
+  },
+  titleText: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.text.primary,
+    lineHeight: 28,
+  },
+  contentText: {
+    fontSize: 16,
+    color: colors.text.primary,
+    lineHeight: 24,
+  },
+  memoText: {
+    fontSize: 16,
+    color: colors.text.primary,
+    lineHeight: 24,
+  },
+  dateText: {
+    fontSize: 14,
+    color: colors.text.secondary,
   },
   bottomContainer: {
     position: 'absolute',

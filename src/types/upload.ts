@@ -64,3 +64,31 @@ export interface UploadItem {
   error?: string;
   mediaId?: string;
 }
+
+// ========== Group Upload Types ==========
+
+export interface GroupUploadItem {
+  upload_id: string;
+  storage_key: string;
+  sha256: string;
+}
+
+export interface GroupUploadCompleteRequest {
+  items: GroupUploadItem[];
+  primary_index?: number;
+  analysis_mode?: 'light' | 'precision';
+}
+
+export interface GroupUploadCompleteResponse {
+  group_id: string;
+  primary_media_id: string;
+  total_images: number;
+  images: Array<{
+    media_id: string;
+    storage_key: string;
+    is_primary: string;
+  }>;
+  analysis_job_id?: string;
+  status: string;
+  message: string;
+}

@@ -32,3 +32,11 @@ export interface AuthState {
   isLoading: boolean;
   error: string | null;
 }
+
+export interface UserStats {
+  total_photos: number;
+  total_albums: number;
+  total_groups: number;
+  storage_used_bytes: number;
+  storage_used_formatted: string;
+}

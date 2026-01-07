@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { AuthResponse, GoogleAuthRequest, User } from '../types/auth';
+import type { AuthResponse, GoogleAuthRequest, User, UserStats } from '../types/auth';
 
 export const authApi = {
   /**
@@ -52,6 +52,14 @@ export const authApi = {
    */
   async devLogin(email: string = 'test@marzlog.com'): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>('/auth/dev-login', { email });
+    return response.data;
+  },
+
+  /**
+   * 사용자 통계 조회
+   */
+  async getUserStats(): Promise<UserStats> {
+    const response = await apiClient.get<UserStats>('/auth/me/stats');
     return response.data;
   },
 };

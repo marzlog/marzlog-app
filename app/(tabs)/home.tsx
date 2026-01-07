@@ -53,6 +53,8 @@ interface ScheduleItem {
   time: string;
   imageUrl: string;
   mediaId: string;
+  groupId?: string;
+  groupCount?: number;
 }
 
 export default function HomeScreen() {
@@ -97,9 +99,9 @@ export default function HomeScreen() {
     }
 
     try {
-      console.log('[Home] Calling timelineApi.getTimeline...');
-      // 기본값 limit=50 사용 (500은 백엔드에서 422 에러 발생)
-      const response = await timelineApi.getTimeline();
+      console.log('[Home] Calling timelineApi.getTimeline with limit=50...');
+      // 명시적으로 limit=50 지정 (500은 백엔드에서 422 에러 발생)
+      const response = await timelineApi.getTimeline(50, 0);
       console.log('[Home] API Response - total:', response.total, 'items:', response.items.length);
       console.log('[Home] First 3 items:', response.items.slice(0, 3).map(item => ({
         id: item.id,
@@ -141,11 +143,13 @@ export default function HomeScreen() {
 
     const mapped: ScheduleItem[] = filtered.map((item) => ({
       id: item.id,
-      title: item.media?.ai_analysis?.description || '제목 없음',
-      location: item.media?.ai_analysis?.location?.name,
+      title: item.caption || '제목 없음',
+      location: undefined,
       time: formatTime(item.created_at),
       imageUrl: item.media?.download_url || item.media?.thumbnail_url || '',
       mediaId: item.media_id,
+      groupId: item.media?.group_id || undefined,
+      groupCount: item.media?.group_count || undefined,
     }));
 
     setSchedules(mapped);
@@ -183,6 +187,33 @@ export default function HomeScreen() {
     Alert.alert('알림', '알림 기능은 곧 추가될 예정입니다.');
   };
 
+  // 지원하는 이미지 형식
+  const SUPPORTED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+  const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'];
+
+  // 이미지 형식 검증
+  const isImageSupported = (mimeType?: string, uri?: string): boolean => {
+    if (mimeType && SUPPORTED_MIME_TYPES.includes(mimeType.toLowerCase())) {
+      return true;
+    }
+    if (uri) {
+      const extension = uri.split('.').pop()?.toLowerCase() || '';
+      if (SUPPORTED_EXTENSIONS.includes(extension)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // 알림 (웹/모바일 모두 지원)
+  const showAlert = (message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(message);
+    } else {
+      Alert.alert('알림', message);
+    }
+  };
+
   // 갤러리에서 선택 후 업로드 화면으로 이동
   const handlePickFromGallery = async () => {
     setShowUploadModal(false);
@@ -192,17 +223,39 @@ export default function HomeScreen() {
       console.log('[Gallery] Picked items:', pickedItems);
 
       if (pickedItems && pickedItems.length > 0) {
-        console.log('[Gallery] Navigating to /upload with', pickedItems.length, 'images');
-        router.push({
-          pathname: '/upload',
-          params: { images: JSON.stringify(pickedItems) },
+        // 지원하는 형식만 필터링
+        const validItems: typeof pickedItems = [];
+        const invalidFiles: string[] = [];
+
+        pickedItems.forEach(item => {
+          if (isImageSupported(item.mimeType, item.uri)) {
+            validItems.push(item);
+          } else {
+            invalidFiles.push(item.filename || item.uri.split('/').pop() || 'unknown');
+          }
         });
+
+        // 지원하지 않는 형식 경고
+        if (invalidFiles.length > 0) {
+          showAlert(`지원하지 않는 형식이 제외되었습니다:\n${invalidFiles.join(', ')}\n\nJPG, PNG, WebP, HEIC만 업로드 가능합니다.`);
+        }
+
+        // 유효한 이미지가 있으면 업로드 화면으로 이동
+        if (validItems.length > 0) {
+          console.log('[Gallery] Navigating to /upload with', validItems.length, 'valid images');
+          router.push({
+            pathname: '/upload',
+            params: { images: JSON.stringify(validItems) },
+          });
+        } else if (invalidFiles.length > 0) {
+          console.log('[Gallery] No valid images after filtering');
+        }
       } else {
         console.log('[Gallery] No items selected or picker cancelled');
       }
     } catch (error) {
       console.error('[Gallery] Error:', error);
-      Alert.alert('오류', '이미지를 선택하는 중 오류가 발생했습니다.');
+      showAlert('이미지를 선택하는 중 오류가 발생했습니다.');
     }
   };
 
@@ -306,6 +359,7 @@ export default function HomeScreen() {
                 location={schedule.location}
                 time={schedule.time}
                 imageUrl={schedule.imageUrl}
+                groupCount={schedule.groupCount}
                 onPress={() => handlePhotoPress(schedule.mediaId)}
               />
             ))

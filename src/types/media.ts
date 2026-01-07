@@ -44,4 +44,14 @@ export interface MediaDetail {
   download_url: string;
   thumbnail_url: string | null;
   analysis_status: string | null;
+  // 그룹 관련 필드
+  group_id?: string | null;
+  is_primary?: string | null;
+  group_count?: number | null;
+  // 편집 가능한 필드들
+  title?: string | null;
+  content?: string | null;
+  memo?: string | null;
+  emotion?: string | null;
+  intensity?: number | null;
 }

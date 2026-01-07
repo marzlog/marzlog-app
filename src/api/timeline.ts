@@ -23,6 +23,10 @@ export interface MediaInfo {
   };
   taken_at: string;
   created_at: string;
+  // 그룹 관련 필드
+  group_id?: string | null;
+  is_primary?: string | null;  // 'true' | 'false'
+  group_count?: number | null;  // 그룹 내 이미지 수
 }
 
 // 타임라인 아이템 (실제 API 구조)
@@ -52,6 +56,28 @@ export interface TimelineStats {
   storage_used: string;
 }
 
+// 그룹 이미지 응답 타입
+export interface GroupImageItem {
+  id: string;
+  storage_key: string;
+  download_url: string;
+  thumbnail_url: string;
+  is_primary: string;
+  metadata?: Record<string, any>;
+  taken_at?: string | null;
+  created_at?: string | null;
+  caption?: string | null;
+  tags?: string[];
+}
+
+export interface GroupImagesResponse {
+  group_id: string;
+  total: number;
+  primary_image: GroupImageItem | null;
+  additional_images: GroupImageItem[];
+  items: GroupImageItem[];
+}
+
 export const timelineApi = {
   async getTimeline(limit = 50, offset = 0): Promise<TimelineResponse> {
     const response = await apiClient.get<TimelineResponse>('/timeline', {
@@ -62,6 +88,12 @@ export const timelineApi = {
 
   async getStats(): Promise<TimelineStats> {
     const response = await apiClient.get<TimelineStats>('/timeline/stats');
+    return response.data;
+  },
+
+  // 그룹의 모든 이미지 조회
+  async getGroupImages(groupId: string): Promise<GroupImagesResponse> {
+    const response = await apiClient.get<GroupImagesResponse>(`/timeline/group/${groupId}`);
     return response.data;
   },
 };

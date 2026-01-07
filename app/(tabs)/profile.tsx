@@ -1,21 +1,60 @@
 import { useColorScheme } from '@/components/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@src/store/authStore';
-import React from 'react';
+import { useSettingsStore, type ThemeMode, type AIMode } from '@src/store/settingsStore';
+import { authApi } from '@src/api/auth';
+import type { UserStats } from '@src/types/auth';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
 
 export default function ProfileScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const systemColorScheme = useColorScheme();
   const { user, logout } = useAuthStore();
+  const {
+    themeMode,
+    autoUploadEnabled,
+    aiMode,
+    notificationsEnabled,
+    setThemeMode,
+    setAutoUploadEnabled,
+    setAIMode,
+    setNotificationsEnabled,
+    loadSettings,
+  } = useSettingsStore();
+
+  // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
+  const isDark = themeMode === 'system'
+    ? systemColorScheme === 'dark'
+    : themeMode === 'dark';
+  const [stats, setStats] = useState<UserStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    loadStats();
+    loadSettings();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      setStatsLoading(true);
+      const userStats = await authApi.getUserStats();
+      setStats(userStats);
+    } catch (error) {
+      console.error('Failed to load stats:', error);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     if (Platform.OS === 'web') {
@@ -40,14 +79,6 @@ export default function ProfileScreen() {
         ]
       );
     }
-  };
-
-  // Mock statistics
-  const stats = {
-    totalPhotos: 638,
-    totalAlbums: 12,
-    totalSearches: 156,
-    storageUsed: '2.4 GB',
   };
 
   return (
@@ -87,32 +118,38 @@ export default function ProfileScreen() {
         <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
           통계
         </Text>
-        <View style={styles.statsGrid}>
-          <StatItem
-            icon="images-outline"
-            label="사진"
-            value={stats.totalPhotos.toString()}
-            isDark={isDark}
-          />
-          <StatItem
-            icon="albums-outline"
-            label="앨범"
-            value={stats.totalAlbums.toString()}
-            isDark={isDark}
-          />
-          <StatItem
-            icon="search-outline"
-            label="검색"
-            value={stats.totalSearches.toString()}
-            isDark={isDark}
-          />
-          <StatItem
-            icon="cloud-outline"
-            label="저장 공간"
-            value={stats.storageUsed}
-            isDark={isDark}
-          />
-        </View>
+        {statsLoading ? (
+          <View style={styles.statsLoading}>
+            <ActivityIndicator size="small" color="#6366F1" />
+          </View>
+        ) : (
+          <View style={styles.statsGrid}>
+            <StatItem
+              icon="images-outline"
+              label="사진"
+              value={stats?.total_photos?.toString() || '0'}
+              isDark={isDark}
+            />
+            <StatItem
+              icon="albums-outline"
+              label="앨범"
+              value={stats?.total_albums?.toString() || '0'}
+              isDark={isDark}
+            />
+            <StatItem
+              icon="layers-outline"
+              label="그룹"
+              value={stats?.total_groups?.toString() || '0'}
+              isDark={isDark}
+            />
+            <StatItem
+              icon="cloud-outline"
+              label="저장 공간"
+              value={stats?.storage_used_formatted || '0 B'}
+              isDark={isDark}
+            />
+          </View>
+        )}
       </View>
 
       {/* Settings */}
@@ -125,44 +162,78 @@ export default function ProfileScreen() {
           icon="notifications-outline"
           label="알림 설정"
           isDark={isDark}
-          onPress={() => { }}
+          onPress={() => setNotificationsEnabled(!notificationsEnabled)}
+          rightElement={
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={setNotificationsEnabled}
+              trackColor={{ false: '#D1D5DB', true: '#6366F1' }}
+              thumbColor="#FFFFFF"
+            />
+          }
         />
         <SettingsItem
           icon="cloud-upload-outline"
           label="자동 업로드"
           isDark={isDark}
-          onPress={() => { }}
+          onPress={() => setAutoUploadEnabled(!autoUploadEnabled)}
           rightElement={
-            <View style={styles.toggleOn}>
-              <Text style={styles.toggleText}>켜짐</Text>
-            </View>
+            <Switch
+              value={autoUploadEnabled}
+              onValueChange={setAutoUploadEnabled}
+              trackColor={{ false: '#D1D5DB', true: '#6366F1' }}
+              thumbColor="#FFFFFF"
+            />
           }
         />
         <SettingsItem
           icon="sparkles-outline"
           label="AI 분석 모드"
           isDark={isDark}
-          onPress={() => { }}
+          onPress={() => {
+            const modes: AIMode[] = ['fast', 'precise'];
+            const currentIndex = modes.indexOf(aiMode);
+            const nextMode = modes[(currentIndex + 1) % modes.length];
+            setAIMode(nextMode);
+          }}
           rightElement={
-            <Text style={styles.settingValue}>정밀</Text>
+            <Text style={styles.settingValue}>
+              {aiMode === 'fast' ? '빠름' : '정밀'}
+            </Text>
           }
         />
         <SettingsItem
           icon="moon-outline"
           label="다크 모드"
           isDark={isDark}
-          onPress={() => { }}
+          onPress={() => {
+            const modes: ThemeMode[] = ['system', 'light', 'dark'];
+            const currentIndex = modes.indexOf(themeMode);
+            const nextMode = modes[(currentIndex + 1) % modes.length];
+            setThemeMode(nextMode);
+          }}
           rightElement={
-            <Text style={styles.settingValue}>시스템</Text>
+            <Text style={styles.settingValue}>
+              {themeMode === 'system' ? '시스템' : themeMode === 'dark' ? '다크' : '라이트'}
+            </Text>
           }
         />
         <SettingsItem
           icon="language-outline"
           label="언어"
           isDark={isDark}
-          onPress={() => { }}
+          onPress={() => {
+            // TODO: i18n 라이브러리 연동 필요
+            if (Platform.OS === 'web') {
+              window.alert('다국어 지원은 준비 중입니다.');
+            } else {
+              Alert.alert('준비 중', '다국어 지원은 준비 중입니다.');
+            }
+          }}
           rightElement={
-            <Text style={styles.settingValue}>한국어</Text>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonText}>준비 중</Text>
+            </View>
           }
         />
       </View>
@@ -245,7 +316,12 @@ function SettingsItem({
   rightElement?: React.ReactNode;
 }) {
   return (
-    <TouchableOpacity style={styles.settingsItem} onPress={onPress}>
+    <TouchableOpacity
+      style={styles.settingsItem}
+      onPress={onPress}
+      activeOpacity={0.7}
+      delayPressIn={100}
+    >
       <View style={styles.settingsItemLeft}>
         <Ionicons name={icon} size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
         <Text style={[styles.settingsLabel, isDark && styles.textLight]}>{label}</Text>
@@ -341,6 +417,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+  statsLoading: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   statItem: {
     alignItems: 'center',
   },
@@ -396,6 +477,17 @@ const styles = StyleSheet.create({
   toggleText: {
     fontSize: 12,
     color: '#16A34A',
+    fontWeight: '500',
+  },
+  comingSoonBadge: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  comingSoonText: {
+    fontSize: 12,
+    color: '#9CA3AF',
     fontWeight: '500',
   },
   logoutButton: {

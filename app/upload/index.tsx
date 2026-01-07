@@ -4,13 +4,13 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   Pressable,
   TextInput,
   StatusBar,
   Alert,
   ActivityIndicator,
   Switch,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,10 +18,22 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { colors } from '@/src/theme';
 import { useImageUpload, ImagePickerItem } from '@/src/hooks/useImageUpload';
 import { ImageSelector, EmotionPicker, IntensitySlider } from '@/src/components/upload';
+import { getMediaDetail, updateMedia } from '@/src/api/media';
+import { timelineApi } from '@/src/api/timeline';
 
 export default function UploadScreen() {
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams();
+  const params = useLocalSearchParams<{
+    images?: string;
+    editMode?: string;
+    mediaId?: string;
+    groupId?: string;
+  }>();
+
+  // 편집 모드 확인
+  const isEditMode = params.editMode === 'true';
+  const mediaId = params.mediaId;
+  const groupId = params.groupId;
 
   const [images, setImages] = useState<ImagePickerItem[]>([]);
   const [primaryImageIndex, setPrimaryImageIndex] = useState(0);
@@ -32,8 +44,9 @@ export default function UploadScreen() {
   const [showMemo, setShowMemo] = useState(false);
   const [memo, setMemo] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { startUpload, pickFromGallery } = useImageUpload();
+  const { startUpload, startGroupUpload, addToExistingGroup, pickFromGallery } = useImageUpload();
 
   // 현재 시간
   const getCurrentTime = () => {
@@ -45,27 +58,153 @@ export default function UploadScreen() {
     return `${displayHours}시 ${minutes.toString().padStart(2, '0')}분 (${period})`;
   };
 
-  // params에서 이미지 데이터 받기
+  // 편집 모드일 때 기존 데이터 로드
   useEffect(() => {
+    if (isEditMode && mediaId) {
+      loadExistingData();
+    }
+  }, [isEditMode, mediaId]);
+
+  const loadExistingData = async () => {
+    if (!mediaId) return;
+
+    setIsLoading(true);
+    try {
+      console.log('[Upload] Loading existing data for mediaId:', mediaId);
+
+      // 미디어 상세 조회
+      const mediaDetail = await getMediaDetail(mediaId);
+      console.log('[Upload] Loaded media detail:', mediaDetail);
+
+      // 폼에 데이터 설정
+      setTitle(mediaDetail.title || '');
+      setContent(mediaDetail.content || '');
+      setMemo(mediaDetail.memo || '');
+      if (mediaDetail.memo) setShowMemo(true);
+      setSelectedEmotion(mediaDetail.emotion || null);
+      setIntensity(mediaDetail.intensity || 3);
+
+      // 이미지 설정
+      const loadedImages: ImagePickerItem[] = [];
+
+      // 그룹 이미지가 있으면 로드
+      if (groupId) {
+        try {
+          const groupData = await timelineApi.getGroupImages(groupId);
+          if (groupData.items && groupData.items.length > 0) {
+            groupData.items.forEach((img: any, idx: number) => {
+              loadedImages.push({
+                id: img.id,
+                uri: img.download_url || img.thumbnail_url,
+                filename: `image_${idx}.jpg`,
+                fileSize: 0,
+                mimeType: 'image/jpeg',
+                width: 0,
+                height: 0,
+                status: 'done',
+                progress: 100,
+                isExisting: true, // 기존 이미지 표시
+              } as ImagePickerItem & { isExisting?: boolean });
+            });
+            // 대표 이미지 인덱스 찾기
+            const primaryIdx = groupData.items.findIndex((img: any) => img.is_primary === 'true');
+            if (primaryIdx >= 0) setPrimaryImageIndex(primaryIdx);
+          }
+        } catch (e) {
+          console.log('[Upload] No group images or error:', e);
+        }
+      }
+
+      // 그룹 이미지가 없으면 단일 이미지
+      if (loadedImages.length === 0 && mediaDetail.download_url) {
+        loadedImages.push({
+          id: mediaDetail.id,
+          uri: mediaDetail.download_url,
+          filename: 'image.jpg',
+          fileSize: 0,
+          mimeType: 'image/jpeg',
+          width: 0,
+          height: 0,
+          status: 'done',
+          progress: 100,
+          isExisting: true,
+        } as ImagePickerItem & { isExisting?: boolean });
+      }
+
+      setImages(loadedImages);
+      console.log('[Upload] Loaded images:', loadedImages.length);
+
+    } catch (error) {
+      console.error('[Upload] Failed to load existing data:', error);
+      showAlert('데이터를 불러오는데 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // params에서 이미지 데이터 받기 (새 등록 모드에서만)
+  useEffect(() => {
+    if (isEditMode) return; // 편집 모드에서는 건너뛰기
+
+    console.log('[Upload] useEffect - params:', params);
+    console.log('[Upload] useEffect - params.images:', params.images);
+
     if (params.images) {
       try {
         const parsedImages = JSON.parse(params.images as string);
+        console.log('[Upload] Parsed images:', parsedImages);
+        console.log('[Upload] Parsed images count:', parsedImages.length);
         setImages(parsedImages);
       } catch (e) {
-        console.error('Failed to parse images:', e);
+        console.error('[Upload] Failed to parse images:', e);
       }
+    } else {
+      console.log('[Upload] No images in params');
     }
-  }, [params.images]);
+  }, [params.images, isEditMode]);
+
+  // ========== 유틸리티 함수 (웹/모바일 모두 지원) ==========
+
+  // 알림 다이얼로그
+  const showAlert = (message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(message);
+    } else {
+      Alert.alert('알림', message);
+    }
+  };
+
+  // 확인 다이얼로그
+  const showConfirm = (message: string, onConfirm: () => void) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) {
+        onConfirm();
+      }
+    } else {
+      Alert.alert('확인', message, [
+        { text: '아니오', style: 'cancel' },
+        { text: '예', onPress: onConfirm },
+      ]);
+    }
+  };
+
+  // 뒤로가기
+  const goBack = () => {
+    console.log('[Upload] goBack - Platform:', Platform.OS);
+    router.push('/(tabs)/home');
+  };
+
+  // ========== 이미지 핸들러 ==========
 
   const handleAddMoreImages = async () => {
-    const remainingSlots = 9 - images.length;
+    const remainingSlots = 5 - images.length;
     if (remainingSlots <= 0) {
-      Alert.alert('알림', '최대 9장까지 추가할 수 있습니다.');
+      showAlert('최대 5장까지 추가할 수 있습니다. (대표 1장 + 서브 4장)');
       return;
     }
     const pickedItems = await pickFromGallery(true);
     if (pickedItems && pickedItems.length > 0) {
-      const newImages = [...images, ...pickedItems].slice(0, 9);
+      const newImages = [...images, ...pickedItems].slice(0, 5);
       setImages(newImages);
     }
   };
@@ -84,64 +223,99 @@ export default function UploadScreen() {
     setPrimaryImageIndex(index);
   };
 
-  // 뒤로가기 또는 홈으로 이동
-  const goBack = () => {
-    console.log('[Upload] goBack called, canGoBack:', router.canGoBack());
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/(tabs)/home');
-    }
-  };
-
-  const handleBack = () => {
-    console.log('[Upload] handleBack called');
+  // 취소 버튼 핸들러
+  const handleCancel = () => {
+    console.log('[Upload] handleCancel');
     if (images.length > 0 || title || content || memo) {
-      Alert.alert(
-        '등록 취소',
-        '작성 중인 내용이 삭제됩니다. 취소하시겠습니까?',
-        [
-          { text: '계속 작성', style: 'cancel' },
-          { text: '취소', style: 'destructive', onPress: goBack },
-        ]
-      );
+      showConfirm('작성 중인 내용이 삭제됩니다. 취소하시겠습니까?', goBack);
     } else {
       goBack();
     }
   };
 
-  const handleSubmit = async () => {
-    console.log('[Upload] handleSubmit called, images:', images.length);
+  // 수정 처리
+  const handleUpdate = async () => {
+    if (!mediaId) return;
 
+    console.log('[Upload] ===== handleUpdate START =====');
+    setIsSubmitting(true);
+
+    try {
+      // 1. 새 이미지가 있으면 그룹에 추가
+      const newImages = images.filter((img: any) => !img.isExisting);
+      if (newImages.length > 0 && groupId) {
+        console.log('[Upload] Adding', newImages.length, 'new images to group:', groupId);
+        const addResult = await addToExistingGroup(groupId, newImages);
+        if (!addResult) {
+          showAlert('새 이미지 추가 중 오류가 발생했습니다.');
+          setIsSubmitting(false);
+          return;
+        }
+        console.log('[Upload] New images added successfully');
+      }
+
+      // 2. 메타데이터 업데이트
+      const updateData = {
+        title: title || undefined,
+        content: content || undefined,
+        memo: memo || undefined,
+        emotion: selectedEmotion || undefined,
+        intensity: intensity,
+      };
+
+      console.log('[Upload] Update data:', updateData);
+      const result = await updateMedia(mediaId, updateData);
+      console.log('[Upload] Update result:', result);
+
+      showAlert('수정되었습니다.');
+      router.back();
+    } catch (error) {
+      console.error('[Upload] Update error:', error);
+      showAlert('수정 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // 등록 버튼 핸들러
+  const handleSubmit = async () => {
+    console.log('[Upload] ===== handleSubmit START =====');
+    console.log('[Upload] isEditMode:', isEditMode);
+    console.log('[Upload] images:', images);
+    console.log('[Upload] images.length:', images.length);
+    console.log('[Upload] primaryImageIndex:', primaryImageIndex);
+
+    // 편집 모드일 때는 수정 처리
+    if (isEditMode) {
+      await handleUpdate();
+      return;
+    }
+
+    // 새 등록 모드
     if (images.length === 0) {
-      Alert.alert('알림', '사진을 추가해주세요.');
+      console.log('[Upload] No images - showing alert');
+      showAlert('사진을 추가해주세요.');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      // 대표 이미지를 첫 번째로 정렬
-      const sortedImages = [...images];
-      if (primaryImageIndex > 0) {
-        const [primaryImage] = sortedImages.splice(primaryImageIndex, 1);
-        sortedImages.unshift(primaryImage);
-      }
-
-      console.log('[Upload] Starting upload...');
-      const results = await startUpload(sortedImages);
-      console.log('[Upload] Upload results:', results.length);
-
-      if (results.length > 0) {
-        console.log('[Upload] Navigating to home...');
-        router.replace('/(tabs)/home');
+      if (images.length === 1) {
+        // 단일 이미지: 기존 업로드 방식
+        console.log('[Upload] Single image upload');
+        const results = await startUpload(images);
+        console.log('[Upload] Upload completed, results:', results.length);
       } else {
-        // 업로드 실패해도 홈으로 이동 (취소된 경우)
-        console.log('[Upload] No results, going back...');
-        goBack();
+        // 여러 이미지: 그룹 업로드
+        console.log('[Upload] Group upload with', images.length, 'images, primary:', primaryImageIndex);
+        const result = await startGroupUpload(images, primaryImageIndex);
+        console.log('[Upload] Group upload completed:', result?.group_id);
       }
+
+      router.push('/(tabs)/home');
     } catch (error) {
-      console.error('[Upload] Error:', error);
-      Alert.alert('오류', '업로드 중 오류가 발생했습니다.');
+      console.error('[Upload] Upload error:', error);
+      showAlert('업로드 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
     }
@@ -154,14 +328,16 @@ export default function UploadScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable
+          onPress={() => {
+            console.log('[Upload] Back button pressed!');
+            handleCancel();
+          }}
           style={({ pressed }) => [
-            styles.headerButton,
+            styles.backButton,
             pressed && styles.buttonPressed,
           ]}
-          onPress={handleBack}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="chevron-back" size={24} color={colors.text.primary} />
+          <Ionicons name="chevron-back" size={28} color={colors.text.primary} />
         </Pressable>
         <View style={styles.headerSpacer} />
         <Pressable style={styles.headerButton}>
@@ -169,16 +345,27 @@ export default function UploadScreen() {
         </Pressable>
       </View>
 
+      {/* 로딩 중일 때 */}
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={colors.brand.primary} />
+          <Text style={styles.loadingText}>데이터 로딩 중...</Text>
+        </View>
+      )}
+
+      {/* Scrollable Content */}
       <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.contentContainer}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {/* Title and Time */}
         <View style={styles.titleSection}>
-          <Text style={styles.mainTitle}>오늘의 일상을 등록하세요!</Text>
-          <Text style={styles.timeText}>{getCurrentTime()}</Text>
+          <Text style={styles.mainTitle}>
+            {isEditMode ? '일상 수정하기' : '오늘의 일상을 등록하세요!'}
+          </Text>
+          {!isEditMode && <Text style={styles.timeText}>{getCurrentTime()}</Text>}
         </View>
 
         {/* Image Selector */}
@@ -188,7 +375,7 @@ export default function UploadScreen() {
           onAddImages={handleAddMoreImages}
           onRemoveImage={handleRemoveImage}
           onSetPrimary={handleSetPrimary}
-          maxImages={9}
+          maxImages={5}
         />
 
         {/* Emotion Picker */}
@@ -197,7 +384,7 @@ export default function UploadScreen() {
           onSelect={setSelectedEmotion}
         />
 
-        {/* Intensity Slider (감정 선택 후 표시) */}
+        {/* Intensity Slider */}
         {selectedEmotion && (
           <IntensitySlider
             value={intensity}
@@ -259,38 +446,42 @@ export default function UploadScreen() {
             />
           </View>
         )}
-
-        {/* Bottom Spacer */}
-        <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Bottom Buttons */}
-      <View style={[styles.bottomContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+      {/* Bottom Buttons - ScrollView 밖에 배치 (position: absolute 제거) */}
+      <View style={[styles.bottomButtons, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        {/* 취소 버튼 */}
         <Pressable
+          onPress={() => {
+            console.log('[Upload] Cancel button pressed!');
+            handleCancel();
+          }}
+          disabled={isSubmitting}
           style={({ pressed }) => [
             styles.cancelButton,
-            pressed && styles.buttonPressed,
+            pressed && styles.cancelButtonPressed,
           ]}
-          onPress={handleBack}
-          disabled={isSubmitting}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Text style={styles.cancelButtonText}>취소</Text>
         </Pressable>
+
+        {/* 등록/수정 버튼 */}
         <Pressable
+          onPress={() => {
+            console.log('[Upload] Submit button pressed!');
+            handleSubmit();
+          }}
+          disabled={isSubmitting || (!isEditMode && images.length === 0)}
           style={({ pressed }) => [
             styles.submitButton,
-            (isSubmitting || images.length === 0) && styles.submitButtonDisabled,
-            pressed && !isSubmitting && images.length > 0 && styles.buttonPressed,
+            (isSubmitting || (!isEditMode && images.length === 0)) && styles.submitButtonDisabled,
+            pressed && !isSubmitting && (isEditMode || images.length > 0) && styles.submitButtonPressed,
           ]}
-          onPress={handleSubmit}
-          disabled={isSubmitting || images.length === 0}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           {isSubmitting ? (
-            <ActivityIndicator size="small" color={colors.text.inverse} />
+            <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>등록</Text>
+            <Text style={styles.submitButtonText}>{isEditMode ? '수정' : '등록'}</Text>
           )}
         </Pressable>
       </View>
@@ -309,6 +500,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 8,
+    backgroundColor: colors.background,
+  },
+  backButton: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerButton: {
     width: 44,
@@ -319,11 +517,17 @@ const styles = StyleSheet.create({
   headerSpacer: {
     flex: 1,
   },
-  content: {
+  buttonPressed: {
+    opacity: 0.5,
+    backgroundColor: colors.neutral[2],
+    borderRadius: 24,
+  },
+  scrollView: {
     flex: 1,
   },
-  contentContainer: {
+  scrollContent: {
     padding: 20,
+    paddingBottom: 20,
   },
   titleSection: {
     marginBottom: 24,
@@ -355,7 +559,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 14,
-    fontWeight: '400',
     color: colors.text.primary,
   },
   contentInput: {
@@ -364,7 +567,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 14,
-    fontWeight: '400',
     color: colors.text.primary,
     minHeight: 100,
   },
@@ -391,25 +593,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 14,
-    fontWeight: '400',
     color: colors.text.primary,
     minHeight: 80,
   },
-  bottomContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+  // Bottom Buttons - position: absolute 제거!
+  bottomButtons: {
     flexDirection: 'row',
     gap: 12,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
     backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.neutral[2],
-    zIndex: 100,
-  },
-  buttonPressed: {
-    opacity: 0.7,
   },
   cancelButton: {
     flex: 1,
@@ -419,6 +614,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  cancelButtonPressed: {
+    backgroundColor: colors.neutral[3],
+  },
   cancelButtonText: {
     fontSize: 16,
     fontWeight: '600',
@@ -427,17 +625,33 @@ const styles = StyleSheet.create({
   submitButton: {
     flex: 1,
     height: 56,
-    backgroundColor: colors.text.primary,
+    backgroundColor: colors.brand.primary,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   submitButtonDisabled: {
-    opacity: 0.5,
+    backgroundColor: colors.neutral[3],
+  },
+  submitButtonPressed: {
+    backgroundColor: '#E55A50',
   },
   submitButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text.inverse,
+    color: '#fff',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text.secondary,
   },
 });

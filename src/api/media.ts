@@ -28,8 +28,31 @@ export async function deleteMedia(mediaId: string): Promise<{ success: boolean }
   return response.data;
 }
 
+/**
+ * 미디어 수정용 데이터 타입
+ */
+export interface MediaUpdateData {
+  title?: string;
+  content?: string;
+  memo?: string;
+  emotion?: string;
+  intensity?: number;
+}
+
+/**
+ * 미디어 정보 수정
+ */
+export async function updateMedia(
+  mediaId: string,
+  data: MediaUpdateData
+): Promise<{ success: boolean; id: string; message: string }> {
+  const response = await apiClient.put(`/media/${mediaId}`, data);
+  return response.data;
+}
+
 export default {
   getMediaDetail,
   getMediaAnalysis,
   deleteMedia,
+  updateMedia,
 };
