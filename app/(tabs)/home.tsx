@@ -22,6 +22,7 @@ import timelineApi, { TimelineItem } from '@/src/api/timeline';
 import { useAuthStore } from '@/src/store/authStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { useColorScheme } from '@/components/useColorScheme';
 
 // 시간 포맷
 const formatTime = (dateStr: string) => {
@@ -63,6 +64,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const { accessToken } = useAuthStore();
   const { t } = useTranslation();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
@@ -279,11 +282,11 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+    <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? '#111827' : colors.background} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, isDark && styles.headerDark]}>
         <View style={styles.topAppBar}>
           <View style={styles.logoContainer}>
             <Logo size={32} showText={true} />
@@ -291,7 +294,7 @@ export default function HomeScreen() {
 
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.iconButton} onPress={handleSearchPress}>
-              <Ionicons name="search" size={24} color={colors.text.primary} />
+              <Ionicons name="search" size={24} color={isDark ? '#F9FAFB' : colors.text.primary} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
@@ -299,13 +302,13 @@ export default function HomeScreen() {
               disabled={isUploading}
             >
               {isUploading ? (
-                <ActivityIndicator size="small" color={colors.text.primary} />
+                <ActivityIndicator size="small" color={isDark ? '#F9FAFB' : colors.text.primary} />
               ) : (
-                <Ionicons name="add" size={24} color={colors.text.primary} />
+                <Ionicons name="add" size={24} color={isDark ? '#F9FAFB' : colors.text.primary} />
               )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton} onPress={handleNotificationPress}>
-              <Ionicons name="notifications-outline" size={24} color={colors.text.primary} />
+              <Ionicons name="notifications-outline" size={24} color={isDark ? '#F9FAFB' : colors.text.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -414,8 +417,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  containerDark: {
+    backgroundColor: '#111827',
+  },
   header: {
     backgroundColor: colors.background,
+  },
+  headerDark: {
+    backgroundColor: '#111827',
   },
   topAppBar: {
     height: 64,

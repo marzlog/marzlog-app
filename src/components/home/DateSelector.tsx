@@ -8,6 +8,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme';
+import { useTranslation } from '@/src/hooks/useTranslation';
+import { useColorScheme } from '@/components/useColorScheme';
 
 const { width } = Dimensions.get('window');
 const DAY_SIZE = (width - 48) / 7;
@@ -20,14 +22,19 @@ interface DateSelectorProps {
   datesWithPhotos?: Set<string>; // 'YYYY-MM-DD' format
 }
 
-const DAY_NAMES_SHORT = ['일', '월', '화', '수', '목', '금', '토'];
-const DAY_NAMES_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
 export function DateSelector({
   selectedDate,
   onDateSelect,
   datesWithPhotos = new Set(),
 }: DateSelectorProps) {
+  const { t, language } = useTranslation();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  // 동적으로 요일 이름 가져오기
+  const DAY_NAMES_SHORT = t('date.weekdaysShort') as unknown as string[];
+  const DAY_NAMES_EN = t('date.weekdaysEn') as unknown as string[];
+  const MONTHS = t('date.months') as unknown as string[];
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
 
@@ -107,8 +114,11 @@ export function DateSelector({
     }
   };
 
-  const formatMonthYear = () => {
-    return `${currentMonth.getFullYear()}년 ${currentMonth.getMonth() + 1}월`;
+  const formatMonthYear = (date: Date = currentMonth) => {
+    if (language === 'ko') {
+      return `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
+    }
+    return `${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
   };
 
   // 주간 뷰 렌더링
@@ -119,6 +129,7 @@ export function DateSelector({
           key={index}
           style={[
             styles.weekDayItem,
+            isDark && styles.weekDayItemDark,
             isSelected(date) && styles.weekDayItemSelected,
           ]}
           onPress={() => handleDatePress(date)}
@@ -127,6 +138,7 @@ export function DateSelector({
           <Text
             style={[
               styles.weekDayName,
+              isDark && styles.textLight,
               isSelected(date) && styles.weekDayNameSelected,
             ]}
           >
@@ -135,6 +147,7 @@ export function DateSelector({
           <Text
             style={[
               styles.weekDayNumber,
+              isDark && styles.textLight,
               isSelected(date) && styles.weekDayNumberSelected,
             ]}
           >
@@ -153,15 +166,15 @@ export function DateSelector({
 
   // 월간 뷰 렌더링
   const renderMonthView = () => (
-    <View style={styles.monthContainer}>
+    <View style={[styles.monthContainer, isDark && styles.monthContainerDark]}>
       {/* 월 네비게이션 */}
       <View style={styles.monthNav}>
         <TouchableOpacity onPress={goToPrevMonth} style={styles.monthNavButton}>
-          <Ionicons name="chevron-back" size={20} color={colors.text.primary} />
+          <Ionicons name="chevron-back" size={20} color={isDark ? '#F9FAFB' : colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.monthNavText}>{formatMonthYear()}</Text>
+        <Text style={[styles.monthNavText, isDark && styles.textLight]}>{formatMonthYear()}</Text>
         <TouchableOpacity onPress={goToNextMonth} style={styles.monthNavButton}>
-          <Ionicons name="chevron-forward" size={20} color={colors.text.primary} />
+          <Ionicons name="chevron-forward" size={20} color={isDark ? '#F9FAFB' : colors.text.primary} />
         </TouchableOpacity>
       </View>
 
@@ -195,6 +208,7 @@ export function DateSelector({
               >
                 <Text style={[
                   styles.monthDayText,
+                  isDark && styles.textLight,
                   isSelected(date) && styles.monthDayTextSelected,
                   isToday(date) && !isSelected(date) && styles.todayText,
                   index % 7 === 0 && styles.sundayText,
@@ -216,29 +230,29 @@ export function DateSelector({
 
       {/* 오늘 버튼 */}
       <TouchableOpacity
-        style={styles.todayButton}
+        style={[styles.todayButton, isDark && styles.todayButtonDark]}
         onPress={() => handleDatePress(today)}
       >
-        <Text style={styles.todayButtonText}>오늘</Text>
+        <Text style={[styles.todayButtonText, isDark && styles.textLight]}>{t('date.today')}</Text>
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDark && styles.containerDark]}>
       {/* 헤더: 월/년 + 토글 버튼 */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>
+        <Text style={[styles.headerTitle, isDark && styles.textLight]}>
           {viewMode === 'week'
-            ? `${selectedDate.getFullYear()}년 ${selectedDate.getMonth() + 1}월`
+            ? formatMonthYear(selectedDate)
             : formatMonthYear()
           }
         </Text>
-        <TouchableOpacity style={styles.toggleButton} onPress={toggleViewMode}>
+        <TouchableOpacity style={[styles.toggleButton, isDark && styles.toggleButtonDark]} onPress={toggleViewMode}>
           <Ionicons
             name={viewMode === 'week' ? 'calendar-outline' : 'calendar-number-outline'}
             size={20}
-            color={colors.text.primary}
+            color={isDark ? '#F9FAFB' : colors.text.primary}
           />
         </TouchableOpacity>
       </View>
@@ -252,6 +266,12 @@ export function DateSelector({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
+  },
+  containerDark: {
+    backgroundColor: '#111827',
+  },
+  textLight: {
+    color: '#F9FAFB',
   },
   header: {
     flexDirection: 'row',
@@ -274,6 +294,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[2],
     borderRadius: 20,
   },
+  toggleButtonDark: {
+    backgroundColor: '#374151',
+  },
   // Week View
   weekContainer: {
     flexDirection: 'row',
@@ -291,6 +314,9 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
     gap: 2,
+  },
+  weekDayItemDark: {
+    backgroundColor: '#1F2937',
   },
   weekDayItemSelected: {
     backgroundColor: colors.brand.primary,
@@ -329,6 +355,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 16,
     marginTop: 4,
+  },
+  monthContainerDark: {
+    backgroundColor: '#1F2937',
   },
   monthNav: {
     flexDirection: 'row',
@@ -423,6 +452,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[2],
     borderRadius: 12,
     alignItems: 'center',
+  },
+  todayButtonDark: {
+    backgroundColor: '#374151',
   },
   todayButtonText: {
     fontSize: 14,

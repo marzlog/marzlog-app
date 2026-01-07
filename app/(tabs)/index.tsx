@@ -173,7 +173,9 @@ export default function TimelineScreen() {
     const yesterdayStr = yesterday.toISOString().split('T')[0];
     if (dateStr === todayStr) return t('date.today');
     if (dateStr === yesterdayStr) return t('date.yesterday');
-    return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+    // 언어에 따라 날짜 형식 변경
+    const locale = (t('date.today') === 'Today') ? 'en-US' : 'ko-KR';
+    return date.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
   // AWS S3 presigned URL 직접 사용
