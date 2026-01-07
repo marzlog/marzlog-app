@@ -8,7 +8,9 @@
     "loading": "로딩 중...",
     "error": "오류",
     "success": "성공",
-    "comingSoon": "준비 중"
+    "comingSoon": "준비 중",
+    "retry": "다시 시도",
+    "noTitle": "제목 없음"
   },
   "auth": {
     "login": "로그인",
@@ -16,6 +18,18 @@
     "logoutConfirm": "정말 로그아웃하시겠습니까?",
     "continueWithGoogle": "Google로 계속",
     "continueWithApple": "Apple로 계속"
+  },
+  "login": {
+    "tagline": "AI로 기억하는 당신의 순간",
+    "getStarted": "시작하기",
+    "subtitle": "소셜 계정으로 간편하게 로그인하세요",
+    "termsAgreement": "로그인 시 이용약관 및 개인정보처리방침에 동의합니다",
+    "semanticSearch": "시맨틱 검색",
+    "semanticSearchDesc": "자연어로 사진 검색",
+    "timelineFeature": "타임라인",
+    "timelineFeatureDesc": "시간순 자동 정리",
+    "aiCaptioning": "AI 캡셔닝",
+    "aiCaptioningDesc": "자동 설명 생성"
   },
   "profile": {
     "title": "프로필",
@@ -55,19 +69,39 @@
   "home": {
     "title": "홈",
     "recentPhotos": "최근 사진",
-    "schedule": "일정"
+    "schedule": "일정",
+    "noPhotosToday": "이 날의 사진이 없습니다",
+    "addPhotos": "사진 추가하기"
   },
   "timeline": {
-    "title": "타임라인"
+    "title": "타임라인",
+    "loading": "타임라인 불러오는 중...",
+    "loadError": "타임라인을 불러올 수 없습니다",
+    "photoCount": "장의 사진",
+    "loadingMore": "더 불러오는 중...",
+    "allLoaded": "모든 사진을 불러왔습니다",
+    "noPhotos": "아직 사진이 없습니다",
+    "uploadPrompt": "사진을 업로드하여 추억을 기록하세요"
   },
   "search": {
     "title": "검색",
     "placeholder": "사진 검색..."
   },
   "upload": {
-    "title": "업로드",
+    "title": "사진 추가",
     "selectPhotos": "사진 선택",
-    "uploading": "업로드 중..."
+    "uploading": "업로드 중...",
+    "fromGallery": "갤러리에서 선택",
+    "takePhoto": "카메라로 촬영",
+    "unsupportedFormat": "지원하지 않는 형식이 제외되었습니다"
+  },
+  "notification": {
+    "title": "알림",
+    "comingSoon": "알림 기능은 곧 추가될 예정입니다."
+  },
+  "date": {
+    "today": "오늘",
+    "yesterday": "어제"
   },
   "version": "버전"
 }

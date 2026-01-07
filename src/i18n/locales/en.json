@@ -8,7 +8,9 @@
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",
-    "comingSoon": "Coming Soon"
+    "comingSoon": "Coming Soon",
+    "retry": "Retry",
+    "noTitle": "No Title"
   },
   "auth": {
     "login": "Login",
@@ -16,6 +18,18 @@
     "logoutConfirm": "Are you sure you want to logout?",
     "continueWithGoogle": "Continue with Google",
     "continueWithApple": "Continue with Apple"
+  },
+  "login": {
+    "tagline": "Your moments, remembered by AI",
+    "getStarted": "Get Started",
+    "subtitle": "Sign in easily with your social account",
+    "termsAgreement": "By logging in, you agree to our Terms of Service and Privacy Policy",
+    "semanticSearch": "Semantic Search",
+    "semanticSearchDesc": "Search photos in natural language",
+    "timelineFeature": "Timeline",
+    "timelineFeatureDesc": "Auto-organized by time",
+    "aiCaptioning": "AI Captioning",
+    "aiCaptioningDesc": "Auto-generated descriptions"
   },
   "profile": {
     "title": "Profile",
@@ -55,19 +69,39 @@
   "home": {
     "title": "Home",
     "recentPhotos": "Recent Photos",
-    "schedule": "Schedule"
+    "schedule": "Schedule",
+    "noPhotosToday": "No photos for this day",
+    "addPhotos": "Add Photos"
   },
   "timeline": {
-    "title": "Timeline"
+    "title": "Timeline",
+    "loading": "Loading timeline...",
+    "loadError": "Failed to load timeline",
+    "photoCount": "photos",
+    "loadingMore": "Loading more...",
+    "allLoaded": "All photos loaded",
+    "noPhotos": "No photos yet",
+    "uploadPrompt": "Upload photos to record your memories"
   },
   "search": {
     "title": "Search",
     "placeholder": "Search photos..."
   },
   "upload": {
-    "title": "Upload",
+    "title": "Add Photo",
     "selectPhotos": "Select Photos",
-    "uploading": "Uploading..."
+    "uploading": "Uploading...",
+    "fromGallery": "Choose from Gallery",
+    "takePhoto": "Take Photo",
+    "unsupportedFormat": "Unsupported formats have been excluded"
+  },
+  "notification": {
+    "title": "Notifications",
+    "comingSoon": "Notification feature coming soon."
+  },
+  "date": {
+    "today": "Today",
+    "yesterday": "Yesterday"
   },
   "version": "Version"
 }

@@ -19,6 +19,7 @@ import timelineApi, { TimelineItem } from '@/src/api/timeline';
 import { colors } from '@/src/theme';
 import { useAuthStore } from '@/src/store/authStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
+import { useTranslation } from '@/src/hooks/useTranslation';
 
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 48) / 3;
@@ -36,6 +37,7 @@ export default function TimelineScreen() {
   const isDark = colorScheme === 'dark';
   const { accessToken } = useAuthStore();
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -169,8 +171,8 @@ export default function TimelineScreen() {
     yesterday.setDate(yesterday.getDate() - 1);
     const todayStr = today.toISOString().split('T')[0];
     const yesterdayStr = yesterday.toISOString().split('T')[0];
-    if (dateStr === todayStr) return '오늘';
-    if (dateStr === yesterdayStr) return '어제';
+    if (dateStr === todayStr) return t('date.today');
+    if (dateStr === yesterdayStr) return t('date.yesterday');
     return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
@@ -225,7 +227,7 @@ export default function TimelineScreen() {
     return (
       <View style={[styles.centerContainer, isDark && styles.containerDark]}>
         <ActivityIndicator size="large" color={colors.brand.primary} />
-        <Text style={[styles.loadingText, isDark && styles.textLight]}>타임라인 불러오는 중...</Text>
+        <Text style={[styles.loadingText, isDark && styles.textLight]}>{t('timeline.loading')}</Text>
       </View>
     );
   }
@@ -239,7 +241,7 @@ export default function TimelineScreen() {
           Token: {accessToken ? `${accessToken.substring(0, 20)}...` : 'MISSING'}
         </Text>
         <TouchableOpacity style={styles.retryButton} onPress={() => loadTimeline()}>
-          <Text style={styles.retryButtonText}>다시 시도</Text>
+          <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -273,7 +275,7 @@ export default function TimelineScreen() {
   return (
     <View style={[styles.container, isDark && styles.containerDark]}>
       <View style={styles.statsBar}>
-        <Text key={`stats-${displayCount}-${total}`} style={[styles.statsText, isDark && styles.textLight]}>{displayCount} / {total}장의 사진</Text>
+        <Text key={`stats-${displayCount}-${total}`} style={[styles.statsText, isDark && styles.textLight]}>{displayCount} / {total} {t('timeline.photoCount')}</Text>
       </View>
       <FlatList
         data={dateGroups}
@@ -288,19 +290,19 @@ export default function TimelineScreen() {
           loadingMore ? (
             <View style={styles.loadingMore}>
               <ActivityIndicator size="small" color={colors.brand.primary} />
-              <Text style={styles.loadingMoreText}>더 불러오는 중...</Text>
+              <Text style={styles.loadingMoreText}>{t('timeline.loadingMore')}</Text>
             </View>
           ) : !hasMore && dateGroups.length > 0 ? (
             <View style={styles.endOfList}>
-              <Text style={styles.endOfListText}>모든 사진을 불러왔습니다</Text>
+              <Text style={styles.endOfListText}>{t('timeline.allLoaded')}</Text>
             </View>
           ) : null
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="images-outline" size={64} color={isDark ? '#6B7280' : '#D1D5DB'} />
-            <Text style={[styles.emptyText, isDark && styles.textLight]}>아직 사진이 없습니다</Text>
-            <Text style={styles.emptySubtext}>사진을 업로드하여 추억을 기록하세요</Text>
+            <Text style={[styles.emptyText, isDark && styles.textLight]}>{t('timeline.noPhotos')}</Text>
+            <Text style={styles.emptySubtext}>{t('timeline.uploadPrompt')}</Text>
           </View>
         }
       />
@@ -323,7 +325,7 @@ export default function TimelineScreen() {
         <View style={styles.uploadProgress}>
           <ActivityIndicator size="small" color={colors.brand.primary} />
           <Text style={styles.uploadProgressText}>
-            업로드 중... {uploadStats.done}/{uploadStats.total}
+            {t('upload.uploading')} {uploadStats.done}/{uploadStats.total}
           </Text>
         </View>
       )}
@@ -341,17 +343,17 @@ export default function TimelineScreen() {
           onPress={() => setShowUploadModal(false)}
         >
           <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
-            <Text style={[styles.modalTitle, isDark && styles.textLight]}>사진 추가</Text>
+            <Text style={[styles.modalTitle, isDark && styles.textLight]}>{t('upload.title')}</Text>
 
             <TouchableOpacity style={styles.modalOption} onPress={handlePickFromGallery}>
               <Ionicons name="images-outline" size={24} color={colors.brand.primary} />
-              <Text style={[styles.modalOptionText, isDark && styles.textLight]}>갤러리에서 선택</Text>
+              <Text style={[styles.modalOptionText, isDark && styles.textLight]}>{t('upload.fromGallery')}</Text>
             </TouchableOpacity>
 
             {Platform.OS !== 'web' && (
               <TouchableOpacity style={styles.modalOption} onPress={handleTakePhoto}>
                 <Ionicons name="camera-outline" size={24} color={colors.brand.primary} />
-                <Text style={[styles.modalOptionText, isDark && styles.textLight]}>카메라로 촬영</Text>
+                <Text style={[styles.modalOptionText, isDark && styles.textLight]}>{t('upload.takePhoto')}</Text>
               </TouchableOpacity>
             )}
 
@@ -359,7 +361,7 @@ export default function TimelineScreen() {
               style={styles.modalCancel}
               onPress={() => setShowUploadModal(false)}
             >
-              <Text style={styles.modalCancelText}>취소</Text>
+              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

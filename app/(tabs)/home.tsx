@@ -21,6 +21,7 @@ import { Logo } from '@/src/components/common/Logo';
 import timelineApi, { TimelineItem } from '@/src/api/timeline';
 import { useAuthStore } from '@/src/store/authStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
+import { useTranslation } from '@/src/hooks/useTranslation';
 
 // 시간 포맷
 const formatTime = (dateStr: string) => {
@@ -61,6 +62,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuthStore();
+  const { t } = useTranslation();
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
@@ -143,7 +145,7 @@ export default function HomeScreen() {
 
     const mapped: ScheduleItem[] = filtered.map((item) => ({
       id: item.id,
-      title: item.caption || '제목 없음',
+      title: item.caption || t('common.noTitle'),
       location: undefined,
       time: formatTime(item.created_at),
       imageUrl: item.media?.download_url || item.media?.thumbnail_url || '',
@@ -184,7 +186,7 @@ export default function HomeScreen() {
 
   // 알림 (추후 구현)
   const handleNotificationPress = () => {
-    Alert.alert('알림', '알림 기능은 곧 추가될 예정입니다.');
+    Alert.alert(t('notification.title'), t('notification.comingSoon'));
   };
 
   // 지원하는 이미지 형식
@@ -210,7 +212,7 @@ export default function HomeScreen() {
     if (Platform.OS === 'web') {
       window.alert(message);
     } else {
-      Alert.alert('알림', message);
+      Alert.alert(t('notification.title'), message);
     }
   };
 
@@ -336,18 +338,18 @@ export default function HomeScreen() {
           {loading ? (
             <View style={styles.emptyState}>
               <ActivityIndicator size="large" color={colors.brand.primary} />
-              <Text style={styles.loadingText}>불러오는 중...</Text>
+              <Text style={styles.loadingText}>{t('common.loading')}</Text>
             </View>
           ) : schedules.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="images-outline" size={48} color={colors.neutral[5]} />
-              <Text style={styles.emptyText}>이 날의 사진이 없습니다</Text>
+              <Text style={styles.emptyText}>{t('home.noPhotosToday')}</Text>
               <TouchableOpacity
                 style={styles.uploadButton}
                 onPress={handleAddPress}
               >
                 <Ionicons name="add" size={20} color={colors.text.inverse} />
-                <Text style={styles.uploadButtonText}>사진 추가하기</Text>
+                <Text style={styles.uploadButtonText}>{t('home.addPhotos')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -380,17 +382,17 @@ export default function HomeScreen() {
           onPress={() => setShowUploadModal(false)}
         >
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>사진 추가</Text>
+            <Text style={styles.modalTitle}>{t('upload.title')}</Text>
 
             <TouchableOpacity style={styles.modalOption} onPress={handlePickFromGallery}>
               <Ionicons name="images-outline" size={24} color={colors.brand.primary} />
-              <Text style={styles.modalOptionText}>갤러리에서 선택</Text>
+              <Text style={styles.modalOptionText}>{t('upload.fromGallery')}</Text>
             </TouchableOpacity>
 
             {Platform.OS !== 'web' && (
               <TouchableOpacity style={styles.modalOption} onPress={handleTakePhoto}>
                 <Ionicons name="camera-outline" size={24} color={colors.brand.primary} />
-                <Text style={styles.modalOptionText}>카메라로 촬영</Text>
+                <Text style={styles.modalOptionText}>{t('upload.takePhoto')}</Text>
               </TouchableOpacity>
             )}
 
@@ -398,7 +400,7 @@ export default function HomeScreen() {
               style={styles.modalCancel}
               onPress={() => setShowUploadModal(false)}
             >
-              <Text style={styles.modalCancelText}>취소</Text>
+              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

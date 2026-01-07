@@ -13,11 +13,13 @@ import { Ionicons } from '@expo/vector-icons';
 import GoogleLoginButton from '@src/components/auth/GoogleLoginButton';
 import { router } from 'expo-router';
 import { useAuthStore } from '@src/store/authStore';
+import { useTranslation } from '@src/hooks/useTranslation';
 
 const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const { setError, error } = useAuthStore();
+  const { t } = useTranslation();
 
   const handleSuccess = () => {
     router.replace('/(tabs)');
@@ -30,7 +32,7 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      
+
       <LinearGradient
         colors={['#4F46E5', '#7C3AED', '#9333EA']}
         style={styles.gradient}
@@ -43,47 +45,47 @@ export default function LoginScreen() {
             <Ionicons name="images" size={48} color="#fff" />
           </View>
           <Text style={styles.logoText}>Marzlog</Text>
-          <Text style={styles.tagline}>AI로 기억하는 당신의 순간</Text>
+          <Text style={styles.tagline}>{t('login.tagline')}</Text>
         </View>
 
         {/* Features */}
         <View style={styles.featuresContainer}>
-          <FeatureItem 
-            icon="search" 
-            title="시맨틱 검색" 
-            description="자연어로 사진 검색" 
+          <FeatureItem
+            icon="search"
+            title={t('login.semanticSearch')}
+            description={t('login.semanticSearchDesc')}
           />
-          <FeatureItem 
-            icon="time" 
-            title="타임라인" 
-            description="시간순 자동 정리" 
+          <FeatureItem
+            icon="time"
+            title={t('login.timelineFeature')}
+            description={t('login.timelineFeatureDesc')}
           />
-          <FeatureItem 
-            icon="sparkles" 
-            title="AI 캡셔닝" 
-            description="자동 설명 생성" 
+          <FeatureItem
+            icon="sparkles"
+            title={t('login.aiCaptioning')}
+            description={t('login.aiCaptioningDesc')}
           />
         </View>
 
         {/* Login Card */}
         <View style={styles.loginCard}>
-          <Text style={styles.loginTitle}>시작하기</Text>
+          <Text style={styles.loginTitle}>{t('login.getStarted')}</Text>
           <Text style={styles.loginSubtitle}>
-            소셜 계정으로 간편하게 로그인하세요
+            {t('login.subtitle')}
           </Text>
 
           <View style={styles.buttonContainer}>
-            <GoogleLoginButton 
-              onSuccess={handleSuccess} 
-              onError={handleError} 
+            <GoogleLoginButton
+              onSuccess={handleSuccess}
+              onError={handleError}
             />
-            
+
             {/* Apple Login Button (Placeholder) */}
             <View style={[styles.appleButton, styles.buttonDisabled]}>
               <Ionicons name="logo-apple" size={20} color="#000" />
-              <Text style={styles.appleButtonText}>Continue with Apple</Text>
+              <Text style={styles.appleButtonText}>{t('auth.continueWithApple')}</Text>
               <View style={styles.comingSoonBadge}>
-                <Text style={styles.comingSoonText}>Soon</Text>
+                <Text style={styles.comingSoonText}>{t('common.comingSoon')}</Text>
               </View>
             </View>
           </View>
@@ -96,8 +98,7 @@ export default function LoginScreen() {
           )}
 
           <Text style={styles.termsText}>
-            로그인 시 <Text style={styles.termsLink}>이용약관</Text> 및{' '}
-            <Text style={styles.termsLink}>개인정보처리방침</Text>에 동의합니다
+            {t('login.termsAgreement')}
           </Text>
         </View>
       </LinearGradient>
