@@ -18,6 +18,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getMediaDetail, getMediaAnalysis } from '@/src/api/media';
 import { timelineApi, GroupImageItem } from '@/src/api/timeline';
 import { colors } from '@/src/theme';
+import { useColorScheme } from '@/components/useColorScheme';
+import { useSettingsStore } from '@/src/store/settingsStore';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -28,6 +30,14 @@ export default function MediaDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const systemColorScheme = useColorScheme();
+  const { themeMode } = useSettingsStore();
+
+  // 다크모드 결정
+  const isDark = themeMode === 'system'
+    ? systemColorScheme === 'dark'
+    : themeMode === 'dark';
+
   const [media, setMedia] = useState<MediaDetail | null>(null);
   const [analysis, setAnalysis] = useState<MediaAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
@@ -163,18 +173,18 @@ export default function MediaDetailScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.centered, { paddingTop: insets.top }]}>
+      <View style={[styles.centered, isDark && styles.containerDark, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={colors.brand.primary} />
-        <Text style={styles.loadingText}>불러오는 중...</Text>
+        <Text style={[styles.loadingText, isDark && styles.textLight]}>불러오는 중...</Text>
       </View>
     );
   }
 
   if (error || !media) {
     return (
-      <View style={[styles.centered, { paddingTop: insets.top }]}>
+      <View style={[styles.centered, isDark && styles.containerDark, { paddingTop: insets.top }]}>
         <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
-        <Text style={styles.errorText}>{error || '사진을 찾을 수 없습니다'}</Text>
+        <Text style={[styles.errorText, isDark && styles.textLight]}>{error || '사진을 찾을 수 없습니다'}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadData}>
           <Text style={styles.retryText}>다시 시도</Text>
         </TouchableOpacity>
@@ -195,25 +205,25 @@ export default function MediaDetailScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, isDark && styles.headerDark]}>
         <TouchableOpacity style={styles.headerButton} onPress={handleClose}>
-          <Ionicons name="chevron-back" size={24} color={colors.text.primary} />
+          <Ionicons name="chevron-back" size={24} color={isDark ? '#F9FAFB' : colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>상세보기</Text>
+        <Text style={[styles.headerTitle, isDark && styles.textLight]}>상세보기</Text>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.headerButton} onPress={handleEdit}>
-            <Ionicons name="pencil" size={20} color={colors.text.primary} />
+            <Ionicons name="pencil" size={20} color={isDark ? '#F9FAFB' : colors.text.primary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={handleClose}>
-            <Ionicons name="close" size={24} color={colors.text.primary} />
+            <Ionicons name="close" size={24} color={isDark ? '#F9FAFB' : colors.text.primary} />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Image Carousel - 세로 스크롤과 분리하여 스와이프 충돌 방지 */}
-      <View style={styles.carouselWrapper}>
+      <View style={[styles.carouselWrapper, isDark && styles.carouselWrapperDark]}>
         <ScrollView
           ref={carouselRef}
           horizontal={true}
@@ -278,8 +288,8 @@ export default function MediaDetailScreen() {
       >
         {/* 감정 + 강도 */}
         {media.emotion && (
-          <View style={styles.emotionSection}>
-            <Text style={styles.emotionText}>
+          <View style={[styles.emotionSection, isDark && styles.sectionBorderDark]}>
+            <Text style={[styles.emotionText, isDark && styles.textLight]}>
               {getEmotionEmoji(media.emotion)} {media.emotion}
             </Text>
             {media.intensity && (
@@ -301,31 +311,31 @@ export default function MediaDetailScreen() {
 
         {/* 제목 */}
         {media.title && (
-          <View style={styles.userSection}>
-            <Text style={styles.titleText}>{media.title}</Text>
+          <View style={[styles.userSection, isDark && styles.sectionBorderDark]}>
+            <Text style={[styles.titleText, isDark && styles.textLight]}>{media.title}</Text>
           </View>
         )}
 
         {/* 내용 */}
         {media.content && (
-          <View style={styles.userSection}>
-            <Text style={styles.userSectionLabel}>내용</Text>
-            <Text style={styles.contentText}>{media.content}</Text>
+          <View style={[styles.userSection, isDark && styles.sectionBorderDark]}>
+            <Text style={[styles.userSectionLabel, isDark && styles.textSecondaryDark]}>내용</Text>
+            <Text style={[styles.contentText, isDark && styles.textLight]}>{media.content}</Text>
           </View>
         )}
 
         {/* 메모 */}
         {media.memo && (
-          <View style={styles.userSection}>
-            <Text style={styles.userSectionLabel}>메모</Text>
-            <Text style={styles.memoText}>{media.memo}</Text>
+          <View style={[styles.userSection, isDark && styles.sectionBorderDark]}>
+            <Text style={[styles.userSectionLabel, isDark && styles.textSecondaryDark]}>메모</Text>
+            <Text style={[styles.memoText, isDark && styles.textLight]}>{media.memo}</Text>
           </View>
         )}
 
         {/* 등록일 */}
-        <View style={styles.userSection}>
-          <Text style={styles.userSectionLabel}>등록일</Text>
-          <Text style={styles.dateText}>
+        <View style={[styles.userSection, isDark && styles.sectionBorderDark]}>
+          <Text style={[styles.userSectionLabel, isDark && styles.textSecondaryDark]}>등록일</Text>
+          <Text style={[styles.dateText, isDark && styles.textSecondaryDark]}>
             {formatDateTime(media.created_at)}
           </Text>
         </View>
@@ -335,9 +345,9 @@ export default function MediaDetailScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionIcon}>✨</Text>
-              <Text style={styles.sectionTitle}>AI Caption</Text>
+              <Text style={[styles.sectionTitle, isDark && styles.textLight]}>AI Caption</Text>
             </View>
-            <Text style={styles.captionText}>{analysis.caption}</Text>
+            <Text style={[styles.captionText, isDark && styles.captionTextDark]}>{analysis.caption}</Text>
           </View>
         )}
 
@@ -346,11 +356,11 @@ export default function MediaDetailScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionIcon}>📋</Text>
-              <Text style={styles.sectionTitle}>Scene Type</Text>
+              <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Scene Type</Text>
             </View>
             <View style={styles.chipContainer}>
-              <View style={styles.chip}>
-                <Text style={styles.chipText}>
+              <View style={[styles.chip, isDark && styles.chipDark]}>
+                <Text style={[styles.chipText, isDark && styles.textLight]}>
                   {analysis.scene_type.charAt(0).toUpperCase() + analysis.scene_type.slice(1)}
                 </Text>
               </View>
@@ -363,12 +373,12 @@ export default function MediaDetailScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionIcon}>🏷️</Text>
-              <Text style={styles.sectionTitle}>Tags</Text>
+              <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Tags</Text>
             </View>
             <View style={styles.tagsContainer}>
               {analysis.tags.map((tag, index) => (
-                <View key={index} style={styles.tagChip}>
-                  <Text style={styles.tagText}>{tag}</Text>
+                <View key={index} style={[styles.tagChip, isDark && styles.chipDark]}>
+                  <Text style={[styles.tagText, isDark && styles.textLight]}>{tag}</Text>
                 </View>
               ))}
             </View>
@@ -380,10 +390,10 @@ export default function MediaDetailScreen() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionIcon}>📝</Text>
-              <Text style={styles.sectionTitle}>Detected Text (OCR)</Text>
+              <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Detected Text (OCR)</Text>
             </View>
-            <View style={styles.ocrBox}>
-              <Text style={styles.ocrText}>{analysis.ocr_text}</Text>
+            <View style={[styles.ocrBox, isDark && styles.boxDark]}>
+              <Text style={[styles.ocrText, isDark && styles.textLight]}>{analysis.ocr_text}</Text>
             </View>
           </View>
         )}
@@ -392,29 +402,29 @@ export default function MediaDetailScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionIcon}>📷</Text>
-            <Text style={styles.sectionTitle}>Photo Details</Text>
+            <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Photo Details</Text>
           </View>
-          <View style={styles.detailsContainer}>
+          <View style={[styles.detailsContainer, isDark && styles.boxDark]}>
             {analysis?.exif?.width && analysis?.exif?.height && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Resolution</Text>
-                <Text style={styles.detailValue}>
+                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Resolution</Text>
+                <Text style={[styles.detailValue, isDark && styles.textLight]}>
                   {analysis.exif.width} x {analysis.exif.height}
                 </Text>
               </View>
             )}
             {(analysis?.taken_at || media.taken_at) && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Taken</Text>
-                <Text style={styles.detailValue}>
+                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Taken</Text>
+                <Text style={[styles.detailValue, isDark && styles.textLight]}>
                   {formatDateTime(analysis?.taken_at || media.taken_at!)}
                 </Text>
               </View>
             )}
             {analysis?.exif?.camera_model && (
               <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Camera</Text>
-                <Text style={styles.detailValue}>
+                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Camera</Text>
+                <Text style={[styles.detailValue, isDark && styles.textLight]}>
                   {`${analysis.exif.camera_make || ''} ${analysis.exif.camera_model}`.trim()}
                 </Text>
               </View>
@@ -425,9 +435,9 @@ export default function MediaDetailScreen() {
         {/* Pending Analysis */}
         {!analysis?.caption && (
           <View style={styles.section}>
-            <View style={styles.pendingBox}>
-              <Ionicons name="hourglass-outline" size={24} color={colors.neutral[5]} />
-              <Text style={styles.pendingText}>AI 분석 대기 중...</Text>
+            <View style={[styles.pendingBox, isDark && styles.boxDark]}>
+              <Ionicons name="hourglass-outline" size={24} color={isDark ? '#9CA3AF' : colors.neutral[5]} />
+              <Text style={[styles.pendingText, isDark && styles.textSecondaryDark]}>AI 분석 대기 중...</Text>
             </View>
           </View>
         )}
@@ -437,7 +447,7 @@ export default function MediaDetailScreen() {
       </ScrollView>
 
       {/* Confirm Button - Fixed at bottom */}
-      <View style={[styles.bottomContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+      <View style={[styles.bottomContainer, isDark && styles.bottomContainerDark, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
           <Text style={styles.confirmButtonText}>확인</Text>
         </TouchableOpacity>
@@ -451,11 +461,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  containerDark: {
+    backgroundColor: '#111827',
+  },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.background,
+  },
+  textLight: {
+    color: '#F9FAFB',
+  },
+  textSecondaryDark: {
+    color: '#9CA3AF',
   },
   loadingText: {
     marginTop: 12,
@@ -490,6 +509,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.neutral[2],
   },
+  headerDark: {
+    borderBottomColor: '#374151',
+  },
   headerButton: {
     width: 40,
     height: 40,
@@ -523,6 +545,9 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH,
     backgroundColor: colors.neutral[1],
     position: 'relative',
+  },
+  carouselWrapperDark: {
+    backgroundColor: '#1F2937',
   },
   carouselImageContainer: {
     width: SCREEN_WIDTH,
@@ -613,6 +638,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral[2],
     padding: 16,
     borderRadius: 16,
+  },
+  captionTextDark: {
+    backgroundColor: '#1F2937',
+    color: '#F9FAFB',
+  },
+  chipDark: {
+    backgroundColor: '#1F2937',
+  },
+  boxDark: {
+    backgroundColor: '#1F2937',
+  },
+  sectionBorderDark: {
+    borderBottomColor: '#374151',
   },
   chipContainer: {
     flexDirection: 'row',
@@ -766,6 +804,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.neutral[2],
+  },
+  bottomContainerDark: {
+    backgroundColor: '#111827',
+    borderTopColor: '#374151',
   },
   confirmButton: {
     height: 56,

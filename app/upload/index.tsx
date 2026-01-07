@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { colors } from '@/src/theme';
+import { useColorScheme } from '@/components/useColorScheme';
+import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload, ImagePickerItem } from '@/src/hooks/useImageUpload';
 import { ImageSelector, EmotionPicker, IntensitySlider } from '@/src/components/upload';
 import { getMediaDetail, updateMedia } from '@/src/api/media';
@@ -23,12 +25,19 @@ import { timelineApi } from '@/src/api/timeline';
 
 export default function UploadScreen() {
   const insets = useSafeAreaInsets();
+  const systemColorScheme = useColorScheme();
+  const { themeMode } = useSettingsStore();
   const params = useLocalSearchParams<{
     images?: string;
     editMode?: string;
     mediaId?: string;
     groupId?: string;
   }>();
+
+  // 다크모드 결정
+  const isDark = themeMode === 'system'
+    ? systemColorScheme === 'dark'
+    : themeMode === 'dark';
 
   // 편집 모드 확인
   const isEditMode = params.editMode === 'true';
@@ -322,11 +331,11 @@ export default function UploadScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+    <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? '#111827' : colors.background} />
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, isDark && styles.headerDark]}>
         <Pressable
           onPress={() => {
             console.log('[Upload] Back button pressed!');
@@ -337,19 +346,19 @@ export default function UploadScreen() {
             pressed && styles.buttonPressed,
           ]}
         >
-          <Ionicons name="chevron-back" size={28} color={colors.text.primary} />
+          <Ionicons name="chevron-back" size={28} color={isDark ? '#F9FAFB' : colors.text.primary} />
         </Pressable>
         <View style={styles.headerSpacer} />
         <Pressable style={styles.headerButton}>
-          <Ionicons name="pencil-outline" size={20} color={colors.text.primary} />
+          <Ionicons name="pencil-outline" size={20} color={isDark ? '#F9FAFB' : colors.text.primary} />
         </Pressable>
       </View>
 
       {/* 로딩 중일 때 */}
       {isLoading && (
-        <View style={styles.loadingOverlay}>
+        <View style={[styles.loadingOverlay, isDark && styles.loadingOverlayDark]}>
           <ActivityIndicator size="large" color={colors.brand.primary} />
-          <Text style={styles.loadingText}>데이터 로딩 중...</Text>
+          <Text style={[styles.loadingText, isDark && styles.textLight]}>데이터 로딩 중...</Text>
         </View>
       )}
 
@@ -362,10 +371,10 @@ export default function UploadScreen() {
       >
         {/* Title and Time */}
         <View style={styles.titleSection}>
-          <Text style={styles.mainTitle}>
+          <Text style={[styles.mainTitle, isDark && styles.textLight]}>
             {isEditMode ? '일상 수정하기' : '오늘의 일상을 등록하세요!'}
           </Text>
-          {!isEditMode && <Text style={styles.timeText}>{getCurrentTime()}</Text>}
+          {!isEditMode && <Text style={[styles.timeText, isDark && styles.textSecondaryDark]}>{getCurrentTime()}</Text>}
         </View>
 
         {/* Image Selector */}
@@ -394,11 +403,11 @@ export default function UploadScreen() {
 
         {/* Title Input */}
         <View style={styles.inputSection}>
-          <Text style={styles.inputLabel}>제목</Text>
+          <Text style={[styles.inputLabel, isDark && styles.textLight]}>제목</Text>
           <TextInput
-            style={styles.titleInput}
+            style={[styles.titleInput, isDark && styles.inputDark]}
             placeholder="제목을 입력하세요 (선택)"
-            placeholderTextColor={colors.neutral[5]}
+            placeholderTextColor={isDark ? '#6B7280' : colors.neutral[5]}
             value={title}
             onChangeText={setTitle}
             maxLength={50}
@@ -407,11 +416,11 @@ export default function UploadScreen() {
 
         {/* Content Input */}
         <View style={styles.inputSection}>
-          <Text style={styles.inputLabel}>내용</Text>
+          <Text style={[styles.inputLabel, isDark && styles.textLight]}>내용</Text>
           <TextInput
-            style={styles.contentInput}
+            style={[styles.contentInput, isDark && styles.inputDark]}
             placeholder="오늘의 일상을 기록해보세요 (선택)"
-            placeholderTextColor={colors.neutral[5]}
+            placeholderTextColor={isDark ? '#6B7280' : colors.neutral[5]}
             value={content}
             onChangeText={setContent}
             multiline
@@ -421,13 +430,13 @@ export default function UploadScreen() {
         </View>
 
         {/* Memo Toggle */}
-        <View style={styles.memoToggleContainer}>
-          <Text style={styles.memoToggleText}>메모 작성하기</Text>
+        <View style={[styles.memoToggleContainer, isDark && styles.memoToggleContainerDark]}>
+          <Text style={[styles.memoToggleText, isDark && styles.textLight]}>메모 작성하기</Text>
           <Switch
             value={showMemo}
             onValueChange={setShowMemo}
-            trackColor={{ false: colors.neutral[2], true: colors.brand.primary }}
-            thumbColor={colors.background}
+            trackColor={{ false: isDark ? '#374151' : colors.neutral[2], true: colors.brand.primary }}
+            thumbColor={isDark ? '#F9FAFB' : colors.background}
           />
         </View>
 
@@ -435,9 +444,9 @@ export default function UploadScreen() {
         {showMemo && (
           <View style={styles.memoContainer}>
             <TextInput
-              style={styles.memoInput}
+              style={[styles.memoInput, isDark && styles.inputDark]}
               placeholder="추가 메모를 작성하세요..."
-              placeholderTextColor={colors.neutral[5]}
+              placeholderTextColor={isDark ? '#6B7280' : colors.neutral[5]}
               value={memo}
               onChangeText={setMemo}
               multiline
@@ -449,7 +458,7 @@ export default function UploadScreen() {
       </ScrollView>
 
       {/* Bottom Buttons - ScrollView 밖에 배치 (position: absolute 제거) */}
-      <View style={[styles.bottomButtons, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+      <View style={[styles.bottomButtons, isDark && styles.bottomButtonsDark, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         {/* 취소 버튼 */}
         <Pressable
           onPress={() => {
@@ -459,10 +468,11 @@ export default function UploadScreen() {
           disabled={isSubmitting}
           style={({ pressed }) => [
             styles.cancelButton,
+            isDark && styles.cancelButtonDark,
             pressed && styles.cancelButtonPressed,
           ]}
         >
-          <Text style={styles.cancelButtonText}>취소</Text>
+          <Text style={[styles.cancelButtonText, isDark && styles.textLight]}>취소</Text>
         </Pressable>
 
         {/* 등록/수정 버튼 */}
@@ -494,6 +504,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  containerDark: {
+    backgroundColor: '#111827',
+  },
+  textLight: {
+    color: '#F9FAFB',
+  },
+  textSecondaryDark: {
+    color: '#9CA3AF',
+  },
   header: {
     height: 56,
     flexDirection: 'row',
@@ -501,6 +520,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 8,
     backgroundColor: colors.background,
+  },
+  headerDark: {
+    backgroundColor: '#111827',
   },
   backButton: {
     width: 48,
@@ -570,6 +592,10 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     minHeight: 100,
   },
+  inputDark: {
+    backgroundColor: '#1F2937',
+    color: '#F9FAFB',
+  },
   memoToggleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -578,6 +604,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.neutral[2],
     marginTop: 8,
+  },
+  memoToggleContainerDark: {
+    borderTopColor: '#374151',
   },
   memoToggleText: {
     fontSize: 14,
@@ -606,6 +635,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.neutral[2],
   },
+  bottomButtonsDark: {
+    backgroundColor: '#111827',
+    borderTopColor: '#374151',
+  },
   cancelButton: {
     flex: 1,
     height: 56,
@@ -613,6 +646,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cancelButtonDark: {
+    backgroundColor: '#374151',
   },
   cancelButtonPressed: {
     backgroundColor: colors.neutral[3],
@@ -647,6 +683,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 100,
+  },
+  loadingOverlayDark: {
+    backgroundColor: 'rgba(17, 24, 39, 0.9)',
   },
   loadingText: {
     marginTop: 12,
