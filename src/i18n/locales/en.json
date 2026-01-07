@@ -1,0 +1,73 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "comingSoon": "Coming Soon"
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "logoutConfirm": "Are you sure you want to logout?",
+    "continueWithGoogle": "Continue with Google",
+    "continueWithApple": "Continue with Apple"
+  },
+  "profile": {
+    "title": "Profile",
+    "account": "Account",
+    "googleAccount": "Google Account",
+    "appleAccount": "Apple Account"
+  },
+  "stats": {
+    "title": "Statistics",
+    "photos": "Photos",
+    "albums": "Albums",
+    "groups": "Groups",
+    "storage": "Storage"
+  },
+  "settings": {
+    "title": "Settings",
+    "notifications": "Notifications",
+    "autoUpload": "Auto Upload",
+    "aiMode": "AI Analysis Mode",
+    "aiModeFast": "Fast",
+    "aiModePrecise": "Precise",
+    "darkMode": "Dark Mode",
+    "darkModeSystem": "System",
+    "darkModeLight": "Light",
+    "darkModeDark": "Dark",
+    "language": "Language",
+    "languageKo": "한국어",
+    "languageEn": "English"
+  },
+  "support": {
+    "title": "Support",
+    "help": "Help",
+    "contact": "Contact Us",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy"
+  },
+  "home": {
+    "title": "Home",
+    "recentPhotos": "Recent Photos",
+    "schedule": "Schedule"
+  },
+  "timeline": {
+    "title": "Timeline"
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search photos..."
+  },
+  "upload": {
+    "title": "Upload",
+    "selectPhotos": "Select Photos",
+    "uploading": "Uploading..."
+  },
+  "version": "Version"
+}

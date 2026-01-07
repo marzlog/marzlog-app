@@ -2,6 +2,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@src/store/authStore';
 import { useSettingsStore, type ThemeMode, type AIMode } from '@src/store/settingsStore';
+import { useTranslation } from '@src/hooks/useTranslation';
 import { authApi } from '@src/api/auth';
 import type { UserStats } from '@src/types/auth';
 import React, { useEffect, useState } from 'react';
@@ -20,6 +21,7 @@ import {
 export default function ProfileScreen() {
   const systemColorScheme = useColorScheme();
   const { user, logout } = useAuthStore();
+  const { t, language, changeLanguage } = useTranslation();
   const {
     themeMode,
     autoUploadEnabled,
@@ -58,18 +60,18 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     if (Platform.OS === 'web') {
-      if (window.confirm('정말 로그아웃하시겠습니까?')) {
+      if (window.confirm(t('auth.logoutConfirm'))) {
         logout();
         // _layout.tsx에서 isAuthenticated 변경 감지하여 자동 리디렉션
       }
     } else {
       Alert.alert(
-        '로그아웃',
-        '정말 로그아웃하시겠습니까?',
+        t('auth.logout'),
+        t('auth.logoutConfirm'),
         [
-          { text: '취소', style: 'cancel' },
+          { text: t('common.cancel'), style: 'cancel' },
           {
-            text: '로그아웃',
+            text: t('auth.logout'),
             style: 'destructive',
             onPress: () => {
               logout();
@@ -108,7 +110,7 @@ export default function ProfileScreen() {
             color="#6B7280"
           />
           <Text style={styles.providerText}>
-            {user?.oauth_provider === 'apple' ? 'Apple' : 'Google'} 계정
+            {user?.oauth_provider === 'apple' ? t('profile.appleAccount') : t('profile.googleAccount')}
           </Text>
         </View>
       </View>
@@ -116,7 +118,7 @@ export default function ProfileScreen() {
       {/* Statistics */}
       <View style={[styles.statsContainer, isDark && styles.cardDark]}>
         <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
-          통계
+          {t('stats.title')}
         </Text>
         {statsLoading ? (
           <View style={styles.statsLoading}>
@@ -126,25 +128,25 @@ export default function ProfileScreen() {
           <View style={styles.statsGrid}>
             <StatItem
               icon="images-outline"
-              label="사진"
+              label={t('stats.photos')}
               value={stats?.total_photos?.toString() || '0'}
               isDark={isDark}
             />
             <StatItem
               icon="albums-outline"
-              label="앨범"
+              label={t('stats.albums')}
               value={stats?.total_albums?.toString() || '0'}
               isDark={isDark}
             />
             <StatItem
               icon="layers-outline"
-              label="그룹"
+              label={t('stats.groups')}
               value={stats?.total_groups?.toString() || '0'}
               isDark={isDark}
             />
             <StatItem
               icon="cloud-outline"
-              label="저장 공간"
+              label={t('stats.storage')}
               value={stats?.storage_used_formatted || '0 B'}
               isDark={isDark}
             />
@@ -155,12 +157,12 @@ export default function ProfileScreen() {
       {/* Settings */}
       <View style={[styles.settingsContainer, isDark && styles.cardDark]}>
         <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
-          설정
+          {t('settings.title')}
         </Text>
 
         <SettingsItem
           icon="notifications-outline"
-          label="알림 설정"
+          label={t('settings.notifications')}
           isDark={isDark}
           onPress={() => setNotificationsEnabled(!notificationsEnabled)}
           rightElement={
@@ -174,7 +176,7 @@ export default function ProfileScreen() {
         />
         <SettingsItem
           icon="cloud-upload-outline"
-          label="자동 업로드"
+          label={t('settings.autoUpload')}
           isDark={isDark}
           onPress={() => setAutoUploadEnabled(!autoUploadEnabled)}
           rightElement={
@@ -188,7 +190,7 @@ export default function ProfileScreen() {
         />
         <SettingsItem
           icon="sparkles-outline"
-          label="AI 분석 모드"
+          label={t('settings.aiMode')}
           isDark={isDark}
           onPress={() => {
             const modes: AIMode[] = ['fast', 'precise'];
@@ -198,13 +200,13 @@ export default function ProfileScreen() {
           }}
           rightElement={
             <Text style={styles.settingValue}>
-              {aiMode === 'fast' ? '빠름' : '정밀'}
+              {aiMode === 'fast' ? t('settings.aiModeFast') : t('settings.aiModePrecise')}
             </Text>
           }
         />
         <SettingsItem
           icon="moon-outline"
-          label="다크 모드"
+          label={t('settings.darkMode')}
           isDark={isDark}
           onPress={() => {
             const modes: ThemeMode[] = ['system', 'light', 'dark'];
@@ -214,26 +216,21 @@ export default function ProfileScreen() {
           }}
           rightElement={
             <Text style={styles.settingValue}>
-              {themeMode === 'system' ? '시스템' : themeMode === 'dark' ? '다크' : '라이트'}
+              {themeMode === 'system' ? t('settings.darkModeSystem') : themeMode === 'dark' ? t('settings.darkModeDark') : t('settings.darkModeLight')}
             </Text>
           }
         />
         <SettingsItem
           icon="language-outline"
-          label="언어"
+          label={t('settings.language')}
           isDark={isDark}
           onPress={() => {
-            // TODO: i18n 라이브러리 연동 필요
-            if (Platform.OS === 'web') {
-              window.alert('다국어 지원은 준비 중입니다.');
-            } else {
-              Alert.alert('준비 중', '다국어 지원은 준비 중입니다.');
-            }
+            changeLanguage(language === 'ko' ? 'en' : 'ko');
           }}
           rightElement={
-            <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonText}>준비 중</Text>
-            </View>
+            <Text style={styles.settingValue}>
+              {language === 'ko' ? t('settings.languageKo') : t('settings.languageEn')}
+            </Text>
           }
         />
       </View>
@@ -241,30 +238,30 @@ export default function ProfileScreen() {
       {/* Support */}
       <View style={[styles.settingsContainer, isDark && styles.cardDark]}>
         <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
-          지원
+          {t('support.title')}
         </Text>
 
         <SettingsItem
           icon="help-circle-outline"
-          label="도움말"
+          label={t('support.help')}
           isDark={isDark}
           onPress={() => { }}
         />
         <SettingsItem
           icon="chatbubble-outline"
-          label="문의하기"
+          label={t('support.contact')}
           isDark={isDark}
           onPress={() => { }}
         />
         <SettingsItem
           icon="document-text-outline"
-          label="이용약관"
+          label={t('support.terms')}
           isDark={isDark}
           onPress={() => { }}
         />
         <SettingsItem
           icon="shield-outline"
-          label="개인정보처리방침"
+          label={t('support.privacy')}
           isDark={isDark}
           onPress={() => { }}
         />
@@ -273,11 +270,11 @@ export default function ProfileScreen() {
       {/* Logout Button */}
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-        <Text style={styles.logoutText}>로그아웃</Text>
+        <Text style={styles.logoutText}>{t('auth.logout')}</Text>
       </TouchableOpacity>
 
       {/* Version */}
-      <Text style={styles.versionText}>버전 1.0.0</Text>
+      <Text style={styles.versionText}>{t('version')} 1.0.0</Text>
     </ScrollView>
   );
 }

@@ -1,0 +1,73 @@
+{
+  "common": {
+    "cancel": "취소",
+    "confirm": "확인",
+    "save": "저장",
+    "delete": "삭제",
+    "edit": "편집",
+    "loading": "로딩 중...",
+    "error": "오류",
+    "success": "성공",
+    "comingSoon": "준비 중"
+  },
+  "auth": {
+    "login": "로그인",
+    "logout": "로그아웃",
+    "logoutConfirm": "정말 로그아웃하시겠습니까?",
+    "continueWithGoogle": "Google로 계속",
+    "continueWithApple": "Apple로 계속"
+  },
+  "profile": {
+    "title": "프로필",
+    "account": "계정",
+    "googleAccount": "Google 계정",
+    "appleAccount": "Apple 계정"
+  },
+  "stats": {
+    "title": "통계",
+    "photos": "사진",
+    "albums": "앨범",
+    "groups": "그룹",
+    "storage": "저장 공간"
+  },
+  "settings": {
+    "title": "설정",
+    "notifications": "알림 설정",
+    "autoUpload": "자동 업로드",
+    "aiMode": "AI 분석 모드",
+    "aiModeFast": "빠름",
+    "aiModePrecise": "정밀",
+    "darkMode": "다크 모드",
+    "darkModeSystem": "시스템",
+    "darkModeLight": "라이트",
+    "darkModeDark": "다크",
+    "language": "언어",
+    "languageKo": "한국어",
+    "languageEn": "English"
+  },
+  "support": {
+    "title": "지원",
+    "help": "도움말",
+    "contact": "문의하기",
+    "terms": "이용약관",
+    "privacy": "개인정보처리방침"
+  },
+  "home": {
+    "title": "홈",
+    "recentPhotos": "최근 사진",
+    "schedule": "일정"
+  },
+  "timeline": {
+    "title": "타임라인"
+  },
+  "search": {
+    "title": "검색",
+    "placeholder": "사진 검색..."
+  },
+  "upload": {
+    "title": "업로드",
+    "selectPhotos": "사진 선택",
+    "uploading": "업로드 중..."
+  },
+  "version": "버전"
+}
