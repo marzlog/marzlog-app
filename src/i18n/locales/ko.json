@@ -85,7 +85,16 @@
   },
   "search": {
     "title": "검색",
-    "placeholder": "사진 검색..."
+    "placeholder": "사진 검색 (예: 해변 일몰)",
+    "searching": "검색 중...",
+    "noResults": "검색 결과가 없습니다",
+    "noResultsHint": "다른 검색어로 시도해보세요",
+    "noCaption": "캡션 없음",
+    "relevance": "관련도",
+    "suggestions": "추천 검색어",
+    "aiSearch": "AI 시맨틱 검색",
+    "aiSearchDesc": "자연어로 원하는 사진을 찾아보세요.\n\"작년 여름 해운대\", \"가족과 저녁 식사\" 등",
+    "searchFailed": "검색에 실패했습니다"
   },
   "upload": {
     "title": "사진 추가",

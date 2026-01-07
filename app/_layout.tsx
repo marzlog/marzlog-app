@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuthStore } from '@src/store/authStore';
+import { useSettingsStore } from '@src/store/settingsStore';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -27,8 +28,9 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     ...FontAwesome.font,
   });
-  
+
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
+  const { loadSettings, isLoaded: settingsLoaded } = useSettingsStore();
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
@@ -41,9 +43,10 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
-  // Check auth status on app start
+  // Check auth status and load settings on app start
   useEffect(() => {
     checkAuth();
+    loadSettings();
   }, []);
 
   // Handle navigation based on auth state
@@ -55,7 +58,7 @@ export default function RootLayout() {
     }
   }, [isAuthenticated, isLoading, loaded]);
 
-  if (!loaded || isLoading) {
+  if (!loaded || isLoading || !settingsLoaded) {
     return null;
   }
 

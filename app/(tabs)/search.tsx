@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import searchApi, { SearchResult } from '@/src/api/search';
 import { colors } from '@/src/theme';
+import { useTranslation } from '@/src/hooks/useTranslation';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -19,12 +20,15 @@ import {
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 40) / 2;
 
-const SUGGESTIONS = ['해변 일몰', '산 풍경', '도시 야경', '음식 사진', '가족 모임'];
+const SUGGESTIONS_KO = ['해변 일몰', '산 풍경', '도시 야경', '음식 사진', '가족 모임'];
+const SUGGESTIONS_EN = ['beach sunset', 'mountain landscape', 'city night view', 'food photos', 'family gathering'];
 
 export default function SearchScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
+  const { t, language } = useTranslation();
+  const SUGGESTIONS = language === 'ko' ? SUGGESTIONS_KO : SUGGESTIONS_EN;
 
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -44,7 +48,7 @@ export default function SearchScreen() {
       setResults(response.results);
     } catch (err: any) {
       console.error('Search error:', err);
-      setError(err.message || '검색에 실패했습니다');
+      setError(err.message || t('search.searchFailed'));
       setResults([]);
     } finally {
       setIsSearching(false);
@@ -66,18 +70,18 @@ export default function SearchScreen() {
 
   const renderResultItem = ({ item }: { item: SearchResult }) => (
     <TouchableOpacity
-      style={styles.resultItem}
+      style={[styles.resultItem, isDark && styles.resultItemDark]}
       activeOpacity={0.8}
       onPress={() => handleResultPress(item.media_id)}
     >
       <Image source={{ uri: getImageUrl(item) }} style={styles.resultImage} />
       <View style={styles.resultCaption}>
-        <Text style={styles.captionText} numberOfLines={2}>
-          {item.caption || '캡션 없음'}
+        <Text style={[styles.captionText, isDark && styles.textLight]} numberOfLines={2}>
+          {item.caption || t('search.noCaption')}
         </Text>
         {item.score && (
           <Text style={styles.scoreText}>
-            관련도: {(item.score * 100).toFixed(0)}%
+            {t('search.relevance')}: {(item.score * 100).toFixed(0)}%
           </Text>
         )}
       </View>
@@ -92,7 +96,7 @@ export default function SearchScreen() {
           <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
           <TextInput
             style={[styles.searchInput, isDark && styles.textLight]}
-            placeholder="사진 검색 (예: 해변 일몰)"
+            placeholder={t('search.placeholder')}
             placeholderTextColor="#9CA3AF"
             value={query}
             onChangeText={setQuery}
@@ -112,7 +116,7 @@ export default function SearchScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.brand.primary} />
           <Text style={[styles.loadingText, isDark && styles.textLight]}>
-            검색 중...
+            {t('search.searching')}
           </Text>
         </View>
       ) : error ? (
@@ -123,7 +127,7 @@ export default function SearchScreen() {
       ) : !hasSearched ? (
         <View style={styles.suggestionsContainer}>
           <Text style={[styles.suggestionsTitle, isDark && styles.textLight]}>
-            추천 검색어
+            {t('search.suggestions')}
           </Text>
           <View style={styles.suggestionsList}>
             {SUGGESTIONS.map((suggestion) => (
@@ -144,11 +148,10 @@ export default function SearchScreen() {
             </View>
             <View style={styles.aiTextContainer}>
               <Text style={[styles.aiTitle, isDark && styles.textLight]}>
-                AI 시맨틱 검색
+                {t('search.aiSearch')}
               </Text>
               <Text style={styles.aiDescription}>
-                자연어로 원하는 사진을 찾아보세요.{'\n'}
-                "작년 여름 해운대", "가족과 저녁 식사" 등
+                {t('search.aiSearchDesc')}
               </Text>
             </View>
           </View>
@@ -167,10 +170,10 @@ export default function SearchScreen() {
         <View style={styles.noResultsContainer}>
           <Ionicons name="search-outline" size={64} color="#D1D5DB" />
           <Text style={[styles.noResultsText, isDark && styles.textLight]}>
-            검색 결과가 없습니다
+            {t('search.noResults')}
           </Text>
           <Text style={styles.noResultsSubtext}>
-            다른 검색어로 시도해보세요
+            {t('search.noResultsHint')}
           </Text>
         </View>
       )}
@@ -309,6 +312,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#FFFFFF',
+  },
+  resultItemDark: {
+    backgroundColor: '#1F2937',
   },
   resultImage: {
     width: '100%',

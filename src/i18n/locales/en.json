@@ -85,7 +85,16 @@
   },
   "search": {
     "title": "Search",
-    "placeholder": "Search photos..."
+    "placeholder": "Search photos (e.g., beach sunset)",
+    "searching": "Searching...",
+    "noResults": "No results found",
+    "noResultsHint": "Try a different search term",
+    "noCaption": "No caption",
+    "relevance": "Relevance",
+    "suggestions": "Suggested searches",
+    "aiSearch": "AI Semantic Search",
+    "aiSearchDesc": "Find photos using natural language.\n\"Last summer at the beach\", \"Dinner with family\", etc.",
+    "searchFailed": "Search failed"
   },
   "upload": {
     "title": "Add Photo",
