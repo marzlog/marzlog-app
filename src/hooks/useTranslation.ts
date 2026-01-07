@@ -14,10 +14,11 @@ export function useTranslation() {
     setI18nLanguage(language);
   }
 
-  // 번역 함수
-  const t = useCallback((key: string, options?: object): string => {
-    return i18n.t(key, options);
-  }, [language]);
+  // 번역 함수 - 매번 새로 생성하여 최신 locale 사용
+  const t = (key: string, options?: object): string => {
+    const result = i18n.t(key, options);
+    return result;
+  };
 
   // 언어 변경 함수 (settingsStore와 i18n 모두 업데이트)
   const changeLanguage = useCallback(async (lang: 'ko' | 'en') => {
