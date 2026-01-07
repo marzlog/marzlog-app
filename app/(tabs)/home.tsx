@@ -295,7 +295,7 @@ export default function HomeScreen() {
       <View style={[styles.header, isDark && styles.headerDark]}>
         <View style={styles.topAppBar}>
           <View style={styles.logoContainer}>
-            <Logo size={32} showText={true} />
+            <Logo size={32} showText={true} color={isDark ? '#F9FAFB' : colors.text.primary} />
           </View>
 
           <View style={styles.headerActions}>
