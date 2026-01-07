@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useColorScheme } from '@/components/useColorScheme';
+import { useSettingsStore } from '@/src/store/settingsStore';
 
 const { width } = Dimensions.get('window');
 const DAY_SIZE = (width - 48) / 7;
@@ -28,8 +29,13 @@ export function DateSelector({
   datesWithPhotos = new Set(),
 }: DateSelectorProps) {
   const { t, language } = useTranslation();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const systemColorScheme = useColorScheme();
+  const { themeMode } = useSettingsStore();
+
+  // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
+  const isDark = themeMode === 'system'
+    ? systemColorScheme === 'dark'
+    : themeMode === 'dark';
 
   // 동적으로 요일 이름 가져오기
   const DAY_NAMES_SHORT = t('date.weekdaysShort') as unknown as string[];

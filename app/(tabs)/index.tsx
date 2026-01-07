@@ -18,6 +18,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import timelineApi, { TimelineItem } from '@/src/api/timeline';
 import { colors } from '@/src/theme';
 import { useAuthStore } from '@/src/store/authStore';
+import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 
@@ -33,11 +34,16 @@ interface DateGroup {
 }
 
 export default function TimelineScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const systemColorScheme = useColorScheme();
+  const { themeMode } = useSettingsStore();
   const { accessToken } = useAuthStore();
   const router = useRouter();
   const { t } = useTranslation();
+
+  // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
+  const isDark = themeMode === 'system'
+    ? systemColorScheme === 'dark'
+    : themeMode === 'dark';
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

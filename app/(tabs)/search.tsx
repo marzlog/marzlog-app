@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import searchApi, { SearchResult } from '@/src/api/search';
 import { colors } from '@/src/theme';
+import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import React, { useState } from 'react';
 import {
@@ -24,11 +25,16 @@ const SUGGESTIONS_KO = ['해변 일몰', '산 풍경', '도시 야경', '음식 
 const SUGGESTIONS_EN = ['beach sunset', 'mountain landscape', 'city night view', 'food photos', 'family gathering'];
 
 export default function SearchScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const systemColorScheme = useColorScheme();
+  const { themeMode } = useSettingsStore();
   const router = useRouter();
   const { t, language } = useTranslation();
   const SUGGESTIONS = language === 'ko' ? SUGGESTIONS_KO : SUGGESTIONS_EN;
+
+  // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
+  const isDark = themeMode === 'system'
+    ? systemColorScheme === 'dark'
+    : themeMode === 'dark';
 
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);

@@ -20,6 +20,7 @@ import { ScheduleCard, DateSelector } from '@/src/components/home';
 import { Logo } from '@/src/components/common/Logo';
 import timelineApi, { TimelineItem } from '@/src/api/timeline';
 import { useAuthStore } from '@/src/store/authStore';
+import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -63,9 +64,14 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { accessToken } = useAuthStore();
+  const { themeMode } = useSettingsStore();
   const { t } = useTranslation();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const systemColorScheme = useColorScheme();
+
+  // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
+  const isDark = themeMode === 'system'
+    ? systemColorScheme === 'dark'
+    : themeMode === 'dark';
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);

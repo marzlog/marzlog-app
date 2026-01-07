@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
+import { useSettingsStore } from '@/src/store/settingsStore';
 
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 48) / 2;
@@ -55,8 +56,13 @@ const MOCK_ALBUMS = [
 ];
 
 export default function AlbumsScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const systemColorScheme = useColorScheme();
+  const { themeMode } = useSettingsStore();
+
+  // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
+  const isDark = themeMode === 'system'
+    ? systemColorScheme === 'dark'
+    : themeMode === 'dark';
 
   const renderAlbumItem = ({ item }: { item: typeof MOCK_ALBUMS[0] }) => (
     <TouchableOpacity style={styles.albumItem} activeOpacity={0.8}>
