@@ -8,8 +8,14 @@ import type { MediaDetail, MediaAnalysis } from '../types/media';
  * 미디어 상세 조회
  */
 export async function getMediaDetail(mediaId: string): Promise<MediaDetail> {
-  const response = await apiClient.get<MediaDetail>(`/media/${mediaId}`);
-  return response.data;
+  const response = await apiClient.get<any>(`/media/${mediaId}`);
+  // API returns media_metadata but frontend expects metadata
+  const data = response.data;
+  if (data.media_metadata && !data.metadata) {
+    data.metadata = data.media_metadata;
+    delete data.media_metadata;
+  }
+  return data as MediaDetail;
 }
 
 /**
