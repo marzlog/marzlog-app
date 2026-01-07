@@ -74,7 +74,7 @@ function RootLayoutNav() {
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="upload" options={{ headerShown: false }} />
-        <Stack.Screen name="media/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="media" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>
