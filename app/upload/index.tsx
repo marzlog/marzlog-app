@@ -192,7 +192,7 @@ export default function UploadScreen() {
   // 뒤로가기
   const goBack = () => {
     console.log('[Upload] goBack - Platform:', Platform.OS);
-    router.push('/(tabs)/home');
+    router.push('/(tabs)');
   };
 
   // ========== 이미지 핸들러 ==========
@@ -294,7 +294,7 @@ export default function UploadScreen() {
 
       showAlert('수정되었습니다.');
       // 캐시 문제 방지: 홈으로 이동하여 타임라인 새로고침
-      router.replace('/(tabs)/home');
+      router.replace('/(tabs)');
     } catch (error) {
       console.error('[Upload] Update error:', error);
       showAlert('수정 중 오류가 발생했습니다.');
@@ -338,7 +338,7 @@ export default function UploadScreen() {
         console.log('[Upload] Group upload completed:', result?.group_id);
       }
 
-      router.push('/(tabs)/home');
+      router.push('/(tabs)');
     } catch (error) {
       console.error('[Upload] Upload error:', error);
       showAlert('업로드 중 오류가 발생했습니다.');

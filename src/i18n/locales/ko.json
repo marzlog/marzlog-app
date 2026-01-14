@@ -130,5 +130,19 @@
     "weekdaysEn": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
     "months": ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"]
   },
-  "version": "버전"
+  "version": "버전",
+  "exif": {
+    "noInfo": "촬영 정보 없음",
+    "noInfoDesc": "카카오톡, SNS 등에서 공유된 사진은\n원본 촬영 정보가 제거될 수 있습니다.",
+    "camera": "카메라",
+    "resolution": "해상도",
+    "fileSize": "파일 크기",
+    "taken": "촬영일",
+    "settings": "설정",
+    "focalLength": "초점거리",
+    "flash": "플래시",
+    "flashFired": "발광",
+    "flashNotFired": "발광 안 함",
+    "location": "위치"
+  }
 }

@@ -1,344 +1,457 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
   Text,
-  FlatList,
-  Image,
+  ScrollView,
   TouchableOpacity,
-  Dimensions,
   RefreshControl,
-  ActivityIndicator,
+  StatusBar,
   Modal,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path, Circle } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useColorScheme } from '@/components/useColorScheme';
+import { palette, lightTheme, darkTheme } from '@/src/theme/colors';
+import { ScheduleCard, DateSelector } from '@/src/components/home';
+import { Logo } from '@/src/components/common/Logo';
 import timelineApi, { TimelineItem } from '@/src/api/timeline';
-import { colors } from '@/src/theme';
 import { useAuthStore } from '@/src/store/authStore';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { useColorScheme } from '@/components/useColorScheme';
+import { useDialog } from '@/src/components/ui/Dialog';
 
-const { width } = Dimensions.get('window');
-const ITEM_SIZE = (width - 48) / 3;
-const PAGE_SIZE = 30;
-
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
-
-interface DateGroup {
-  date: string;
-  items: TimelineItem[];
+// Figma 기반 아이콘들
+function SearchIcon({ color = palette.neutral[900] }: { color?: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
 }
 
-export default function TimelineScreen() {
-  const systemColorScheme = useColorScheme();
-  const { themeMode } = useSettingsStore();
-  const { accessToken } = useAuthStore();
+function PlusIcon({ color = palette.neutral[900] }: { color?: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 5V19M5 12H19"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function BellIcon({ color = palette.neutral[900] }: { color?: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function ImageIcon({ color = palette.neutral[500] }: { color?: string }) {
+  return (
+    <Svg width={48} height={48} viewBox="0 0 48 48" fill="none">
+      <Path
+        d="M38 6H10C7.79086 6 6 7.79086 6 10V38C6 40.2091 7.79086 42 10 42H38C40.2091 42 42 40.2091 42 38V10C42 7.79086 40.2091 6 38 6Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M17 20C18.6569 20 20 18.6569 20 17C20 15.3431 18.6569 14 17 14C15.3431 14 14 15.3431 14 17C14 18.6569 15.3431 20 17 20Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M42 30L32 20L10 42"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+// 시간 포맷
+const formatTime = (dateStr: string) => {
+  const date = new Date(dateStr);
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const period = hours >= 12 ? '오후' : '오전';
+  const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+  return `${displayHours}시 ${minutes.toString().padStart(2, '0')}분 (${period})`;
+};
+
+// 날짜 비교 함수 (시간 무시, 날짜만 비교)
+const isSameDay = (date1: Date, date2: Date): boolean => {
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  );
+};
+
+// 날짜를 YYYY-MM-DD 형식으로 변환
+const formatDateKey = (date: Date): string => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
+interface ScheduleItem {
+  id: string;
+  title: string;
+  location?: string;
+  time: string;
+  imageUrl: string;
+  mediaId: string;
+  groupId?: string;
+  groupCount?: number;
+}
+
+export default function HomeScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { accessToken } = useAuthStore();
+  const { themeMode } = useSettingsStore();
   const { t } = useTranslation();
+  const systemColorScheme = useColorScheme();
+  const { alert: showAlert } = useDialog();
 
   // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
 
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [dateGroups, setDateGroups] = useState<DateGroup[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loadedCount, setLoadedCount] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [showUploadModal, setShowUploadModal] = useState(false);
+  const theme = isDark ? darkTheme : lightTheme;
 
-  const allItemsRef = useRef<TimelineItem[]>([]);
-  const offsetRef = useRef(0);
-  const loadingRef = useRef(true);
-  const loadingMoreRef = useRef(false);
-  const hasMoreRef = useRef(true);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [refreshing, setRefreshing] = useState(false);
+  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
+  const [allItems, setAllItems] = useState<TimelineItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   // Upload hook
   const {
-    items: uploadItems,
     isUploading,
-    stats: uploadStats,
     pickFromGallery,
     takePhoto,
-    startUpload,
-    removeItem,
-    reset: resetUpload,
   } = useImageUpload();
 
-  const loadTimeline = useCallback(async (showLoading = true) => {
-    // 토큰이 없으면 API 호출하지 않음
+  // 사진이 있는 날짜 Set (created_at 등록일 기준)
+  const datesWithPhotos = useMemo(() => {
+    const dates = new Set<string>();
+    allItems.forEach((item) => {
+      // created_at (등록일) 기준으로만
+      const createdAt = new Date(item.created_at);
+      dates.add(formatDateKey(createdAt));
+    });
+    console.log('[Home] datesWithPhotos:', Array.from(dates));
+    return dates;
+  }, [allItems]);
+
+  // 전체 타임라인 로드
+  const loadAllItems = useCallback(async () => {
+    console.log('[Home] loadAllItems called, accessToken:', accessToken ? 'EXISTS' : 'MISSING');
+
     if (!accessToken) {
-      console.log('[Timeline] No token, skipping API call');
+      console.log('[Home] No accessToken, skipping API call');
       setLoading(false);
       return;
     }
 
     try {
-      if (showLoading) {
-        loadingRef.current = true;
-        setLoading(true);
-      }
-      setError(null);
-      offsetRef.current = 0;
-      allItemsRef.current = [];
-      loadingMoreRef.current = false;
-      hasMoreRef.current = true;
-
-      const response = await timelineApi.getTimeline(PAGE_SIZE, 0);
-      console.log('[Timeline] API Response - total:', response.total, 'items:', response.items.length);
-      console.log('[Timeline] First 3 items:', response.items.slice(0, 3).map(item => ({
+      console.log('[Home] Calling timelineApi.getTimeline with limit=50...');
+      // 명시적으로 limit=50 지정 (500은 백엔드에서 422 에러 발생)
+      const response = await timelineApi.getTimeline(50, 0);
+      console.log('[Home] API Response - total:', response.total, 'items:', response.items.length);
+      console.log('[Home] First 3 items:', response.items.slice(0, 3).map(item => ({
         id: item.id,
         created_at: item.created_at,
         taken_at: item.media?.taken_at,
       })));
-      setTotal(response.total);
-      allItemsRef.current = response.items;
-      offsetRef.current = response.items.length;
-      setLoadedCount(response.items.length);
-      hasMoreRef.current = response.items.length < response.total;
-      setHasMore(hasMoreRef.current);
-
-      const groups = groupByDate(response.items);
-      setDateGroups(groups);
-    } catch (err: any) {
-      console.error('Timeline load error:', err);
-      setError(err.message || '타임라인을 불러올 수 없습니다');
+      setAllItems(response.items);
+      console.log('[Home] setAllItems called with', response.items.length, 'items');
+    } catch (err) {
+      console.error('[Home] Failed to load all items:', err);
     } finally {
-      loadingRef.current = false;
       setLoading(false);
-      setRefreshing(false);
     }
   }, [accessToken]);
 
-  const loadMore = useCallback(async () => {
-    if (loadingRef.current || loadingMoreRef.current || !hasMoreRef.current) return;
-
-    try {
-      loadingMoreRef.current = true;
-      setLoadingMore(true);
-      const response = await timelineApi.getTimeline(PAGE_SIZE, offsetRef.current);
-
-      if (response.items.length > 0) {
-        allItemsRef.current = [...allItemsRef.current, ...response.items];
-        offsetRef.current += response.items.length;
-        setLoadedCount(allItemsRef.current.length);
-        hasMoreRef.current = allItemsRef.current.length < response.total;
-        setHasMore(hasMoreRef.current);
-
-        const groups = groupByDate(allItemsRef.current);
-        setDateGroups(groups);
-      } else {
-        hasMoreRef.current = false;
-        setHasMore(false);
-      }
-    } catch (err: any) {
-      console.error('Load more error:', err);
-    } finally {
-      loadingMoreRef.current = false;
-      setLoadingMore(false);
-    }
-  }, []);
-
-  const groupByDate = (items: TimelineItem[]): DateGroup[] => {
-    const grouped: Record<string, TimelineItem[]> = {};
-    items.forEach((item) => {
-      // created_at (등록일) 기준으로 그룹핑
-      const date = new Date(item.created_at);
-      const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      if (!grouped[dateKey]) grouped[dateKey] = [];
-      grouped[dateKey].push(item);
-    });
-    return Object.entries(grouped)
-      .sort(([a], [b]) => b.localeCompare(a))
-      .map(([date, items]) => ({ date, items }));
-  };
-
+  // accessToken 변경 감지
   useEffect(() => {
-    loadTimeline();
-  }, [loadTimeline]);
+    console.log('[Home] accessToken changed:', accessToken ? 'EXISTS' : 'MISSING');
+  }, [accessToken]);
 
-  const onRefresh = useCallback(() => {
+  // 선택된 날짜의 타임라인 필터링 (created_at 등록일 기준)
+  useEffect(() => {
+    console.log('[Home] Filtering - selectedDate:', formatDateKey(selectedDate));
+    console.log('[Home] Filtering - allItems count:', allItems.length);
+
+    const filtered = allItems.filter((item) => {
+      // created_at (등록일) 기준으로만 필터링
+      const createdAt = new Date(item.created_at);
+      const isMatch = isSameDay(createdAt, selectedDate);
+
+      if (isMatch) {
+        console.log(`[Home] Match found: id=${item.id}, created_at=${item.created_at}`);
+      }
+
+      return isMatch;
+    });
+
+    console.log('[Home] Filtered count:', filtered.length);
+
+    const mapped: ScheduleItem[] = filtered.map((item) => ({
+      id: item.id,
+      title: item.caption || t('common.noTitle'),
+      location: undefined,
+      time: formatTime(item.created_at),
+      imageUrl: item.media?.download_url || item.media?.thumbnail_url || '',
+      mediaId: item.media_id,
+      groupId: item.media?.group_id || undefined,
+      groupCount: item.media?.group_count || undefined,
+    }));
+
+    setSchedules(mapped);
+    setLoading(false);
+  }, [selectedDate, allItems]);
+
+  // 초기 로드
+  useEffect(() => {
+    console.log('[Home] Initial load useEffect triggered');
+    loadAllItems();
+  }, [loadAllItems]);
+
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    loadTimeline(false);
-  }, [loadTimeline]);
+    await loadAllItems();
+    setRefreshing(false);
+  }, [loadAllItems]);
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const todayStr = today.toISOString().split('T')[0];
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    if (dateStr === todayStr) return t('date.today');
-    if (dateStr === yesterdayStr) return t('date.yesterday');
-    // 언어에 따라 날짜 형식 변경
-    const locale = (t('date.today') === 'Today') ? 'en-US' : 'ko-KR';
-    return date.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
+  const handleDateSelect = (date: Date) => {
+    setSelectedDate(date);
   };
 
-  // AWS S3 presigned URL 직접 사용
-  const getImageUrl = (item: TimelineItem): string => {
-    return item.media?.download_url || item.media?.thumbnail_url || '';
+  // 검색 화면으로 이동
+  const handleSearchPress = () => {
+    router.push('/search');
   };
 
-  // 사진 클릭 → 상세 페이지로 이동
-  const handlePhotoPress = (mediaId: string) => {
-    router.push(`/media/${mediaId}`);
-  };
-
-  // 업로드 관련 핸들러
-  const handleFabPress = () => {
+  // 업로드 모달 열기
+  const handleAddPress = () => {
     setShowUploadModal(true);
   };
 
+  // 알림 (추후 구현)
+  const handleNotificationPress = () => {
+    showAlert(t('notification.title'), t('notification.comingSoon'));
+  };
+
+  // 지원하는 이미지 형식
+  const SUPPORTED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+  const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'];
+
+  // 이미지 형식 검증
+  const isImageSupported = (mimeType?: string, uri?: string): boolean => {
+    if (mimeType && SUPPORTED_MIME_TYPES.includes(mimeType.toLowerCase())) {
+      return true;
+    }
+    if (uri) {
+      const extension = uri.split('.').pop()?.toLowerCase() || '';
+      if (SUPPORTED_EXTENSIONS.includes(extension)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // 갤러리에서 선택 후 업로드 화면으로 이동
   const handlePickFromGallery = async () => {
     setShowUploadModal(false);
-    const pickedItems = await pickFromGallery(true);
-    if (pickedItems && pickedItems.length > 0) {
-      // 선택한 아이템을 직접 전달하여 업로드 시작
-      const results = await startUpload(pickedItems);
-      if (results.length > 0) {
-        // 업로드 완료 후 타임라인 새로고침
-        setTimeout(() => {
-          loadTimeline(false);
-          resetUpload();
-        }, 1000);
+    try {
+      console.log('[Gallery] Starting picker...');
+      const pickedItems = await pickFromGallery(true);
+      console.log('[Gallery] Picked items:', pickedItems);
+
+      if (pickedItems && pickedItems.length > 0) {
+        // 지원하는 형식만 필터링
+        const validItems: typeof pickedItems = [];
+        const invalidFiles: string[] = [];
+
+        pickedItems.forEach(item => {
+          if (isImageSupported(item.mimeType, item.uri)) {
+            validItems.push(item);
+          } else {
+            invalidFiles.push(item.filename || item.uri.split('/').pop() || 'unknown');
+          }
+        });
+
+        // 지원하지 않는 형식 경고
+        if (invalidFiles.length > 0) {
+          showAlert(`지원하지 않는 형식이 제외되었습니다:\n${invalidFiles.join(', ')}\n\nJPG, PNG, WebP, HEIC만 업로드 가능합니다.`);
+        }
+
+        // 유효한 이미지가 있으면 업로드 화면으로 이동
+        if (validItems.length > 0) {
+          console.log('[Gallery] Navigating to /upload with', validItems.length, 'valid images');
+          router.push({
+            pathname: '/upload',
+            params: { images: JSON.stringify(validItems) },
+          });
+        } else if (invalidFiles.length > 0) {
+          console.log('[Gallery] No valid images after filtering');
+        }
+      } else {
+        console.log('[Gallery] No items selected or picker cancelled');
       }
+    } catch (error) {
+      console.error('[Gallery] Error:', error);
+      showAlert('이미지를 선택하는 중 오류가 발생했습니다.');
     }
   };
 
+  // 카메라로 촬영 후 업로드 화면으로 이동
   const handleTakePhoto = async () => {
     setShowUploadModal(false);
     const takenItem = await takePhoto();
     if (takenItem) {
-      // 촬영한 아이템을 직접 전달하여 업로드 시작
-      const results = await startUpload([takenItem]);
-      if (results.length > 0) {
-        // 업로드 완료 후 타임라인 새로고침
-        setTimeout(() => {
-          loadTimeline(false);
-          resetUpload();
-        }, 1000);
-      }
+      router.push({
+        pathname: '/upload',
+        params: { images: JSON.stringify([takenItem]) },
+      });
     }
   };
 
-  if (loading) {
-    return (
-      <View style={[styles.centerContainer, isDark && styles.containerDark]}>
-        <ActivityIndicator size="large" color={colors.brand.primary} />
-        <Text style={[styles.loadingText, isDark && styles.textLight]}>{t('timeline.loading')}</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={[styles.centerContainer, isDark && styles.containerDark]}>
-        <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
-        <Text style={[styles.errorText, isDark && styles.textLight]}>{error}</Text>
-        <Text style={{ color: '#888', fontSize: 12, marginTop: 8 }}>
-          Token: {accessToken ? `${accessToken.substring(0, 20)}...` : 'MISSING'}
-        </Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => loadTimeline()}>
-          <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  const renderDateSection = ({ item }: { item: DateGroup }) => (
-    <View style={styles.dateSection}>
-      <Text style={[styles.dateHeader, isDark && styles.textLight]}>{formatDate(item.date)}</Text>
-      <View style={styles.gridContainer}>
-        {item.items.map((photo) => (
-          <TouchableOpacity
-            key={photo.id}
-            style={styles.gridItem}
-            activeOpacity={0.8}
-            onPress={() => handlePhotoPress(photo.media_id)}
-          >
-            <Image
-              source={{ uri: getImageUrl(photo) }}
-              style={styles.gridImage}
-              resizeMode="cover"
-            />
-          </TouchableOpacity>
-        ))}
-      </View>
-    </View>
-  );
-
-  // dateGroups에서 직접 계산 (React Native Web Text 업데이트 버그 우회)
-  const displayCount = dateGroups.reduce((sum, group) => sum + group.items.length, 0);
+  // 사진 상세 화면으로 이동
+  const handlePhotoPress = (mediaId: string) => {
+    router.push(`/media/${mediaId}`);
+  };
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
-      <View style={styles.statsBar}>
-        <Text key={`stats-${displayCount}-${total}`} style={[styles.statsText, isDark && styles.textLight]}>{displayCount} / {total} {t('timeline.photoCount')}</Text>
-      </View>
-      <FlatList
-        data={dateGroups}
-        keyExtractor={(item) => item.date}
-        renderItem={renderDateSection}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.3}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.brand.primary]} tintColor={colors.brand.primary} />}
-        ListFooterComponent={
-          loadingMore ? (
-            <View style={styles.loadingMore}>
-              <ActivityIndicator size="small" color={colors.brand.primary} />
-              <Text style={styles.loadingMoreText}>{t('timeline.loadingMore')}</Text>
-            </View>
-          ) : !hasMore && dateGroups.length > 0 ? (
-            <View style={styles.endOfList}>
-              <Text style={styles.endOfListText}>{t('timeline.allLoaded')}</Text>
-            </View>
-          ) : null
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="images-outline" size={64} color={isDark ? '#6B7280' : '#D1D5DB'} />
-            <Text style={[styles.emptyText, isDark && styles.textLight]}>{t('timeline.noPhotos')}</Text>
-            <Text style={styles.emptySubtext}>{t('timeline.uploadPrompt')}</Text>
+    <View style={[styles.container, { backgroundColor: theme.background.primary, paddingTop: insets.top }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.background.primary} />
+
+      {/* Header (Figma 기반) */}
+      <View style={[styles.header, { backgroundColor: theme.background.primary }]}>
+        <View style={styles.topAppBar}>
+          <View style={styles.logoContainer}>
+            <Logo size={32} showText={true} color={theme.text.primary} />
           </View>
-        }
-      />
-      {/* FAB 버튼 */}
-      <TouchableOpacity
-        style={[styles.fab, isUploading && styles.fabUploading]}
-        activeOpacity={0.8}
-        onPress={handleFabPress}
-        disabled={isUploading}
-      >
-        {isUploading ? (
-          <ActivityIndicator size="small" color="#fff" />
-        ) : (
-          <Ionicons name="add" size={28} color="#fff" />
-        )}
-      </TouchableOpacity>
 
-      {/* 업로드 진행 상태 */}
-      {isUploading && uploadItems.length > 0 && (
-        <View style={styles.uploadProgress}>
-          <ActivityIndicator size="small" color={colors.brand.primary} />
-          <Text style={styles.uploadProgressText}>
-            {t('upload.uploading')} {uploadStats.done}/{uploadStats.total}
-          </Text>
+          <View style={styles.headerActions}>
+            <TouchableOpacity style={styles.iconButton} onPress={handleSearchPress}>
+              <SearchIcon color={theme.icon.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={handleAddPress}
+              disabled={isUploading}
+            >
+              {isUploading ? (
+                <ActivityIndicator size="small" color={theme.icon.primary} />
+              ) : (
+                <PlusIcon color={theme.icon.primary} />
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconButton} onPress={handleNotificationPress}>
+              <BellIcon color={theme.icon.primary} />
+            </TouchableOpacity>
+          </View>
         </View>
-      )}
+      </View>
 
-      {/* 업로드 모달 */}
+      {/* Content */}
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={palette.primary[500]}
+          />
+        }
+      >
+        {/* Date Selector (주/월 토글) */}
+        <View style={styles.dateSelectorContainer}>
+          <DateSelector
+            selectedDate={selectedDate}
+            onDateSelect={handleDateSelect}
+            datesWithPhotos={datesWithPhotos}
+          />
+        </View>
+
+        {/* Schedule Cards */}
+        <View style={styles.schedulesContainer}>
+          {loading ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator size="large" color={palette.primary[500]} />
+              <Text style={[styles.loadingText, { color: theme.text.secondary }]}>{t('common.loading')}</Text>
+            </View>
+          ) : schedules.length === 0 ? (
+            <View style={styles.emptyState}>
+              <ImageIcon color={theme.icon.secondary} />
+              <Text style={[styles.emptyText, { color: theme.text.secondary }]}>{t('home.noPhotosToday')}</Text>
+              <TouchableOpacity
+                style={[styles.uploadButton, { backgroundColor: palette.primary[500] }]}
+                onPress={handleAddPress}
+              >
+                <PlusIcon color={palette.neutral[0]} />
+                <Text style={[styles.uploadButtonText, { color: palette.neutral[0] }]}>{t('home.addPhotos')}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            schedules.map((schedule) => (
+              <ScheduleCard
+                key={schedule.id}
+                id={schedule.id}
+                title={schedule.title}
+                location={schedule.location}
+                time={schedule.time}
+                imageUrl={schedule.imageUrl}
+                groupCount={schedule.groupCount}
+                onPress={() => handlePhotoPress(schedule.mediaId)}
+                theme={theme}
+              />
+            ))
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Upload Modal */}
       <Modal
         visible={showUploadModal}
         transparent
@@ -346,22 +459,37 @@ export default function TimelineScreen() {
         onRequestClose={() => setShowUploadModal(false)}
       >
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}
           activeOpacity={1}
           onPress={() => setShowUploadModal(false)}
         >
-          <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
-            <Text style={[styles.modalTitle, isDark && styles.textLight]}>{t('upload.title')}</Text>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface.primary }]}>
+            <Text style={[styles.modalTitle, { color: theme.text.primary }]}>{t('upload.title')}</Text>
 
-            <TouchableOpacity style={styles.modalOption} onPress={handlePickFromGallery}>
-              <Ionicons name="images-outline" size={24} color={colors.brand.primary} />
-              <Text style={[styles.modalOptionText, isDark && styles.textLight]}>{t('upload.fromGallery')}</Text>
+            <TouchableOpacity style={[styles.modalOption, { borderBottomColor: theme.border.light }]} onPress={handlePickFromGallery}>
+              <ImageIcon color={palette.primary[500]} />
+              <Text style={[styles.modalOptionText, { color: theme.text.primary }]}>{t('upload.fromGallery')}</Text>
             </TouchableOpacity>
 
             {Platform.OS !== 'web' && (
-              <TouchableOpacity style={styles.modalOption} onPress={handleTakePhoto}>
-                <Ionicons name="camera-outline" size={24} color={colors.brand.primary} />
-                <Text style={[styles.modalOptionText, isDark && styles.textLight]}>{t('upload.takePhoto')}</Text>
+              <TouchableOpacity style={[styles.modalOption, { borderBottomColor: theme.border.light }]} onPress={handleTakePhoto}>
+                <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M23 19C23 19.5304 22.7893 20.0391 22.4142 20.4142C22.0391 20.7893 21.5304 21 21 21H3C2.46957 21 1.96086 20.7893 1.58579 20.4142C1.21071 20.0391 1 19.5304 1 19V8C1 7.46957 1.21071 6.96086 1.58579 6.58579C1.96086 6.21071 2.46957 6 3 6H7L9 3H15L17 6H21C21.5304 6 22.0391 6.21071 22.4142 6.58579C22.7893 6.96086 23 7.46957 23 8V19Z"
+                    stroke={palette.primary[500]}
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <Path
+                    d="M12 17C14.2091 17 16 15.2091 16 13C16 10.7909 14.2091 9 12 9C9.79086 9 8 10.7909 8 13C8 15.2091 9.79086 17 12 17Z"
+                    stroke={palette.primary[500]}
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+                <Text style={[styles.modalOptionText, { color: theme.text.primary }]}>{t('upload.takePhoto')}</Text>
               </TouchableOpacity>
             )}
 
@@ -369,7 +497,7 @@ export default function TimelineScreen() {
               style={styles.modalCancel}
               onPress={() => setShowUploadModal(false)}
             >
-              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+              <Text style={[styles.modalCancelText, { color: theme.text.secondary }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -379,41 +507,111 @@ export default function TimelineScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  containerDark: { backgroundColor: '#111827' },
-  centerContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9FAFB' },
-  loadingText: { marginTop: 16, fontSize: 16, color: '#6B7280' },
-  errorText: { marginTop: 16, fontSize: 16, color: '#374151', textAlign: 'center', paddingHorizontal: 32 },
-  retryButton: { marginTop: 24, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.brand.primary, borderRadius: 8 },
-  retryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  statsBar: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  statsText: { fontSize: 14, color: '#6B7280' },
-  listContent: { paddingVertical: 16 },
-  dateSection: { marginBottom: 24, paddingHorizontal: 16 },
-  dateHeader: { fontSize: 18, fontWeight: '600', color: '#1F2937', marginBottom: 12 },
-  textLight: { color: '#F9FAFB' },
-  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  gridItem: { width: ITEM_SIZE, height: ITEM_SIZE, borderRadius: 8, overflow: 'hidden', backgroundColor: '#E5E7EB' },
-  gridImage: { width: '100%', height: '100%' },
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 },
-  emptyText: { fontSize: 18, fontWeight: '600', color: '#374151', marginTop: 16 },
-  emptySubtext: { fontSize: 14, color: '#9CA3AF', marginTop: 8 },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brand.primary, alignItems: 'center', justifyContent: 'center', shadowColor: colors.brand.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
-  fabUploading: { backgroundColor: '#9CA3AF' },
-  loadingMore: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20, gap: 8 },
-  loadingMoreText: { fontSize: 14, color: '#6B7280' },
-  endOfList: { alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
-  endOfListText: { fontSize: 14, color: '#9CA3AF' },
-  // Upload progress
-  uploadProgress: { position: 'absolute', bottom: 88, right: 20, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 4 },
-  uploadProgressText: { fontSize: 14, color: '#374151', fontWeight: '500' },
-  // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
-  modalContentDark: { backgroundColor: '#1F2937' },
-  modalTitle: { fontSize: 20, fontWeight: '600', color: '#1F2937', marginBottom: 20, textAlign: 'center' },
-  modalOption: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  modalOptionText: { fontSize: 16, color: '#374151' },
-  modalCancel: { marginTop: 16, paddingVertical: 16, alignItems: 'center' },
-  modalCancelText: { fontSize: 16, color: '#6B7280', fontWeight: '500' },
+  container: {
+    flex: 1,
+  },
+  header: {},
+  topAppBar: {
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+  },
+  logoContainer: {
+    paddingLeft: 12,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+  },
+  content: {
+    flex: 1,
+  },
+  contentContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 120,
+    gap: 16,
+  },
+  dateSelectorContainer: {
+    paddingTop: 4,
+  },
+  schedulesContainer: {
+    flex: 1,
+    gap: 12,
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  emptyText: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 8,
+  },
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 360,
+  },
+  uploadButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  modalCancel: {
+    marginTop: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
 });

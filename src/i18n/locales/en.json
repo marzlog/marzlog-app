@@ -130,5 +130,19 @@
     "weekdaysEn": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
     "months": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
   },
-  "version": "Version"
+  "version": "Version",
+  "exif": {
+    "noInfo": "No camera info",
+    "noInfoDesc": "Photos shared via messaging apps or SNS\nmay have camera data removed.",
+    "camera": "Camera",
+    "resolution": "Resolution",
+    "fileSize": "File Size",
+    "taken": "Taken",
+    "settings": "Settings",
+    "focalLength": "Focal Length",
+    "flash": "Flash",
+    "flashFired": "Fired",
+    "flashNotFired": "Not fired",
+    "location": "Location"
+  }
 }

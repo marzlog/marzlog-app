@@ -32,8 +32,8 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
           // 아이콘 매핑
           const iconName = {
-            home: 'home',
-            index: 'book-outline',
+            index: 'home',
+            timeline: 'book-outline',
             profile: 'person-outline',
             search: 'ellipsis-horizontal',
           }[route.name] as keyof typeof Ionicons.glyphMap;
@@ -67,8 +67,8 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
       }}>
-      <Tabs.Screen name="home" options={{ title: '홈' }} />
-      <Tabs.Screen name="index" options={{ title: '타임라인' }} />
+      <Tabs.Screen name="index" options={{ title: '홈' }} />
+      <Tabs.Screen name="timeline" options={{ title: '타임라인' }} />
       <Tabs.Screen name="profile" options={{ title: '프로필' }} />
       <Tabs.Screen name="search" options={{ title: '더보기' }} />
       <Tabs.Screen name="albums" options={{ href: null }} />

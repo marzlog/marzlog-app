@@ -22,11 +22,13 @@ import { colors } from '@/src/theme';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useDialog } from '@/src/components/ui/Dialog';
+import { t } from '@/src/i18n';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IMAGE_SIZE = SCREEN_WIDTH - 40;
-const CAROUSEL_IMAGE_WIDTH = SCREEN_WIDTH; // 캐러셀은 화면 전체 너비 사용
+const CAROUSEL_IMAGE_WIDTH = SCREEN_WIDTH;
+const CAROUSEL_IMAGE_HEIGHT = SCREEN_HEIGHT * 0.45; // 화면 높이의 45%
 
 export default function MediaDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -52,6 +54,10 @@ export default function MediaDetailScreen() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const carouselRef = useRef<ScrollView>(null);
 
+  // GPS 지역명 상태
+  const [locationName, setLocationName] = useState<string | null>(null);
+  const [loadingLocation, setLoadingLocation] = useState(false);
+
   useEffect(() => {
     if (id) {
       loadData();
@@ -71,8 +77,6 @@ export default function MediaDetailScreen() {
         }),
       ]);
 
-      console.log('[MediaDetail] Media data:', JSON.stringify(mediaData, null, 2));
-      console.log('[MediaDetail] Analysis data:', JSON.stringify(analysisData, null, 2));
 
       setMedia(mediaData);
       setAnalysis(analysisData);
@@ -95,6 +99,55 @@ export default function MediaDetailScreen() {
       setLoading(false);
     }
   };
+
+  // GPS 좌표를 지역명으로 변환 (Nominatim API)
+  const reverseGeocode = async (lat: number, lon: number): Promise<string | null> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ko`,
+        {
+          headers: {
+            'User-Agent': 'Marzlog/1.0',
+          },
+        }
+      );
+
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      const address = data.address || {};
+
+      const city = address.city || address.town || address.village || address.county || address.state;
+      const country = address.country;
+
+      if (city && country) {
+        return `${city}, ${country}`;
+      } else if (city || country) {
+        return city || country;
+      }
+      return null;
+    } catch (error) {
+      console.error('Reverse geocoding error:', error);
+      return null;
+    }
+  };
+
+  // GPS 좌표가 있으면 지역명 가져오기
+  useEffect(() => {
+    const fetchLocationName = async () => {
+      const gps = analysis?.exif?.gps;
+      if (gps?.latitude && gps?.longitude) {
+        setLoadingLocation(true);
+        const name = await reverseGeocode(gps.latitude, gps.longitude);
+        setLocationName(name);
+        setLoadingLocation(false);
+      }
+    };
+
+    if (analysis) {
+      fetchLocationName();
+    }
+  }, [analysis]);
 
   const handleClose = () => {
     router.back();
@@ -257,7 +310,7 @@ export default function MediaDetailScreen() {
     setIsDeleting(true);
     try {
       await deleteMedia(id!);
-      router.replace('/(tabs)/home');
+      router.replace('/(tabs)');
     } catch (err) {
       console.error('[MediaDetail] Delete error:', err);
       await alert('삭제 실패', '잠시 후에 다시 시도해 주세요.');
@@ -473,33 +526,24 @@ export default function MediaDetailScreen() {
             <Text style={styles.sectionIcon}>📷</Text>
             <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Photo Details</Text>
           </View>
+
           <View style={[styles.detailsContainer, isDark && styles.boxDark]}>
-            {/* 카메라 모델 */}
-            {analysis?.exif?.camera_model && (
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Camera</Text>
-                <Text style={[styles.detailValue, isDark && styles.textLight]}>
-                  {`${analysis.exif.camera_make || ''} ${analysis.exif.camera_model}`.trim()}
-                </Text>
-              </View>
-            )}
-
-            {/* 해상도 */}
-            {analysis?.exif?.width && analysis?.exif?.height && (
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Resolution</Text>
-                <Text style={[styles.detailValue, isDark && styles.textLight]}>
-                  {analysis.exif.width} x {analysis.exif.height}
-                </Text>
-              </View>
-            )}
-
-            {/* 파일 크기 */}
+            {/* 파일 크기 - 항상 표시 */}
             {media.metadata?.size && (
               <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>File Size</Text>
+                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>{t('exif.fileSize')}</Text>
                 <Text style={[styles.detailValue, isDark && styles.textLight]}>
                   {formatFileSize(media.metadata.size)}
+                </Text>
+              </View>
+            )}
+
+            {/* 해상도 - 항상 표시 */}
+            {(analysis?.exif?.width || media.metadata?.width) && (
+              <View style={styles.detailRow}>
+                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>{t('exif.resolution')}</Text>
+                <Text style={[styles.detailValue, isDark && styles.textLight]}>
+                  {analysis?.exif?.width || media.metadata?.width} x {analysis?.exif?.height || media.metadata?.height}
                 </Text>
               </View>
             )}
@@ -507,62 +551,103 @@ export default function MediaDetailScreen() {
             {/* 촬영일 */}
             {(analysis?.taken_at || media.taken_at) && (
               <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Taken</Text>
+                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>{t('exif.taken')}</Text>
                 <Text style={[styles.detailValue, isDark && styles.textLight]}>
                   {formatDateTime(analysis?.taken_at || media.taken_at!)}
                 </Text>
               </View>
             )}
 
-            {/* 카메라 설정 (조리개/셔터/ISO) */}
-            {(analysis?.exif?.aperture || analysis?.exif?.shutter_speed || analysis?.exif?.iso) && (
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Settings</Text>
-                <Text style={[styles.detailValue, isDark && styles.textLight]}>
-                  {[
-                    analysis.exif.aperture && formatAperture(analysis.exif.aperture),
-                    analysis.exif.shutter_speed && formatShutterSpeed(analysis.exif.shutter_speed),
-                    analysis.exif.iso && `ISO ${analysis.exif.iso}`,
-                  ].filter(Boolean).join(' · ')}
+            {/* EXIF 카메라 정보 있는 경우 */}
+            {(analysis?.exif?.camera_model || analysis?.exif?.aperture || analysis?.exif?.iso || analysis?.exif?.shutter_speed) ? (
+              <>
+                {/* 카메라 모델 */}
+                {analysis?.exif?.camera_model && (
+                  <View style={styles.detailRow}>
+                    <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>{t('exif.camera')}</Text>
+                    <Text style={[styles.detailValue, isDark && styles.textLight]}>
+                      {`${analysis.exif.camera_make || ''} ${analysis.exif.camera_model}`.trim()}
+                    </Text>
+                  </View>
+                )}
+
+                {/* 카메라 설정 (조리개/셔터/ISO) */}
+                {(analysis.exif.aperture || analysis.exif.shutter_speed || analysis.exif.iso) && (
+                  <View style={styles.detailRow}>
+                    <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>{t('exif.settings')}</Text>
+                    <Text style={[styles.detailValue, isDark && styles.textLight]}>
+                      {[
+                        analysis.exif.aperture && formatAperture(analysis.exif.aperture),
+                        analysis.exif.shutter_speed && formatShutterSpeed(analysis.exif.shutter_speed),
+                        analysis.exif.iso && `ISO ${analysis.exif.iso}`,
+                      ].filter(Boolean).join(' · ')}
+                    </Text>
+                  </View>
+                )}
+
+                {/* 초점거리 */}
+                {analysis.exif.focal_length && (
+                  <View style={styles.detailRow}>
+                    <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>{t('exif.focalLength')}</Text>
+                    <Text style={[styles.detailValue, isDark && styles.textLight]}>
+                      {analysis.exif.focal_length.toFixed(0)}mm
+                    </Text>
+                  </View>
+                )}
+
+                {/* 플래시 */}
+                {analysis.exif.flash !== null && analysis.exif.flash !== undefined && (
+                  <View style={styles.detailRow}>
+                    <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>{t('exif.flash')}</Text>
+                    <Text style={[styles.detailValue, isDark && styles.textLight]}>
+                      {analysis.exif.flash ? t('exif.flashFired') : t('exif.flashNotFired')}
+                    </Text>
+                  </View>
+                )}
+
+                {/* GPS 위치 */}
+                {analysis.exif.gps && (
+                  <TouchableOpacity
+                    style={styles.detailRow}
+                    onPress={() => openMapWithGPS(analysis.exif!.gps!.latitude, analysis.exif!.gps!.longitude)}
+                  >
+                    <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>{t('exif.location')}</Text>
+                    <View style={styles.locationValueColumn}>
+                      <View style={styles.locationValue}>
+                        <Ionicons name="location" size={14} color={colors.brand.primary} />
+                        {loadingLocation ? (
+                          <ActivityIndicator size="small" color={colors.brand.primary} style={{ marginLeft: 4 }} />
+                        ) : locationName ? (
+                          <Text style={[styles.detailValueLink, isDark && styles.textLight]}>
+                            {locationName}
+                          </Text>
+                        ) : (
+                          <Text style={[styles.detailValueLink, isDark && styles.textLight]}>
+                            {analysis.exif.gps.latitude.toFixed(4)}, {analysis.exif.gps.longitude.toFixed(4)}
+                          </Text>
+                        )}
+                        <Ionicons name="open-outline" size={14} color={colors.brand.primary} />
+                      </View>
+                      {locationName && (
+                        <Text style={[styles.coordsText, isDark && styles.textTertiaryDark]}>
+                          {analysis.exif.gps.latitude.toFixed(4)}, {analysis.exif.gps.longitude.toFixed(4)}
+                        </Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )}
+              </>
+            ) : (
+              /* EXIF 카메라 정보 없는 경우 - 안내 메시지 */
+              <View style={[styles.noExifContainer, isDark && styles.noExifContainerDark]}>
+                <Ionicons name="information-circle-outline" size={20} color={isDark ? '#9CA3AF' : colors.neutral[5]} />
+                <Text style={[styles.noExifTitle, isDark && styles.textSecondaryDark]}>
+                  {t('exif.noInfo')}
+                </Text>
+                <Text style={[styles.noExifDesc, isDark && styles.textTertiaryDark]}>
+                  {t('exif.noInfoDesc')}
                 </Text>
               </View>
-            )}
-
-            {/* 초점거리 */}
-            {analysis?.exif?.focal_length && (
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Focal Length</Text>
-                <Text style={[styles.detailValue, isDark && styles.textLight]}>
-                  {analysis.exif.focal_length.toFixed(0)}mm
-                </Text>
-              </View>
-            )}
-
-            {/* 플래시 */}
-            {analysis?.exif?.flash !== null && analysis?.exif?.flash !== undefined && (
-              <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Flash</Text>
-                <Text style={[styles.detailValue, isDark && styles.textLight]}>
-                  {analysis.exif.flash ? 'Fired' : 'Not fired'}
-                </Text>
-              </View>
-            )}
-
-            {/* GPS 위치 */}
-            {analysis?.exif?.gps && (
-              <TouchableOpacity
-                style={styles.detailRow}
-                onPress={() => openMapWithGPS(analysis.exif!.gps!.latitude, analysis.exif!.gps!.longitude)}
-              >
-                <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>Location</Text>
-                <View style={styles.locationValue}>
-                  <Ionicons name="location" size={14} color={colors.brand.primary} />
-                  <Text style={[styles.detailValueLink, isDark && styles.textLight]}>
-                    {analysis.exif.gps.latitude.toFixed(4)}, {analysis.exif.gps.longitude.toFixed(4)}
-                  </Text>
-                  <Ionicons name="open-outline" size={14} color={colors.brand.primary} />
-                </View>
-              </TouchableOpacity>
             )}
           </View>
         </View>
@@ -610,6 +695,33 @@ const styles = StyleSheet.create({
   },
   textSecondaryDark: {
     color: '#9CA3AF',
+  },
+  textTertiaryDark: {
+    color: '#6B7280',
+  },
+  noExifContainer: {
+    backgroundColor: colors.neutral[1],
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 4,
+  },
+  noExifContainerDark: {
+    backgroundColor: '#374151',
+  },
+  noExifTitle: {
+    fontSize: 14,
+    color: colors.neutral[5],
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  noExifDesc: {
+    fontSize: 12,
+    color: colors.neutral[4],
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: 2,
   },
   loadingText: {
     marginTop: 12,
@@ -678,15 +790,17 @@ const styles = StyleSheet.create({
   },
   carouselWrapper: {
     width: SCREEN_WIDTH,
+    height: CAROUSEL_IMAGE_HEIGHT,
     backgroundColor: colors.neutral[1],
     position: 'relative',
+    overflow: 'hidden',
   },
   carouselWrapperDark: {
     backgroundColor: '#1F2937',
   },
   carouselImageContainer: {
     width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH * 0.75, // 4:3 비율
+    height: CAROUSEL_IMAGE_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -853,6 +967,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  locationValueColumn: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  coordsText: {
+    fontSize: 11,
+    color: colors.neutral[4],
   },
   detailValueLink: {
     fontSize: 14,

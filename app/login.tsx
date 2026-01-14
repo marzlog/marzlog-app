@@ -30,7 +30,7 @@ export default function LoginScreen() {
     : themeMode === 'dark';
 
   const handleSuccess = () => {
-    router.replace('/(tabs)/home');
+    router.replace('/(tabs)');
   };
 
   const handleError = (errorMessage: string) => {
