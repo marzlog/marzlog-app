@@ -63,6 +63,7 @@ export interface UploadItem {
   progress: number;
   error?: string;
   mediaId?: string;
+  isExisting?: boolean; // 편집 모드에서 기존 이미지 표시용
 }
 
 // ========== Group Upload Types ==========

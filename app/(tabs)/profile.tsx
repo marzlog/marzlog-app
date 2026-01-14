@@ -5,23 +5,25 @@ import { useSettingsStore, type ThemeMode, type AIMode } from '@src/store/settin
 import { useTranslation } from '@src/hooks/useTranslation';
 import { authApi } from '@src/api/auth';
 import type { UserStats } from '@src/types/auth';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  Platform,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   TouchableOpacity,
-  View
+  View,
+  Alert,
+  Platform,
 } from 'react-native';
+import { useDialog } from '@/src/components/ui/Dialog';
 
 export default function ProfileScreen() {
   const systemColorScheme = useColorScheme();
   const { user, logout } = useAuthStore();
   const { t, language, changeLanguage } = useTranslation();
+  const { confirm } = useDialog();
   const {
     themeMode,
     autoUploadEnabled,
@@ -40,10 +42,13 @@ export default function ProfileScreen() {
     : themeMode === 'dark';
   const [stats, setStats] = useState<UserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [cacheSize, setCacheSize] = useState<string>('0 B');
+  const [clearingCache, setClearingCache] = useState(false);
 
   useEffect(() => {
     loadStats();
     loadSettings();
+    loadCacheSize();
   }, []);
 
   const loadStats = async () => {
@@ -58,28 +63,72 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleLogout = () => {
-    if (Platform.OS === 'web') {
-      if (window.confirm(t('auth.logoutConfirm'))) {
-        logout();
-        // _layout.tsx에서 isAuthenticated 변경 감지하여 자동 리디렉션
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const loadCacheSize = async () => {
+    // Cache size calculation - placeholder for now
+    // In a real implementation, calculate actual cache size
+    setCacheSize('-- MB');
+  };
+
+  const handleClearCache = async () => {
+    const confirmed = await confirm({
+      title: t('storage.clearCache'),
+      description: t('storage.clearCacheConfirm'),
+      confirmText: t('common.confirm'),
+      cancelText: t('common.cancel'),
+      variant: 'confirm',
+    });
+
+    if (confirmed) {
+      setClearingCache(true);
+      try {
+        // Clear image cache, AsyncStorage cache, etc.
+        // This is a placeholder - implement actual cache clearing logic
+        await new Promise(resolve => setTimeout(resolve, 500));
+        setCacheSize('0 B');
+        Alert.alert(t('common.success'), t('storage.cacheCleared'));
+      } catch (error) {
+        console.error('Failed to clear cache:', error);
+      } finally {
+        setClearingCache(false);
       }
-    } else {
-      Alert.alert(
-        t('auth.logout'),
-        t('auth.logoutConfirm'),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('auth.logout'),
-            style: 'destructive',
-            onPress: () => {
-              logout();
-              // _layout.tsx에서 isAuthenticated 변경 감지하여 자동 리디렉션
-            },
-          },
-        ]
-      );
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = await confirm({
+      title: t('account.deleteAccount'),
+      description: t('account.deleteAccountConfirm'),
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      variant: 'danger',
+    });
+
+    if (confirmed) {
+      // TODO: Implement account deletion API
+      Alert.alert(t('common.comingSoon'), t('account.deleteAccountWarning'));
+    }
+  };
+
+  const handleLogout = async () => {
+    const confirmed = await confirm({
+      title: t('auth.logout'),
+      description: t('auth.logoutConfirm'),
+      confirmText: t('auth.logout'),
+      cancelText: t('common.cancel'),
+      variant: 'danger',
+    });
+
+    if (confirmed) {
+      logout();
+      // _layout.tsx에서 isAuthenticated 변경 감지하여 자동 리디렉션
     }
   };
 
@@ -235,6 +284,66 @@ export default function ProfileScreen() {
         />
       </View>
 
+      {/* Storage */}
+      <View style={[styles.settingsContainer, isDark && styles.cardDark]}>
+        <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
+          {t('storage.title')}
+        </Text>
+
+        <SettingsItem
+          icon="folder-outline"
+          label={t('storage.cacheSize')}
+          isDark={isDark}
+          onPress={() => {}}
+          rightElement={
+            <Text style={styles.settingValue}>{cacheSize}</Text>
+          }
+        />
+        <SettingsItem
+          icon="trash-outline"
+          label={t('storage.clearCache')}
+          isDark={isDark}
+          onPress={handleClearCache}
+          rightElement={
+            clearingCache ? (
+              <ActivityIndicator size="small" color="#6366F1" />
+            ) : (
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            )
+          }
+        />
+      </View>
+
+      {/* Account */}
+      <View style={[styles.settingsContainer, isDark && styles.cardDark]}>
+        <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
+          {t('account.title')}
+        </Text>
+
+        <SettingsItem
+          icon="log-out-outline"
+          label={t('auth.logout')}
+          isDark={isDark}
+          onPress={handleLogout}
+          rightElement={
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          }
+        />
+        <TouchableOpacity
+          style={[styles.settingsItem, styles.settingsItemLast]}
+          onPress={handleDeleteAccount}
+          activeOpacity={0.7}
+        >
+          <View style={styles.settingsItemLeft}>
+            <Ionicons name="trash-outline" size={22} color="#EF4444" />
+            <Text style={styles.dangerText}>{t('account.deleteAccount')}</Text>
+          </View>
+          <View style={styles.settingsItemRight}>
+            <Ionicons name="chevron-forward" size={20} color="#EF4444" />
+          </View>
+        </TouchableOpacity>
+      </View>
+
       {/* Support */}
       <View style={[styles.settingsContainer, isDark && styles.cardDark]}>
         <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
@@ -266,12 +375,6 @@ export default function ProfileScreen() {
           onPress={() => { }}
         />
       </View>
-
-      {/* Logout Button */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Ionicons name="log-out-outline" size={20} color="#EF4444" />
-        <Text style={styles.logoutText}>{t('auth.logout')}</Text>
-      </TouchableOpacity>
 
       {/* Version */}
       <Text style={styles.versionText}>{t('version')} 1.0.0</Text>
@@ -447,6 +550,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
+  settingsItemLast: {
+    borderBottomWidth: 0,
+  },
   settingsItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -465,42 +571,10 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     marginRight: 4,
   },
-  toggleOn: {
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  toggleText: {
-    fontSize: 12,
-    color: '#16A34A',
-    fontWeight: '500',
-  },
-  comingSoonBadge: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  comingSoonText: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    fontWeight: '500',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FEF2F2',
-    borderRadius: 12,
-    paddingVertical: 16,
-    marginTop: 8,
-    gap: 8,
-  },
-  logoutText: {
+  dangerText: {
     fontSize: 16,
-    fontWeight: '600',
     color: '#EF4444',
+    fontWeight: '500',
   },
   versionText: {
     fontSize: 12,

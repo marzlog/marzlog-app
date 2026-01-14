@@ -5,24 +5,32 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
-  Dimensions,
   Platform,
+  ScrollView,
+  Image,
+  TouchableOpacity,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import { useColorScheme } from '@/components/useColorScheme';
+import { useSettingsStore } from '@src/store/settingsStore';
 import GoogleLoginButton from '@src/components/auth/GoogleLoginButton';
 import { router } from 'expo-router';
 import { useAuthStore } from '@src/store/authStore';
 import { useTranslation } from '@src/hooks/useTranslation';
 
-const { width, height } = Dimensions.get('window');
-
 export default function LoginScreen() {
+  const systemColorScheme = useColorScheme();
+  const { themeMode } = useSettingsStore();
   const { setError, error } = useAuthStore();
   const { t } = useTranslation();
 
+  // 다크모드 결정
+  const isDark = themeMode === 'system'
+    ? systemColorScheme === 'dark'
+    : themeMode === 'dark';
+
   const handleSuccess = () => {
-    router.replace('/(tabs)');
+    router.replace('/(tabs)/home');
   };
 
   const handleError = (errorMessage: string) => {
@@ -30,221 +38,161 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      <LinearGradient
-        colors={['#4F46E5', '#7C3AED', '#9333EA']}
-        style={styles.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Logo Area */}
+        {/* Mascot / Logo Image */}
         <View style={styles.logoArea}>
-          <View style={styles.logoIcon}>
-            <Ionicons name="images" size={48} color="#fff" />
-          </View>
-          <Text style={styles.logoText}>Marzlog</Text>
-          <Text style={styles.tagline}>{t('login.tagline')}</Text>
-        </View>
-
-        {/* Features */}
-        <View style={styles.featuresContainer}>
-          <FeatureItem
-            icon="search"
-            title={t('login.semanticSearch')}
-            description={t('login.semanticSearchDesc')}
-          />
-          <FeatureItem
-            icon="time"
-            title={t('login.timelineFeature')}
-            description={t('login.timelineFeatureDesc')}
-          />
-          <FeatureItem
-            icon="sparkles"
-            title={t('login.aiCaptioning')}
-            description={t('login.aiCaptioningDesc')}
+          <Image
+            source={require('@/assets/images/mascot.png')}
+            style={styles.mascotImage}
+            resizeMode="contain"
           />
         </View>
 
-        {/* Login Card */}
-        <View style={styles.loginCard}>
-          <Text style={styles.loginTitle}>{t('login.getStarted')}</Text>
-          <Text style={styles.loginSubtitle}>
-            {t('login.subtitle')}
+        {/* App Name (Text Logo) + Slogan */}
+        <View style={styles.titleArea}>
+          <Image
+            source={require('@/assets/images/marzlog-text-logo.png')}
+            style={[styles.textLogo, { tintColor: isDark ? '#FFFFFF' : '#252525' }]}
+            resizeMode="contain"
+          />
+          <Text style={[styles.slogan, isDark && styles.sloganDark]}>
+            {t('login.slogan')}
           </Text>
+        </View>
 
-          <View style={styles.buttonContainer}>
-            <GoogleLoginButton
-              onSuccess={handleSuccess}
-              onError={handleError}
-            />
+        {/* Login Buttons */}
+        <View style={styles.buttonArea}>
+          <GoogleLoginButton
+            onSuccess={handleSuccess}
+            onError={handleError}
+          />
 
-            {/* Apple Login Button (Placeholder) */}
-            <View style={[styles.appleButton, styles.buttonDisabled]}>
-              <Ionicons name="logo-apple" size={20} color="#000" />
-              <Text style={styles.appleButtonText}>{t('auth.continueWithApple')}</Text>
-              <View style={styles.comingSoonBadge}>
-                <Text style={styles.comingSoonText}>{t('common.comingSoon')}</Text>
-              </View>
+          {/* Apple Login Button */}
+          <TouchableOpacity
+            style={[styles.appleButton, styles.appleButtonDisabled]}
+            activeOpacity={0.8}
+            disabled={true}
+          >
+            <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
+            <Text style={styles.appleButtonText}>
+              {t('auth.continueWithApple')}
+            </Text>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonText}>{t('common.comingSoon')}</Text>
             </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Error Message */}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={16} color="#EF4444" />
+            <Text style={styles.errorText}>{error}</Text>
           </View>
+        )}
 
-          {error && (
-            <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle" size={16} color="#EF4444" />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-
-          <Text style={styles.termsText}>
+        {/* Terms Agreement */}
+        <View style={styles.termsArea}>
+          <Text style={[styles.termsText, isDark && styles.termsTextDark]}>
             {t('login.termsAgreement')}
           </Text>
+          <View style={styles.termsLinks}>
+            <TouchableOpacity>
+              <Text style={styles.termsLink}>{t('support.terms')}</Text>
+            </TouchableOpacity>
+            <Text style={[styles.termsDivider, isDark && styles.termsTextDark]}>|</Text>
+            <TouchableOpacity>
+              <Text style={styles.termsLink}>{t('support.privacy')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </LinearGradient>
+      </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function FeatureItem({ 
-  icon, 
-  title, 
-  description 
-}: { 
-  icon: keyof typeof Ionicons.glyphMap; 
-  title: string; 
-  description: string;
-}) {
-  return (
-    <View style={styles.featureItem}>
-      <View style={styles.featureIcon}>
-        <Ionicons name={icon} size={24} color="#fff" />
-      </View>
-      <View>
-        <Text style={styles.featureTitle}>{title}</Text>
-        <Text style={styles.featureDescription}>{description}</Text>
-      </View>
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
   },
-  gradient: {
-    flex: 1,
+  containerDark: {
+    backgroundColor: '#111827',
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 20 : 20,
+    paddingBottom: 40,
+    justifyContent: 'center',
   },
   logoArea: {
     alignItems: 'center',
-    marginTop: height * 0.08,
-    marginBottom: 32,
-  },
-  logoIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  logoText: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: '#fff',
-    letterSpacing: 1,
-  },
-  tagline: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 8,
-  },
-  featuresContainer: {
-    marginBottom: 32,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  featureIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  featureTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  featureDescription: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: 2,
-  },
-  loginCard: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 28,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  loginTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1F2937',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  loginSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
     marginBottom: 24,
   },
-  buttonContainer: {
+  mascotImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 30,
+  },
+  titleArea: {
+    alignItems: 'center',
+    marginBottom: 48,
+  },
+  textLogo: {
+    width: 180,
+    height: 45,
+  },
+  slogan: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 12,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  sloganDark: {
+    color: '#9CA3AF',
+  },
+  buttonArea: {
     gap: 12,
+    marginBottom: 24,
   },
   appleButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#000',
+    backgroundColor: '#000000',
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 24,
     minHeight: 52,
+    gap: 12,
   },
-  buttonDisabled: {
+  appleButtonDisabled: {
     opacity: 0.5,
   },
   appleButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-    marginLeft: 12,
   },
   comingSoonBadge: {
-    backgroundColor: '#374151',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 4,
     borderRadius: 4,
-    marginLeft: 8,
+    marginLeft: 4,
   },
   comingSoonText: {
-    color: '#9CA3AF',
+    color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   errorContainer: {
     flexDirection: 'row',
@@ -252,23 +200,40 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#FEF2F2',
     padding: 12,
-    borderRadius: 8,
-    marginTop: 16,
+    borderRadius: 12,
+    marginBottom: 24,
+    gap: 8,
   },
   errorText: {
     color: '#EF4444',
     fontSize: 14,
-    marginLeft: 8,
+  },
+  termsArea: {
+    alignItems: 'center',
+    marginTop: 16,
   },
   termsText: {
     fontSize: 12,
     color: '#9CA3AF',
     textAlign: 'center',
-    marginTop: 20,
     lineHeight: 18,
   },
+  termsTextDark: {
+    color: '#6B7280',
+  },
+  termsLinks: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
   termsLink: {
+    fontSize: 12,
     color: '#6366F1',
     fontWeight: '500',
+  },
+  termsDivider: {
+    fontSize: 12,
+    color: '#D1D5DB',
   },
 });

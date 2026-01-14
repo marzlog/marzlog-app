@@ -61,7 +61,8 @@ export function useImageUpload() {
       height: asset.height,
       status: 'idle' as UploadStatus,
       progress: 0,
-    }));
+      isExisting: false, // 새 이미지임을 명시
+    } as UploadItem));
 
     setItems((prev) => [...prev, ...newItems]);
     return newItems;
@@ -98,7 +99,8 @@ export function useImageUpload() {
       height: asset.height,
       status: 'idle',
       progress: 0,
-    };
+      isExisting: false, // 새 이미지임을 명시
+    } as UploadItem;
 
     setItems((prev) => [...prev, newItem]);
     return newItem;

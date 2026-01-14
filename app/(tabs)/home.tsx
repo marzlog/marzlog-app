@@ -7,15 +7,14 @@ import {
   TouchableOpacity,
   RefreshControl,
   StatusBar,
-  Alert,
   Modal,
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path, Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { colors } from '@/src/theme';
+import { palette, lightTheme, darkTheme } from '@/src/theme/colors';
 import { ScheduleCard, DateSelector } from '@/src/components/home';
 import { Logo } from '@/src/components/common/Logo';
 import timelineApi, { TimelineItem } from '@/src/api/timeline';
@@ -24,6 +23,85 @@ import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useColorScheme } from '@/components/useColorScheme';
+import { useDialog } from '@/src/components/ui/Dialog';
+
+// Figma 기반 아이콘들
+function SearchIcon({ color = palette.neutral[900] }: { color?: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function PlusIcon({ color = palette.neutral[900] }: { color?: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 5V19M5 12H19"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function BellIcon({ color = palette.neutral[900] }: { color?: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function ImageIcon({ color = palette.neutral[500] }: { color?: string }) {
+  return (
+    <Svg width={48} height={48} viewBox="0 0 48 48" fill="none">
+      <Path
+        d="M38 6H10C7.79086 6 6 7.79086 6 10V38C6 40.2091 7.79086 42 10 42H38C40.2091 42 42 40.2091 42 38V10C42 7.79086 40.2091 6 38 6Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M17 20C18.6569 20 20 18.6569 20 17C20 15.3431 18.6569 14 17 14C15.3431 14 14 15.3431 14 17C14 18.6569 15.3431 20 17 20Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M42 30L32 20L10 42"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
 // 시간 포맷
 const formatTime = (dateStr: string) => {
@@ -67,11 +145,14 @@ export default function HomeScreen() {
   const { themeMode } = useSettingsStore();
   const { t } = useTranslation();
   const systemColorScheme = useColorScheme();
+  const { alert: showAlert } = useDialog();
 
   // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
+
+  const theme = isDark ? darkTheme : lightTheme;
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [refreshing, setRefreshing] = useState(false);
@@ -195,7 +276,7 @@ export default function HomeScreen() {
 
   // 알림 (추후 구현)
   const handleNotificationPress = () => {
-    Alert.alert(t('notification.title'), t('notification.comingSoon'));
+    showAlert(t('notification.title'), t('notification.comingSoon'));
   };
 
   // 지원하는 이미지 형식
@@ -214,15 +295,6 @@ export default function HomeScreen() {
       }
     }
     return false;
-  };
-
-  // 알림 (웹/모바일 모두 지원)
-  const showAlert = (message: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(message);
-    } else {
-      Alert.alert(t('notification.title'), message);
-    }
   };
 
   // 갤러리에서 선택 후 업로드 화면으로 이동
@@ -288,19 +360,19 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? '#111827' : colors.background} />
+    <View style={[styles.container, { backgroundColor: theme.background.primary, paddingTop: insets.top }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.background.primary} />
 
-      {/* Header */}
-      <View style={[styles.header, isDark && styles.headerDark]}>
+      {/* Header (Figma 기반) */}
+      <View style={[styles.header, { backgroundColor: theme.background.primary }]}>
         <View style={styles.topAppBar}>
           <View style={styles.logoContainer}>
-            <Logo size={32} showText={true} color={isDark ? '#F9FAFB' : colors.text.primary} />
+            <Logo size={32} showText={true} color={theme.text.primary} />
           </View>
 
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.iconButton} onPress={handleSearchPress}>
-              <Ionicons name="search" size={24} color={isDark ? '#F9FAFB' : colors.text.primary} />
+              <SearchIcon color={theme.icon.primary} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
@@ -308,13 +380,13 @@ export default function HomeScreen() {
               disabled={isUploading}
             >
               {isUploading ? (
-                <ActivityIndicator size="small" color={isDark ? '#F9FAFB' : colors.text.primary} />
+                <ActivityIndicator size="small" color={theme.icon.primary} />
               ) : (
-                <Ionicons name="add" size={24} color={isDark ? '#F9FAFB' : colors.text.primary} />
+                <PlusIcon color={theme.icon.primary} />
               )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton} onPress={handleNotificationPress}>
-              <Ionicons name="notifications-outline" size={24} color={isDark ? '#F9FAFB' : colors.text.primary} />
+              <BellIcon color={theme.icon.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -329,7 +401,7 @@ export default function HomeScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.brand.primary}
+            tintColor={palette.primary[500]}
           />
         }
       >
@@ -346,19 +418,19 @@ export default function HomeScreen() {
         <View style={styles.schedulesContainer}>
           {loading ? (
             <View style={styles.emptyState}>
-              <ActivityIndicator size="large" color={colors.brand.primary} />
-              <Text style={styles.loadingText}>{t('common.loading')}</Text>
+              <ActivityIndicator size="large" color={palette.primary[500]} />
+              <Text style={[styles.loadingText, { color: theme.text.secondary }]}>{t('common.loading')}</Text>
             </View>
           ) : schedules.length === 0 ? (
             <View style={styles.emptyState}>
-              <Ionicons name="images-outline" size={48} color={colors.neutral[5]} />
-              <Text style={styles.emptyText}>{t('home.noPhotosToday')}</Text>
+              <ImageIcon color={theme.icon.secondary} />
+              <Text style={[styles.emptyText, { color: theme.text.secondary }]}>{t('home.noPhotosToday')}</Text>
               <TouchableOpacity
-                style={styles.uploadButton}
+                style={[styles.uploadButton, { backgroundColor: palette.primary[500] }]}
                 onPress={handleAddPress}
               >
-                <Ionicons name="add" size={20} color={colors.text.inverse} />
-                <Text style={styles.uploadButtonText}>{t('home.addPhotos')}</Text>
+                <PlusIcon color={palette.neutral[0]} />
+                <Text style={[styles.uploadButtonText, { color: palette.neutral[0] }]}>{t('home.addPhotos')}</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -372,6 +444,7 @@ export default function HomeScreen() {
                 imageUrl={schedule.imageUrl}
                 groupCount={schedule.groupCount}
                 onPress={() => handlePhotoPress(schedule.mediaId)}
+                theme={theme}
               />
             ))
           )}
@@ -386,22 +459,37 @@ export default function HomeScreen() {
         onRequestClose={() => setShowUploadModal(false)}
       >
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}
           activeOpacity={1}
           onPress={() => setShowUploadModal(false)}
         >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{t('upload.title')}</Text>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface.primary }]}>
+            <Text style={[styles.modalTitle, { color: theme.text.primary }]}>{t('upload.title')}</Text>
 
-            <TouchableOpacity style={styles.modalOption} onPress={handlePickFromGallery}>
-              <Ionicons name="images-outline" size={24} color={colors.brand.primary} />
-              <Text style={styles.modalOptionText}>{t('upload.fromGallery')}</Text>
+            <TouchableOpacity style={[styles.modalOption, { borderBottomColor: theme.border.light }]} onPress={handlePickFromGallery}>
+              <ImageIcon color={palette.primary[500]} />
+              <Text style={[styles.modalOptionText, { color: theme.text.primary }]}>{t('upload.fromGallery')}</Text>
             </TouchableOpacity>
 
             {Platform.OS !== 'web' && (
-              <TouchableOpacity style={styles.modalOption} onPress={handleTakePhoto}>
-                <Ionicons name="camera-outline" size={24} color={colors.brand.primary} />
-                <Text style={styles.modalOptionText}>{t('upload.takePhoto')}</Text>
+              <TouchableOpacity style={[styles.modalOption, { borderBottomColor: theme.border.light }]} onPress={handleTakePhoto}>
+                <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M23 19C23 19.5304 22.7893 20.0391 22.4142 20.4142C22.0391 20.7893 21.5304 21 21 21H3C2.46957 21 1.96086 20.7893 1.58579 20.4142C1.21071 20.0391 1 19.5304 1 19V8C1 7.46957 1.21071 6.96086 1.58579 6.58579C1.96086 6.21071 2.46957 6 3 6H7L9 3H15L17 6H21C21.5304 6 22.0391 6.21071 22.4142 6.58579C22.7893 6.96086 23 7.46957 23 8V19Z"
+                    stroke={palette.primary[500]}
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <Path
+                    d="M12 17C14.2091 17 16 15.2091 16 13C16 10.7909 14.2091 9 12 9C9.79086 9 8 10.7909 8 13C8 15.2091 9.79086 17 12 17Z"
+                    stroke={palette.primary[500]}
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+                <Text style={[styles.modalOptionText, { color: theme.text.primary }]}>{t('upload.takePhoto')}</Text>
               </TouchableOpacity>
             )}
 
@@ -409,7 +497,7 @@ export default function HomeScreen() {
               style={styles.modalCancel}
               onPress={() => setShowUploadModal(false)}
             >
-              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+              <Text style={[styles.modalCancelText, { color: theme.text.secondary }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -421,17 +509,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
-  containerDark: {
-    backgroundColor: '#111827',
-  },
-  header: {
-    backgroundColor: colors.background,
-  },
-  headerDark: {
-    backgroundColor: '#111827',
-  },
+  header: {},
   topAppBar: {
     height: 64,
     flexDirection: 'row',
@@ -445,7 +524,7 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 4,
   },
   iconButton: {
     width: 40,
@@ -474,41 +553,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 80,
-    gap: 12,
+    gap: 16,
   },
   loadingText: {
     fontSize: 14,
     fontWeight: '400',
-    color: colors.neutral[5],
   },
   emptyText: {
     fontSize: 14,
-    fontWeight: '400',
-    color: colors.neutral[5],
+    fontWeight: '500',
+    marginTop: 8,
   },
   uploadButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginTop: 16,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: colors.brand.primary,
-    borderRadius: 24,
+    borderRadius: 360,
   },
   uploadButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text.inverse,
   },
   // Modal styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
@@ -517,7 +591,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.text.primary,
     marginBottom: 20,
     textAlign: 'center',
   },
@@ -527,12 +600,10 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[2],
   },
   modalOptionText: {
     fontSize: 16,
-    fontWeight: '400',
-    color: colors.text.primary,
+    fontWeight: '500',
   },
   modalCancel: {
     marginTop: 16,
@@ -542,6 +613,5 @@ const styles = StyleSheet.create({
   modalCancelText: {
     fontSize: 16,
     fontWeight: '500',
-    color: colors.text.secondary,
   },
 });

@@ -6,16 +6,72 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/src/theme';
+import Svg, { Path, Rect, Line } from 'react-native-svg';
+import { palette, lightTheme, darkTheme } from '@/src/theme/colors';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 
 const { width } = Dimensions.get('window');
-const DAY_SIZE = (width - 48) / 7;
+
+// Figma 기반: 7개 날짜, 각 50px 너비, 8px 간격
+const DATE_CARD_WIDTH = 46;
+const DATE_CARD_HEIGHT = 61;
 
 type ViewMode = 'week' | 'month';
+
+// 화살표 아이콘
+function ChevronLeft({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
+      <Path
+        d="M12.5 15L7.5 10L12.5 5"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function ChevronRight({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
+      <Path
+        d="M7.5 15L12.5 10L7.5 5"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+// 캘린더 아이콘 (월간 뷰 전환용) - 주간 뷰에서 표시
+function CalendarViewIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Rect x="3" y="4" width="18" height="18" rx="2" stroke={color} strokeWidth={2} />
+      <Line x1="3" y1="10" x2="21" y2="10" stroke={color} strokeWidth={2} />
+      <Line x1="8" y1="2" x2="8" y2="6" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1="16" y1="2" x2="16" y2="6" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+// 그리드 아이콘 (주간 뷰 전환용) - 월간 뷰에서 표시
+function GridViewIcon({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Rect x="3" y="3" width="8" height="8" rx="1" stroke={color} strokeWidth={2} />
+      <Rect x="13" y="3" width="8" height="8" rx="1" stroke={color} strokeWidth={2} />
+      <Rect x="3" y="13" width="8" height="8" rx="1" stroke={color} strokeWidth={2} />
+      <Rect x="13" y="13" width="8" height="8" rx="1" stroke={color} strokeWidth={2} />
+    </Svg>
+  );
+}
 
 interface DateSelectorProps {
   selectedDate: Date;
@@ -32,10 +88,12 @@ export function DateSelector({
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
 
-  // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
+  // 다크모드 결정
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
+
+  const theme = isDark ? darkTheme : lightTheme;
 
   // 동적으로 요일 이름 가져오기
   const DAY_NAMES_SHORT = t('date.weekdaysShort') as unknown as string[];
@@ -43,6 +101,12 @@ export function DateSelector({
   const MONTHS = t('date.months') as unknown as string[];
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate));
+
+  // 주차 계산
+  const getWeekOfMonth = (date: Date): number => {
+    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+    return Math.ceil((date.getDate() + firstDay.getDay()) / 7);
+  };
 
   const today = useMemo(() => {
     const d = new Date();
@@ -127,60 +191,96 @@ export function DateSelector({
     return `${MONTHS[date.getMonth()]} ${date.getFullYear()}`;
   };
 
-  // 주간 뷰 렌더링
+  // 이전 주로 이동
+  const goToPrevWeek = () => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() - 7);
+    onDateSelect(newDate);
+  };
+
+  // 다음 주로 이동
+  const goToNextWeek = () => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + 7);
+    onDateSelect(newDate);
+  };
+
+  // 주간 네비게이션 텍스트 (예: "11월 2주")
+  const getWeekNavText = () => {
+    const month = selectedDate.getMonth() + 1;
+    const week = getWeekOfMonth(selectedDate);
+    if (language === 'ko') {
+      return `${month}월 ${week}주`;
+    }
+    return `${MONTHS[selectedDate.getMonth()]} Week ${week}`;
+  };
+
+  // 주간 뷰 렌더링 (Figma 디자인 적용)
   const renderWeekView = () => (
-    <View style={styles.weekContainer}>
-      {weekDays.map((date, index) => (
-        <TouchableOpacity
-          key={index}
-          style={[
-            styles.weekDayItem,
-            isDark && styles.weekDayItemDark,
-            isSelected(date) && styles.weekDayItemSelected,
-          ]}
-          onPress={() => handleDatePress(date)}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={[
-              styles.weekDayName,
-              isDark && styles.textLight,
-              isSelected(date) && styles.weekDayNameSelected,
-            ]}
-          >
-            {DAY_NAMES_EN[date.getDay()]}
-          </Text>
-          <Text
-            style={[
-              styles.weekDayNumber,
-              isDark && styles.textLight,
-              isSelected(date) && styles.weekDayNumberSelected,
-            ]}
-          >
-            {date.getDate()}
-          </Text>
-          {hasPhotos(date) && (
-            <View style={[
-              styles.photoIndicator,
-              isSelected(date) && styles.photoIndicatorSelected,
-            ]} />
-          )}
-        </TouchableOpacity>
-      ))}
+    <View style={styles.weekViewContainer}>
+      {/* 주간 날짜 카드 */}
+      <View style={styles.weekContainer}>
+        {weekDays.map((date, index) => {
+          const selected = isSelected(date);
+          const hasPhoto = hasPhotos(date);
+          return (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.weekDayItem,
+                { backgroundColor: selected ? palette.primary[500] : theme.surface.secondary },
+              ]}
+              onPress={() => handleDatePress(date)}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.weekDayName,
+                  { color: selected ? palette.neutral[0] : theme.text.primary },
+                ]}
+              >
+                {DAY_NAMES_EN[date.getDay()]}
+              </Text>
+              <Text
+                style={[
+                  styles.weekDayNumber,
+                  { color: selected ? palette.neutral[0] : theme.text.primary },
+                ]}
+              >
+                {date.getDate()}
+              </Text>
+              {hasPhoto && (
+                <View style={[
+                  styles.photoIndicator,
+                  { backgroundColor: selected ? palette.neutral[0] : palette.primary[500] },
+                ]} />
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </View>
   );
 
   // 월간 뷰 렌더링
   const renderMonthView = () => (
-    <View style={[styles.monthContainer, isDark && styles.monthContainerDark]}>
-      {/* 월 네비게이션 */}
+    <View style={[styles.monthContainer, { backgroundColor: theme.surface.secondary }]}>
+      {/* 월 네비게이션: [←] [2025년 1월 ⊞] [→] */}
       <View style={styles.monthNav}>
         <TouchableOpacity onPress={goToPrevMonth} style={styles.monthNavButton}>
-          <Ionicons name="chevron-back" size={20} color={isDark ? '#F9FAFB' : colors.text.primary} />
+          <ChevronLeft color={theme.text.primary} />
         </TouchableOpacity>
-        <Text style={[styles.monthNavText, isDark && styles.textLight]}>{formatMonthYear()}</Text>
+        {/* 중앙: 월 텍스트 + 그리드 아이콘 (주간 뷰 전환) */}
+        <TouchableOpacity
+          style={styles.monthCenterButton}
+          onPress={toggleViewMode}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.monthNavText, { color: theme.text.primary }]}>{formatMonthYear()}</Text>
+          <GridViewIcon color={theme.text.primary} />
+        </TouchableOpacity>
         <TouchableOpacity onPress={goToNextMonth} style={styles.monthNavButton}>
-          <Ionicons name="chevron-forward" size={20} color={isDark ? '#F9FAFB' : colors.text.primary} />
+          <ChevronRight color={theme.text.primary} />
         </TouchableOpacity>
       </View>
 
@@ -190,6 +290,7 @@ export function DateSelector({
           <View key={index} style={styles.monthWeekdayCell}>
             <Text style={[
               styles.monthWeekdayText,
+              { color: theme.text.secondary },
               index === 0 && styles.sundayText,
               index === 6 && styles.saturdayText,
             ]}>
@@ -207,16 +308,16 @@ export function DateSelector({
               <TouchableOpacity
                 style={[
                   styles.monthDayButton,
-                  isSelected(date) && styles.monthDayButtonSelected,
-                  isToday(date) && !isSelected(date) && styles.monthDayButtonToday,
+                  isSelected(date) && { backgroundColor: palette.primary[500] },
+                  isToday(date) && !isSelected(date) && { borderWidth: 1.5, borderColor: palette.primary[500] },
                 ]}
                 onPress={() => handleDatePress(date)}
               >
                 <Text style={[
                   styles.monthDayText,
-                  isDark && styles.textLight,
-                  isSelected(date) && styles.monthDayTextSelected,
-                  isToday(date) && !isSelected(date) && styles.todayText,
+                  { color: theme.text.primary },
+                  isSelected(date) && { color: palette.neutral[0], fontWeight: '600' },
+                  isToday(date) && !isSelected(date) && { color: palette.primary[500], fontWeight: '600' },
                   index % 7 === 0 && styles.sundayText,
                   index % 7 === 6 && styles.saturdayText,
                 ]}>
@@ -225,7 +326,7 @@ export function DateSelector({
                 {hasPhotos(date) && (
                   <View style={[
                     styles.monthPhotoIndicator,
-                    isSelected(date) && styles.monthPhotoIndicatorSelected,
+                    { backgroundColor: isSelected(date) ? palette.neutral[0] : palette.primary[500] },
                   ]} />
                 )}
               </TouchableOpacity>
@@ -236,32 +337,47 @@ export function DateSelector({
 
       {/* 오늘 버튼 */}
       <TouchableOpacity
-        style={[styles.todayButton, isDark && styles.todayButtonDark]}
+        style={[styles.todayButton, { backgroundColor: theme.background.tertiary }]}
         onPress={() => handleDatePress(today)}
       >
-        <Text style={[styles.todayButtonText, isDark && styles.textLight]}>{t('date.today')}</Text>
+        <Text style={[styles.todayButtonText, { color: theme.text.primary }]}>{t('date.today')}</Text>
       </TouchableOpacity>
     </View>
   );
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
-      {/* 헤더: 월/년 + 토글 버튼 */}
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, isDark && styles.textLight]}>
-          {viewMode === 'week'
-            ? formatMonthYear(selectedDate)
-            : formatMonthYear()
-          }
-        </Text>
-        <TouchableOpacity style={[styles.toggleButton, isDark && styles.toggleButtonDark]} onPress={toggleViewMode}>
-          <Ionicons
-            name={viewMode === 'week' ? 'calendar-outline' : 'calendar-number-outline'}
-            size={20}
-            color={isDark ? '#F9FAFB' : colors.text.primary}
-          />
-        </TouchableOpacity>
-      </View>
+    <View style={[styles.container, { backgroundColor: theme.background.primary }]}>
+      {/* 헤더: 주간 뷰에서만 표시 */}
+      {viewMode === 'week' && (
+        <View style={styles.header}>
+          {/* 이전 주 버튼 */}
+          <TouchableOpacity
+            style={[styles.navButton, { backgroundColor: theme.surface.secondary }]}
+            onPress={goToPrevWeek}
+          >
+            <ChevronLeft color={theme.text.primary} />
+          </TouchableOpacity>
+
+          {/* 중앙: 주간 정보 + 캘린더 아이콘 (월간 뷰로 전환) */}
+          <TouchableOpacity
+            style={[styles.centerButton, { backgroundColor: theme.surface.secondary }]}
+            onPress={toggleViewMode}
+          >
+            <Text style={[styles.centerButtonText, { color: theme.text.primary }]}>
+              {getWeekNavText()}
+            </Text>
+            <CalendarViewIcon color={theme.text.primary} />
+          </TouchableOpacity>
+
+          {/* 다음 주 버튼 */}
+          <TouchableOpacity
+            style={[styles.navButton, { backgroundColor: theme.surface.secondary }]}
+            onPress={goToNextWeek}
+          >
+            <ChevronRight color={theme.text.primary} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* 날짜 뷰 */}
       {viewMode === 'week' ? renderWeekView() : renderMonthView()}
@@ -270,100 +386,78 @@ export function DateSelector({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.background,
-  },
-  containerDark: {
-    backgroundColor: '#111827',
-  },
-  textLight: {
-    color: '#F9FAFB',
-  },
+  container: {},
+  // Header (Figma Date Navigation)
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    paddingBottom: 12,
+    paddingHorizontal: 0,
+    paddingVertical: 12,
+    gap: 8,
   },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text.primary,
-    letterSpacing: -0.3,
-  },
-  toggleButton: {
-    width: 40,
+  navButton: {
+    width: 72,
     height: 40,
+    borderRadius: 360,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.neutral[2],
-    borderRadius: 20,
   },
-  toggleButtonDark: {
-    backgroundColor: '#374151',
-  },
-  // Week View
-  weekContainer: {
+  centerButton: {
+    flex: 1,
+    height: 40,
+    borderRadius: 360,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 4,
+  },
+  centerButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: -0.35,
+  },
+  // Week View (Figma 기반)
+  weekViewContainer: {
+    gap: 12,
+  },
+  weekContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
   },
   weekDayItem: {
-    width: 46,
-    height: 70,
+    flex: 1,
+    height: DATE_CARD_HEIGHT,
     borderRadius: 16,
-    backgroundColor: colors.neutral['0.5'],
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 12,
-    paddingBottom: 8,
-    gap: 2,
-  },
-  weekDayItemDark: {
-    backgroundColor: '#1F2937',
-  },
-  weekDayItemSelected: {
-    backgroundColor: colors.brand.primary,
+    paddingTop: 16,
+    paddingBottom: 12,
+    gap: 4,
   },
   weekDayName: {
     fontSize: 10,
     fontWeight: '600',
-    color: colors.text.primary,
     letterSpacing: -0.2,
-  },
-  weekDayNameSelected: {
-    color: colors.text.inverse,
+    lineHeight: 15,
   },
   weekDayNumber: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '500',
-    color: colors.text.primary,
-    letterSpacing: -0.5,
-  },
-  weekDayNumberSelected: {
-    color: colors.text.inverse,
+    letterSpacing: -0.96,
+    lineHeight: 34,
   },
   photoIndicator: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.brand.primary,
-    marginTop: 2,
-  },
-  photoIndicatorSelected: {
-    backgroundColor: colors.text.inverse,
   },
   // Month View
   monthContainer: {
-    backgroundColor: colors.neutral['0.5'],
     borderRadius: 20,
     padding: 16,
-    marginTop: 4,
-  },
-  monthContainerDark: {
-    backgroundColor: '#1F2937',
+    marginTop: 8,
   },
   monthNav: {
     flexDirection: 'row',
@@ -378,10 +472,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 16,
   },
+  monthCenterButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   monthNavText: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text.primary,
+    textAlign: 'center',
   },
   monthWeekdayRow: {
     flexDirection: 'row',
@@ -395,7 +496,6 @@ const styles = StyleSheet.create({
   monthWeekdayText: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.text.secondary,
   },
   monthGrid: {
     flexDirection: 'row',
@@ -415,31 +515,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 12,
   },
-  monthDayButtonSelected: {
-    backgroundColor: colors.brand.primary,
-  },
-  monthDayButtonToday: {
-    borderWidth: 1.5,
-    borderColor: colors.brand.primary,
-  },
   monthDayText: {
     fontSize: 14,
     fontWeight: '500',
-    color: colors.text.primary,
-  },
-  monthDayTextSelected: {
-    color: colors.text.inverse,
-    fontWeight: '600',
-  },
-  todayText: {
-    color: colors.brand.primary,
-    fontWeight: '600',
   },
   sundayText: {
-    color: '#EF4444',
+    color: palette.error[500],
   },
   saturdayText: {
-    color: '#3B82F6',
+    color: palette.info[500],
   },
   monthPhotoIndicator: {
     position: 'absolute',
@@ -447,25 +531,16 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.brand.primary,
-  },
-  monthPhotoIndicatorSelected: {
-    backgroundColor: colors.text.inverse,
   },
   todayButton: {
     marginTop: 12,
     paddingVertical: 10,
-    backgroundColor: colors.neutral[2],
     borderRadius: 12,
     alignItems: 'center',
-  },
-  todayButtonDark: {
-    backgroundColor: '#374151',
   },
   todayButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text.primary,
   },
 });
 

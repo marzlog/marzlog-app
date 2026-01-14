@@ -7,7 +7,6 @@ import {
   Pressable,
   TextInput,
   StatusBar,
-  Alert,
   ActivityIndicator,
   Switch,
   Platform,
@@ -20,13 +19,15 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload, ImagePickerItem } from '@/src/hooks/useImageUpload';
 import { ImageSelector, EmotionPicker, IntensitySlider } from '@/src/components/upload';
-import { getMediaDetail, updateMedia } from '@/src/api/media';
+import { getMediaDetail, updateMedia, setPrimaryImage } from '@/src/api/media';
 import { timelineApi } from '@/src/api/timeline';
+import { useDialog } from '@/src/components/ui/Dialog';
 
 export default function UploadScreen() {
   const insets = useSafeAreaInsets();
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
+  const { alert: showAlert, confirm } = useDialog();
   const params = useLocalSearchParams<{
     images?: string;
     editMode?: string;
@@ -112,8 +113,8 @@ export default function UploadScreen() {
                 height: 0,
                 status: 'done',
                 progress: 100,
-                isExisting: true, // 기존 이미지 표시
-              } as ImagePickerItem & { isExisting?: boolean });
+                isExisting: true,
+              });
             });
             // 대표 이미지 인덱스 찾기
             const primaryIdx = groupData.items.findIndex((img: any) => img.is_primary === 'true');
@@ -137,7 +138,7 @@ export default function UploadScreen() {
           status: 'done',
           progress: 100,
           isExisting: true,
-        } as ImagePickerItem & { isExisting?: boolean });
+        });
       }
 
       setImages(loadedImages);
@@ -172,28 +173,19 @@ export default function UploadScreen() {
     }
   }, [params.images, isEditMode]);
 
-  // ========== 유틸리티 함수 (웹/모바일 모두 지원) ==========
+  // ========== 유틸리티 함수 ==========
 
-  // 알림 다이얼로그
-  const showAlert = (message: string) => {
-    if (Platform.OS === 'web') {
-      window.alert(message);
-    } else {
-      Alert.alert('알림', message);
-    }
-  };
-
-  // 확인 다이얼로그
-  const showConfirm = (message: string, onConfirm: () => void) => {
-    if (Platform.OS === 'web') {
-      if (window.confirm(message)) {
-        onConfirm();
-      }
-    } else {
-      Alert.alert('확인', message, [
-        { text: '아니오', style: 'cancel' },
-        { text: '예', onPress: onConfirm },
-      ]);
+  // 확인 다이얼로그 (취소 확인용)
+  const showConfirm = async (message: string, onConfirm: () => void) => {
+    const confirmed = await confirm({
+      title: '취소하시겠습니까?',
+      description: message,
+      confirmText: '확인',
+      cancelText: '취소',
+      variant: 'confirm',
+    });
+    if (confirmed) {
+      onConfirm();
     }
   };
 
@@ -247,11 +239,17 @@ export default function UploadScreen() {
     if (!mediaId) return;
 
     console.log('[Upload] ===== handleUpdate START =====');
+    console.log('[Upload] images:', images.map(img => ({ id: img.id, isExisting: (img as any).isExisting })));
+    console.log('[Upload] groupId:', groupId);
+    console.log('[Upload] primaryImageIndex:', primaryImageIndex);
     setIsSubmitting(true);
 
     try {
       // 1. 새 이미지가 있으면 그룹에 추가
-      const newImages = images.filter((img: any) => !img.isExisting);
+      // isExisting이 명시적으로 true가 아닌 이미지만 새 이미지로 간주
+      const newImages = images.filter((img: any) => img.isExisting !== true);
+      console.log('[Upload] newImages count:', newImages.length);
+
       if (newImages.length > 0 && groupId) {
         console.log('[Upload] Adding', newImages.length, 'new images to group:', groupId);
         const addResult = await addToExistingGroup(groupId, newImages);
@@ -263,7 +261,25 @@ export default function UploadScreen() {
         console.log('[Upload] New images added successfully');
       }
 
-      // 2. 메타데이터 업데이트
+      // 2. 대표 이미지 변경 (기존 이미지 중에서 선택된 경우)
+      if (groupId && images.length > 0) {
+        const primaryImage = images[primaryImageIndex];
+        // 기존 이미지이고 id가 있는 경우에만 대표 이미지 변경 API 호출
+        if ((primaryImage as any)?.isExisting && primaryImage?.id) {
+          console.log('[Upload] Setting primary image:', primaryImage.id);
+          try {
+            await setPrimaryImage(groupId, primaryImage.id);
+            console.log('[Upload] Primary image updated');
+          } catch (primaryError) {
+            console.error('[Upload] Failed to set primary image:', primaryError);
+            showAlert('대표 이미지 변경에 실패했습니다.');
+            setIsSubmitting(false);
+            return;
+          }
+        }
+      }
+
+      // 3. 메타데이터 업데이트
       const updateData = {
         title: title || undefined,
         content: content || undefined,
@@ -277,7 +293,8 @@ export default function UploadScreen() {
       console.log('[Upload] Update result:', result);
 
       showAlert('수정되었습니다.');
-      router.back();
+      // 캐시 문제 방지: 홈으로 이동하여 타임라인 새로고침
+      router.replace('/(tabs)/home');
     } catch (error) {
       console.error('[Upload] Update error:', error);
       showAlert('수정 중 오류가 발생했습니다.');

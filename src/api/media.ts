@@ -56,9 +56,21 @@ export async function updateMedia(
   return response.data;
 }
 
+/**
+ * 대표 이미지 변경
+ */
+export async function setPrimaryImage(
+  groupId: string,
+  mediaId: string
+): Promise<{ success: boolean; message: string; primary_media_id: string }> {
+  const response = await apiClient.put(`/media/${groupId}/primary/${mediaId}`);
+  return response.data;
+}
+
 export default {
   getMediaDetail,
   getMediaAnalysis,
   deleteMedia,
   updateMedia,
+  setPrimaryImage,
 };

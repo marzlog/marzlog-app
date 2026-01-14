@@ -21,6 +21,7 @@
   },
   "login": {
     "tagline": "AI로 기억하는 당신의 순간",
+    "slogan": "행복한 하루의 순간을, 나만의 언어로.",
     "getStarted": "시작하기",
     "subtitle": "소셜 계정으로 간편하게 로그인하세요",
     "termsAgreement": "로그인 시 이용약관 및 개인정보처리방침에 동의합니다",
@@ -43,6 +44,19 @@
     "albums": "앨범",
     "groups": "그룹",
     "storage": "저장 공간"
+  },
+  "storage": {
+    "title": "저장 공간",
+    "cacheSize": "캐시 크기",
+    "clearCache": "캐시 삭제",
+    "clearCacheConfirm": "캐시를 삭제하시겠습니까? 앱 성능에 일시적인 영향이 있을 수 있습니다.",
+    "cacheCleared": "캐시가 삭제되었습니다"
+  },
+  "account": {
+    "title": "계정",
+    "deleteAccount": "계정 삭제",
+    "deleteAccountConfirm": "정말로 계정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며, 모든 데이터가 영구적으로 삭제됩니다.",
+    "deleteAccountWarning": "삭제된 데이터는 복구할 수 없습니다"
   },
   "settings": {
     "title": "설정",

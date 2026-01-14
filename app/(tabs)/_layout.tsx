@@ -15,8 +15,8 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           const { options } = descriptors[route.key];
           const isFocused = state.index === index;
 
-          // href: null인 탭은 렌더링하지 않음
-          if (options.href === null) return null;
+          // href: null인 탭은 렌더링하지 않음 (Expo Router 확장 속성)
+          if ((options as any).href === null) return null;
 
           const onPress = () => {
             const event = navigation.emit({

@@ -16,11 +16,12 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getMediaDetail, getMediaAnalysis } from '@/src/api/media';
+import { getMediaDetail, getMediaAnalysis, deleteMedia } from '@/src/api/media';
 import { timelineApi, GroupImageItem } from '@/src/api/timeline';
 import { colors } from '@/src/theme';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
+import { useDialog } from '@/src/components/ui/Dialog';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -33,6 +34,7 @@ export default function MediaDetailScreen() {
   const insets = useSafeAreaInsets();
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
+  const { confirmDelete, alert } = useDialog();
 
   // 다크모드 결정
   const isDark = themeMode === 'system'
@@ -43,6 +45,7 @@ export default function MediaDetailScreen() {
   const [analysis, setAnalysis] = useState<MediaAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // 그룹 이미지 관련 상태
   const [groupImages, setGroupImages] = useState<GroupImageItem[]>([]);
@@ -246,6 +249,23 @@ export default function MediaDetailScreen() {
     });
   };
 
+  // 삭제 처리
+  const handleDelete = async () => {
+    const confirmed = await confirmDelete();
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteMedia(id!);
+      router.replace('/(tabs)/home');
+    } catch (err) {
+      console.error('[MediaDetail] Delete error:', err);
+      await alert('삭제 실패', '잠시 후에 다시 시도해 주세요.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       {/* Header */}
@@ -255,6 +275,13 @@ export default function MediaDetailScreen() {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, isDark && styles.textLight]}>상세보기</Text>
         <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={handleDelete}
+            disabled={isDeleting}
+          >
+            <Ionicons name="trash-outline" size={20} color={isDeleting ? colors.neutral[4] : '#EF4444'} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={handleEdit}>
             <Ionicons name="pencil" size={20} color={isDark ? '#F9FAFB' : colors.text.primary} />
           </TouchableOpacity>

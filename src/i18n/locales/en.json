@@ -21,6 +21,7 @@
   },
   "login": {
     "tagline": "Your moments, remembered by AI",
+    "slogan": "Capture happy moments, in your own words.",
     "getStarted": "Get Started",
     "subtitle": "Sign in easily with your social account",
     "termsAgreement": "By logging in, you agree to our Terms of Service and Privacy Policy",
@@ -43,6 +44,19 @@
     "albums": "Albums",
     "groups": "Groups",
     "storage": "Storage"
+  },
+  "storage": {
+    "title": "Storage",
+    "cacheSize": "Cache Size",
+    "clearCache": "Clear Cache",
+    "clearCacheConfirm": "Clear cache? This may temporarily affect app performance.",
+    "cacheCleared": "Cache cleared"
+  },
+  "account": {
+    "title": "Account",
+    "deleteAccount": "Delete Account",
+    "deleteAccountConfirm": "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.",
+    "deleteAccountWarning": "Deleted data cannot be recovered"
   },
   "settings": {
     "title": "Settings",
