@@ -88,14 +88,19 @@
     "addPhotos": "Add Photos"
   },
   "timeline": {
-    "title": "Timeline",
-    "loading": "Loading timeline...",
-    "loadError": "Failed to load timeline",
+    "title": "Daily Moments",
+    "loading": "Loading...",
+    "loadError": "Failed to load",
     "photoCount": "photos",
     "loadingMore": "Loading more...",
     "allLoaded": "All photos loaded",
     "noPhotos": "No photos yet",
-    "uploadPrompt": "Upload photos to record your memories"
+    "uploadPrompt": "Upload photos to record your memories",
+    "filterAll": "All",
+    "filterImage": "Image",
+    "filterText": "Text",
+    "gridView": "Grid",
+    "listView": "List"
   },
   "search": {
     "title": "Search",
@@ -108,7 +113,10 @@
     "suggestions": "Suggested searches",
     "aiSearch": "AI Semantic Search",
     "aiSearchDesc": "Find photos using natural language.\n\"Last summer at the beach\", \"Dinner with family\", etc.",
-    "searchFailed": "Search failed"
+    "searchFailed": "Search failed",
+    "englishOnly": "Currently supports English search only",
+    "recentSearches": "Recent Searches",
+    "clearAll": "Clear All"
   },
   "upload": {
     "title": "Add Photo",

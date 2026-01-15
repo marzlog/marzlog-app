@@ -88,18 +88,23 @@
     "addPhotos": "사진 추가하기"
   },
   "timeline": {
-    "title": "타임라인",
-    "loading": "타임라인 불러오는 중...",
-    "loadError": "타임라인을 불러올 수 없습니다",
+    "title": "일상 모아보기",
+    "loading": "불러오는 중...",
+    "loadError": "불러올 수 없습니다",
     "photoCount": "장의 사진",
     "loadingMore": "더 불러오는 중...",
     "allLoaded": "모든 사진을 불러왔습니다",
     "noPhotos": "아직 사진이 없습니다",
-    "uploadPrompt": "사진을 업로드하여 추억을 기록하세요"
+    "uploadPrompt": "사진을 업로드하여 추억을 기록하세요",
+    "filterAll": "전체",
+    "filterImage": "이미지",
+    "filterText": "텍스트",
+    "gridView": "그리드",
+    "listView": "리스트"
   },
   "search": {
     "title": "검색",
-    "placeholder": "사진 검색 (예: 해변 일몰)",
+    "placeholder": "Search in English (e.g., beach)",
     "searching": "검색 중...",
     "noResults": "검색 결과가 없습니다",
     "noResultsHint": "다른 검색어로 시도해보세요",
@@ -108,7 +113,10 @@
     "suggestions": "추천 검색어",
     "aiSearch": "AI 시맨틱 검색",
     "aiSearchDesc": "자연어로 원하는 사진을 찾아보세요.\n\"작년 여름 해운대\", \"가족과 저녁 식사\" 등",
-    "searchFailed": "검색에 실패했습니다"
+    "searchFailed": "검색에 실패했습니다",
+    "englishOnly": "현재 영어 검색만 지원됩니다",
+    "recentSearches": "최근 검색어",
+    "clearAll": "전체 삭제"
   },
   "upload": {
     "title": "사진 추가",

@@ -11,8 +11,10 @@ import {
   ActivityIndicator,
   Modal,
   Platform,
+  StatusBar,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Rect } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
 import timelineApi, { TimelineItem } from '@/src/api/timeline';
@@ -21,13 +23,111 @@ import { useAuthStore } from '@/src/store/authStore';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { useDialog } from '@/src/components/ui/Dialog';
+
+// 다크 그린 색상
+const DARK_GREEN = '#2D3A35';
 
 // Figma 기반 아이콘들
+function BookOpenIcon({ color = palette.neutral[900] }: { color?: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M2 3H8C9.06087 3 10.0783 3.42143 10.8284 4.17157C11.5786 4.92172 12 5.93913 12 7V21C12 20.2044 11.6839 19.4413 11.1213 18.8787C10.5587 18.3161 9.79565 18 9 18H2V3Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M22 3H16C14.9391 3 13.9217 3.42143 13.1716 4.17157C12.4214 4.92172 12 5.93913 12 7V21C12 20.2044 12.3161 19.4413 12.8787 18.8787C13.4413 18.3161 14.2044 18 15 18H22V3Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function SearchIcon({ color = palette.neutral[900] }: { color?: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 function PlusIcon({ color = palette.neutral[900] }: { color?: string }) {
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
       <Path
         d="M12 5V19M5 12H19"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function BellIcon({ color = palette.neutral[900] }: { color?: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6982 21.5547 10.4458 21.3031 10.27 21"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function GridIcon({ color = palette.neutral[900] }: { color?: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Rect x="3" y="3" width="7" height="7" rx="1" stroke={color} strokeWidth={2} />
+      <Rect x="14" y="3" width="7" height="7" rx="1" stroke={color} strokeWidth={2} />
+      <Rect x="3" y="14" width="7" height="7" rx="1" stroke={color} strokeWidth={2} />
+      <Rect x="14" y="14" width="7" height="7" rx="1" stroke={color} strokeWidth={2} />
+    </Svg>
+  );
+}
+
+function ListIcon({ color = palette.neutral[900] }: { color?: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path d="M8 6H21" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M8 12H21" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M8 18H21" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M3 6H3.01" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M3 12H3.01" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Path d="M3 18H3.01" stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+function BookmarkIcon({ color = palette.neutral[0], filled = false }: { color?: string; filled?: boolean }) {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24" fill={filled ? color : 'none'}>
+      <Path
+        d="M19 21L12 16L5 21V5C5 4.46957 5.21071 3.96086 5.58579 3.58579C5.96086 3.21071 6.46957 3 7 3H17C17.5304 3 18.0391 3.21071 18.4142 3.58579C18.7893 3.96086 19 4.46957 19 5V21Z"
         stroke={color}
         strokeWidth={2}
         strokeLinecap="round"
@@ -100,6 +200,19 @@ function CameraIcon({ color = palette.primary[500] }: { color?: string }) {
   );
 }
 
+// 시간 포맷 함수
+const formatTime = (dateStr: string) => {
+  const date = new Date(dateStr);
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const period = hours >= 12 ? '오후' : '오전';
+  const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+  return `${displayHours}시 ${minutes.toString().padStart(2, '0')}분 (${period})`;
+};
+
+type FilterType = 'all' | 'image' | 'text';
+type ViewMode = 'grid' | 'list';
+
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 48) / 3;
 const PAGE_SIZE = 30;
@@ -112,11 +225,13 @@ interface DateGroup {
 }
 
 export default function TimelineScreen() {
+  const insets = useSafeAreaInsets();
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
   const { accessToken } = useAuthStore();
   const router = useRouter();
   const { t } = useTranslation();
+  const { alert: showAlert } = useDialog();
 
   // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
   const isDark = themeMode === 'system'
@@ -134,6 +249,8 @@ export default function TimelineScreen() {
   const [loadedCount, setLoadedCount] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
 
   const allItemsRef = useRef<TimelineItem[]>([]);
   const offsetRef = useRef(0);
@@ -274,6 +391,19 @@ export default function TimelineScreen() {
     router.push(`/media/${mediaId}`);
   };
 
+  // 헤더 액션 핸들러
+  const handleSearchPress = () => {
+    router.push('/search');
+  };
+
+  const handleAddPress = () => {
+    setShowUploadModal(true);
+  };
+
+  const handleNotificationPress = () => {
+    showAlert(t('notification.title'), t('notification.comingSoon'));
+  };
+
   // 업로드 관련 핸들러
   const handleFabPress = () => {
     setShowUploadModal(true);
@@ -335,25 +465,67 @@ export default function TimelineScreen() {
     );
   }
 
+  // 그리드 뷰 카드
+  const renderGridCard = (photo: TimelineItem) => (
+    <TouchableOpacity
+      key={photo.id}
+      style={[styles.gridItem, { backgroundColor: theme.background.tertiary }]}
+      activeOpacity={0.8}
+      onPress={() => handlePhotoPress(photo.media_id)}
+    >
+      <Image
+        source={{ uri: getImageUrl(photo) }}
+        style={styles.gridImage}
+        resizeMode="cover"
+      />
+      {/* 북마크 아이콘 */}
+      <View style={styles.bookmarkBadge}>
+        <BookmarkIcon color={palette.neutral[0]} />
+      </View>
+      {/* 시간 태그 */}
+      <View style={[styles.timeBadge, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+        <Text style={styles.timeBadgeText}>{formatTime(photo.created_at)}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+
+  // 리스트 뷰 카드
+  const renderListCard = (photo: TimelineItem) => (
+    <TouchableOpacity
+      key={photo.id}
+      style={[styles.listItem, { backgroundColor: theme.surface.primary }]}
+      activeOpacity={0.8}
+      onPress={() => handlePhotoPress(photo.media_id)}
+    >
+      <Image
+        source={{ uri: getImageUrl(photo) }}
+        style={styles.listImage}
+        resizeMode="cover"
+      />
+      <View style={styles.listContent}>
+        <View style={styles.listHeader}>
+          <Text style={[styles.listTime, { color: theme.text.tertiary }]}>{formatTime(photo.created_at)}</Text>
+          <BookmarkIcon color={theme.icon.secondary} />
+        </View>
+        <Text style={[styles.listCaption, { color: theme.text.primary }]} numberOfLines={2}>
+          {photo.caption || t('search.noCaption')}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+
   const renderDateSection = ({ item }: { item: DateGroup }) => (
     <View style={styles.dateSection}>
       <Text style={[styles.dateHeader, { color: theme.text.primary }]}>{formatDate(item.date)}</Text>
-      <View style={styles.gridContainer}>
-        {item.items.map((photo) => (
-          <TouchableOpacity
-            key={photo.id}
-            style={[styles.gridItem, { backgroundColor: theme.background.tertiary }]}
-            activeOpacity={0.8}
-            onPress={() => handlePhotoPress(photo.media_id)}
-          >
-            <Image
-              source={{ uri: getImageUrl(photo) }}
-              style={styles.gridImage}
-              resizeMode="cover"
-            />
-          </TouchableOpacity>
-        ))}
-      </View>
+      {viewMode === 'grid' ? (
+        <View style={styles.gridContainer}>
+          {item.items.map(renderGridCard)}
+        </View>
+      ) : (
+        <View style={styles.listContainer}>
+          {item.items.map(renderListCard)}
+        </View>
+      )}
     </View>
   );
 
@@ -361,15 +533,87 @@ export default function TimelineScreen() {
   const displayCount = dateGroups.reduce((sum, group) => sum + group.items.length, 0);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background.primary }]}>
-      <View style={[styles.statsBar, { borderBottomColor: theme.border.light }]}>
-        <Text key={`stats-${displayCount}-${total}`} style={[styles.statsText, { color: theme.text.secondary }]}>{displayCount} / {total} {t('timeline.photoCount')}</Text>
+    <View style={[styles.container, { backgroundColor: theme.background.primary, paddingTop: insets.top }]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.background.primary} />
+
+      {/* 헤더 */}
+      <View style={[styles.header, { backgroundColor: theme.background.primary }]}>
+        <View style={styles.headerLeft}>
+          <BookOpenIcon color={theme.icon.primary} />
+          <Text style={[styles.headerTitle, { color: theme.text.primary }]}>{t('timeline.title')}</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.iconButton} onPress={handleSearchPress}>
+            <SearchIcon color={theme.icon.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton} onPress={handleAddPress} disabled={isUploading}>
+            {isUploading ? (
+              <ActivityIndicator size="small" color={theme.icon.primary} />
+            ) : (
+              <PlusIcon color={theme.icon.primary} />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton} onPress={handleNotificationPress}>
+            <BellIcon color={theme.icon.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* 필터 바 */}
+      <View style={[styles.filterBar, { borderBottomColor: theme.border.light }]}>
+        <View style={styles.filterTabs}>
+          <TouchableOpacity
+            style={[
+              styles.filterTab,
+              filter === 'image' && { backgroundColor: DARK_GREEN }
+            ]}
+            onPress={() => setFilter(filter === 'image' ? 'all' : 'image')}
+          >
+            <Text style={[
+              styles.filterTabText,
+              { color: filter === 'image' ? palette.neutral[0] : theme.text.primary }
+            ]}>
+              {t('timeline.filterImage')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.filterTab,
+              filter === 'text' && { backgroundColor: DARK_GREEN }
+            ]}
+            onPress={() => setFilter(filter === 'text' ? 'all' : 'text')}
+          >
+            <Text style={[
+              styles.filterTabText,
+              { color: filter === 'text' ? palette.neutral[0] : theme.text.primary }
+            ]}>
+              {t('timeline.filterText')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.filterRight}>
+          <Text style={[styles.statsText, { color: theme.text.secondary }]}>
+            {displayCount}/{total}
+          </Text>
+          <TouchableOpacity
+            style={styles.viewToggle}
+            onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+          >
+            {viewMode === 'grid' ? (
+              <ListIcon color={theme.icon.secondary} />
+            ) : (
+              <GridIcon color={theme.icon.secondary} />
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <FlatList
         data={dateGroups}
         keyExtractor={(item) => item.date}
         renderItem={renderDateSection}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={styles.flatListContent}
         showsVerticalScrollIndicator={false}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
@@ -394,7 +638,7 @@ export default function TimelineScreen() {
           </View>
         }
       />
-      {/* FAB 버튼 */}
+      {/* FAB 버튼 - 탭바 위에 위치 */}
       <TouchableOpacity
         style={[
           styles.fab,
@@ -466,6 +710,73 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  // Header
+  header: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 20,
+  },
+  // Filter Bar
+  filterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  filterTabs: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  filterTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: palette.neutral[200],
+  },
+  filterTabText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  filterRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  viewToggle: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statsText: {
+    fontSize: 13,
+  },
+  // Loading/Error
   centerContainer: {
     flex: 1,
     alignItems: 'center',
@@ -491,26 +802,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  statsBar: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-  },
-  statsText: {
-    fontSize: 14,
-  },
-  listContent: {
+  // List Content
+  flatListContent: {
     paddingVertical: 16,
+    paddingBottom: 120,
   },
   dateSection: {
     marginBottom: 24,
     paddingHorizontal: 16,
   },
   dateHeader: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
   },
+  // Grid View
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -519,13 +825,77 @@ const styles = StyleSheet.create({
   gridItem: {
     width: ITEM_SIZE,
     height: ITEM_SIZE,
-    borderRadius: 8,
+    borderRadius: 12,
     overflow: 'hidden',
+    position: 'relative',
   },
   gridImage: {
     width: '100%',
     height: '100%',
   },
+  bookmarkBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+  },
+  timeBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  timeBadgeText: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: palette.neutral[0],
+  },
+  // List View
+  listContainer: {
+    gap: 12,
+  },
+  listItem: {
+    flexDirection: 'row',
+    borderRadius: 12,
+    overflow: 'hidden',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+      },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  listImage: {
+    width: 100,
+    height: 100,
+  },
+  listContent: {
+    flex: 1,
+    padding: 12,
+    justifyContent: 'space-between',
+  },
+  listHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  listTime: {
+    fontSize: 12,
+  },
+  listCaption: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  // Empty State
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
@@ -541,10 +911,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
   },
+  // FAB
   fab: {
     position: 'absolute',
     right: 20,
-    bottom: 20,
+    bottom: 100, // 탭바 위에 위치
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -555,6 +926,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  // Loading More
   loadingMore: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -576,7 +948,7 @@ const styles = StyleSheet.create({
   // Upload progress
   uploadProgress: {
     position: 'absolute',
-    bottom: 88,
+    bottom: 168,
     right: 20,
     flexDirection: 'row',
     alignItems: 'center',
