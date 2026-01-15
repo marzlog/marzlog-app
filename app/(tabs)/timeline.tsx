@@ -12,15 +12,93 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
 import timelineApi, { TimelineItem } from '@/src/api/timeline';
-import { colors } from '@/src/theme';
+import { palette, lightTheme, darkTheme, Theme } from '@/src/theme/colors';
 import { useAuthStore } from '@/src/store/authStore';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
+
+// Figma 기반 아이콘들
+function PlusIcon({ color = palette.neutral[900] }: { color?: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 5V19M5 12H19"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function ImageIcon({ color = palette.neutral[500] }: { color?: string }) {
+  return (
+    <Svg width={48} height={48} viewBox="0 0 48 48" fill="none">
+      <Path
+        d="M38 6H10C7.79086 6 6 7.79086 6 10V38C6 40.2091 7.79086 42 10 42H38C40.2091 42 42 40.2091 42 38V10C42 7.79086 40.2091 6 38 6Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M17 20C18.6569 20 20 18.6569 20 17C20 15.3431 18.6569 14 17 14C15.3431 14 14 15.3431 14 17C14 18.6569 15.3431 20 17 20Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M42 30L32 20L10 42"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function AlertIcon({ color = palette.error[500] }: { color?: string }) {
+  return (
+    <Svg width={64} height={64} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 9V13M12 17H12.01M12 3L2 21H22L12 3Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function CameraIcon({ color = palette.primary[500] }: { color?: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M23 19C23 19.5304 22.7893 20.0391 22.4142 20.4142C22.0391 20.7893 21.5304 21 21 21H3C2.46957 21 1.96086 20.7893 1.58579 20.4142C1.21071 20.0391 1 19.5304 1 19V8C1 7.46957 1.21071 6.96086 1.58579 6.58579C1.96086 6.21071 2.46957 6 3 6H7L9 3H15L17 6H21C21.5304 6 22.0391 6.21071 22.4142 6.58579C22.7893 6.96086 23 7.46957 23 8V19Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M12 17C14.2091 17 16 15.2091 16 13C16 10.7909 14.2091 9 12 9C9.79086 9 8 10.7909 8 13C8 15.2091 9.79086 17 12 17Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 48) / 3;
@@ -44,6 +122,8 @@ export default function TimelineScreen() {
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
+
+  const theme: Theme = isDark ? darkTheme : lightTheme;
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -233,23 +313,23 @@ export default function TimelineScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.centerContainer, isDark && styles.containerDark]}>
-        <ActivityIndicator size="large" color={colors.brand.primary} />
-        <Text style={[styles.loadingText, isDark && styles.textLight]}>{t('timeline.loading')}</Text>
+      <View style={[styles.centerContainer, { backgroundColor: theme.background.primary }]}>
+        <ActivityIndicator size="large" color={palette.primary[500]} />
+        <Text style={[styles.loadingText, { color: theme.text.secondary }]}>{t('timeline.loading')}</Text>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={[styles.centerContainer, isDark && styles.containerDark]}>
-        <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
-        <Text style={[styles.errorText, isDark && styles.textLight]}>{error}</Text>
-        <Text style={{ color: '#888', fontSize: 12, marginTop: 8 }}>
+      <View style={[styles.centerContainer, { backgroundColor: theme.background.primary }]}>
+        <AlertIcon color={theme.error.default} />
+        <Text style={[styles.errorText, { color: theme.text.primary }]}>{error}</Text>
+        <Text style={{ color: theme.text.tertiary, fontSize: 12, marginTop: 8 }}>
           Token: {accessToken ? `${accessToken.substring(0, 20)}...` : 'MISSING'}
         </Text>
-        <TouchableOpacity style={styles.retryButton} onPress={() => loadTimeline()}>
-          <Text style={styles.retryButtonText}>{t('common.retry')}</Text>
+        <TouchableOpacity style={[styles.retryButton, { backgroundColor: palette.primary[500] }]} onPress={() => loadTimeline()}>
+          <Text style={[styles.retryButtonText, { color: palette.neutral[0] }]}>{t('common.retry')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -257,12 +337,12 @@ export default function TimelineScreen() {
 
   const renderDateSection = ({ item }: { item: DateGroup }) => (
     <View style={styles.dateSection}>
-      <Text style={[styles.dateHeader, isDark && styles.textLight]}>{formatDate(item.date)}</Text>
+      <Text style={[styles.dateHeader, { color: theme.text.primary }]}>{formatDate(item.date)}</Text>
       <View style={styles.gridContainer}>
         {item.items.map((photo) => (
           <TouchableOpacity
             key={photo.id}
-            style={styles.gridItem}
+            style={[styles.gridItem, { backgroundColor: theme.background.tertiary }]}
             activeOpacity={0.8}
             onPress={() => handlePhotoPress(photo.media_id)}
           >
@@ -281,9 +361,9 @@ export default function TimelineScreen() {
   const displayCount = dateGroups.reduce((sum, group) => sum + group.items.length, 0);
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
-      <View style={styles.statsBar}>
-        <Text key={`stats-${displayCount}-${total}`} style={[styles.statsText, isDark && styles.textLight]}>{displayCount} / {total} {t('timeline.photoCount')}</Text>
+    <View style={[styles.container, { backgroundColor: theme.background.primary }]}>
+      <View style={[styles.statsBar, { borderBottomColor: theme.border.light }]}>
+        <Text key={`stats-${displayCount}-${total}`} style={[styles.statsText, { color: theme.text.secondary }]}>{displayCount} / {total} {t('timeline.photoCount')}</Text>
       </View>
       <FlatList
         data={dateGroups}
@@ -293,46 +373,50 @@ export default function TimelineScreen() {
         showsVerticalScrollIndicator={false}
         onEndReached={loadMore}
         onEndReachedThreshold={0.3}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.brand.primary]} tintColor={colors.brand.primary} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[palette.primary[500]]} tintColor={palette.primary[500]} />}
         ListFooterComponent={
           loadingMore ? (
             <View style={styles.loadingMore}>
-              <ActivityIndicator size="small" color={colors.brand.primary} />
-              <Text style={styles.loadingMoreText}>{t('timeline.loadingMore')}</Text>
+              <ActivityIndicator size="small" color={palette.primary[500]} />
+              <Text style={[styles.loadingMoreText, { color: theme.text.secondary }]}>{t('timeline.loadingMore')}</Text>
             </View>
           ) : !hasMore && dateGroups.length > 0 ? (
             <View style={styles.endOfList}>
-              <Text style={styles.endOfListText}>{t('timeline.allLoaded')}</Text>
+              <Text style={[styles.endOfListText, { color: theme.text.tertiary }]}>{t('timeline.allLoaded')}</Text>
             </View>
           ) : null
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="images-outline" size={64} color={isDark ? '#6B7280' : '#D1D5DB'} />
-            <Text style={[styles.emptyText, isDark && styles.textLight]}>{t('timeline.noPhotos')}</Text>
-            <Text style={styles.emptySubtext}>{t('timeline.uploadPrompt')}</Text>
+            <ImageIcon color={theme.icon.secondary} />
+            <Text style={[styles.emptyText, { color: theme.text.primary }]}>{t('timeline.noPhotos')}</Text>
+            <Text style={[styles.emptySubtext, { color: theme.text.tertiary }]}>{t('timeline.uploadPrompt')}</Text>
           </View>
         }
       />
       {/* FAB 버튼 */}
       <TouchableOpacity
-        style={[styles.fab, isUploading && styles.fabUploading]}
+        style={[
+          styles.fab,
+          { backgroundColor: palette.primary[500], shadowColor: palette.primary[500] },
+          isUploading && { backgroundColor: theme.text.disabled }
+        ]}
         activeOpacity={0.8}
         onPress={handleFabPress}
         disabled={isUploading}
       >
         {isUploading ? (
-          <ActivityIndicator size="small" color="#fff" />
+          <ActivityIndicator size="small" color={palette.neutral[0]} />
         ) : (
-          <Ionicons name="add" size={28} color="#fff" />
+          <PlusIcon color={palette.neutral[0]} />
         )}
       </TouchableOpacity>
 
       {/* 업로드 진행 상태 */}
       {isUploading && uploadItems.length > 0 && (
-        <View style={styles.uploadProgress}>
-          <ActivityIndicator size="small" color={colors.brand.primary} />
-          <Text style={styles.uploadProgressText}>
+        <View style={[styles.uploadProgress, { backgroundColor: theme.surface.primary }]}>
+          <ActivityIndicator size="small" color={palette.primary[500]} />
+          <Text style={[styles.uploadProgressText, { color: theme.text.primary }]}>
             {t('upload.uploading')} {uploadStats.done}/{uploadStats.total}
           </Text>
         </View>
@@ -346,22 +430,22 @@ export default function TimelineScreen() {
         onRequestClose={() => setShowUploadModal(false)}
       >
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={[styles.modalOverlay, { backgroundColor: theme.overlay }]}
           activeOpacity={1}
           onPress={() => setShowUploadModal(false)}
         >
-          <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
-            <Text style={[styles.modalTitle, isDark && styles.textLight]}>{t('upload.title')}</Text>
+          <View style={[styles.modalContent, { backgroundColor: theme.surface.primary }]}>
+            <Text style={[styles.modalTitle, { color: theme.text.primary }]}>{t('upload.title')}</Text>
 
-            <TouchableOpacity style={styles.modalOption} onPress={handlePickFromGallery}>
-              <Ionicons name="images-outline" size={24} color={colors.brand.primary} />
-              <Text style={[styles.modalOptionText, isDark && styles.textLight]}>{t('upload.fromGallery')}</Text>
+            <TouchableOpacity style={[styles.modalOption, { borderBottomColor: theme.border.light }]} onPress={handlePickFromGallery}>
+              <ImageIcon color={palette.primary[500]} />
+              <Text style={[styles.modalOptionText, { color: theme.text.primary }]}>{t('upload.fromGallery')}</Text>
             </TouchableOpacity>
 
             {Platform.OS !== 'web' && (
-              <TouchableOpacity style={styles.modalOption} onPress={handleTakePhoto}>
-                <Ionicons name="camera-outline" size={24} color={colors.brand.primary} />
-                <Text style={[styles.modalOptionText, isDark && styles.textLight]}>{t('upload.takePhoto')}</Text>
+              <TouchableOpacity style={[styles.modalOption, { borderBottomColor: theme.border.light }]} onPress={handleTakePhoto}>
+                <CameraIcon color={palette.primary[500]} />
+                <Text style={[styles.modalOptionText, { color: theme.text.primary }]}>{t('upload.takePhoto')}</Text>
               </TouchableOpacity>
             )}
 
@@ -369,7 +453,7 @@ export default function TimelineScreen() {
               style={styles.modalCancel}
               onPress={() => setShowUploadModal(false)}
             >
-              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+              <Text style={[styles.modalCancelText, { color: theme.text.secondary }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -379,41 +463,172 @@ export default function TimelineScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' },
-  containerDark: { backgroundColor: '#111827' },
-  centerContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F9FAFB' },
-  loadingText: { marginTop: 16, fontSize: 16, color: '#6B7280' },
-  errorText: { marginTop: 16, fontSize: 16, color: '#374151', textAlign: 'center', paddingHorizontal: 32 },
-  retryButton: { marginTop: 24, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: colors.brand.primary, borderRadius: 8 },
-  retryButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  statsBar: { paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  statsText: { fontSize: 14, color: '#6B7280' },
-  listContent: { paddingVertical: 16 },
-  dateSection: { marginBottom: 24, paddingHorizontal: 16 },
-  dateHeader: { fontSize: 18, fontWeight: '600', color: '#1F2937', marginBottom: 12 },
-  textLight: { color: '#F9FAFB' },
-  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  gridItem: { width: ITEM_SIZE, height: ITEM_SIZE, borderRadius: 8, overflow: 'hidden', backgroundColor: '#E5E7EB' },
-  gridImage: { width: '100%', height: '100%' },
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 100 },
-  emptyText: { fontSize: 18, fontWeight: '600', color: '#374151', marginTop: 16 },
-  emptySubtext: { fontSize: 14, color: '#9CA3AF', marginTop: 8 },
-  fab: { position: 'absolute', right: 20, bottom: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brand.primary, alignItems: 'center', justifyContent: 'center', shadowColor: colors.brand.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 },
-  fabUploading: { backgroundColor: '#9CA3AF' },
-  loadingMore: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 20, gap: 8 },
-  loadingMoreText: { fontSize: 14, color: '#6B7280' },
-  endOfList: { alignItems: 'center', justifyContent: 'center', paddingVertical: 20 },
-  endOfListText: { fontSize: 14, color: '#9CA3AF' },
+  container: {
+    flex: 1,
+  },
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+  },
+  errorText: {
+    marginTop: 16,
+    fontSize: 16,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+  },
+  retryButton: {
+    marginTop: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  statsBar: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  statsText: {
+    fontSize: 14,
+  },
+  listContent: {
+    paddingVertical: 16,
+  },
+  dateSection: {
+    marginBottom: 24,
+    paddingHorizontal: 16,
+  },
+  dateHeader: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  gridItem: {
+    width: ITEM_SIZE,
+    height: ITEM_SIZE,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  gridImage: {
+    width: '100%',
+    height: '100%',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 100,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    marginTop: 8,
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  loadingMore: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  loadingMoreText: {
+    fontSize: 14,
+  },
+  endOfList: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  endOfListText: {
+    fontSize: 14,
+  },
   // Upload progress
-  uploadProgress: { position: 'absolute', bottom: 88, right: 20, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 4 },
-  uploadProgressText: { fontSize: 14, color: '#374151', fontWeight: '500' },
+  uploadProgress: {
+    position: 'absolute',
+    bottom: 88,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  uploadProgressText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
-  modalContentDark: { backgroundColor: '#1F2937' },
-  modalTitle: { fontSize: 20, fontWeight: '600', color: '#1F2937', marginBottom: 20, textAlign: 'center' },
-  modalOption: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  modalOptionText: { fontSize: 16, color: '#374151' },
-  modalCancel: { marginTop: 16, paddingVertical: 16, alignItems: 'center' },
-  modalCancelText: { fontSize: 16, color: '#6B7280', fontWeight: '500' },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+  },
+  modalOptionText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  modalCancel: {
+    marginTop: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
 });
