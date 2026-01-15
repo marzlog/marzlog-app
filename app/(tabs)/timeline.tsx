@@ -210,11 +210,10 @@ const formatTime = (dateStr: string) => {
   return `${displayHours}시 ${minutes.toString().padStart(2, '0')}분 (${period})`;
 };
 
-type FilterType = 'all' | 'image' | 'text';
-type ViewMode = 'grid' | 'list';
+type TabFilter = 'image' | 'text';
 
 const { width } = Dimensions.get('window');
-const ITEM_SIZE = (width - 48) / 3;
+const ITEM_SIZE = (width - 40) / 2; // 2열 그리드
 const PAGE_SIZE = 30;
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
@@ -249,8 +248,7 @@ export default function TimelineScreen() {
   const [loadedCount, setLoadedCount] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [filter, setFilter] = useState<FilterType>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [activeTab, setActiveTab] = useState<TabFilter>('image');
 
   const allItemsRef = useRef<TimelineItem[]>([]);
   const offsetRef = useRef(0);
@@ -357,6 +355,27 @@ export default function TimelineScreen() {
       .sort(([a], [b]) => b.localeCompare(a))
       .map(([date, items]) => ({ date, items }));
   };
+
+  // 필터링된 날짜 그룹 (탭에 따라 필터링)
+  const filteredDateGroups = React.useMemo(() => {
+    if (activeTab === 'image') {
+      // 이미지 탭: 모든 미디어 표시
+      return dateGroups;
+    } else {
+      // 텍스트 탭: OCR 텍스트가 있는 항목만
+      return dateGroups
+        .map(group => ({
+          ...group,
+          items: group.items.filter(item => item.ocr_text && item.ocr_text.trim().length > 0)
+        }))
+        .filter(group => group.items.length > 0);
+    }
+  }, [activeTab, dateGroups]);
+
+  // 필터링된 아이템 수
+  const filteredCount = React.useMemo(() => {
+    return filteredDateGroups.reduce((sum, group) => sum + group.items.length, 0);
+  }, [filteredDateGroups]);
 
   useEffect(() => {
     loadTimeline();
@@ -489,7 +508,7 @@ export default function TimelineScreen() {
     </TouchableOpacity>
   );
 
-  // 리스트 뷰 카드
+  // 리스트 뷰 카드 (텍스트 탭용 - OCR 텍스트 표시)
   const renderListCard = (photo: TimelineItem) => (
     <TouchableOpacity
       key={photo.id}
@@ -507,17 +526,26 @@ export default function TimelineScreen() {
           <Text style={[styles.listTime, { color: theme.text.tertiary }]}>{formatTime(photo.created_at)}</Text>
           <BookmarkIcon color={theme.icon.secondary} />
         </View>
-        <Text style={[styles.listCaption, { color: theme.text.primary }]} numberOfLines={2}>
-          {photo.caption || t('search.noCaption')}
+        {/* OCR 텍스트 표시 (텍스트 탭에서) */}
+        <Text style={[styles.listCaption, { color: theme.text.primary }]} numberOfLines={3}>
+          {photo.ocr_text || photo.caption || t('search.noCaption')}
         </Text>
+        {photo.caption && photo.ocr_text && (
+          <Text style={[styles.listSubCaption, { color: theme.text.secondary }]} numberOfLines={1}>
+            {photo.caption}
+          </Text>
+        )}
       </View>
     </TouchableOpacity>
   );
 
+  // 탭에 따른 뷰 모드 결정 (이미지: 그리드, 텍스트: 리스트)
+  const currentViewMode = activeTab === 'image' ? 'grid' : 'list';
+
   const renderDateSection = ({ item }: { item: DateGroup }) => (
     <View style={styles.dateSection}>
       <Text style={[styles.dateHeader, { color: theme.text.primary }]}>{formatDate(item.date)}</Text>
-      {viewMode === 'grid' ? (
+      {currentViewMode === 'grid' ? (
         <View style={styles.gridContainer}>
           {item.items.map(renderGridCard)}
         </View>
@@ -528,9 +556,6 @@ export default function TimelineScreen() {
       )}
     </View>
   );
-
-  // dateGroups에서 직접 계산 (React Native Web Text 업데이트 버그 우회)
-  const displayCount = dateGroups.reduce((sum, group) => sum + group.items.length, 0);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background.primary, paddingTop: insets.top }]}>
@@ -559,19 +584,21 @@ export default function TimelineScreen() {
         </View>
       </View>
 
-      {/* 필터 바 */}
+      {/* 탭 필터 바 */}
       <View style={[styles.filterBar, { borderBottomColor: theme.border.light }]}>
         <View style={styles.filterTabs}>
           <TouchableOpacity
             style={[
               styles.filterTab,
-              filter === 'image' && { backgroundColor: DARK_GREEN }
+              activeTab === 'image'
+                ? { backgroundColor: DARK_GREEN }
+                : { backgroundColor: isDark ? palette.neutral[700] : '#F5F5F5' }
             ]}
-            onPress={() => setFilter(filter === 'image' ? 'all' : 'image')}
+            onPress={() => setActiveTab('image')}
           >
             <Text style={[
               styles.filterTabText,
-              { color: filter === 'image' ? palette.neutral[0] : theme.text.primary }
+              { color: activeTab === 'image' ? palette.neutral[0] : theme.text.primary }
             ]}>
               {t('timeline.filterImage')}
             </Text>
@@ -579,38 +606,28 @@ export default function TimelineScreen() {
           <TouchableOpacity
             style={[
               styles.filterTab,
-              filter === 'text' && { backgroundColor: DARK_GREEN }
+              activeTab === 'text'
+                ? { backgroundColor: DARK_GREEN }
+                : { backgroundColor: isDark ? palette.neutral[700] : '#F5F5F5' }
             ]}
-            onPress={() => setFilter(filter === 'text' ? 'all' : 'text')}
+            onPress={() => setActiveTab('text')}
           >
             <Text style={[
               styles.filterTabText,
-              { color: filter === 'text' ? palette.neutral[0] : theme.text.primary }
+              { color: activeTab === 'text' ? palette.neutral[0] : theme.text.primary }
             ]}>
               {t('timeline.filterText')}
             </Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.filterRight}>
-          <Text style={[styles.statsText, { color: theme.text.secondary }]}>
-            {displayCount}/{total}
-          </Text>
-          <TouchableOpacity
-            style={styles.viewToggle}
-            onPress={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-          >
-            {viewMode === 'grid' ? (
-              <ListIcon color={theme.icon.secondary} />
-            ) : (
-              <GridIcon color={theme.icon.secondary} />
-            )}
-          </TouchableOpacity>
-        </View>
+        <Text style={[styles.statsText, { color: theme.text.secondary }]}>
+          {filteredCount}/{total}
+        </Text>
       </View>
 
       <FlatList
-        data={dateGroups}
+        data={filteredDateGroups}
         keyExtractor={(item) => item.date}
         renderItem={renderDateSection}
         contentContainerStyle={styles.flatListContent}
@@ -624,7 +641,7 @@ export default function TimelineScreen() {
               <ActivityIndicator size="small" color={palette.primary[500]} />
               <Text style={[styles.loadingMoreText, { color: theme.text.secondary }]}>{t('timeline.loadingMore')}</Text>
             </View>
-          ) : !hasMore && dateGroups.length > 0 ? (
+          ) : !hasMore && filteredDateGroups.length > 0 ? (
             <View style={styles.endOfList}>
               <Text style={[styles.endOfListText, { color: theme.text.tertiary }]}>{t('timeline.allLoaded')}</Text>
             </View>
@@ -633,8 +650,12 @@ export default function TimelineScreen() {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <ImageIcon color={theme.icon.secondary} />
-            <Text style={[styles.emptyText, { color: theme.text.primary }]}>{t('timeline.noPhotos')}</Text>
-            <Text style={[styles.emptySubtext, { color: theme.text.tertiary }]}>{t('timeline.uploadPrompt')}</Text>
+            <Text style={[styles.emptyText, { color: theme.text.primary }]}>
+              {activeTab === 'text' ? 'OCR 텍스트가 있는 사진이 없습니다' : t('timeline.noPhotos')}
+            </Text>
+            <Text style={[styles.emptySubtext, { color: theme.text.tertiary }]}>
+              {activeTab === 'text' ? '이미지 탭에서 사진을 확인하세요' : t('timeline.uploadPrompt')}
+            </Text>
           </View>
         }
       />
@@ -747,34 +768,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
+    gap: 16,
   },
   filterTabs: {
+    flex: 1,
     flexDirection: 'row',
     gap: 8,
   },
   filterTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: palette.neutral[200],
-  },
-  filterTabText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  filterRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  viewToggle: {
-    width: 32,
-    height: 32,
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  filterTabText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   statsText: {
     fontSize: 13,
+    minWidth: 50,
+    textAlign: 'right',
   },
   // Loading/Error
   centerContainer: {
@@ -816,16 +831,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 12,
   },
-  // Grid View
+  // Grid View (2열)
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 4,
+    gap: 8,
   },
   gridItem: {
     width: ITEM_SIZE,
     height: ITEM_SIZE,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
   },
@@ -894,6 +909,10 @@ const styles = StyleSheet.create({
   listCaption: {
     fontSize: 14,
     lineHeight: 20,
+  },
+  listSubCaption: {
+    fontSize: 12,
+    marginTop: 4,
   },
   // Empty State
   emptyContainer: {

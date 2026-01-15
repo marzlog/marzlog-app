@@ -35,6 +35,7 @@ export interface TimelineItem {
   user_id: string;
   media_id: string;
   caption: string | null;
+  ocr_text: string | null;    // OCR 텍스트
   embedding: number[] | null;
   tags: string[];
   created_at: string;
