@@ -19,6 +19,7 @@ export interface UploadPrepareResponse {
   duplicate: boolean;
   existing_media_id?: string;
   presigned_put_url?: string;
+  skip_upload?: boolean;
 }
 
 export interface UploadCompleteRequest {

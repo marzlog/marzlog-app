@@ -213,14 +213,26 @@ export async function uploadImage(
   });
   onProgress?.(15);
 
-  // 중복 파일 체크
-  if (prepareResponse.duplicate && prepareResponse.existing_media_id) {
-    console.log('[Upload] Duplicate found:', prepareResponse.existing_media_id);
-    return {
-      media_id: prepareResponse.existing_media_id,
-      status: 'duplicate',
-      message: '이미 업로드된 사진입니다',
+  // 중복 파일 체크 - skip_upload이면 S3 건너뛰고 새 레코드 생성
+  if (prepareResponse.duplicate && prepareResponse.skip_upload && prepareResponse.upload_id) {
+    console.log('[Upload] Duplicate reuse: skip S3, create new record with existing storage_key');
+    onStatusChange?.('분석 요청 중...');
+    onProgress?.(90);
+
+    const requestBody = {
+      upload_id: prepareResponse.upload_id,
+      storage_key: prepareResponse.storage_key!,
+      analysis_mode: 'light',
+      taken_at: takenAt,
     };
+
+    console.log('=== completeUpload (duplicate reuse) ===');
+    console.log('request body:', JSON.stringify(requestBody, null, 2));
+
+    const result = await completeUpload(requestBody);
+    onProgress?.(100);
+    onStatusChange?.('완료!');
+    return { ...result, status: 'reused' };
   }
 
   // 3. S3 직접 업로드 (15-90%)

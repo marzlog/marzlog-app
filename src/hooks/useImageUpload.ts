@@ -190,15 +190,15 @@ export function useImageUpload() {
     setIsUploading(false);
 
     if (results.length > 0) {
-      const duplicateCount = results.filter((r) => r.status === 'duplicate').length;
-      const newCount = results.length - duplicateCount;
+      const reusedCount = results.filter((r) => r.status === 'reused').length;
+      const newCount = results.length - reusedCount;
 
-      let message = '';
-      if (newCount > 0) message += `${newCount}장 업로드 완료!`;
-      if (duplicateCount > 0) message += ` (${duplicateCount}장은 이미 존재)`;
-      if (newCount > 0) message += '\nAI 분석이 시작됩니다.';
-
-      Alert.alert('업로드 완료', message.trim());
+      let message = `${results.length}장 업로드 완료!`;
+      if (reusedCount > 0) {
+        message += `\n(${reusedCount}장은 기존 파일 재사용)`;
+      }
+      message += '\nAI 분석이 시작됩니다.';
+      Alert.alert('업로드 완료', message);
     }
 
     return results;
@@ -239,6 +239,7 @@ export function useImageUpload() {
     setError(null);
 
     const uploadedItems: GroupUploadItem[] = [];
+    let duplicateCount = 0;
 
     try {
       // 1. 각 이미지를 S3에 업로드하고 정보 수집
@@ -276,11 +277,21 @@ export function useImageUpload() {
           },
         });
 
-        // 중복 체크 - 그룹 업로드에서는 중복도 포함
-        if (prepareResponse.duplicate && prepareResponse.existing_media_id) {
-          console.log(`[GroupUpload] Duplicate found: ${item.filename}`);
-          updateItem(item.id, { status: 'done', progress: 100, mediaId: prepareResponse.existing_media_id });
-          continue; // 중복은 그룹에 포함하지 않음
+        // 중복 체크 - skip_upload이면 S3 업로드 건너뛰고 그룹에 포함
+        if (prepareResponse.duplicate && prepareResponse.skip_upload) {
+          console.log(`[GroupUpload] Duplicate reuse: ${item.filename} (skip S3, reuse storage_key)`);
+          duplicateCount++;
+
+          // S3 업로드 건너뛰고 바로 그룹에 포함
+          if (prepareResponse.upload_id && prepareResponse.storage_key) {
+            uploadedItems.push({
+              upload_id: prepareResponse.upload_id,
+              storage_key: prepareResponse.storage_key,
+              sha256,
+            });
+          }
+          updateItem(item.id, { status: 'done', progress: 100 });
+          continue;
         }
 
         updateItem(item.id, { status: 'uploading', progress: 15 });
@@ -337,12 +348,15 @@ export function useImageUpload() {
         updateItem(item.id, { status: 'done', progress: 100 });
       });
 
-      console.log(`✅ 그룹 업로드 완료: ${result.total_images}장, group_id: ${result.group_id}`);
+      console.log(`✅ 그룹 업로드 완료: ${result.total_images}장, group_id: ${result.group_id}, 중복: ${duplicateCount}장`);
 
-      Alert.alert(
-        '업로드 완료',
-        `${result.total_images}장이 그룹으로 업로드되었습니다.\nAI 분석이 시작됩니다.`
-      );
+      let alertMessage = `${result.total_images}장이 업로드되었습니다.`;
+      if (duplicateCount > 0) {
+        alertMessage += `\n(${duplicateCount}장은 기존 파일 재사용)`;
+      }
+      alertMessage += '\nAI 분석이 시작됩니다.';
+
+      Alert.alert('업로드 완료', alertMessage);
 
       setIsUploading(false);
       return result;
@@ -410,10 +424,17 @@ export function useImageUpload() {
           },
         });
 
-        // 중복 체크
-        if (prepareResponse.duplicate && prepareResponse.existing_media_id) {
-          console.log(`[GroupUpload] Duplicate found: ${item.filename}`);
-          updateItem(item.id, { status: 'done', progress: 100, mediaId: prepareResponse.existing_media_id });
+        // 중복 체크 - skip_upload이면 S3 업로드 건너뛰고 그룹에 포함
+        if (prepareResponse.duplicate && prepareResponse.skip_upload) {
+          console.log(`[GroupUpload] Duplicate reuse: ${item.filename} (skip S3, reuse storage_key)`);
+          if (prepareResponse.upload_id && prepareResponse.storage_key) {
+            uploadedItems.push({
+              upload_id: prepareResponse.upload_id,
+              storage_key: prepareResponse.storage_key,
+              sha256,
+            });
+          }
+          updateItem(item.id, { status: 'done', progress: 100 });
           continue;
         }
 
