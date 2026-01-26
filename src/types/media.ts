@@ -11,6 +11,8 @@ export interface MediaAnalysis {
   scene_scores: Record<string, number> | null;
   analyzed_at: string | null;
   taken_at: string | null;
+  ai_analyzed: boolean;
+  ai_reused: boolean;
   exif: {
     camera_make: string | null;
     camera_model: string | null;

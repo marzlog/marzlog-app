@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -196,6 +196,33 @@ export default function MediaDetailScreen() {
     : media
       ? [{ id: media.id, download_url: media.download_url, thumbnail_url: media.thumbnail_url || '' }]
       : [];
+
+  // AI 뱃지 위치 계산 (contain 모드에서 이미지 실제 영역 기준)
+  const aiBadgeOffset = useMemo(() => {
+    const w = analysis?.exif?.width || media?.metadata?.exif?.width;
+    const h = analysis?.exif?.height || media?.metadata?.exif?.height;
+    if (!w || !h) return { top: 12, right: 12 };
+
+    const containerAspect = SCREEN_WIDTH / CAROUSEL_IMAGE_HEIGHT;
+    const imageAspect = w / h;
+
+    let top = 12;
+    let right = 12;
+
+    if (imageAspect < containerAspect) {
+      // 세로 사진: 좌우 여백 존재
+      const renderedWidth = CAROUSEL_IMAGE_HEIGHT * imageAspect;
+      const sideBar = (SCREEN_WIDTH - renderedWidth) / 2;
+      right = sideBar + 12;
+    } else {
+      // 가로 사진: 상하 여백 존재
+      const renderedHeight = SCREEN_WIDTH / imageAspect;
+      const topBar = (CAROUSEL_IMAGE_HEIGHT - renderedHeight) / 2;
+      top = topBar + 12;
+    }
+
+    return { top, right };
+  }, [analysis, media]);
 
   const formatDateTime = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -398,6 +425,16 @@ export default function MediaDetailScreen() {
                 ]}
               />
             ))}
+          </View>
+        )}
+
+        {/* AI Badge - PRIMARY 또는 단일 이미지만, 이미지 영역 기준 우상단 */}
+        {media?.is_primary !== 'false' && analysis?.ai_analyzed && (
+          <View style={[styles.aiBadge, { top: aiBadgeOffset.top, right: aiBadgeOffset.right }]}>
+            <Ionicons name="sparkles" size={12} color="#fff" />
+            <Text style={styles.aiBadgeText}>
+              {analysis.ai_reused ? 'AI (재사용)' : 'AI'}
+            </Text>
           </View>
         )}
       </View>
@@ -861,6 +898,22 @@ const styles = StyleSheet.create({
   paginationDotActive: {
     backgroundColor: colors.brand.primary,
     width: 24,
+  },
+  aiBadge: {
+    position: 'absolute',
+    zIndex: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(99, 102, 241, 0.9)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  aiBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
   section: {
     marginBottom: 24,
