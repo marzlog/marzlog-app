@@ -78,6 +78,7 @@ export interface GroupUploadCompleteRequest {
   items: GroupUploadItem[];
   primary_index?: number;
   analysis_mode?: 'light' | 'precision';
+  taken_at?: string;  // 캘린더에서 선택한 날짜 (ISO 형식)
 }
 
 export interface GroupUploadCompleteResponse {

@@ -8,6 +8,7 @@ import { useSettingsStore } from '@/src/store/settingsStore';
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 24; // Figma: 풀 너비에 가깝게
 const CARD_HEIGHT = 437;
+const GRID_CARD_SIZE = (width - 32) / 2; // 2열 그리드용
 
 // Figma 기반 이모티콘 아이콘 (감정 표시용)
 function EmotionIcon({ color = palette.neutral[900] }: { color?: string }) {
@@ -60,6 +61,8 @@ interface ScheduleCardProps {
   onEmojiPress?: () => void;
   /** 테마 (외부 주입용, 없으면 자동 감지) */
   theme?: Theme;
+  /** 카드 크기: 'large' (기본값) 또는 'compact' (그리드용) */
+  size?: 'large' | 'compact';
 }
 
 export function ScheduleCard({
@@ -73,6 +76,7 @@ export function ScheduleCard({
   onPress,
   onEmojiPress,
   theme: externalTheme,
+  size = 'large',
 }: ScheduleCardProps) {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
@@ -84,6 +88,39 @@ export function ScheduleCard({
 
   const theme = externalTheme || (isDark ? darkTheme : lightTheme);
 
+  const isCompact = size === 'compact';
+
+  // Compact (그리드) 뷰
+  if (isCompact) {
+    return (
+      <TouchableOpacity
+        style={styles.compactContainer}
+        onPress={onPress}
+        activeOpacity={0.9}
+      >
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.compactImage}
+          resizeMode="cover"
+        />
+        {/* Group Badge */}
+        {groupCount && groupCount > 1 && (
+          <View style={styles.compactGroupBadge}>
+            <CopyIcon color="#fff" />
+            <Text style={styles.compactGroupText}>+{groupCount - 1}</Text>
+          </View>
+        )}
+        {/* Title overlay */}
+        <View style={styles.compactOverlay}>
+          <Text style={styles.compactTitle} numberOfLines={1}>
+            {title}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+
+  // Large (리스트) 뷰
   return (
     <View style={styles.container}>
       {/* Info Section */}
@@ -226,6 +263,48 @@ const styles = StyleSheet.create({
   },
   groupBadgeText: {
     fontSize: 12,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  // Compact (Grid) 스타일
+  compactContainer: {
+    width: GRID_CARD_SIZE,
+    height: GRID_CARD_SIZE,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  compactImage: {
+    width: '100%',
+    height: '100%',
+  },
+  compactOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  compactTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  compactGroupBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 12,
+  },
+  compactGroupText: {
+    fontSize: 11,
     fontWeight: '600',
     color: '#fff',
   },

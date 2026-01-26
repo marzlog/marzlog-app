@@ -33,6 +33,7 @@ export default function UploadScreen() {
     editMode?: string;
     mediaId?: string;
     groupId?: string;
+    selectedDate?: string;  // 캘린더에서 선택한 날짜 (ISO 형식)
   }>();
 
   // 다크모드 결정
@@ -326,15 +327,28 @@ export default function UploadScreen() {
 
     setIsSubmitting(true);
     try {
+      // 선택한 날짜 (캘린더에서 전달받은 날짜)
+      console.log('=== Upload Submit Debug ===');
+      console.log('params:', JSON.stringify(params));
+      console.log('params.selectedDate:', params.selectedDate);
+      console.log('params.selectedDate type:', typeof params.selectedDate);
+
+      const takenAt = params.selectedDate || undefined;
+      console.log('[Upload] Using takenAt:', takenAt);
+
+      if (takenAt) {
+        console.log('[Upload] takenAt parsed as Date:', new Date(takenAt));
+      }
+
       if (images.length === 1) {
         // 단일 이미지: 기존 업로드 방식
         console.log('[Upload] Single image upload');
-        const results = await startUpload(images);
+        const results = await startUpload(images, takenAt);
         console.log('[Upload] Upload completed, results:', results.length);
       } else {
         // 여러 이미지: 그룹 업로드
         console.log('[Upload] Group upload with', images.length, 'images, primary:', primaryImageIndex);
-        const result = await startGroupUpload(images, primaryImageIndex);
+        const result = await startGroupUpload(images, primaryImageIndex, takenAt);
         console.log('[Upload] Group upload completed:', result?.group_id);
       }
 

@@ -103,6 +103,85 @@ function ImageIcon({ color = palette.neutral[500] }: { color?: string }) {
   );
 }
 
+// Grid2X2 아이콘 (Lucide)
+function GridIcon({ color = palette.neutral[500] }: { color?: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M10 3H3V10H10V3Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M21 3H14V10H21V3Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M21 14H14V21H21V14Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M10 14H3V21H10V14Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+// LayoutList 아이콘 (Lucide)
+function ListIcon({ color = palette.neutral[500] }: { color?: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M21 8H10"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M21 12H10"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M21 16H10"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M7 8H3V4H7V8Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M7 20H3V16H7V20Z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 // 시간 포맷
 const formatTime = (dateStr: string) => {
   const date = new Date(dateStr);
@@ -160,6 +239,7 @@ export default function HomeScreen() {
   const [allItems, setAllItems] = useState<TimelineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // Upload hook
   const {
@@ -168,13 +248,23 @@ export default function HomeScreen() {
     takePhoto,
   } = useImageUpload();
 
-  // 사진이 있는 날짜 Set (created_at 등록일 기준)
+  // 사진이 있는 날짜 Set (group_dates 기준 - 그룹 내 모든 이미지의 날짜)
   const datesWithPhotos = useMemo(() => {
     const dates = new Set<string>();
     allItems.forEach((item) => {
-      // created_at (등록일) 기준으로만
-      const createdAt = new Date(item.created_at);
-      dates.add(formatDateKey(createdAt));
+      // group_dates가 있으면 모든 날짜 추가, 없으면 taken_at 사용
+      const groupDates = item.media?.group_dates;
+      if (groupDates && groupDates.length > 0) {
+        groupDates.forEach((dateStr) => {
+          if (dateStr) {
+            dates.add(formatDateKey(new Date(dateStr)));
+          }
+        });
+      } else {
+        // fallback: taken_at 또는 created_at
+        const takenAt = new Date(item.media?.taken_at || item.created_at);
+        dates.add(formatDateKey(takenAt));
+      }
     });
     console.log('[Home] datesWithPhotos:', Array.from(dates));
     return dates;
@@ -192,14 +282,9 @@ export default function HomeScreen() {
 
     try {
       console.log('[Home] Calling timelineApi.getTimeline with limit=50...');
-      // 명시적으로 limit=50 지정 (500은 백엔드에서 422 에러 발생)
-      const response = await timelineApi.getTimeline(50, 0);
+      // 그룹 단위로 조회 (showAll=false), group_dates로 날짜 필터링
+      const response = await timelineApi.getTimeline(50, 0, false);
       console.log('[Home] API Response - total:', response.total, 'items:', response.items.length);
-      console.log('[Home] First 3 items:', response.items.slice(0, 3).map(item => ({
-        id: item.id,
-        created_at: item.created_at,
-        taken_at: item.media?.taken_at,
-      })));
       setAllItems(response.items);
       console.log('[Home] setAllItems called with', response.items.length, 'items');
     } catch (err) {
@@ -214,20 +299,33 @@ export default function HomeScreen() {
     console.log('[Home] accessToken changed:', accessToken ? 'EXISTS' : 'MISSING');
   }, [accessToken]);
 
-  // 선택된 날짜의 타임라인 필터링 (created_at 등록일 기준)
+  // 선택된 날짜의 타임라인 필터링 (group_dates 기준 - 그룹 내 아무 이미지라도 해당 날짜면 표시)
   useEffect(() => {
     console.log('[Home] Filtering - selectedDate:', formatDateKey(selectedDate));
     console.log('[Home] Filtering - allItems count:', allItems.length);
 
-    const filtered = allItems.filter((item) => {
-      // created_at (등록일) 기준으로만 필터링
-      const createdAt = new Date(item.created_at);
-      const isMatch = isSameDay(createdAt, selectedDate);
+    const selectedDateStr = formatDateKey(selectedDate);
 
-      if (isMatch) {
-        console.log(`[Home] Match found: id=${item.id}, created_at=${item.created_at}`);
+    const filtered = allItems.filter((item) => {
+      // group_dates가 있으면 그룹 내 아무 날짜라도 매칭되면 표시
+      const groupDates = item.media?.group_dates;
+      if (groupDates && groupDates.length > 0) {
+        const isMatch = groupDates.some((dateStr) => {
+          if (!dateStr) return false;
+          return formatDateKey(new Date(dateStr)) === selectedDateStr;
+        });
+        if (isMatch) {
+          console.log(`[Home] Match found (group_dates): id=${item.id}, group_dates=${groupDates.join(', ')}`);
+        }
+        return isMatch;
       }
 
+      // fallback: taken_at 또는 created_at
+      const takenAt = new Date(item.media?.taken_at || item.created_at);
+      const isMatch = isSameDay(takenAt, selectedDate);
+      if (isMatch) {
+        console.log(`[Home] Match found (taken_at): id=${item.id}, taken_at=${item.media?.taken_at}`);
+      }
       return isMatch;
     });
 
@@ -237,7 +335,7 @@ export default function HomeScreen() {
       id: item.id,
       title: item.caption || t('common.noTitle'),
       location: undefined,
-      time: formatTime(item.created_at),
+      time: formatTime(item.media?.taken_at || item.created_at),
       imageUrl: item.media?.download_url || item.media?.thumbnail_url || '',
       mediaId: item.media_id,
       groupId: item.media?.group_id || undefined,
@@ -325,10 +423,17 @@ export default function HomeScreen() {
 
         // 유효한 이미지가 있으면 업로드 화면으로 이동
         if (validItems.length > 0) {
+          const dateIso = selectedDate.toISOString();
+          console.log('=== Home → Upload Navigation ===');
+          console.log('selectedDate:', selectedDate);
+          console.log('selectedDate.toISOString():', dateIso);
           console.log('[Gallery] Navigating to /upload with', validItems.length, 'valid images');
           router.push({
             pathname: '/upload',
-            params: { images: JSON.stringify(validItems) },
+            params: {
+              images: JSON.stringify(validItems),
+              selectedDate: dateIso,  // 캘린더 선택 날짜 전달
+            },
           });
         } else if (invalidFiles.length > 0) {
           console.log('[Gallery] No valid images after filtering');
@@ -349,7 +454,10 @@ export default function HomeScreen() {
     if (takenItem) {
       router.push({
         pathname: '/upload',
-        params: { images: JSON.stringify([takenItem]) },
+        params: {
+          images: JSON.stringify([takenItem]),
+          selectedDate: selectedDate.toISOString(),  // 캘린더 선택 날짜 전달
+        },
       });
     }
   };
@@ -414,8 +522,32 @@ export default function HomeScreen() {
           />
         </View>
 
+        {/* Filter Bar */}
+        <View style={styles.filterBar}>
+          {/* 총 건수 */}
+          <Text style={[styles.totalCount, { color: theme.text.secondary }]}>
+            총 {schedules.length}건
+          </Text>
+
+          {/* 뷰 모드 토글 */}
+          <View style={styles.viewModeContainer}>
+            <TouchableOpacity
+              style={styles.viewModeButton}
+              onPress={() => setViewMode('grid')}
+            >
+              <GridIcon color={viewMode === 'grid' ? (isDark ? palette.neutral[0] : '#252525') : (isDark ? palette.neutral[500] : '#A3A3A3')} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.viewModeButton}
+              onPress={() => setViewMode('list')}
+            >
+              <ListIcon color={viewMode === 'list' ? (isDark ? palette.neutral[0] : '#252525') : (isDark ? palette.neutral[500] : '#A3A3A3')} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Schedule Cards */}
-        <View style={styles.schedulesContainer}>
+        <View style={viewMode === 'grid' ? styles.schedulesContainerGrid : styles.schedulesContainer}>
           {loading ? (
             <View style={styles.emptyState}>
               <ActivityIndicator size="large" color={palette.primary[500]} />
@@ -445,6 +577,7 @@ export default function HomeScreen() {
                 groupCount={schedule.groupCount}
                 onPress={() => handlePhotoPress(schedule.mediaId)}
                 theme={theme}
+                size={viewMode === 'grid' ? 'compact' : 'large'}
               />
             ))
           )}
@@ -547,6 +680,30 @@ const styles = StyleSheet.create({
   schedulesContainer: {
     flex: 1,
     gap: 12,
+  },
+  schedulesContainerGrid: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+  },
+  totalCount: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  viewModeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewModeButton: {
+    padding: 6,
   },
   emptyState: {
     flex: 1,

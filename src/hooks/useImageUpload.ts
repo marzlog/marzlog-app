@@ -114,7 +114,10 @@ export function useImageUpload() {
   }, []);
 
   // 업로드 시작 (직접 아이템을 전달받거나 상태에서 가져옴)
-  const startUpload = useCallback(async (directItems?: UploadItem[]): Promise<UploadCompleteResponse[]> => {
+  const startUpload = useCallback(async (directItems?: UploadItem[], takenAt?: string): Promise<UploadCompleteResponse[]> => {
+    console.log('=== useImageUpload.startUpload ===');
+    console.log('takenAt received:', takenAt);
+
     const pendingItems = directItems
       ? directItems.filter((i) => i.status === 'idle' || i.status === 'error')
       : items.filter((i) => i.status === 'idle' || i.status === 'error');
@@ -162,7 +165,8 @@ export function useImageUpload() {
               '완료!': 'done',
             };
             updateItem(item.id, { status: statusMap[status] || 'uploading' });
-          }
+          },
+          takenAt  // 캘린더에서 선택한 날짜 전달
         );
 
         updateItem(item.id, {
@@ -219,8 +223,13 @@ export function useImageUpload() {
   // 그룹 업로드 시작 (여러 이미지를 하나의 그룹으로)
   const startGroupUpload = useCallback(async (
     directItems: UploadItem[],
-    primaryIndex: number = 0
+    primaryIndex: number = 0,
+    takenAt?: string  // 캘린더에서 선택한 날짜
   ): Promise<GroupUploadCompleteResponse | null> => {
+    console.log('=== useImageUpload.startGroupUpload ===');
+    console.log('takenAt received:', takenAt);
+    console.log('directItems count:', directItems.length);
+    console.log('primaryIndex:', primaryIndex);
     if (directItems.length === 0) {
       Alert.alert('알림', '업로드할 사진이 없습니다.');
       return null;
@@ -310,11 +319,18 @@ export function useImageUpload() {
       // primary_index 조정 (중복으로 제외된 이미지 고려)
       const adjustedPrimaryIndex = Math.min(primaryIndex, uploadedItems.length - 1);
 
-      const result = await completeGroupUpload({
+      const groupRequestBody = {
         items: uploadedItems,
         primary_index: adjustedPrimaryIndex,
         analysis_mode: 'light',
-      });
+        taken_at: takenAt,  // 캘린더에서 선택한 날짜
+      };
+
+      console.log('=== completeGroupUpload Request ===');
+      console.log('takenAt param:', takenAt);
+      console.log('request body:', JSON.stringify(groupRequestBody, null, 2));
+
+      const result = await completeGroupUpload(groupRequestBody);
 
       // 모든 아이템 완료 처리
       directItems.forEach(item => {

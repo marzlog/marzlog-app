@@ -249,6 +249,8 @@ export default function TimelineScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [activeTab, setActiveTab] = useState<TabFilter>('image');
+  const [timeFilter, setTimeFilter] = useState<'week' | 'month'>('month');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const allItemsRef = useRef<TimelineItem[]>([]);
   const offsetRef = useRef(0);
@@ -345,8 +347,8 @@ export default function TimelineScreen() {
   const groupByDate = (items: TimelineItem[]): DateGroup[] => {
     const grouped: Record<string, TimelineItem[]> = {};
     items.forEach((item) => {
-      // created_at (등록일) 기준으로 그룹핑
-      const date = new Date(item.created_at);
+      // taken_at (촬영일/선택일) 기준으로 그룹핑 - 없으면 created_at 사용
+      const date = new Date(item.media?.taken_at || item.created_at);
       const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
       if (!grouped[dateKey]) grouped[dateKey] = [];
       grouped[dateKey].push(item);
@@ -356,21 +358,37 @@ export default function TimelineScreen() {
       .map(([date, items]) => ({ date, items }));
   };
 
-  // 필터링된 날짜 그룹 (탭에 따라 필터링)
+  // 시간 필터 적용 cutoff 날짜
+  const cutoffDate = React.useMemo(() => {
+    const now = new Date();
+    return timeFilter === 'week'
+      ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  }, [timeFilter]);
+
+  // 필터링된 날짜 그룹 (탭 + 시간 필터 적용)
   const filteredDateGroups = React.useMemo(() => {
+    // 먼저 시간 필터 적용 (taken_at 기준)
+    const timeFiltered = dateGroups
+      .map(group => ({
+        ...group,
+        items: group.items.filter(item => new Date(item.media?.taken_at || item.created_at) >= cutoffDate)
+      }))
+      .filter(group => group.items.length > 0);
+
     if (activeTab === 'image') {
-      // 이미지 탭: 모든 미디어 표시
-      return dateGroups;
+      // 이미지 탭: 시간 필터만 적용된 결과
+      return timeFiltered;
     } else {
-      // 텍스트 탭: OCR 텍스트가 있는 항목만
-      return dateGroups
+      // 텍스트 탭: 시간 필터 + OCR 텍스트가 있는 항목만
+      return timeFiltered
         .map(group => ({
           ...group,
           items: group.items.filter(item => item.ocr_text && item.ocr_text.trim().length > 0)
         }))
         .filter(group => group.items.length > 0);
     }
-  }, [activeTab, dateGroups]);
+  }, [activeTab, dateGroups, cutoffDate]);
 
   // 필터링된 아이템 수
   const filteredCount = React.useMemo(() => {
@@ -503,7 +521,7 @@ export default function TimelineScreen() {
       </View>
       {/* 시간 태그 */}
       <View style={[styles.timeBadge, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
-        <Text style={styles.timeBadgeText}>{formatTime(photo.created_at)}</Text>
+        <Text style={styles.timeBadgeText}>{formatTime(photo.media?.taken_at || photo.created_at)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -523,7 +541,7 @@ export default function TimelineScreen() {
       />
       <View style={styles.listContent}>
         <View style={styles.listHeader}>
-          <Text style={[styles.listTime, { color: theme.text.tertiary }]}>{formatTime(photo.created_at)}</Text>
+          <Text style={[styles.listTime, { color: theme.text.tertiary }]}>{formatTime(photo.media?.taken_at || photo.created_at)}</Text>
           <BookmarkIcon color={theme.icon.secondary} />
         </View>
         {/* OCR 텍스트 표시 (텍스트 탭에서) */}
@@ -539,8 +557,8 @@ export default function TimelineScreen() {
     </TouchableOpacity>
   );
 
-  // 탭에 따른 뷰 모드 결정 (이미지: 그리드, 텍스트: 리스트)
-  const currentViewMode = activeTab === 'image' ? 'grid' : 'list';
+  // 뷰 모드 (사용자 선택에 따름)
+  const currentViewMode = viewMode;
 
   const renderDateSection = ({ item }: { item: DateGroup }) => (
     <View style={styles.dateSection}>
@@ -620,10 +638,63 @@ export default function TimelineScreen() {
             </Text>
           </TouchableOpacity>
         </View>
+      </View>
 
-        <Text style={[styles.statsText, { color: theme.text.secondary }]}>
-          {filteredCount}/{total}
+      {/* 필터 컨트롤 바: 건수 + 시간필터 + 뷰모드 */}
+      <View style={styles.filterControlBar}>
+        <Text style={[styles.totalCount, { color: theme.text.secondary }]}>
+          총 {filteredCount}건
         </Text>
+
+        <View style={styles.filterActions}>
+          {/* 시간 필터 (주/월) */}
+          <View style={[styles.timeFilterContainer, { backgroundColor: isDark ? palette.neutral[700] : palette.neutral[200] }]}>
+            <TouchableOpacity
+              style={[
+                styles.timeFilterButton,
+                timeFilter === 'week' && styles.timeFilterButtonActive,
+              ]}
+              onPress={() => setTimeFilter('week')}
+            >
+              <Text style={[
+                styles.timeFilterText,
+                { color: timeFilter === 'week' ? palette.neutral[0] : theme.text.secondary },
+              ]}>
+                주
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.timeFilterButton,
+                timeFilter === 'month' && styles.timeFilterButtonActive,
+              ]}
+              onPress={() => setTimeFilter('month')}
+            >
+              <Text style={[
+                styles.timeFilterText,
+                { color: timeFilter === 'month' ? palette.neutral[0] : theme.text.secondary },
+              ]}>
+                월
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 뷰 모드 토글 */}
+          <View style={styles.viewModeContainer}>
+            <TouchableOpacity
+              style={styles.viewModeButton}
+              onPress={() => setViewMode('grid')}
+            >
+              <GridIcon color={viewMode === 'grid' ? (isDark ? palette.neutral[0] : '#252525') : (isDark ? palette.neutral[500] : '#A3A3A3')} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.viewModeButton}
+              onPress={() => setViewMode('list')}
+            >
+              <ListIcon color={viewMode === 'list' ? (isDark ? palette.neutral[0] : '#252525') : (isDark ? palette.neutral[500] : '#A3A3A3')} />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       <FlatList
@@ -790,6 +861,48 @@ const styles = StyleSheet.create({
     fontSize: 13,
     minWidth: 50,
     textAlign: 'right',
+  },
+  // Filter Control Bar
+  filterControlBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  totalCount: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  filterActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  timeFilterContainer: {
+    flexDirection: 'row',
+    borderRadius: 20,
+    padding: 2,
+  },
+  timeFilterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 18,
+  },
+  timeFilterButtonActive: {
+    backgroundColor: DARK_GREEN,
+  },
+  timeFilterText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  viewModeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  viewModeButton: {
+    padding: 6,
   },
   // Loading/Error
   centerContainer: {

@@ -175,7 +175,8 @@ async function getFileSize(uri: string, providedSize: number): Promise<number> {
 export async function uploadImage(
   image: SelectedImage,
   onProgress?: (progress: number) => void,
-  onStatusChange?: (status: string) => void
+  onStatusChange?: (status: string) => void,
+  takenAt?: string  // 캘린더에서 선택한 날짜 (ISO 형식)
 ): Promise<UploadCompleteResponse> {
   // 0. 파일 크기 확인
   const fileSize = await getFileSize(image.uri, image.fileSize);
@@ -242,11 +243,18 @@ export async function uploadImage(
     throw new Error('Missing upload_id or storage_key from prepare response');
   }
 
-  const result = await completeUpload({
+  const requestBody = {
     upload_id: prepareResponse.upload_id,
     storage_key: prepareResponse.storage_key,
     analysis_mode: 'light',
-  });
+    taken_at: takenAt,  // 캘린더에서 선택한 날짜
+  };
+
+  console.log('=== completeUpload Request ===');
+  console.log('takenAt param:', takenAt);
+  console.log('request body:', JSON.stringify(requestBody, null, 2));
+
+  const result = await completeUpload(requestBody);
 
   onProgress?.(100);
   onStatusChange?.('완료!');

@@ -1,11 +1,13 @@
 import { useColorScheme } from '@/components/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import searchApi, { SearchResult } from '@/src/api/search';
 import { colors } from '@/src/theme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -21,15 +23,18 @@ import {
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 40) / 2;
 
-const SUGGESTIONS_KO = ['해변 일몰', '산 풍경', '도시 야경', '음식 사진', '가족 모임'];
-const SUGGESTIONS_EN = ['beach sunset', 'mountain landscape', 'city night view', 'food photos', 'family gathering'];
+// 영어 검색만 지원되므로 영어 추천 검색어 사용
+const SUGGESTIONS = ['beach', 'sunset', 'food', 'family', 'city'];
+
+const RECENT_SEARCHES_KEY = 'marzlog_recent_searches';
+const MAX_RECENT_SEARCHES = 10;
 
 export default function SearchScreen() {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
   const router = useRouter();
-  const { t, language } = useTranslation();
-  const SUGGESTIONS = language === 'ko' ? SUGGESTIONS_KO : SUGGESTIONS_EN;
+  const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
   const isDark = themeMode === 'system'
@@ -41,20 +46,64 @@ export default function SearchScreen() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
+  // 최근 검색어 로드
+  useEffect(() => {
+    loadRecentSearches();
+  }, []);
+
+  const loadRecentSearches = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(RECENT_SEARCHES_KEY);
+      if (stored) {
+        setRecentSearches(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error('Failed to load recent searches:', e);
+    }
+  };
+
+  const saveRecentSearch = async (term: string) => {
+    try {
+      const updated = [term, ...recentSearches.filter(s => s !== term)].slice(0, MAX_RECENT_SEARCHES);
+      setRecentSearches(updated);
+      await AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to save recent search:', e);
+    }
+  };
+
+  const clearRecentSearches = async () => {
+    try {
+      setRecentSearches([]);
+      await AsyncStorage.removeItem(RECENT_SEARCHES_KEY);
+    } catch (e) {
+      console.error('Failed to clear recent searches:', e);
+    }
+  };
+
+  const handleSearch = async (searchQuery?: string) => {
+    const term = (typeof searchQuery === 'string' ? searchQuery : query).trim();
+    if (!term) return;
 
     setIsSearching(true);
     setHasSearched(true);
     setError(null);
 
     try {
-      const response = await searchApi.search(query.trim());
-      setResults(response.results);
+      console.log('[Search] Searching for:', term);
+      const response = await searchApi.search(term);
+      console.log('[Search] Results:', JSON.stringify(response, null, 2));
+      console.log('[Search] First result thumbnail:', response.results?.[0]?.thumbnail_url);
+      setResults(response.results || []);
+      if (response.results?.length > 0) {
+        saveRecentSearch(term);
+      }
     } catch (err: any) {
-      console.error('Search error:', err);
-      setError(err.message || t('search.searchFailed'));
+      console.error('[Search] Error:', err);
+      console.error('[Search] Error response:', err.response?.data);
+      setError(err.response?.data?.detail || err.message || t('search.searchFailed'));
       setResults([]);
     } finally {
       setIsSearching(false);
@@ -63,7 +112,18 @@ export default function SearchScreen() {
 
   const handleSuggestionPress = (suggestion: string) => {
     setQuery(suggestion);
-    setTimeout(() => handleSearch(), 100);
+    handleSearch(suggestion);
+  };
+
+  const handleRecentPress = (term: string) => {
+    setQuery(term);
+    handleSearch(term);
+  };
+
+  const removeRecentSearch = async (term: string) => {
+    const updated = recentSearches.filter(s => s !== term);
+    setRecentSearches(updated);
+    await AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
   };
 
   const getImageUrl = (item: SearchResult) => {
@@ -80,7 +140,11 @@ export default function SearchScreen() {
       activeOpacity={0.8}
       onPress={() => handleResultPress(item.media_id)}
     >
-      <Image source={{ uri: getImageUrl(item) }} style={styles.resultImage} />
+      <Image
+        source={{ uri: getImageUrl(item) }}
+        style={styles.resultImage}
+        onError={(e) => console.log('[Search] Image error:', e.nativeEvent.error, 'URL:', getImageUrl(item))}
+      />
       <View style={styles.resultCaption}>
         <Text style={[styles.captionText, isDark && styles.textLight]} numberOfLines={2}>
           {item.caption || t('search.noCaption')}
@@ -95,7 +159,7 @@ export default function SearchScreen() {
   );
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
+    <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       {/* Search Input */}
       <View style={styles.searchContainer}>
         <View style={[styles.searchInputWrapper, isDark && styles.inputDark]}>
@@ -106,7 +170,7 @@ export default function SearchScreen() {
             placeholderTextColor="#9CA3AF"
             value={query}
             onChangeText={setQuery}
-            onSubmitEditing={handleSearch}
+            onSubmitEditing={() => handleSearch()}
             returnKeyType="search"
           />
           {query.length > 0 && (
@@ -132,6 +196,47 @@ export default function SearchScreen() {
         </View>
       ) : !hasSearched ? (
         <View style={styles.suggestionsContainer}>
+          {/* 영어 검색 안내 */}
+          <View style={[styles.englishHintBanner, isDark && styles.englishHintBannerDark]}>
+            <Ionicons name="information-circle-outline" size={18} color={colors.brand.primary} />
+            <Text style={styles.englishHintText}>{t('search.englishOnly')}</Text>
+          </View>
+
+          {/* 최근 검색어 */}
+          {recentSearches.length > 0 && (
+            <View style={styles.recentSection}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.suggestionsTitle, isDark && styles.textLight]}>
+                  {t('search.recentSearches')}
+                </Text>
+                <TouchableOpacity onPress={clearRecentSearches}>
+                  <Text style={styles.clearText}>
+                    {t('search.clearAll')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.suggestionsList}>
+                {recentSearches.slice(0, 5).map((term) => (
+                  <TouchableOpacity
+                    key={term}
+                    style={[styles.recentChip, isDark && styles.recentChipDark]}
+                    onPress={() => handleRecentPress(term)}
+                  >
+                    <Ionicons name="time-outline" size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                    <Text style={[styles.recentText, isDark && styles.textLight]}>{term}</Text>
+                    <TouchableOpacity
+                      onPress={() => removeRecentSearch(term)}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons name="close" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                    </TouchableOpacity>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* 추천 검색어 */}
           <Text style={[styles.suggestionsTitle, isDark && styles.textLight]}>
             {t('search.suggestions')}
           </Text>
@@ -148,6 +253,7 @@ export default function SearchScreen() {
             ))}
           </View>
 
+          {/* AI 검색 안내 */}
           <View style={[styles.aiFeatureCard, isDark && styles.cardDark]}>
             <View style={styles.aiIconContainer}>
               <Ionicons name="sparkles" size={24} color={colors.brand.primary} />
@@ -156,7 +262,7 @@ export default function SearchScreen() {
               <Text style={[styles.aiTitle, isDark && styles.textLight]}>
                 {t('search.aiSearch')}
               </Text>
-              <Text style={styles.aiDescription}>
+              <Text style={[styles.aiDescription, isDark && { color: '#9CA3AF' }]}>
                 {t('search.aiSearchDesc')}
               </Text>
             </View>
@@ -245,6 +351,54 @@ const styles = StyleSheet.create({
   },
   suggestionsContainer: {
     padding: 16,
+    paddingBottom: 100,
+  },
+  englishHintBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary[50],
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginBottom: 20,
+    gap: 8,
+  },
+  englishHintBannerDark: {
+    backgroundColor: colors.primary[900],
+  },
+  englishHintText: {
+    fontSize: 14,
+    color: colors.brand.primary,
+    flex: 1,
+  },
+  recentSection: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  clearText: {
+    fontSize: 14,
+    color: colors.brand.primary,
+  },
+  recentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  recentChipDark: {
+    backgroundColor: '#374151',
+  },
+  recentText: {
+    fontSize: 14,
+    color: '#374151',
   },
   suggestionsTitle: {
     fontSize: 16,

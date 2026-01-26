@@ -27,6 +27,7 @@ export interface MediaInfo {
   group_id?: string | null;
   is_primary?: string | null;  // 'true' | 'false'
   group_count?: number | null;  // 그룹 내 이미지 수
+  group_dates?: string[] | null;  // 그룹 내 모든 이미지의 taken_at 목록
 }
 
 // 타임라인 아이템 (실제 API 구조)
@@ -80,9 +81,9 @@ export interface GroupImagesResponse {
 }
 
 export const timelineApi = {
-  async getTimeline(limit = 50, offset = 0): Promise<TimelineResponse> {
+  async getTimeline(limit = 50, offset = 0, showAll = false): Promise<TimelineResponse> {
     const response = await apiClient.get<TimelineResponse>('/timeline', {
-      params: { limit, offset },
+      params: { limit, offset, show_all: showAll },
     });
     return response.data;
   },
