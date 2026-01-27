@@ -222,7 +222,7 @@ export async function uploadImage(
     const requestBody = {
       upload_id: prepareResponse.upload_id,
       storage_key: prepareResponse.storage_key!,
-      analysis_mode: 'light',
+      analysis_mode: 'light' as const,
       taken_at: takenAt,
     };
 
@@ -258,7 +258,7 @@ export async function uploadImage(
   const requestBody = {
     upload_id: prepareResponse.upload_id,
     storage_key: prepareResponse.storage_key,
-    analysis_mode: 'light',
+    analysis_mode: 'light' as const,
     taken_at: takenAt,  // 캘린더에서 선택한 날짜
   };
 

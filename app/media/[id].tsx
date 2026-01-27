@@ -58,6 +58,9 @@ export default function MediaDetailScreen() {
   const [locationName, setLocationName] = useState<string | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
 
+  // 스와이프 시 analysis 캐시 (media_id → analysis)
+  const analysisCacheRef = useRef<Record<string, MediaAnalysis | null>>({});
+
   useEffect(() => {
     if (id) {
       loadData();
@@ -81,15 +84,34 @@ export default function MediaDetailScreen() {
       setMedia(mediaData);
       setAnalysis(analysisData);
 
+      // 초기 analysis 캐시
+      if (analysisData) {
+        analysisCacheRef.current[id!] = analysisData;
+      }
+
       // 그룹 이미지 로드 (group_id가 있는 경우)
       if (mediaData.group_id) {
         try {
           const groupData = await timelineApi.getGroupImages(mediaData.group_id);
-          setGroupImages(groupData.items || []);
-          console.log('[MediaDetail] Loaded group images:', groupData.items?.length);
+          const items = groupData.items || [];
+          setGroupImages(items);
+
+          // 클릭한 이미지의 인덱스 찾기 (검색에서 secondary 클릭 시)
+          const targetIndex = items.findIndex(
+            (img: GroupImageItem) => String(img.id) === id
+          );
+          if (targetIndex > 0) {
+            setCurrentImageIndex(targetIndex);
+            // 렌더 후 캐러셀 스크롤
+            setTimeout(() => {
+              carouselRef.current?.scrollTo({
+                x: targetIndex * CAROUSEL_IMAGE_WIDTH,
+                animated: false,
+              });
+            }, 50);
+          }
         } catch (groupErr) {
           console.log('[MediaDetail] Failed to load group images:', groupErr);
-          // 그룹 이미지 로드 실패해도 단일 이미지는 보여줌
         }
       }
     } catch (err) {
@@ -148,6 +170,35 @@ export default function MediaDetailScreen() {
       fetchLocationName();
     }
   }, [analysis]);
+
+  // 스와이프 시 현재 이미지의 analysis 로드
+  useEffect(() => {
+    // 그룹이 없으면 (단일 이미지) 스와이프 없으므로 skip
+    if (loading || groupImages.length === 0) return;
+
+    const currentMedia = groupImages[currentImageIndex];
+    if (!currentMedia?.id) return;
+
+    const mediaId = String(currentMedia.id);
+
+    // 캐시에 있으면 바로 사용
+    if (mediaId in analysisCacheRef.current) {
+      setAnalysis(analysisCacheRef.current[mediaId]);
+      return;
+    }
+
+    // 캐시에 없으면 API 호출
+    setLocationName(null);
+    getMediaAnalysis(mediaId)
+      .then((data) => {
+        analysisCacheRef.current[mediaId] = data;
+        setAnalysis(data);
+      })
+      .catch(() => {
+        analysisCacheRef.current[mediaId] = null;
+        setAnalysis(null);
+      });
+  }, [currentImageIndex]);
 
   const handleClose = () => {
     router.back();
@@ -402,8 +453,8 @@ export default function MediaDetailScreen() {
           </View>
         )}
 
-        {/* AI Badge - PRIMARY 또는 단일 이미지만, 컨테이너 우상단 고정 */}
-        {media?.is_primary !== 'false' && analysis?.ai_analyzed && (
+        {/* AI Badge - 분석된 모든 이미지에 표시 */}
+        {analysis?.ai_analyzed && (
           <View style={styles.aiBadge}>
             <Ionicons name="sparkles" size={12} color="#fff" />
             <Text style={styles.aiBadgeText}>
@@ -550,11 +601,11 @@ export default function MediaDetailScreen() {
             )}
 
             {/* 해상도 - 항상 표시 */}
-            {(analysis?.exif?.width || media.metadata?.width) && (
+            {(analysis?.exif?.width || media.metadata?.exif?.width) && (
               <View style={styles.detailRow}>
                 <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>{t('exif.resolution')}</Text>
                 <Text style={[styles.detailValue, isDark && styles.textLight]}>
-                  {analysis?.exif?.width || media.metadata?.width} x {analysis?.exif?.height || media.metadata?.height}
+                  {analysis?.exif?.width || media.metadata?.exif?.width} x {analysis?.exif?.height || media.metadata?.exif?.height}
                 </Text>
               </View>
             )}

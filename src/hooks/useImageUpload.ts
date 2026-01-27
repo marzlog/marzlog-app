@@ -224,7 +224,8 @@ export function useImageUpload() {
   const startGroupUpload = useCallback(async (
     directItems: UploadItem[],
     primaryIndex: number = 0,
-    takenAt?: string  // 캘린더에서 선택한 날짜
+    takenAt?: string,  // 캘린더에서 선택한 날짜
+    metadata?: { title?: string; content?: string; memo?: string; emotion?: string; intensity?: number }
   ): Promise<GroupUploadCompleteResponse | null> => {
     console.log('=== useImageUpload.startGroupUpload ===');
     console.log('takenAt received:', takenAt);
@@ -333,8 +334,9 @@ export function useImageUpload() {
       const groupRequestBody = {
         items: uploadedItems,
         primary_index: adjustedPrimaryIndex,
-        analysis_mode: 'light',
+        analysis_mode: 'light' as const,
         taken_at: takenAt,  // 캘린더에서 선택한 날짜
+        ...metadata,
       };
 
       console.log('=== completeGroupUpload Request ===');

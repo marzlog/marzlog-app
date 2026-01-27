@@ -80,6 +80,11 @@ export interface GroupUploadCompleteRequest {
   primary_index?: number;
   analysis_mode?: 'light' | 'precision';
   taken_at?: string;  // 캘린더에서 선택한 날짜 (ISO 형식)
+  title?: string;
+  content?: string;
+  memo?: string;
+  emotion?: string;
+  intensity?: number;
 }
 
 export interface GroupUploadCompleteResponse {

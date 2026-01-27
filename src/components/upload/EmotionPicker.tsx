@@ -2,25 +2,25 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '@/src/theme';
 
-// 감정 데이터 (4열 x 3행 = 12개)
+// 감정 데이터 (4열 x 3행 = 12개, label이 저장값)
 const EMOTIONS = [
-  { id: 'joy', label: '기쁨', emoji: '😊' },
-  { id: 'happiness', label: '행복', emoji: '😄' },
-  { id: 'love', label: '사랑', emoji: '🥰' },
-  { id: 'gratitude', label: '감사', emoji: '🙏' },
-  { id: 'surprise', label: '놀람', emoji: '😮' },
-  { id: 'anxiety', label: '불안', emoji: '😰' },
-  { id: 'sad', label: '슬픔', emoji: '😢' },
-  { id: 'angry', label: '분노', emoji: '😠' },
-  { id: 'focus', label: '몰입', emoji: '🎯' },
-  { id: 'thinking', label: '생각', emoji: '🤔' },
-  { id: 'tired', label: '피곤', emoji: '😴' },
-  { id: 'sick', label: '아픔', emoji: '🤒' },
+  { label: '기쁨', emoji: '😊' },
+  { label: '평온', emoji: '😌' },
+  { label: '사랑', emoji: '🥰' },
+  { label: '감사', emoji: '🙏' },
+  { label: '놀람', emoji: '😮' },
+  { label: '불안', emoji: '😰' },
+  { label: '슬픔', emoji: '😢' },
+  { label: '분노', emoji: '😠' },
+  { label: '몰입', emoji: '🎯' },
+  { label: '생각', emoji: '🤔' },
+  { label: '피곤', emoji: '😴' },
+  { label: '아픔', emoji: '🤒' },
 ];
 
 interface EmotionPickerProps {
-  selectedEmotion: string | null;
-  onSelect: (emotionId: string) => void;
+  selectedEmotion: string;
+  onSelect: (emotion: string) => void;
 }
 
 export function EmotionPicker({ selectedEmotion, onSelect }: EmotionPickerProps) {
@@ -30,19 +30,19 @@ export function EmotionPicker({ selectedEmotion, onSelect }: EmotionPickerProps)
       <View style={styles.grid}>
         {EMOTIONS.map((emotion) => (
           <TouchableOpacity
-            key={emotion.id}
+            key={emotion.label}
             style={[
               styles.emotionButton,
-              selectedEmotion === emotion.id && styles.emotionButtonSelected,
+              selectedEmotion === emotion.label && styles.emotionButtonSelected,
             ]}
-            onPress={() => onSelect(emotion.id)}
+            onPress={() => onSelect(emotion.label)}
             activeOpacity={0.7}
           >
             <Text style={styles.emoji}>{emotion.emoji}</Text>
             <Text
               style={[
                 styles.label,
-                selectedEmotion === emotion.id && styles.labelSelected,
+                selectedEmotion === emotion.label && styles.labelSelected,
               ]}
             >
               {emotion.label}

@@ -48,7 +48,7 @@ export default function UploadScreen() {
 
   const [images, setImages] = useState<ImagePickerItem[]>([]);
   const [primaryImageIndex, setPrimaryImageIndex] = useState(0);
-  const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
+  const [selectedEmotion, setSelectedEmotion] = useState<string>('평온');
   const [intensity, setIntensity] = useState(3);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -92,7 +92,7 @@ export default function UploadScreen() {
       setContent(mediaDetail.content || '');
       setMemo(mediaDetail.memo || '');
       if (mediaDetail.memo) setShowMemo(true);
-      setSelectedEmotion(mediaDetail.emotion || null);
+      setSelectedEmotion(mediaDetail.emotion || '평온');
       setIntensity(mediaDetail.intensity || 3);
 
       // 이미지 설정
@@ -340,15 +340,28 @@ export default function UploadScreen() {
         console.log('[Upload] takenAt parsed as Date:', new Date(takenAt));
       }
 
+      const metadata = {
+        title: title || undefined,
+        content: content || undefined,
+        memo: memo || undefined,
+        emotion: selectedEmotion || undefined,
+        intensity: selectedEmotion ? intensity : undefined,
+      };
+
       if (images.length === 1) {
-        // 단일 이미지: 기존 업로드 방식
+        // 단일 이미지: 업로드 후 메타데이터 업데이트
         console.log('[Upload] Single image upload');
         const results = await startUpload(images, takenAt);
         console.log('[Upload] Upload completed, results:', results.length);
+
+        // 메타데이터 저장 (title, emotion 등)
+        if (results.length > 0 && results[0].media_id) {
+          await updateMedia(results[0].media_id, metadata);
+        }
       } else {
-        // 여러 이미지: 그룹 업로드
+        // 여러 이미지: 그룹 업로드 (메타데이터 포함)
         console.log('[Upload] Group upload with', images.length, 'images, primary:', primaryImageIndex);
-        const result = await startGroupUpload(images, primaryImageIndex, takenAt);
+        const result = await startGroupUpload(images, primaryImageIndex, takenAt, metadata);
         console.log('[Upload] Group upload completed:', result?.group_id);
       }
 
