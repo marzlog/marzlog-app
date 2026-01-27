@@ -134,7 +134,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
           };
 
           // 선택 상태에 따른 색상
-          const iconColor = isFocused ? palette.neutral[0] : theme.icon.primary;
+          const iconColor = isFocused ? '#FFFFFF' : '#A3A3A3';
 
           return (
             <TouchableOpacity
@@ -216,6 +216,6 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   iconWrapperActive: {
-    backgroundColor: palette.primary[500], // 코랄색 배경
+    backgroundColor: '#F08E76', // 코랄/핑크 배경 (Figma)
   },
 });

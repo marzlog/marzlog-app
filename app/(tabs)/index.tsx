@@ -106,7 +106,7 @@ function ImageIcon({ color = palette.neutral[500] }: { color?: string }) {
 // Grid2X2 아이콘 (Lucide)
 function GridIcon({ color = palette.neutral[500] }: { color?: string }) {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
       <Path
         d="M10 3H3V10H10V3Z"
         stroke={color}
@@ -142,7 +142,7 @@ function GridIcon({ color = palette.neutral[500] }: { color?: string }) {
 // LayoutList 아이콘 (Lucide)
 function ListIcon({ color = palette.neutral[500] }: { color?: string }) {
   return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
       <Path
         d="M21 8H10"
         stroke={color}
@@ -700,7 +700,7 @@ const styles = StyleSheet.create({
   viewModeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 12,
   },
   viewModeButton: {
     padding: 6,

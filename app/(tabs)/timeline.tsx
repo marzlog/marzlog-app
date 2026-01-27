@@ -648,17 +648,17 @@ export default function TimelineScreen() {
 
         <View style={styles.filterActions}>
           {/* 시간 필터 (주/월) */}
-          <View style={[styles.timeFilterContainer, { backgroundColor: isDark ? palette.neutral[700] : palette.neutral[200] }]}>
+          <View style={styles.timeFilterContainer}>
             <TouchableOpacity
               style={[
                 styles.timeFilterButton,
-                timeFilter === 'week' && styles.timeFilterButtonActive,
+                { backgroundColor: timeFilter === 'week' ? '#2D3A35' : (isDark ? palette.neutral[700] : '#F5F5F5') },
               ]}
               onPress={() => setTimeFilter('week')}
             >
               <Text style={[
                 styles.timeFilterText,
-                { color: timeFilter === 'week' ? palette.neutral[0] : theme.text.secondary },
+                { color: timeFilter === 'week' ? '#FFFFFF' : (isDark ? palette.neutral[200] : '#252525') },
               ]}>
                 주
               </Text>
@@ -666,13 +666,13 @@ export default function TimelineScreen() {
             <TouchableOpacity
               style={[
                 styles.timeFilterButton,
-                timeFilter === 'month' && styles.timeFilterButtonActive,
+                { backgroundColor: timeFilter === 'month' ? '#2D3A35' : (isDark ? palette.neutral[700] : '#F5F5F5') },
               ]}
               onPress={() => setTimeFilter('month')}
             >
               <Text style={[
                 styles.timeFilterText,
-                { color: timeFilter === 'month' ? palette.neutral[0] : theme.text.secondary },
+                { color: timeFilter === 'month' ? '#FFFFFF' : (isDark ? palette.neutral[200] : '#252525') },
               ]}>
                 월
               </Text>
@@ -881,25 +881,21 @@ const styles = StyleSheet.create({
   },
   timeFilterContainer: {
     flexDirection: 'row',
-    borderRadius: 20,
-    padding: 2,
+    gap: 8,
   },
   timeFilterButton: {
     paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 18,
-  },
-  timeFilterButtonActive: {
-    backgroundColor: DARK_GREEN,
+    paddingVertical: 8,
+    borderRadius: 8,
   },
   timeFilterText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
   },
   viewModeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 12,
   },
   viewModeButton: {
     padding: 6,
