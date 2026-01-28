@@ -23,8 +23,7 @@ import {
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 40) / 2;
 
-// 영어 검색만 지원되므로 영어 추천 검색어 사용
-const SUGGESTIONS = ['beach', 'sunset', 'food', 'family', 'city'];
+const SUGGESTIONS = ['음식', 'food', '가족', 'sunset', 'birthday'];
 
 const RECENT_SEARCHES_KEY = 'marzlog_recent_searches';
 const MAX_RECENT_SEARCHES = 10;
@@ -196,12 +195,6 @@ export default function SearchScreen() {
         </View>
       ) : !hasSearched ? (
         <View style={styles.suggestionsContainer}>
-          {/* 영어 검색 안내 */}
-          <View style={[styles.englishHintBanner, isDark && styles.englishHintBannerDark]}>
-            <Ionicons name="information-circle-outline" size={18} color={colors.brand.primary} />
-            <Text style={styles.englishHintText}>{t('search.englishOnly')}</Text>
-          </View>
-
           {/* 최근 검색어 */}
           {recentSearches.length > 0 && (
             <View style={styles.recentSection}>
@@ -352,24 +345,6 @@ const styles = StyleSheet.create({
   suggestionsContainer: {
     padding: 16,
     paddingBottom: 100,
-  },
-  englishHintBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary[50],
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginBottom: 20,
-    gap: 8,
-  },
-  englishHintBannerDark: {
-    backgroundColor: colors.primary[900],
-  },
-  englishHintText: {
-    fontSize: 14,
-    color: colors.brand.primary,
-    flex: 1,
   },
   recentSection: {
     marginBottom: 24,

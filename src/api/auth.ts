@@ -1,5 +1,11 @@
 import apiClient from './client';
-import type { AuthResponse, GoogleAuthRequest, User, UserStats } from '../types/auth';
+import type {
+  AuthResponse,
+  GoogleAuthRequest,
+  User,
+  UserStats,
+  MessageResponse,
+} from '../types/auth';
 
 export const authApi = {
   /**
@@ -18,6 +24,60 @@ export const authApi = {
   async appleLogin(idToken: string): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>('/auth/apple', {
       id_token: idToken,
+    });
+    return response.data;
+  },
+
+  /**
+   * 이메일 회원가입
+   */
+  async register(name: string, email: string, password: string): Promise<AuthResponse> {
+    const response = await apiClient.post<AuthResponse>('/auth/register', {
+      name,
+      email,
+      password,
+    });
+    return response.data;
+  },
+
+  /**
+   * 이메일 로그인
+   */
+  async emailLogin(email: string, password: string): Promise<AuthResponse> {
+    const response = await apiClient.post<AuthResponse>('/auth/email-login', {
+      email,
+      password,
+    });
+    return response.data;
+  },
+
+  /**
+   * 비밀번호 찾기 (리셋 토큰 요청)
+   */
+  async forgotPassword(email: string): Promise<MessageResponse> {
+    const response = await apiClient.post<MessageResponse>('/auth/forgot-password', {
+      email,
+    });
+    return response.data;
+  },
+
+  /**
+   * 비밀번호 재설정
+   */
+  async resetPassword(token: string, newPassword: string): Promise<MessageResponse> {
+    const response = await apiClient.post<MessageResponse>('/auth/reset-password', {
+      token,
+      new_password: newPassword,
+    });
+    return response.data;
+  },
+
+  /**
+   * 이메일 중복 확인
+   */
+  async checkEmail(email: string): Promise<{ available: boolean }> {
+    const response = await apiClient.get<{ available: boolean }>('/auth/check-email', {
+      params: { email },
     });
     return response.data;
   },

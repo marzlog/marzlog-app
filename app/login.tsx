@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,9 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -21,10 +24,14 @@ import { useTranslation } from '@src/hooks/useTranslation';
 export default function LoginScreen() {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
-  const { setError, error } = useAuthStore();
+  const { setError, error, loginWithEmail } = useAuthStore();
   const { t } = useTranslation();
 
-  // 다크모드 결정
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
@@ -37,82 +44,164 @@ export default function LoginScreen() {
     setError(errorMessage);
   };
 
+  const handleEmailLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      setError(t('auth.requiredField'));
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await loginWithEmail(email.trim(), password);
+      router.replace('/(tabs)');
+    } catch (e: any) {
+      // error is set by the store
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const inputBg = isDark ? '#1F2937' : '#F3F4F6';
+  const inputText = isDark ? '#F9FAFB' : '#111827';
+  const inputBorder = isDark ? '#374151' : '#E5E7EB';
+  const placeholderColor = isDark ? '#6B7280' : '#9CA3AF';
+
   return (
     <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Mascot / Logo Image */}
-        <View style={styles.logoArea}>
-          <Image
-            source={require('@/assets/images/mascot.png')}
-            style={styles.mascotImage}
-            resizeMode="contain"
-          />
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Mascot / Logo Image */}
+          <View style={styles.logoArea}>
+            <Image
+              source={require('@/assets/images/mascot.png')}
+              style={styles.mascotImage}
+              resizeMode="contain"
+            />
+          </View>
 
-        {/* App Name (Text Logo) + Slogan */}
-        <View style={styles.titleArea}>
-          <Image
-            source={require('@/assets/images/marzlog-text-logo.png')}
-            style={[styles.textLogo, { tintColor: isDark ? '#FFFFFF' : '#252525' }]}
-            resizeMode="contain"
-          />
-          <Text style={[styles.slogan, isDark && styles.sloganDark]}>
-            {t('login.slogan')}
-          </Text>
-        </View>
-
-        {/* Login Buttons */}
-        <View style={styles.buttonArea}>
-          <GoogleLoginButton
-            onSuccess={handleSuccess}
-            onError={handleError}
-          />
-
-          {/* Apple Login Button */}
-          <TouchableOpacity
-            style={[styles.appleButton, styles.appleButtonDisabled]}
-            activeOpacity={0.8}
-            disabled={true}
-          >
-            <Ionicons name="logo-apple" size={20} color="#FFFFFF" />
-            <Text style={styles.appleButtonText}>
-              {t('auth.continueWithApple')}
+          {/* App Name (Text Logo) + Slogan */}
+          <View style={styles.titleArea}>
+            <Image
+              source={require('@/assets/images/marzlog-text-logo.png')}
+              style={[styles.textLogo, { tintColor: isDark ? '#FFFFFF' : '#252525' }]}
+              resizeMode="contain"
+            />
+            <Text style={[styles.slogan, isDark && styles.sloganDark]}>
+              {t('login.slogan')}
             </Text>
-            <View style={styles.comingSoonBadge}>
-              <Text style={styles.comingSoonText}>{t('common.comingSoon')}</Text>
+          </View>
+
+          {/* Email Input */}
+          <View style={styles.inputArea}>
+            <View style={[styles.inputWrapper, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+              <Ionicons name="mail-outline" size={20} color={placeholderColor} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { color: inputText }]}
+                placeholder={t('auth.emailPlaceholder')}
+                placeholderTextColor={placeholderColor}
+                value={email}
+                onChangeText={(text) => { setEmail(text); setError(null); }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
             </View>
+
+            {/* Password Input */}
+            <View style={[styles.inputWrapper, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+              <Ionicons name="lock-closed-outline" size={20} color={placeholderColor} style={styles.inputIcon} />
+              <TextInput
+                style={[styles.input, { color: inputText, flex: 1 }]}
+                placeholder={t('auth.passwordPlaceholder')}
+                placeholderTextColor={placeholderColor}
+                value={password}
+                onChangeText={(text) => { setPassword(text); setError(null); }}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                <Ionicons
+                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={20}
+                  color={placeholderColor}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Error Message */}
+          {error && (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={16} color="#EF4444" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
+          {/* Login Button */}
+          <TouchableOpacity
+            style={[styles.loginButton, isSubmitting && styles.loginButtonDisabled]}
+            onPress={handleEmailLogin}
+            disabled={isSubmitting}
+            activeOpacity={0.8}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.loginButtonText}>{t('auth.login')}</Text>
+            )}
           </TouchableOpacity>
-        </View>
 
-        {/* Error Message */}
-        {error && (
-          <View style={styles.errorContainer}>
-            <Ionicons name="alert-circle" size={16} color="#EF4444" />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
-
-        {/* Terms Agreement */}
-        <View style={styles.termsArea}>
-          <Text style={[styles.termsText, isDark && styles.termsTextDark]}>
-            {t('login.termsAgreement')}
-          </Text>
-          <View style={styles.termsLinks}>
-            <TouchableOpacity>
-              <Text style={styles.termsLink}>{t('support.terms')}</Text>
+          {/* Register / Forgot Password Links */}
+          <View style={styles.linkRow}>
+            <TouchableOpacity onPress={() => router.push('/register')}>
+              <Text style={styles.linkText}>{t('auth.register')}</Text>
             </TouchableOpacity>
-            <Text style={[styles.termsDivider, isDark && styles.termsTextDark]}>|</Text>
-            <TouchableOpacity>
-              <Text style={styles.termsLink}>{t('support.privacy')}</Text>
+            <View style={[styles.linkDivider, { backgroundColor: isDark ? '#4B5563' : '#D1D5DB' }]} />
+            <TouchableOpacity onPress={() => router.push('/forgot-password')}>
+              <Text style={styles.linkText}>{t('auth.forgotPassword')}</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </ScrollView>
+
+          {/* Divider */}
+          <View style={styles.dividerRow}>
+            <View style={[styles.dividerLine, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+            <Text style={[styles.dividerText, isDark && { color: '#6B7280' }]}>{t('common.or')}</Text>
+            <View style={[styles.dividerLine, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+          </View>
+
+          {/* Social Login Buttons */}
+          <View style={styles.socialArea}>
+            <GoogleLoginButton
+              onSuccess={handleSuccess}
+              onError={handleError}
+            />
+          </View>
+
+          {/* Terms Agreement */}
+          <View style={styles.termsArea}>
+            <Text style={[styles.termsText, isDark && styles.termsTextDark]}>
+              {t('login.termsAgreement')}
+            </Text>
+            <View style={styles.termsLinks}>
+              <TouchableOpacity>
+                <Text style={styles.termsLink}>{t('support.terms')}</Text>
+              </TouchableOpacity>
+              <Text style={[styles.termsDivider, isDark && styles.termsTextDark]}>|</Text>
+              <TouchableOpacity>
+                <Text style={styles.termsLink}>{t('support.privacy')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -134,83 +223,122 @@ const styles = StyleSheet.create({
   },
   logoArea: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   mascotImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 30,
+    width: 100,
+    height: 100,
+    borderRadius: 25,
   },
   titleArea: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 32,
   },
   textLogo: {
-    width: 180,
-    height: 45,
+    width: 160,
+    height: 40,
   },
   slogan: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#6B7280',
-    marginTop: 12,
+    marginTop: 8,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 20,
   },
   sloganDark: {
     color: '#9CA3AF',
   },
-  buttonArea: {
+  inputArea: {
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 12,
   },
-  appleButton: {
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#000000',
     borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    minHeight: 50,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
     paddingVertical: 14,
-    paddingHorizontal: 24,
-    minHeight: 52,
-    gap: 12,
   },
-  appleButtonDisabled: {
-    opacity: 0.5,
-  },
-  appleButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  comingSoonBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginLeft: 4,
-  },
-  comingSoonText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 10,
-    fontWeight: '500',
+  eyeIcon: {
+    padding: 4,
   },
   errorContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#FEF2F2',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 24,
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12,
     gap: 8,
   },
   errorText: {
     color: '#EF4444',
+    fontSize: 13,
+    flex: 1,
+  },
+  loginButton: {
+    backgroundColor: '#F97066',
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    minHeight: 50,
+  },
+  loginButtonDisabled: {
+    opacity: 0.6,
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  linkRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+    gap: 16,
+  },
+  linkText: {
     fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  linkDivider: {
+    width: 1,
+    height: 14,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    fontSize: 13,
+    color: '#9CA3AF',
+  },
+  socialArea: {
+    gap: 12,
+    marginBottom: 20,
   },
   termsArea: {
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 8,
   },
   termsText: {
     fontSize: 12,

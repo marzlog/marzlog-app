@@ -34,12 +34,14 @@ interface AuthStore extends AuthState {
   setTokens: (accessToken: string, refreshToken: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  
+
   // Auth methods
   loginWithGoogle: (idToken: string) => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
-  
+
   // Mock login for development
   mockLogin: () => Promise<void>;
 }
@@ -64,11 +66,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await authApi.googleLogin(idToken);
-      
+
       // Store tokens
       await storage.setItem('access_token', response.tokens.access_token);
       await storage.setItem('refresh_token', response.tokens.refresh_token);
-      
+
       set({
         user: response.user,
         accessToken: response.tokens.access_token,
@@ -78,6 +80,52 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
     } catch (error: any) {
       const message = error.response?.data?.detail || 'Login failed';
+      set({ error: message, isLoading: false });
+      throw new Error(message);
+    }
+  },
+
+  // Email Login
+  loginWithEmail: async (email: string, password: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await authApi.emailLogin(email, password);
+
+      await storage.setItem('access_token', response.tokens.access_token);
+      await storage.setItem('refresh_token', response.tokens.refresh_token);
+
+      set({
+        user: response.user,
+        accessToken: response.tokens.access_token,
+        refreshToken: response.tokens.refresh_token,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Login failed';
+      set({ error: message, isLoading: false });
+      throw new Error(message);
+    }
+  },
+
+  // Email Register
+  register: async (name: string, email: string, password: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await authApi.register(name, email, password);
+
+      await storage.setItem('access_token', response.tokens.access_token);
+      await storage.setItem('refresh_token', response.tokens.refresh_token);
+
+      set({
+        user: response.user,
+        accessToken: response.tokens.access_token,
+        refreshToken: response.tokens.refresh_token,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+    } catch (error: any) {
+      const message = error.response?.data?.detail || 'Registration failed';
       set({ error: message, isLoading: false });
       throw new Error(message);
     }
@@ -93,7 +141,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } finally {
       await storage.removeItem('access_token');
       await storage.removeItem('refresh_token');
-      
+
       set({
         user: null,
         accessToken: null,
@@ -110,7 +158,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     set({ isLoading: true });
     try {
       const token = await storage.getItem('access_token');
-      
+
       if (!token) {
         set({ isLoading: false });
         return;
@@ -118,7 +166,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       const user = await authApi.getCurrentUser();
       const refreshToken = await storage.getItem('refresh_token');
-      
+
       set({
         user,
         accessToken: token,

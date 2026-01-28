@@ -1,8 +1,9 @@
 export interface User {
   id: string;
   email: string;
-  oauth_provider: 'google' | 'apple';
-  oauth_sub: string;
+  name?: string;
+  oauth_provider?: 'google' | 'apple' | null;
+  oauth_sub?: string | null;
   role: 'user' | 'admin';
   created_at: string;
   updated_at: string;
@@ -22,6 +23,30 @@ export interface AuthResponse {
 
 export interface GoogleAuthRequest {
   id_token: string;
+}
+
+export interface EmailRegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export interface EmailLoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  new_password: string;
+}
+
+export interface MessageResponse {
+  message: string;
 }
 
 export interface AuthState {
