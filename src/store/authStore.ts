@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import authApi from '../api/auth';
 import type { User, AuthState } from '../types/auth';
+import { extractErrorMessage } from '../utils/errorMessages';
 
 // Storage abstraction
 const storage = {
@@ -80,7 +81,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isLoading: false,
       });
     } catch (error: any) {
-      const message = error.response?.data?.detail || 'Login failed';
+      const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });
       throw new Error(message);
     }
@@ -103,7 +104,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isLoading: false,
       });
     } catch (error: any) {
-      const message = error.response?.data?.detail || 'Login failed';
+      const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });
       throw new Error(message);
     }
@@ -126,7 +127,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isLoading: false,
       });
     } catch (error: any) {
-      const message = error.response?.data?.detail || 'Registration failed';
+      const message = extractErrorMessage(error, 'Registration failed');
       set({ error: message, isLoading: false });
       throw new Error(message);
     }
@@ -222,7 +223,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isLoading: false,
       });
     } catch (error: any) {
-      const message = error.response?.data?.detail || 'Dev login failed';
+      const message = extractErrorMessage(error, 'Dev login failed');
       set({ error: message, isLoading: false });
       throw new Error(message);
     }

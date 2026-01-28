@@ -19,6 +19,7 @@ import { useSettingsStore } from '@src/store/settingsStore';
 import { router } from 'expo-router';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { authApi } from '@src/api/auth';
+import { extractErrorMessage } from '@src/utils/errorMessages';
 
 type Step = 'email' | 'reset' | 'complete';
 
@@ -63,8 +64,7 @@ export default function ForgotPasswordScreen() {
       setResetToken(result.message);
       setStep('reset');
     } catch (e: any) {
-      const message = e.response?.data?.detail || t('common.error');
-      setErrors({ form: message });
+      setErrors({ form: extractErrorMessage(e, t('common.error')) });
     } finally {
       setIsSubmitting(false);
     }
@@ -89,8 +89,7 @@ export default function ForgotPasswordScreen() {
       await authApi.resetPassword(resetToken, newPassword);
       setStep('complete');
     } catch (e: any) {
-      const message = e.response?.data?.detail || t('common.error');
-      setErrors({ form: message });
+      setErrors({ form: extractErrorMessage(e, t('common.error')) });
     } finally {
       setIsSubmitting(false);
     }
