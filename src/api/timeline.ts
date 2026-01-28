@@ -70,6 +70,8 @@ export interface GroupImageItem {
   created_at?: string | null;
   caption?: string | null;
   tags?: string[];
+  emotion?: string | null;
+  intensity?: number | null;
 }
 
 export interface GroupImagesResponse {

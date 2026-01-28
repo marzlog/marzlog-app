@@ -57,6 +57,22 @@ export async function updateMedia(
 }
 
 /**
+ * AI 분석 결과(caption, tags) 수정
+ */
+export interface UpdateAnalysisData {
+  caption?: string;
+  tags?: string[];
+}
+
+export async function updateMediaAnalysis(
+  mediaId: string,
+  data: UpdateAnalysisData
+): Promise<{ success: boolean; media_id: string; caption: string; tags: string[] }> {
+  const response = await apiClient.put(`/media/${mediaId}/analysis`, data);
+  return response.data;
+}
+
+/**
  * 대표 이미지 변경
  */
 export async function setPrimaryImage(
@@ -72,5 +88,6 @@ export default {
   getMediaAnalysis,
   deleteMedia,
   updateMedia,
+  updateMediaAnalysis,
   setPrimaryImage,
 };

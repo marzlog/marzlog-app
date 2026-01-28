@@ -16,7 +16,8 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getMediaDetail, getMediaAnalysis, deleteMedia } from '@/src/api/media';
+import { getMediaDetail, getMediaAnalysis, deleteMedia, updateMedia, updateMediaAnalysis } from '@/src/api/media';
+import { EditAnalysisModal, type EditData } from '@/src/components/media/EditAnalysisModal';
 import { timelineApi, GroupImageItem } from '@/src/api/timeline';
 import { colors } from '@/src/theme';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -48,6 +49,7 @@ export default function MediaDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
 
   // 그룹 이미지 관련 상태
   const [groupImages, setGroupImages] = useState<GroupImageItem[]>([]);
@@ -248,6 +250,11 @@ export default function MediaDetailScreen() {
       ? [{ id: media.id, download_url: media.download_url, thumbnail_url: media.thumbnail_url || '' }]
       : [];
 
+  // 현재 이미지의 감정/강도 (그룹 이미지별 독립)
+  const currentImage = groupImages.length > 0 ? groupImages[currentImageIndex] : null;
+  const currentEmotion = currentImage?.emotion ?? media?.emotion;
+  const currentIntensity = currentImage?.intensity ?? media?.intensity;
+
 
   const formatDateTime = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -342,16 +349,56 @@ export default function MediaDetailScreen() {
     );
   }
 
-  // 편집 화면으로 이동
-  const handleEdit = () => {
-    router.push({
-      pathname: '/upload',
-      params: {
-        editMode: 'true',
-        mediaId: id,
-        groupId: media?.group_id || '',
-      },
-    });
+  // 편집 모달에서 저장
+  const handleSaveEdit = async (data: EditData) => {
+    const currentMediaId = groupImages.length > 0
+      ? String(groupImages[currentImageIndex]?.id)
+      : id!;
+
+    // caption, tags → analysis API
+    if (data.caption !== undefined || data.tags !== undefined) {
+      await updateMediaAnalysis(currentMediaId, {
+        caption: data.caption,
+        tags: data.tags,
+      });
+      // 캐시 무효화
+      delete analysisCacheRef.current[currentMediaId];
+    }
+
+    // emotion, intensity → media API
+    if (data.emotion !== undefined || data.intensity !== undefined) {
+      await updateMedia(currentMediaId, {
+        emotion: data.emotion,
+        intensity: data.intensity,
+      });
+    }
+
+    // analysis 새로고침 (캐러셀 위치 유지)
+    try {
+      const newAnalysis = await getMediaAnalysis(currentMediaId);
+      analysisCacheRef.current[currentMediaId] = newAnalysis;
+      setAnalysis(newAnalysis);
+    } catch {
+      setAnalysis(null);
+    }
+
+    // 그룹 이미지 새로고침 (감정/강도 반영)
+    if (media?.group_id) {
+      try {
+        const groupData = await timelineApi.getGroupImages(media.group_id);
+        setGroupImages(groupData.items || []);
+      } catch (err) {
+        console.log('[MediaDetail] Failed to refresh group images:', err);
+      }
+    }
+
+    // 미디어 상세 새로고침
+    try {
+      const mediaData = await getMediaDetail(id!);
+      setMedia(mediaData);
+    } catch (err) {
+      console.error('[MediaDetail] Failed to refresh media:', err);
+    }
   };
 
   // 삭제 처리
@@ -387,7 +434,7 @@ export default function MediaDetailScreen() {
           >
             <Ionicons name="trash-outline" size={20} color={isDeleting ? colors.neutral[4] : '#EF4444'} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton} onPress={handleEdit}>
+          <TouchableOpacity style={styles.headerButton} onPress={() => setEditModalVisible(true)}>
             <Ionicons name="pencil" size={20} color={isDark ? '#F9FAFB' : colors.text.primary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={handleClose}>
@@ -470,24 +517,24 @@ export default function MediaDetailScreen() {
         contentContainerStyle={styles.detailContentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* 감정 + 강도 */}
-        {media.emotion && (
+        {/* 감정 + 강도 (이미지별 독립) */}
+        {currentEmotion && (
           <View style={[styles.emotionSection, isDark && styles.sectionBorderDark]}>
             <Text style={[styles.emotionText, isDark && styles.textLight]}>
-              {getEmotionEmoji(media.emotion)} {media.emotion}
+              {getEmotionEmoji(currentEmotion)} {currentEmotion}
             </Text>
-            {media.intensity && (
+            {currentIntensity && (
               <View style={styles.intensityBar}>
                 {[1, 2, 3, 4, 5].map((i) => (
                   <View
                     key={i}
                     style={[
                       styles.intensityDot,
-                      i <= media.intensity! && styles.intensityDotActive,
+                      i <= currentIntensity! && styles.intensityDotActive,
                     ]}
                   />
                 ))}
-                <Text style={styles.intensityText}>({media.intensity}/5)</Text>
+                <Text style={styles.intensityText}>({currentIntensity}/5)</Text>
               </View>
             )}
           </View>
@@ -734,6 +781,19 @@ export default function MediaDetailScreen() {
           <Text style={styles.confirmButtonText}>확인</Text>
         </TouchableOpacity>
       </View>
+
+      {/* 편집 모달 */}
+      <EditAnalysisModal
+        visible={editModalVisible}
+        onClose={() => setEditModalVisible(false)}
+        onSave={handleSaveEdit}
+        initialData={{
+          caption: analysis?.caption || '',
+          tags: analysis?.tags || [],
+          emotion: currentEmotion || '평온',
+          intensity: currentIntensity || 3,
+        }}
+      />
     </View>
   );
 }
