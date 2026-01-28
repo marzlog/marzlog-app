@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
   // Complete screen (Figma MO_JOI_0301)
   completeScreen: {
     flex: 1,
-    backgroundColor: '#F5F5F0',
+    backgroundColor: '#FFFFFF',
   },
   completeContainer: {
     flex: 1,
@@ -466,14 +466,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   completeMascot: {
-    width: 120,
-    height: 120,
-    borderRadius: 30,
+    width: 100,
+    height: 100,
+    borderRadius: 25,
     marginBottom: 24,
   },
   completeBrand: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 38,
+    fontWeight: '300',
     color: '#2D3A35',
     marginBottom: 12,
   },
