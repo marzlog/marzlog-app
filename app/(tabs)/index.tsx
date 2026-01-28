@@ -24,6 +24,7 @@ import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useDialog } from '@/src/components/ui/Dialog';
+import notificationsApi from '@/src/api/notifications';
 
 // Figma 기반 아이콘들
 function SearchIcon({ color = palette.neutral[900] }: { color?: string }) {
@@ -240,6 +241,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Upload hook
   const {
@@ -372,10 +374,18 @@ export default function HomeScreen() {
     setShowUploadModal(true);
   };
 
-  // 알림 (추후 구현)
+  // 알림
   const handleNotificationPress = () => {
-    showAlert(t('notification.title'), t('notification.comingSoon'));
+    router.push('/notifications');
   };
+
+  // 읽지 않은 알림 수 조회
+  useEffect(() => {
+    if (!accessToken) return;
+    notificationsApi.getUnreadCount()
+      .then(data => setUnreadCount(data.count))
+      .catch(() => {});
+  }, [accessToken]);
 
   // 지원하는 이미지 형식
   const SUPPORTED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
@@ -495,6 +505,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
             <TouchableOpacity style={styles.iconButton} onPress={handleNotificationPress}>
               <BellIcon color={theme.icon.primary} />
+              {unreadCount > 0 && <View style={styles.bellBadge} />}
             </TouchableOpacity>
           </View>
         </View>
@@ -664,7 +675,17 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative' as const,
     borderRadius: 20,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#F08E76',
   },
   content: {
     flex: 1,

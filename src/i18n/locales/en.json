@@ -192,7 +192,13 @@
   },
   "notification": {
     "title": "Notifications",
-    "comingSoon": "Notification feature coming soon."
+    "comingSoon": "Notification feature coming soon.",
+    "empty": "No notifications yet.",
+    "deleteConfirmTitle": "Delete notifications?",
+    "deleteConfirmDesc": "Selected notifications will be deleted.",
+    "deleteSelected": "Delete {{count}}",
+    "am": "AM",
+    "pm": "PM"
   },
   "date": {
     "today": "Today",
