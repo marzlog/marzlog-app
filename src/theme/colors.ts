@@ -112,7 +112,7 @@ export const lightTheme = {
     active: palette.primary[700],
     disabled: palette.primary[300],
     background: palette.primary[50],
-    text: palette.neutral[0],
+    text: '#252525',                 // Figma Text-Neutral
   },
 
   // Secondary

@@ -11,23 +11,27 @@ import {
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { authApi } from '@src/api/auth';
 import { extractErrorMessage } from '@src/utils/errorMessages';
 
+type Tab = 'findId' | 'findPassword';
 type Step = 'email' | 'reset' | 'complete';
 
 export default function ForgotPasswordScreen() {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
   const { t } = useTranslation();
+  const params = useLocalSearchParams<{ tab?: string }>();
 
+  const [activeTab, setActiveTab] = useState<Tab>(
+    params.tab === 'findId' ? 'findId' : 'findPassword'
+  );
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [resetToken, setResetToken] = useState('');
@@ -46,9 +50,19 @@ export default function ForgotPasswordScreen() {
   const inputText = isDark ? '#F9FAFB' : '#111827';
   const inputBorder = isDark ? '#374151' : '#E5E7EB';
   const placeholderColor = isDark ? '#6B7280' : '#9CA3AF';
-  const bgColor = isDark ? '#111827' : '#FFFFFF';
-  const textColor = isDark ? '#F9FAFB' : '#111827';
+  const bgColor = isDark ? '#111827' : '#F5F5F0';
+  const textColor = isDark ? '#F9FAFB' : '#2D3A35';
   const subtextColor = isDark ? '#9CA3AF' : '#6B7280';
+  const cardBg = isDark ? '#1F2937' : '#FFFFFF';
+
+  const handleTabChange = (tab: Tab) => {
+    setActiveTab(tab);
+    // Reset password step when switching tabs
+    if (tab === 'findPassword') {
+      setStep('email');
+      setErrors({});
+    }
+  };
 
   const handleRequestReset = async () => {
     if (!email.trim()) {
@@ -60,7 +74,6 @@ export default function ForgotPasswordScreen() {
     setErrors({});
     try {
       const result = await authApi.forgotPassword(email.trim());
-      // MVP: backend returns the reset token directly in message
       setResetToken(result.message);
       setStep('reset');
     } catch (e: any) {
@@ -102,17 +115,17 @@ export default function ForgotPasswordScreen() {
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={styles.completeContainer}>
           <View style={styles.completeIconWrap}>
-            <Ionicons name="checkmark-circle" size={72} color="#F97066" />
+            <Ionicons name="checkmark-circle" size={72} color="#FF6A5F" />
           </View>
           <Text style={[styles.completeTitle, { color: textColor }]}>
             {t('auth.resetPasswordComplete')}
           </Text>
           <TouchableOpacity
-            style={styles.goToLoginButton}
+            style={styles.coralButton}
             onPress={() => router.replace('/login')}
             activeOpacity={0.8}
           >
-            <Text style={styles.goToLoginText}>{t('auth.goToLogin')}</Text>
+            <Text style={styles.coralButtonText}>{t('auth.goToLogin')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -133,6 +146,44 @@ export default function ForgotPasswordScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Tab Bar */}
+      <View style={styles.tabContainer}>
+        <View style={[styles.tabBar, { backgroundColor: isDark ? '#374151' : '#E8E8E3' }]}>
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'findId' && [styles.tabActive, { backgroundColor: isDark ? '#F9FAFB' : '#2D3A35' }],
+            ]}
+            onPress={() => handleTabChange('findId')}
+            activeOpacity={0.8}
+          >
+            <Text style={[
+              styles.tabText,
+              { color: isDark ? '#9CA3AF' : '#6B7280' },
+              activeTab === 'findId' && { color: isDark ? '#111827' : '#FFFFFF', fontWeight: '600' },
+            ]}>
+              {t('auth.findId')}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'findPassword' && [styles.tabActive, { backgroundColor: isDark ? '#F9FAFB' : '#2D3A35' }],
+            ]}
+            onPress={() => handleTabChange('findPassword')}
+            activeOpacity={0.8}
+          >
+            <Text style={[
+              styles.tabText,
+              { color: isDark ? '#9CA3AF' : '#6B7280' },
+              activeTab === 'findPassword' && { color: isDark ? '#111827' : '#FFFFFF', fontWeight: '600' },
+            ]}>
+              {t('auth.findPassword')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -142,12 +193,53 @@ export default function ForgotPasswordScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={[styles.title, { color: textColor }]}>
-            {t('auth.forgotPasswordTitle')}
-          </Text>
+          {/* ===== Find ID Tab ===== */}
+          {activeTab === 'findId' && (
+            <View style={styles.findIdContent}>
+              {/* Info Card */}
+              <View style={[styles.infoCard, { backgroundColor: cardBg }]}>
+                <View style={[styles.infoIconWrap, { backgroundColor: isDark ? '#374151' : '#FFF0ED' }]}>
+                  <Ionicons name="mail-outline" size={24} color="#FF6A5F" />
+                </View>
+                <Text style={[styles.infoTitle, { color: textColor }]}>
+                  {t('auth.findIdInfo')}
+                </Text>
+                <Text style={[styles.infoSubtitle, { color: subtextColor }]}>
+                  {t('auth.findIdRemember')}
+                </Text>
 
-          {step === 'email' && (
+                <View style={styles.tipList}>
+                  {[t('auth.findIdTip1'), t('auth.findIdTip2'), t('auth.findIdTip3')].map((tip, i) => (
+                    <View key={i} style={styles.tipRow}>
+                      <View style={[styles.tipBullet, { backgroundColor: '#FF6A5F' }]} />
+                      <Text style={[styles.tipText, { color: textColor }]}>{tip}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+
+              {/* Not a member yet? */}
+              <View style={styles.notMemberArea}>
+                <Text style={[styles.notMemberText, { color: subtextColor }]}>
+                  {t('auth.notMemberYet')}
+                </Text>
+                <TouchableOpacity
+                  style={styles.registerButton}
+                  onPress={() => router.push('/terms-agreement')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.registerButtonText}>{t('auth.register')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* ===== Find Password Tab ===== */}
+          {activeTab === 'findPassword' && step === 'email' && (
             <>
+              <Text style={[styles.sectionTitle, { color: textColor }]}>
+                {t('auth.forgotPasswordTitle')}
+              </Text>
               <Text style={[styles.description, { color: subtextColor }]}>
                 {t('auth.forgotPasswordDesc')}
               </Text>
@@ -179,7 +271,7 @@ export default function ForgotPasswordScreen() {
               ) : null}
 
               <TouchableOpacity
-                style={[styles.submitButton, isSubmitting && { opacity: 0.6 }]}
+                style={[styles.coralButton, isSubmitting && { opacity: 0.6 }]}
                 onPress={handleRequestReset}
                 disabled={isSubmitting}
                 activeOpacity={0.8}
@@ -187,14 +279,18 @@ export default function ForgotPasswordScreen() {
                 {isSubmitting ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <Text style={styles.submitButtonText}>{t('auth.sendResetLink')}</Text>
+                  <Text style={styles.coralButtonText}>{t('auth.sendResetLink')}</Text>
                 )}
               </TouchableOpacity>
             </>
           )}
 
-          {step === 'reset' && (
+          {activeTab === 'findPassword' && step === 'reset' && (
             <>
+              <Text style={[styles.sectionTitle, { color: textColor }]}>
+                {t('auth.resetPassword')}
+              </Text>
+
               {/* New Password */}
               <View style={styles.fieldGroup}>
                 <Text style={[styles.label, { color: textColor }]}>
@@ -255,7 +351,7 @@ export default function ForgotPasswordScreen() {
               ) : null}
 
               <TouchableOpacity
-                style={[styles.submitButton, isSubmitting && { opacity: 0.6 }]}
+                style={[styles.coralButton, isSubmitting && { opacity: 0.6 }]}
                 onPress={handleResetPassword}
                 disabled={isSubmitting}
                 activeOpacity={0.8}
@@ -263,7 +359,7 @@ export default function ForgotPasswordScreen() {
                 {isSubmitting ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <Text style={styles.submitButtonText}>{t('auth.resetPassword')}</Text>
+                  <Text style={styles.coralButtonText}>{t('auth.resetPassword')}</Text>
                 )}
               </TouchableOpacity>
             </>
@@ -287,11 +383,108 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
+  // Tab
+  tabContainer: {
+    paddingHorizontal: 24,
+    marginBottom: 20,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    borderRadius: 25,
+    padding: 3,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 22,
+  },
+  tabActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
   scrollContent: {
     paddingHorizontal: 24,
     paddingBottom: 40,
   },
-  title: {
+  // Find ID
+  findIdContent: {
+    flex: 1,
+  },
+  infoCard: {
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 28,
+  },
+  infoIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  infoSubtitle: {
+    fontSize: 14,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  tipList: {
+    alignSelf: 'stretch',
+    gap: 12,
+  },
+  tipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  tipBullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  tipText: {
+    fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
+  },
+  notMemberArea: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  notMemberText: {
+    fontSize: 14,
+  },
+  registerButton: {
+    backgroundColor: '#FF6A5F',
+    borderRadius: 25,
+    paddingVertical: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'stretch',
+    minHeight: 52,
+  },
+  registerButtonText: {
+    color: '#252525',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Find Password
+  sectionTitle: {
     fontSize: 22,
     fontWeight: '700',
     marginBottom: 8,
@@ -347,17 +540,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     flex: 1,
   },
-  submitButton: {
-    backgroundColor: '#F97066',
-    borderRadius: 12,
+  // Shared coral button
+  coralButton: {
+    backgroundColor: '#FF6A5F',
+    borderRadius: 25,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
     minHeight: 50,
   },
-  submitButtonText: {
-    color: '#FFFFFF',
+  coralButtonText: {
+    color: '#252525',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -376,18 +570,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 32,
     textAlign: 'center',
-  },
-  goToLoginButton: {
-    backgroundColor: '#F97066',
-    borderRadius: 12,
-    paddingVertical: 15,
-    paddingHorizontal: 48,
-    alignItems: 'center',
-    minHeight: 50,
-  },
-  goToLoginText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

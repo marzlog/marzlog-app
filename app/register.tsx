@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   checkButtonText: {
-    color: '#FFFFFF',
+    color: '#252525',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   registerButton: {
-    backgroundColor: '#F08E76',
+    backgroundColor: '#FF6A5F',
     borderRadius: 25,
     paddingVertical: 15,
     alignItems: 'center',
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   registerButtonText: {
-    color: '#FFFFFF',
+    color: '#252525',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -440,13 +440,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderBottomWidth: 2,
-    borderBottomColor: '#F08E76',
+    borderBottomColor: '#FF6A5F',
     alignItems: 'center',
   },
   tabActiveText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#F08E76',
+    color: '#FF6A5F',
   },
   tabInactive: {
     flex: 1,
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   startButton: {
-    backgroundColor: '#F08E76',
+    backgroundColor: '#FF6A5F',
     borderRadius: 25,
     paddingVertical: 15,
     paddingHorizontal: 48,
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   startButtonText: {
-    color: '#FFFFFF',
+    color: '#252525',
     fontSize: 16,
     fontWeight: '600',
   },

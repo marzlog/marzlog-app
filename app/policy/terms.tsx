@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   confirmButton: {
-    backgroundColor: '#F08E76',
+    backgroundColor: '#FF6A5F',
     borderRadius: 25,
     paddingVertical: 15,
     alignItems: 'center',
@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   confirmButtonText: {
-    color: '#FFFFFF',
+    color: '#252525',
     fontSize: 16,
     fontWeight: '600',
   },

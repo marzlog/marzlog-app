@@ -182,13 +182,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderBottomWidth: 2,
-    borderBottomColor: '#F08E76',
+    borderBottomColor: '#FF6A5F',
     alignItems: 'center',
   },
   tabActiveText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#F08E76',
+    color: '#FF6A5F',
   },
   tabInactive: {
     flex: 1,
@@ -261,8 +261,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxActive: {
-    backgroundColor: '#F08E76',
-    borderColor: '#F08E76',
+    backgroundColor: '#FF6A5F',
+    borderColor: '#FF6A5F',
   },
   bottomArea: {
     paddingHorizontal: 24,
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   nextButton: {
-    backgroundColor: '#F08E76',
+    backgroundColor: '#FF6A5F',
     borderRadius: 25,
     paddingVertical: 15,
     alignItems: 'center',
@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#D1D5DB',
   },
   nextButtonText: {
-    color: '#FFFFFF',
+    color: '#252525',
     fontSize: 16,
     fontWeight: '600',
   },

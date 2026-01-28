@@ -162,14 +162,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   allowButton: {
-    backgroundColor: '#F97066',
+    backgroundColor: '#FF6A5F',
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: 'center',
     minHeight: 50,
   },
   allowButtonText: {
-    color: '#FFFFFF',
+    color: '#252525',
     fontSize: 16,
     fontWeight: '600',
   },

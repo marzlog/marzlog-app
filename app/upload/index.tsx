@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#252525',
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,

@@ -310,8 +310,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   intensityBtnActive: {
-    backgroundColor: '#F08E76',
-    borderColor: '#F08E76',
+    backgroundColor: '#FF6A5F',
+    borderColor: '#FF6A5F',
   },
   intensityText: {
     fontSize: 16,

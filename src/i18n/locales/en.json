@@ -59,7 +59,15 @@
     "registerCompleteWelcome": "Welcome! You are now a member.",
     "registerCompleteBody": "Thank you for joining MarZlog.\nStart recording your precious moments.",
     "tabTerms": "Terms",
-    "tabRegister": "Sign Up"
+    "tabRegister": "Sign Up",
+    "findId": "Find ID",
+    "findPassword": "Find Password",
+    "findIdInfo": "MarZlog uses email for login.",
+    "findIdTip1": "Try logging in with your Google account",
+    "findIdTip2": "Check the email you used to sign up",
+    "findIdTip3": "Try each email if you have multiple",
+    "notMemberYet": "Not a member yet?",
+    "findIdRemember": "If you don't remember your email:"
   },
   "terms": {
     "title": "Terms Agreement",

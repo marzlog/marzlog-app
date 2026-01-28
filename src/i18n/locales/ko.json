@@ -59,7 +59,15 @@
     "registerCompleteWelcome": "회원이 되신 것을 환영합니다.",
     "registerCompleteBody": "MarZlog 가족이 되어주셔서 감사합니다.\n지금부터 소중한 순간을 기록해보세요.",
     "tabTerms": "약관동의",
-    "tabRegister": "회원가입"
+    "tabRegister": "회원가입",
+    "findId": "아이디 찾기",
+    "findPassword": "비밀번호 찾기",
+    "findIdInfo": "MarZlog는 이메일로 로그인합니다.",
+    "findIdTip1": "Google 계정으로 로그인을 시도해보세요",
+    "findIdTip2": "가입 시 사용한 이메일을 확인해주세요",
+    "findIdTip3": "여러 이메일이 있다면 하나씩 시도해보세요",
+    "notMemberYet": "혹시 아직 회원이 아니신가요?",
+    "findIdRemember": "가입하신 이메일이 기억나지 않으시면:"
   },
   "terms": {
     "title": "약관동의",

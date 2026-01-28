@@ -216,6 +216,6 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   iconWrapperActive: {
-    backgroundColor: '#F08E76', // 코랄/핑크 배경 (Figma)
+    backgroundColor: '#FF6A5F', // 코랄/핑크 배경 (Figma)
   },
 });

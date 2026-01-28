@@ -159,14 +159,18 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Register / Forgot Password Links */}
+          {/* Register / Find ID / Forgot Password Links */}
           <View style={styles.linkRow}>
             <TouchableOpacity onPress={() => router.push('/terms-agreement')}>
               <Text style={styles.linkText}>{t('auth.register')}</Text>
             </TouchableOpacity>
             <View style={[styles.linkDivider, { backgroundColor: isDark ? '#4B5563' : '#D1D5DB' }]} />
-            <TouchableOpacity onPress={() => router.push('/forgot-password')}>
-              <Text style={styles.linkText}>{t('auth.forgotPassword')}</Text>
+            <TouchableOpacity onPress={() => router.push({ pathname: '/forgot-password', params: { tab: 'findId' } })}>
+              <Text style={styles.linkText}>{t('auth.findId')}</Text>
+            </TouchableOpacity>
+            <View style={[styles.linkDivider, { backgroundColor: isDark ? '#4B5563' : '#D1D5DB' }]} />
+            <TouchableOpacity onPress={() => router.push({ pathname: '/forgot-password', params: { tab: 'findPassword' } })}>
+              <Text style={styles.linkText}>{t('auth.findPassword')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -286,7 +290,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   loginButton: {
-    backgroundColor: '#F97066',
+    backgroundColor: '#FF6A5F',
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: 'center',
@@ -298,7 +302,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   loginButtonText: {
-    color: '#FFFFFF',
+    color: '#252525',
     fontSize: 16,
     fontWeight: '600',
   },

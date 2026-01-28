@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.semiBold,
   },
   confirmButtonText: {
-    color: '#FFFFFF',
+    color: '#252525',
   },
 });
 

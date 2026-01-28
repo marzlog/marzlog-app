@@ -56,8 +56,8 @@ const variantColors = {
     background: palette.primary[500],      // #FF6A5F
     backgroundPressed: palette.primary[600],
     backgroundDisabled: palette.primary[300],
-    text: '#FFFFFF',
-    textDisabled: '#FFFFFF',
+    text: '#252525',
+    textDisabled: '#252525',
   },
   secondary: {
     background: '#566661',                  // Figma Filled B

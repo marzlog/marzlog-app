@@ -145,7 +145,7 @@ export default function NotificationsScreen() {
         <Ionicons
           name={item.type === 'recall' ? 'images-outline' : item.type === 'marketing' ? 'megaphone-outline' : 'flag-outline'}
           size={18}
-          color="#F08E76"
+          color="#FF6A5F"
         />
       </View>
       <View style={styles.notifContent}>
@@ -183,7 +183,7 @@ export default function NotificationsScreen() {
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#F08E76" />
+          <ActivityIndicator size="large" color="#FF6A5F" />
         </View>
       </SafeAreaView>
     );
@@ -203,7 +203,7 @@ export default function NotificationsScreen() {
           <Ionicons
             name={deleteMode ? 'close' : 'trash-outline'}
             size={22}
-            color={deleteMode ? '#F08E76' : textColor}
+            color={deleteMode ? '#FF6A5F' : textColor}
           />
         </TouchableOpacity>
       </View>
@@ -217,7 +217,7 @@ export default function NotificationsScreen() {
         contentContainerStyle={notifications.length === 0 ? styles.emptyList : styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#F08E76" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF6A5F" />
         }
       />
 
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
   },
   notifCardUnread: {
     borderLeftWidth: 3,
-    borderLeftColor: '#F08E76',
+    borderLeftColor: '#FF6A5F',
   },
   notifIcon: {
     width: 40,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#F08E76',
+    backgroundColor: '#FF6A5F',
   },
   checkbox: {
     width: 22,
@@ -325,8 +325,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxSelected: {
-    backgroundColor: '#F08E76',
-    borderColor: '#F08E76',
+    backgroundColor: '#FF6A5F',
+    borderColor: '#FF6A5F',
   },
   emptyContainer: {
     flex: 1,
@@ -354,14 +354,14 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
   deleteButton: {
-    backgroundColor: '#F08E76',
+    backgroundColor: '#FF6A5F',
     borderRadius: 25,
     paddingVertical: 15,
     alignItems: 'center',
     minHeight: 50,
   },
   deleteButtonText: {
-    color: '#FFFFFF',
+    color: '#252525',
     fontSize: 16,
     fontWeight: '600',
   },
