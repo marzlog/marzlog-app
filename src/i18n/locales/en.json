@@ -54,7 +54,26 @@
     "requiredField": "This field is required",
     "invalidEmail": "Invalid email format",
     "loginFailed": "Login failed",
-    "registerFailed": "Registration failed"
+    "registerFailed": "Registration failed",
+    "registerCompleteTitle": "MarZlog",
+    "registerCompleteWelcome": "Welcome! You are now a member.",
+    "registerCompleteBody": "Thank you for joining MarZlog.\nStart recording your precious moments.",
+    "tabTerms": "Terms",
+    "tabRegister": "Sign Up"
+  },
+  "terms": {
+    "title": "Terms Agreement",
+    "agreeAll": "Agree to All",
+    "agreeAllDesc": "I agree to all Terms of Service and Privacy Policy.",
+    "termsOfService": "Terms of Service",
+    "termsOfServiceRequired": "(Required) Terms of Service",
+    "privacyPolicy": "Privacy Policy",
+    "privacyPolicyRequired": "(Required) Privacy Policy",
+    "marketingOptional": "(Optional) Marketing communications",
+    "agreeAndNext": "Agree and Continue",
+    "viewDetail": "View",
+    "termsContent": "Article 1 (Purpose)\nThese terms and conditions aim to define the terms of use, procedures, rights, obligations, responsibilities, and other necessary matters between MarZlog (hereinafter \"Service\") and its users.\n\nArticle 2 (Definitions)\n① \"Service\" refers to all services related to photo management and AI analysis provided by MarZlog.\n② \"User\" refers to members and non-members who use the Service in accordance with these terms.\n③ \"Member\" refers to a person who has signed up for the Service and entered into a usage agreement.\n\nArticle 3 (Effect and Amendment of Terms)\n① These terms take effect by being posted on the Service screen or by other means of notification.\n② The Service may amend these terms as necessary, and amended terms shall be announced through notices.\n\nArticle 4 (Provision of Services)\n① The Service performs the following tasks:\n  1. Photo upload and storage service\n  2. AI-based photo analysis and captioning\n  3. Semantic search functionality\n  4. Timeline organization\n  5. Other tasks determined by the Service\n\nArticle 5 (Membership Registration)\n① Users apply for membership by filling in the registration form and expressing their agreement to these terms.\n② The Service registers applicants as members unless they fall under specific exclusion criteria.\n\nArticle 6 (Personal Information Protection)\nThe Service establishes and discloses a privacy policy in accordance with relevant laws to protect users' personal information.\n\nArticle 7 (Member Obligations)\n① Members must comply with relevant laws, these terms, usage guides, and notices posted on the Service.\n② Members may not transfer or gift their usage rights or contractual status to others.",
+    "privacyContent": "1. Purpose of Processing Personal Information\nMarZlog (hereinafter \"Service\") processes personal information for the following purposes:\n- Membership registration and management\n- Service provision and operation\n- Photo storage and AI analysis\n\n2. Personal Information Items Collected\n- Required: Email, password, name\n- Optional: Profile photo\n- Automatically collected: Device info, access logs\n\n3. Retention and Use Period\n- Retained until membership withdrawal\n- Retention periods per applicable laws:\n  · Records on contracts or subscription withdrawal: 5 years\n  · Records on payment and supply of goods: 5 years\n  · Records on consumer complaints or disputes: 3 years\n\n4. Provision to Third Parties\nThe Service does not, in principle, provide users' personal information to external parties.\n\n5. Destruction Procedures and Methods\n- Procedure: Immediately destroyed upon membership withdrawal\n- Method: Electronic files are permanently deleted using irrecoverable methods\n\n6. User Rights\n- Request to view, correct, delete, or suspend processing of personal information\n- Delete personal information through membership withdrawal\n\n7. Personal Information Protection Officer\n- Service Operations Team\n- Contact: support@marzlog.com"
   },
   "intro": {
     "title": "MarZlog",

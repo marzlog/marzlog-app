@@ -107,6 +107,9 @@ function RootLayoutNav() {
           <Stack.Screen name="intro" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="register" options={{ headerShown: false }} />
+          <Stack.Screen name="terms-agreement" options={{ headerShown: false }} />
+          <Stack.Screen name="policy/terms" options={{ headerShown: false }} />
+          <Stack.Screen name="policy/privacy" options={{ headerShown: false }} />
           <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="upload" options={{ headerShown: false }} />

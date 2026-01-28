@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Alert,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -116,21 +117,20 @@ export default function RegisterScreen() {
     }
   };
 
-  // Registration complete screen
+  // Registration complete screen (Figma MO_JOI_0301)
   if (showComplete) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
-        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <SafeAreaView style={styles.completeScreen}>
+        <StatusBar barStyle="dark-content" />
         <View style={styles.completeContainer}>
-          <View style={styles.completeIconWrap}>
-            <Ionicons name="checkmark-circle" size={72} color="#F97066" />
-          </View>
-          <Text style={[styles.completeTitle, { color: textColor }]}>
-            {t('auth.registerComplete')}
-          </Text>
-          <Text style={[styles.completeDesc, { color: subtextColor }]}>
-            {t('auth.registerCompleteDesc')}
-          </Text>
+          <Image
+            source={require('@/assets/images/mascot.png')}
+            style={styles.completeMascot}
+            resizeMode="contain"
+          />
+          <Text style={styles.completeBrand}>{t('auth.registerCompleteTitle')}</Text>
+          <Text style={styles.completeWelcome}>{t('auth.registerCompleteWelcome')}</Text>
+          <Text style={styles.completeBody}>{t('auth.registerCompleteBody')}</Text>
           <TouchableOpacity
             style={styles.startButton}
             onPress={async () => {
@@ -155,6 +155,16 @@ export default function RegisterScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={24} color={textColor} />
         </TouchableOpacity>
+      </View>
+
+      {/* Step Tabs */}
+      <View style={styles.tabRow}>
+        <View style={[styles.tabInactive, { borderBottomColor: isDark ? '#374151' : '#E5E7EB' }]}>
+          <Text style={[styles.tabInactiveText, { color: subtextColor }]}>{t('auth.tabTerms')}</Text>
+        </View>
+        <View style={styles.tabActive}>
+          <Text style={styles.tabActiveText}>{t('auth.tabRegister')}</Text>
+        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -404,8 +414,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   registerButton: {
-    backgroundColor: '#F97066',
-    borderRadius: 12,
+    backgroundColor: '#F08E76',
+    borderRadius: 25,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',
@@ -417,35 +427,78 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // Complete screen
+  // Tab UI
+  tabRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 24,
+  },
+  tabActive: {
+    flex: 1,
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: '#F08E76',
+    alignItems: 'center',
+  },
+  tabActiveText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#F08E76',
+  },
+  tabInactive: {
+    flex: 1,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    alignItems: 'center',
+  },
+  tabInactiveText: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  // Complete screen (Figma MO_JOI_0301)
+  completeScreen: {
+    flex: 1,
+    backgroundColor: '#F5F5F0',
+  },
   completeContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
   },
-  completeIconWrap: {
+  completeMascot: {
+    width: 120,
+    height: 120,
+    borderRadius: 30,
     marginBottom: 24,
   },
-  completeTitle: {
-    fontSize: 22,
+  completeBrand: {
+    fontSize: 24,
     fontWeight: '700',
+    color: '#2D3A35',
+    marginBottom: 12,
+  },
+  completeWelcome: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2D3A35',
     marginBottom: 12,
     textAlign: 'center',
   },
-  completeDesc: {
-    fontSize: 15,
+  completeBody: {
+    fontSize: 14,
     lineHeight: 22,
+    color: '#6B7280',
     textAlign: 'center',
     marginBottom: 40,
   },
   startButton: {
-    backgroundColor: '#F97066',
-    borderRadius: 12,
+    backgroundColor: '#F08E76',
+    borderRadius: 25,
     paddingVertical: 15,
     paddingHorizontal: 48,
     alignItems: 'center',
     minHeight: 50,
+    width: '100%',
   },
   startButtonText: {
     color: '#FFFFFF',

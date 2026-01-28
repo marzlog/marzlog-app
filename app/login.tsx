@@ -161,7 +161,7 @@ export default function LoginScreen() {
 
           {/* Register / Forgot Password Links */}
           <View style={styles.linkRow}>
-            <TouchableOpacity onPress={() => router.push('/register')}>
+            <TouchableOpacity onPress={() => router.push('/terms-agreement')}>
               <Text style={styles.linkText}>{t('auth.register')}</Text>
             </TouchableOpacity>
             <View style={[styles.linkDivider, { backgroundColor: isDark ? '#4B5563' : '#D1D5DB' }]} />
@@ -191,11 +191,11 @@ export default function LoginScreen() {
               {t('login.termsAgreement')}
             </Text>
             <View style={styles.termsLinks}>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/policy/terms')}>
                 <Text style={styles.termsLink}>{t('support.terms')}</Text>
               </TouchableOpacity>
               <Text style={[styles.termsDivider, isDark && styles.termsTextDark]}>|</Text>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/policy/privacy')}>
                 <Text style={styles.termsLink}>{t('support.privacy')}</Text>
               </TouchableOpacity>
             </View>
