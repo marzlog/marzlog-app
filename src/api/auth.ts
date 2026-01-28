@@ -116,6 +116,13 @@ export const authApi = {
   },
 
   /**
+   * 계정 삭제
+   */
+  async deleteAccount(): Promise<void> {
+    await apiClient.delete('/auth/account');
+  },
+
+  /**
    * 사용자 통계 조회
    */
   async getUserStats(): Promise<UserStats> {

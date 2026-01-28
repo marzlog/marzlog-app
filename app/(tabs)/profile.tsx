@@ -21,7 +21,7 @@ import { useDialog } from '@/src/components/ui/Dialog';
 
 export default function ProfileScreen() {
   const systemColorScheme = useColorScheme();
-  const { user, logout } = useAuthStore();
+  const { user, logout, deleteAccount } = useAuthStore();
   const { t, language, changeLanguage } = useTranslation();
   const { confirm } = useDialog();
   const {
@@ -112,8 +112,11 @@ export default function ProfileScreen() {
     });
 
     if (confirmed) {
-      // TODO: Implement account deletion API
-      Alert.alert(t('common.comingSoon'), t('account.deleteAccountWarning'));
+      try {
+        await deleteAccount();
+      } catch {
+        Alert.alert(t('common.error'), t('account.deleteAccountWarning'));
+      }
     }
   };
 

@@ -40,6 +40,7 @@ interface AuthStore extends AuthState {
   loginWithEmail: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   checkAuth: () => Promise<void>;
 
   // Mock login for development
@@ -138,6 +139,27 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       await authApi.logout();
     } catch {
       // Ignore logout errors
+    } finally {
+      await storage.removeItem('access_token');
+      await storage.removeItem('refresh_token');
+
+      set({
+        user: null,
+        accessToken: null,
+        refreshToken: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: null,
+      });
+    }
+  },
+
+  // Delete Account
+  deleteAccount: async () => {
+    try {
+      await authApi.deleteAccount();
+    } catch {
+      throw new Error('Account deletion failed');
     } finally {
       await storage.removeItem('access_token');
       await storage.removeItem('refresh_token');
