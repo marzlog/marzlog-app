@@ -128,7 +128,11 @@ export default function RegisterScreen() {
             style={styles.completeMascot}
             resizeMode="contain"
           />
-          <Text style={styles.completeBrand}>{t('auth.registerCompleteTitle')}</Text>
+          <Image
+            source={require('@/assets/images/marzlog-text-logo.png')}
+            style={styles.completeTextLogo}
+            resizeMode="contain"
+          />
           <Text style={styles.completeWelcome}>{t('auth.registerCompleteWelcome')}</Text>
           <Text style={styles.completeBody}>{t('auth.registerCompleteBody')}</Text>
           <TouchableOpacity
@@ -471,10 +475,9 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     marginBottom: 24,
   },
-  completeBrand: {
-    fontSize: 38,
-    fontWeight: '300',
-    color: '#2D3A35',
+  completeTextLogo: {
+    width: 160,
+    height: 40,
     marginBottom: 12,
   },
   completeWelcome: {
