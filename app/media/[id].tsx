@@ -668,7 +668,7 @@ export default function MediaDetailScreen() {
             )}
 
             {/* EXIF 카메라 정보 있는 경우 */}
-            {(analysis?.exif?.camera_model || analysis?.exif?.aperture || analysis?.exif?.iso || analysis?.exif?.shutter_speed) ? (
+            {(analysis?.exif?.camera_model || analysis?.exif?.aperture || analysis?.exif?.iso || analysis?.exif?.shutter_speed || analysis?.exif?.gps) ? (
               <>
                 {/* 카메라 모델 */}
                 {analysis?.exif?.camera_model && (
