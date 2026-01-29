@@ -24,6 +24,7 @@ import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useDialog } from '@/src/components/ui/Dialog';
+import { Logo } from '@/src/components/common/Logo';
 
 // 다크 그린 색상
 const DARK_GREEN = '#2D3A35';
@@ -582,8 +583,8 @@ export default function TimelineScreen() {
       {/* 헤더 */}
       <View style={[styles.header, { backgroundColor: theme.background.primary }]}>
         <View style={styles.headerLeft}>
-          <BookOpenIcon color={theme.icon.primary} />
-          <Text style={[styles.headerTitle, { color: theme.text.primary }]}>{t('timeline.title')}</Text>
+          <Logo size={28} showText={false} color={theme.text.primary} />
+          <Text style={[styles.headerTitle, { color: theme.text.primary, fontWeight: '300' }]}>{t('timeline.title')}</Text>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.iconButton} onPress={handleSearchPress}>
