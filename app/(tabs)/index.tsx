@@ -335,7 +335,7 @@ export default function HomeScreen() {
 
     const mapped: ScheduleItem[] = filtered.map((item) => ({
       id: item.id,
-      title: item.caption || t('common.noTitle'),
+      title: item.title || item.caption || t('common.noTitle'),
       location: undefined,
       time: formatTime(item.media?.taken_at || item.created_at),
       imageUrl: item.media?.download_url || item.media?.thumbnail_url || '',

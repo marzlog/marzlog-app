@@ -43,6 +43,11 @@ export interface TimelineItem {
   updated_at: string;
   media: MediaInfo;           // ← media 객체!
   additional_images: null;
+  // AI 일기 생성 필드
+  title?: string | null;
+  content?: string | null;
+  mood?: string | null;
+  ai_provider?: string | null;
 }
 
 // 타임라인 응답

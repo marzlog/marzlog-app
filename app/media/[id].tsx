@@ -540,10 +540,25 @@ export default function MediaDetailScreen() {
           </View>
         )}
 
-        {/* 제목 */}
+        {/* AI 일기 제목 + mood 배지 */}
         {media.title && (
           <View style={[styles.userSection, isDark && styles.sectionBorderDark]}>
-            <Text style={[styles.titleText, isDark && styles.textLight]}>{media.title}</Text>
+            <View style={styles.titleRow}>
+              <Text style={[styles.titleText, isDark && styles.textLight, { flex: 1 }]}>{media.title}</Text>
+              {media.mood && (
+                <View style={[styles.moodBadge, isDark && styles.moodBadgeDark]}>
+                  <Text style={[styles.moodBadgeText, isDark && styles.moodBadgeTextDark]}>{media.mood}</Text>
+                </View>
+              )}
+            </View>
+            {media.ai_provider && (
+              <View style={styles.aiProviderRow}>
+                <Ionicons name="sparkles" size={12} color={isDark ? '#9CA3AF' : colors.neutral[5]} />
+                <Text style={[styles.aiProviderText, isDark && styles.textTertiaryDark]}>
+                  AI 생성 ({media.ai_provider})
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -1188,6 +1203,39 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text.primary,
     lineHeight: 28,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  moodBadge: {
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  moodBadgeDark: {
+    backgroundColor: 'rgba(99, 102, 241, 0.2)',
+  },
+  moodBadgeText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6366F1',
+  },
+  moodBadgeTextDark: {
+    color: '#A5B4FC',
+  },
+  aiProviderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  aiProviderText: {
+    fontSize: 11,
+    color: colors.neutral[5],
   },
   contentText: {
     fontSize: 16,

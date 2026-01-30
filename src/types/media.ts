@@ -62,4 +62,7 @@ export interface MediaDetail {
   memo?: string | null;
   emotion?: string | null;
   intensity?: number | null;
+  // AI 일기 생성 필드
+  mood?: string | null;
+  ai_provider?: string | null;
 }
