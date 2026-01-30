@@ -432,7 +432,22 @@ export default function MediaDetailScreen() {
     setIsGeneratingDiary(true);
     try {
       await generateDiary(id!);
-      await alert('일기 생성 시작', 'AI가 일기를 생성하고 있습니다. 잠시 후 새로고침 해주세요.');
+      await alert('일기 생성 시작', 'AI가 일기를 생성하고 있습니다.\n10초 후 자동으로 새로고침됩니다.');
+
+      // 10초 후 자동 새로고침
+      setTimeout(async () => {
+        try {
+          const [mediaData, analysisData] = await Promise.all([
+            getMediaDetail(id!),
+            getMediaAnalysis(id!),
+          ]);
+          setMedia(mediaData);
+          setAnalysis(analysisData);
+          console.log('[MediaDetail] Auto-refreshed after diary generation');
+        } catch (err) {
+          console.error('[MediaDetail] Auto-refresh failed:', err);
+        }
+      }, 10000);
     } catch (err: any) {
       console.error('[MediaDetail] Diary generation error:', err);
       const message = err?.response?.data?.detail || '일기 생성에 실패했습니다.';

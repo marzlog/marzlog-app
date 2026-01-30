@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   StyleSheet,
   View,
@@ -353,6 +354,20 @@ export default function HomeScreen() {
     console.log('[Home] Initial load useEffect triggered');
     loadAllItems();
   }, [loadAllItems]);
+
+  // 화면 포커스 시 데이터 갱신 (상세에서 돌아올 때 새 데이터 반영)
+  const isFirstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      // 첫 포커스는 초기 로드에서 처리하므로 스킵
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
+      }
+      console.log('[Home] Screen focused - refreshing data');
+      loadAllItems();
+    }, [loadAllItems])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
