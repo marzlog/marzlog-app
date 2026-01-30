@@ -14,13 +14,23 @@ export interface SearchResponse {
     total: number;
 }
 
+export type SearchMode = 'hybrid' | 'vector' | 'text';
+
 export const searchApi = {
     // 검색
-    async search(query: string, limit = 20): Promise<SearchResponse> {
+    async search(query: string, limit = 20, mode: SearchMode = 'hybrid'): Promise<SearchResponse> {
         const response = await apiClient.post<SearchResponse>('/search/', {
             query,
-            mode: 'hybrid',
+            mode,
             limit,
+        });
+        return response.data;
+    },
+
+    // 유사 이미지 검색
+    async similar(mediaId: string, limit = 10): Promise<SearchResponse> {
+        const response = await apiClient.get<SearchResponse>(`/search/similar/${mediaId}`, {
+            params: { limit },
         });
         return response.data;
     },

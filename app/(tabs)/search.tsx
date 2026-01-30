@@ -7,7 +7,7 @@ import searchApi, { SearchResult } from '@/src/api/search';
 import { colors } from '@/src/theme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -23,10 +23,14 @@ import {
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 40) / 2;
 
-const SUGGESTIONS = ['음식', 'food', '가족', 'sunset', 'birthday'];
+const DEFAULT_SUGGESTIONS = ['음식', 'food', '가족', 'sunset', 'birthday'];
 
 const RECENT_SEARCHES_KEY = 'marzlog_recent_searches';
 const MAX_RECENT_SEARCHES = 10;
+const DEBOUNCE_DELAY = 300;
+
+// 검색 모드 타입
+type SearchMode = 'hybrid' | 'vector' | 'text';
 
 export default function SearchScreen() {
   const systemColorScheme = useColorScheme();
@@ -47,10 +51,52 @@ export default function SearchScreen() {
   const [error, setError] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
+  // 새로운 상태들
+  const [searchMode, setSearchMode] = useState<SearchMode>('hybrid');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // 최근 검색어 로드
   useEffect(() => {
     loadRecentSearches();
   }, []);
+
+  // 자동완성 (debounce)
+  useEffect(() => {
+    if (query.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setIsLoadingSuggestions(true);
+      try {
+        const response = await searchApi.suggestions(query);
+        const combined = [...(response.tags || []), ...(response.words || [])];
+        const unique = [...new Set(combined)].slice(0, 8);
+        setSuggestions(unique);
+        setShowSuggestions(unique.length > 0);
+      } catch (err) {
+        console.log('[Search] Suggestions error:', err);
+        setSuggestions([]);
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    }, DEBOUNCE_DELAY);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [query]);
 
   const loadRecentSearches = async () => {
     try {
@@ -82,31 +128,38 @@ export default function SearchScreen() {
     }
   };
 
-  const handleSearch = async (searchQuery?: string) => {
+  const handleSearch = async (searchQuery?: string, mode?: SearchMode) => {
     const term = (typeof searchQuery === 'string' ? searchQuery : query).trim();
     if (!term) return;
 
+    setShowSuggestions(false);
     setIsSearching(true);
     setHasSearched(true);
     setError(null);
 
+    const activeMode = mode || searchMode;
+
     try {
-      console.log('[Search] Searching for:', term);
-      const response = await searchApi.search(term);
-      console.log('[Search] Results:', JSON.stringify(response, null, 2));
-      console.log('[Search] First result thumbnail:', response.results?.[0]?.thumbnail_url);
+      console.log('[Search] Searching for:', term, 'mode:', activeMode);
+      const response = await searchApi.search(term, 20, activeMode);
+      console.log('[Search] Results:', response.results?.length);
       setResults(response.results || []);
       if (response.results?.length > 0) {
         saveRecentSearch(term);
       }
     } catch (err: any) {
       console.error('[Search] Error:', err);
-      console.error('[Search] Error response:', err.response?.data);
       setError(err.response?.data?.detail || err.message || t('search.searchFailed'));
       setResults([]);
     } finally {
       setIsSearching(false);
     }
+  };
+
+  const handleSuggestionSelect = (suggestion: string) => {
+    setQuery(suggestion);
+    setShowSuggestions(false);
+    handleSearch(suggestion);
   };
 
   const handleSuggestionPress = (suggestion: string) => {
@@ -133,28 +186,55 @@ export default function SearchScreen() {
     router.push(`/media/${mediaId}`);
   };
 
+  const handleSimilarSearch = async (mediaId: string) => {
+    setIsSearching(true);
+    setError(null);
+    try {
+      console.log('[Search] Finding similar to:', mediaId);
+      const response = await searchApi.similar(mediaId);
+      setResults(response.results || []);
+      setHasSearched(true);
+      setQuery(`Similar to image`);
+    } catch (err: any) {
+      console.error('[Search] Similar search error:', err);
+      setError(err.response?.data?.detail || err.message || 'Failed to find similar images');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   const renderResultItem = ({ item }: { item: SearchResult }) => (
-    <TouchableOpacity
-      style={[styles.resultItem, isDark && styles.resultItemDark]}
-      activeOpacity={0.8}
-      onPress={() => handleResultPress(item.media_id)}
-    >
-      <Image
-        source={{ uri: getImageUrl(item) }}
-        style={styles.resultImage}
-        onError={(e) => console.log('[Search] Image error:', e.nativeEvent.error, 'URL:', getImageUrl(item))}
-      />
+    <View style={[styles.resultItem, isDark && styles.resultItemDark]}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={() => handleResultPress(item.media_id)}
+      >
+        <Image
+          source={{ uri: getImageUrl(item) }}
+          style={styles.resultImage}
+          onError={(e) => console.log('[Search] Image error:', e.nativeEvent.error)}
+        />
+      </TouchableOpacity>
       <View style={styles.resultCaption}>
         <Text style={[styles.captionText, isDark && styles.textLight]} numberOfLines={2}>
           {item.caption || t('search.noCaption')}
         </Text>
-        {item.score && (
-          <Text style={styles.scoreText}>
-            {t('search.relevance')}: {(item.score * 100).toFixed(0)}%
-          </Text>
-        )}
+        <View style={styles.resultFooter}>
+          {item.score && (
+            <Text style={styles.scoreText}>
+              {(item.score * 100).toFixed(0)}%
+            </Text>
+          )}
+          <TouchableOpacity
+            style={styles.similarButton}
+            onPress={() => handleSimilarSearch(item.media_id)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="images-outline" size={14} color={colors.brand.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -170,13 +250,62 @@ export default function SearchScreen() {
             value={query}
             onChangeText={setQuery}
             onSubmitEditing={() => handleSearch()}
+            onFocus={() => query.length >= 2 && suggestions.length > 0 && setShowSuggestions(true)}
             returnKeyType="search"
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => { setQuery(''); setHasSearched(false); }}>
+            <TouchableOpacity onPress={() => { setQuery(''); setHasSearched(false); setShowSuggestions(false); }}>
               <Ionicons name="close-circle" size={20} color="#9CA3AF" />
             </TouchableOpacity>
           )}
+        </View>
+
+        {/* 자동완성 드롭다운 */}
+        {showSuggestions && suggestions.length > 0 && (
+          <View style={[styles.suggestionsDropdown, isDark && styles.dropdownDark]}>
+            {suggestions.map((suggestion, index) => (
+              <TouchableOpacity
+                key={`${suggestion}-${index}`}
+                style={[styles.suggestionItem, isDark && styles.suggestionItemDark]}
+                onPress={() => handleSuggestionSelect(suggestion)}
+              >
+                <Ionicons name="search-outline" size={16} color="#9CA3AF" />
+                <Text style={[styles.suggestionItemText, isDark && styles.textLight]}>{suggestion}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* 검색 모드 선택 */}
+        <View style={styles.modeContainer}>
+          {(['hybrid', 'vector', 'text'] as SearchMode[]).map((mode) => (
+            <TouchableOpacity
+              key={mode}
+              style={[
+                styles.modeChip,
+                searchMode === mode && styles.modeChipActive,
+                isDark && styles.modeChipDark,
+                searchMode === mode && isDark && styles.modeChipActiveDark,
+              ]}
+              onPress={() => {
+                setSearchMode(mode);
+                if (hasSearched) handleSearch(query, mode);
+              }}
+            >
+              <Ionicons
+                name={mode === 'hybrid' ? 'git-merge-outline' : mode === 'vector' ? 'sparkles-outline' : 'text-outline'}
+                size={14}
+                color={searchMode === mode ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280')}
+              />
+              <Text style={[
+                styles.modeText,
+                searchMode === mode && styles.modeTextActive,
+                isDark && !searchMode.includes(mode) && { color: '#9CA3AF' },
+              ]}>
+                {mode === 'hybrid' ? 'AI + Text' : mode === 'vector' ? 'AI' : 'Text'}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
       </View>
 
@@ -234,7 +363,7 @@ export default function SearchScreen() {
             {t('search.suggestions')}
           </Text>
           <View style={styles.suggestionsList}>
-            {SUGGESTIONS.map((suggestion) => (
+            {DEFAULT_SUGGESTIONS.map((suggestion) => (
               <TouchableOpacity
                 key={suggestion}
                 style={[styles.suggestionChip, isDark && styles.chipDark]}
@@ -483,5 +612,84 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#9CA3AF',
     marginTop: 8,
+  },
+  // 자동완성 드롭다운
+  suggestionsDropdown: {
+    position: 'absolute',
+    top: 60,
+    left: 16,
+    right: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    zIndex: 1000,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  dropdownDark: {
+    backgroundColor: '#1F2937',
+    borderColor: '#374151',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    gap: 12,
+  },
+  suggestionItemDark: {
+    borderBottomColor: '#374151',
+  },
+  suggestionItemText: {
+    fontSize: 15,
+    color: '#374151',
+  },
+  // 검색 모드
+  modeContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  modeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    gap: 4,
+  },
+  modeChipDark: {
+    backgroundColor: '#374151',
+  },
+  modeChipActive: {
+    backgroundColor: colors.brand.primary,
+  },
+  modeChipActiveDark: {
+    backgroundColor: colors.brand.primary,
+  },
+  modeText: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  modeTextActive: {
+    color: '#FFFFFF',
+  },
+  // 결과 푸터
+  resultFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  similarButton: {
+    padding: 4,
   },
 });
