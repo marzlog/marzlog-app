@@ -16,7 +16,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getMediaDetail, getMediaAnalysis, deleteMedia, updateMedia, updateMediaAnalysis } from '@/src/api/media';
+import { getMediaDetail, getMediaAnalysis, deleteMedia, updateMedia, updateMediaAnalysis, generateDiary } from '@/src/api/media';
 import { EditAnalysisModal, type EditData } from '@/src/components/media/EditAnalysisModal';
 import { timelineApi, GroupImageItem } from '@/src/api/timeline';
 import { colors } from '@/src/theme';
@@ -50,6 +50,7 @@ export default function MediaDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [isGeneratingDiary, setIsGeneratingDiary] = useState(false);
 
   // 그룹 이미지 관련 상태
   const [groupImages, setGroupImages] = useState<GroupImageItem[]>([]);
@@ -418,6 +419,29 @@ export default function MediaDetailScreen() {
     }
   };
 
+  // AI 일기 재생성
+  const handleRegenerateDiary = async () => {
+    if (isGeneratingDiary || !media) return;
+
+    // 그룹이면서 메인이 아닌 경우 경고
+    if (media.group_id && media.is_primary !== 'true') {
+      await alert('알림', '그룹 일기는 대표 사진에서만 생성할 수 있습니다.');
+      return;
+    }
+
+    setIsGeneratingDiary(true);
+    try {
+      await generateDiary(id!);
+      await alert('일기 생성 시작', 'AI가 일기를 생성하고 있습니다. 잠시 후 새로고침 해주세요.');
+    } catch (err: any) {
+      console.error('[MediaDetail] Diary generation error:', err);
+      const message = err?.response?.data?.detail || '일기 생성에 실패했습니다.';
+      await alert('오류', message);
+    } finally {
+      setIsGeneratingDiary(false);
+    }
+  };
+
   return (
     <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       {/* Header */}
@@ -561,6 +585,36 @@ export default function MediaDetailScreen() {
             )}
           </View>
         )}
+
+        {/* AI 일기 재생성 버튼 */}
+        <View style={[styles.userSection, isDark && styles.sectionBorderDark]}>
+          <TouchableOpacity
+            style={[
+              styles.regenerateButton,
+              isGeneratingDiary && styles.regenerateButtonDisabled,
+              isDark && styles.regenerateButtonDark,
+            ]}
+            onPress={handleRegenerateDiary}
+            disabled={isGeneratingDiary}
+          >
+            <Ionicons
+              name={isGeneratingDiary ? 'hourglass-outline' : 'refresh'}
+              size={16}
+              color={isGeneratingDiary ? '#9CA3AF' : '#fff'}
+            />
+            <Text style={[
+              styles.regenerateButtonText,
+              isGeneratingDiary && styles.regenerateButtonTextDisabled,
+            ]}>
+              {isGeneratingDiary ? '생성 중...' : 'AI 일기 재생성'}
+            </Text>
+          </TouchableOpacity>
+          {media.group_id && media.is_primary !== 'true' && (
+            <Text style={[styles.hintText, isDark && styles.textTertiaryDark]}>
+              💡 그룹 일기는 대표 사진에서 재생성할 수 있습니다
+            </Text>
+          )}
+        </View>
 
         {/* 내용 */}
         {media.content && (
@@ -1236,6 +1290,36 @@ const styles = StyleSheet.create({
   aiProviderText: {
     fontSize: 11,
     color: colors.neutral[5],
+  },
+  regenerateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#6366F1',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  regenerateButtonDark: {
+    backgroundColor: '#4F46E5',
+  },
+  regenerateButtonDisabled: {
+    backgroundColor: '#D1D5DB',
+  },
+  regenerateButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  regenerateButtonTextDisabled: {
+    color: '#9CA3AF',
+  },
+  hintText: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 8,
   },
   contentText: {
     fontSize: 16,

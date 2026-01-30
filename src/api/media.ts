@@ -83,6 +83,16 @@ export async function setPrimaryImage(
   return response.data;
 }
 
+/**
+ * AI 일기 생성/재생성 요청
+ */
+export async function generateDiary(
+  mediaId: string
+): Promise<{ success: boolean; job_id: string | null; message: string }> {
+  const response = await apiClient.post(`/media/${mediaId}/generate-diary`);
+  return response.data;
+}
+
 export default {
   getMediaDetail,
   getMediaAnalysis,
@@ -90,4 +100,5 @@ export default {
   updateMedia,
   updateMediaAnalysis,
   setPrimaryImage,
+  generateDiary,
 };
