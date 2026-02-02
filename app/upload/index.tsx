@@ -118,7 +118,7 @@ export default function UploadScreen() {
               });
             });
             // 대표 이미지 인덱스 찾기
-            const primaryIdx = groupData.items.findIndex((img: any) => img.is_primary === 'true');
+            const primaryIdx = groupData.items.findIndex((img: any) => img.is_primary === true);
             if (primaryIdx >= 0) setPrimaryImageIndex(primaryIdx);
           }
         } catch (e) {

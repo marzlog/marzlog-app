@@ -94,7 +94,7 @@ export interface GroupUploadCompleteResponse {
   images: Array<{
     media_id: string;
     storage_key: string;
-    is_primary: string;
+    is_primary: boolean;
   }>;
   analysis_job_id?: string;
   status: string;

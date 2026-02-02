@@ -304,8 +304,8 @@ export default function MediaDetailScreen() {
 
   // 현재 이미지가 메인인지 (스와이프 대응)
   const isCurrentImagePrimary = currentImage
-    ? currentImage.is_primary === 'true'
-    : media?.is_primary === 'true' || !media?.group_id;
+    ? currentImage.is_primary === true
+    : media?.is_primary === true || !media?.group_id;
 
 
   const formatDateTime = (dateStr: string) => {

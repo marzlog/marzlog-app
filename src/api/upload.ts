@@ -306,7 +306,7 @@ export interface AddToGroupResponse {
   group_id: string;
   added_images: number;
   total_images: number;
-  images: { media_id: string; storage_key: string; is_primary: string }[];
+  images: { media_id: string; storage_key: string; is_primary: boolean }[];
   status: string;
   message: string;
 }

@@ -25,7 +25,7 @@ export interface MediaInfo {
   created_at: string;
   // 그룹 관련 필드
   group_id?: string | null;
-  is_primary?: string | null;  // 'true' | 'false'
+  is_primary?: boolean | null;
   group_count?: number | null;  // 그룹 내 이미지 수
   group_dates?: string[] | null;  // 그룹 내 모든 이미지의 taken_at 목록
 }
@@ -69,7 +69,7 @@ export interface GroupImageItem {
   storage_key: string;
   download_url: string;
   thumbnail_url: string;
-  is_primary: string;
+  is_primary: boolean;
   metadata?: Record<string, any>;
   taken_at?: string | null;
   created_at?: string | null;

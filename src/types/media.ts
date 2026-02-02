@@ -54,7 +54,7 @@ export interface MediaDetail {
   analysis_status: string | null;
   // 그룹 관련 필드
   group_id?: string | null;
-  is_primary?: string | null;
+  is_primary?: boolean | null;
   group_count?: number | null;
   // 편집 가능한 필드들
   title?: string | null;
