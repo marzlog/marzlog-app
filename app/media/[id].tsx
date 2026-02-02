@@ -12,12 +12,15 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   Linking,
+  Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getMediaDetail, getMediaAnalysis, deleteMedia, updateMedia, updateMediaAnalysis, generateDiary } from '@/src/api/media';
-import { EditAnalysisModal, type EditData } from '@/src/components/media/EditAnalysisModal';
+import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, updateCaption, updateDiary, updateMediaEmotion } from '@/src/api/media';
+import Slider from '@react-native-community/slider';
 import { timelineApi, GroupImageItem } from '@/src/api/timeline';
 import { colors } from '@/src/theme';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -49,8 +52,46 @@ export default function MediaDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
   const [isGeneratingDiary, setIsGeneratingDiary] = useState(false);
+
+  // 일기/캡션 편집 모달 상태
+  const [diaryEditModalVisible, setDiaryEditModalVisible] = useState(false);
+  const [captionEditModalVisible, setCaptionEditModalVisible] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [editMood, setEditMood] = useState('');
+  const [editCaption, setEditCaption] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // 분위기 옵션
+  const MOOD_OPTIONS = ['행복', '평화', '설렘', '그리움', '감사', '활기', '편안'];
+
+  // 감정 편집 모달 상태
+  const [emotionModalVisible, setEmotionModalVisible] = useState(false);
+  const [editEmotion, setEditEmotion] = useState('');
+  const [editIntensity, setEditIntensity] = useState(3);
+
+  // 감정 옵션
+  const EMOTION_OPTIONS = [
+    { name: '기쁨', emoji: '😊' },
+    { name: '평온', emoji: '😌' },
+    { name: '사랑', emoji: '🥰' },
+    { name: '감사', emoji: '🙏' },
+    { name: '놀람', emoji: '😲' },
+    { name: '불안', emoji: '😰' },
+    { name: '슬픔', emoji: '😢' },
+    { name: '분노', emoji: '😠' },
+    { name: '몰입', emoji: '🎯' },
+    { name: '생각', emoji: '🤔' },
+    { name: '피곤', emoji: '😫' },
+    { name: '아픔', emoji: '🤕' },
+  ];
+
+  // 감정 이모지 맵
+  const EMOTION_MAP: Record<string, string> = EMOTION_OPTIONS.reduce((acc, opt) => {
+    acc[opt.name] = opt.emoji;
+    return acc;
+  }, {} as Record<string, string>);
 
   // 그룹 이미지 관련 상태
   const [groupImages, setGroupImages] = useState<GroupImageItem[]>([]);
@@ -256,6 +297,11 @@ export default function MediaDetailScreen() {
   const currentEmotion = currentImage?.emotion ?? media?.emotion;
   const currentIntensity = currentImage?.intensity ?? media?.intensity;
 
+  // 현재 이미지가 메인인지 (스와이프 대응)
+  const isCurrentImagePrimary = currentImage
+    ? currentImage.is_primary === 'true'
+    : media?.is_primary === 'true' || !media?.group_id;
+
 
   const formatDateTime = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -270,24 +316,6 @@ export default function MediaDetailScreen() {
   };
 
   // 감정 이모지 헬퍼
-  const getEmotionEmoji = (emotion: string): string => {
-    const emotionMap: Record<string, string> = {
-      '기쁨': '😊',
-      '평온': '😌',
-      '사랑': '❤️',
-      '감사': '🙏',
-      '놀람': '😮',
-      '불안': '😰',
-      '슬픔': '😢',
-      '분노': '😠',
-      '몰입': '🎯',
-      '생각': '🤔',
-      '피곤': '😫',
-      '아픔': '🤕',
-    };
-    return emotionMap[emotion] || '😶';
-  };
-
   // 파일 크기 포맷 (bytes → MB/KB)
   const formatFileSize = (bytes: number): string => {
     if (bytes >= 1024 * 1024) {
@@ -350,58 +378,6 @@ export default function MediaDetailScreen() {
     );
   }
 
-  // 편집 모달에서 저장
-  const handleSaveEdit = async (data: EditData) => {
-    const currentMediaId = groupImages.length > 0
-      ? String(groupImages[currentImageIndex]?.id)
-      : id!;
-
-    // caption, tags → analysis API
-    if (data.caption !== undefined || data.tags !== undefined) {
-      await updateMediaAnalysis(currentMediaId, {
-        caption: data.caption,
-        tags: data.tags,
-      });
-      // 캐시 무효화
-      delete analysisCacheRef.current[currentMediaId];
-    }
-
-    // emotion, intensity → media API
-    if (data.emotion !== undefined || data.intensity !== undefined) {
-      await updateMedia(currentMediaId, {
-        emotion: data.emotion,
-        intensity: data.intensity,
-      });
-    }
-
-    // analysis 새로고침 (캐러셀 위치 유지)
-    try {
-      const newAnalysis = await getMediaAnalysis(currentMediaId);
-      analysisCacheRef.current[currentMediaId] = newAnalysis;
-      setAnalysis(newAnalysis);
-    } catch {
-      setAnalysis(null);
-    }
-
-    // 그룹 이미지 새로고침 (감정/강도 반영)
-    if (media?.group_id) {
-      try {
-        const groupData = await timelineApi.getGroupImages(media.group_id);
-        setGroupImages(groupData.items || []);
-      } catch (err) {
-        console.log('[MediaDetail] Failed to refresh group images:', err);
-      }
-    }
-
-    // 미디어 상세 새로고침
-    try {
-      const mediaData = await getMediaDetail(id!);
-      setMedia(mediaData);
-    } catch (err) {
-      console.error('[MediaDetail] Failed to refresh media:', err);
-    }
-  };
-
   // 삭제 처리
   const handleDelete = async () => {
     const confirmed = await confirmDelete();
@@ -424,7 +400,7 @@ export default function MediaDetailScreen() {
     if (isGeneratingDiary || !media) return;
 
     // 그룹이면서 메인이 아닌 경우 경고
-    if (media.group_id && media.is_primary !== 'true') {
+    if (media.group_id && !isCurrentImagePrimary) {
       await alert('알림', '그룹 일기는 대표 사진에서만 생성할 수 있습니다.');
       return;
     }
@@ -457,6 +433,113 @@ export default function MediaDetailScreen() {
     }
   };
 
+  // 일기 편집 모달 열기
+  const openDiaryEditModal = () => {
+    // 현재 미디어의 일기 정보 가져오기
+    const currentTitle = media?.title || '';
+    const currentContent = media?.content || '';
+    const currentMood = media?.mood || '';
+
+    setEditTitle(currentTitle);
+    setEditContent(currentContent);
+    setEditMood(currentMood);
+    setDiaryEditModalVisible(true);
+  };
+
+  // 캡션 편집 모달 열기
+  const openCaptionEditModal = () => {
+    setEditCaption(analysis?.caption || '');
+    setCaptionEditModalVisible(true);
+  };
+
+  // 일기 저장
+  const handleSaveDiary = async () => {
+    try {
+      setIsSaving(true);
+      await updateDiary(id!, {
+        title: editTitle,
+        content: editContent,
+        mood: editMood,
+      });
+
+      // 미디어 새로고침
+      const mediaData = await getMediaDetail(id!);
+      setMedia(mediaData);
+
+      setDiaryEditModalVisible(false);
+      await alert('완료', '일기가 수정되었습니다.');
+    } catch (err: any) {
+      const message = err?.response?.data?.detail || '저장에 실패했습니다.';
+      await alert('오류', message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 캡션 저장
+  const handleSaveCaption = async () => {
+    const currentMediaId = groupImages.length > 0
+      ? String(groupImages[currentImageIndex]?.id)
+      : id!;
+
+    try {
+      setIsSaving(true);
+      await updateCaption(currentMediaId, editCaption);
+
+      // 캐시 무효화 및 새로고침
+      delete analysisCacheRef.current[currentMediaId];
+      const newAnalysis = await getMediaAnalysis(currentMediaId);
+      analysisCacheRef.current[currentMediaId] = newAnalysis;
+      setAnalysis(newAnalysis);
+
+      setCaptionEditModalVisible(false);
+      await alert('완료', '사진 설명이 수정되었습니다.');
+    } catch (err) {
+      await alert('오류', '저장에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 감정 편집 모달 열기
+  const openEmotionModal = () => {
+    setEditEmotion(currentEmotion || '');
+    setEditIntensity(currentIntensity || 3);
+    setEmotionModalVisible(true);
+  };
+
+  // 감정 저장
+  const handleSaveEmotion = async () => {
+    const currentMediaId = groupImages.length > 0
+      ? String(groupImages[currentImageIndex]?.id)
+      : id!;
+
+    try {
+      setIsSaving(true);
+      await updateMediaEmotion(currentMediaId, {
+        emotion: editEmotion,
+        intensity: editIntensity,
+      });
+
+      // 그룹 이미지 새로고침 (감정/강도 반영)
+      if (media?.group_id) {
+        const groupData = await timelineApi.getGroupImages(media.group_id);
+        setGroupImages(groupData.items || []);
+      } else {
+        // 단일 이미지인 경우 미디어 새로고침
+        const mediaData = await getMediaDetail(id!);
+        setMedia(mediaData);
+      }
+
+      setEmotionModalVisible(false);
+      await alert('완료', '감정이 수정되었습니다.');
+    } catch (err) {
+      await alert('오류', '저장에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       {/* Header */}
@@ -472,9 +555,6 @@ export default function MediaDetailScreen() {
             disabled={isDeleting}
           >
             <Ionicons name="trash-outline" size={20} color={isDeleting ? colors.neutral[4] : '#EF4444'} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerButton} onPress={() => setEditModalVisible(true)}>
-            <Ionicons name="pencil" size={20} color={isDark ? '#F9FAFB' : colors.text.primary} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerButton} onPress={handleClose}>
             <Ionicons name="close" size={24} color={isDark ? '#F9FAFB' : colors.text.primary} />
@@ -557,27 +637,39 @@ export default function MediaDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* 감정 + 강도 (이미지별 독립) */}
-        {currentEmotion && (
-          <View style={[styles.emotionSection, isDark && styles.sectionBorderDark]}>
-            <Text style={[styles.emotionText, isDark && styles.textLight]}>
-              {getEmotionEmoji(currentEmotion)} {currentEmotion}
+        <View style={[styles.emotionSection, isDark && styles.sectionBorderDark]}>
+          {currentEmotion ? (
+            <>
+              <Text style={[styles.emotionText, isDark && styles.textLight]}>
+                {EMOTION_MAP[currentEmotion] || '😊'} {currentEmotion}
+              </Text>
+              {currentIntensity && (
+                <View style={styles.intensityBar}>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.intensityDot,
+                        i <= currentIntensity! && styles.intensityDotActive,
+                      ]}
+                    />
+                  ))}
+                  <Text style={styles.intensityText}>({currentIntensity}/5)</Text>
+                </View>
+              )}
+            </>
+          ) : (
+            <Text style={[styles.emotionPlaceholder, isDark && styles.textSecondaryDark]}>
+              감정을 선택해주세요
             </Text>
-            {currentIntensity && (
-              <View style={styles.intensityBar}>
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.intensityDot,
-                      i <= currentIntensity! && styles.intensityDotActive,
-                    ]}
-                  />
-                ))}
-                <Text style={styles.intensityText}>({currentIntensity}/5)</Text>
-              </View>
-            )}
-          </View>
-        )}
+          )}
+          <TouchableOpacity
+            style={[styles.emotionEditButton, isDark && styles.emotionEditButtonDark]}
+            onPress={openEmotionModal}
+          >
+            <Ionicons name="pencil" size={14} color={isDark ? '#9CA3AF' : colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
 
         {/* AI 일기 제목 + mood 배지 */}
         {media.title && (
@@ -624,9 +716,36 @@ export default function MediaDetailScreen() {
               {isGeneratingDiary ? '생성 중...' : 'AI 일기 재생성'}
             </Text>
           </TouchableOpacity>
-          {media.group_id && media.is_primary !== 'true' && (
+          {media.group_id && !isCurrentImagePrimary && (
             <Text style={[styles.hintText, isDark && styles.textTertiaryDark]}>
               💡 그룹 일기는 대표 사진에서 재생성할 수 있습니다
+            </Text>
+          )}
+        </View>
+
+        {/* 편집 버튼 영역 */}
+        <View style={[styles.editButtonsSection, isDark && styles.sectionBorderDark]}>
+          {/* 캡션 편집 - 항상 가능 */}
+          <TouchableOpacity
+            style={[styles.editActionButton, isDark && styles.editActionButtonDark]}
+            onPress={openCaptionEditModal}
+          >
+            <Ionicons name="chatbubble-outline" size={16} color={isDark ? '#F9FAFB' : colors.text.primary} />
+            <Text style={[styles.editActionButtonText, isDark && styles.textLight]}>사진 설명 편집</Text>
+          </TouchableOpacity>
+
+          {/* 일기 편집 - 메인 또는 개별 이미지만 */}
+          {isCurrentImagePrimary ? (
+            <TouchableOpacity
+              style={[styles.editActionButton, isDark && styles.editActionButtonDark]}
+              onPress={openDiaryEditModal}
+            >
+              <Ionicons name="create-outline" size={16} color={isDark ? '#F9FAFB' : colors.text.primary} />
+              <Text style={[styles.editActionButtonText, isDark && styles.textLight]}>일기 편집</Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={[styles.hintText, isDark && styles.textTertiaryDark]}>
+              💡 일기는 대표 사진에서 편집할 수 있습니다
             </Text>
           )}
         </View>
@@ -866,18 +985,211 @@ export default function MediaDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 편집 모달 */}
-      <EditAnalysisModal
-        visible={editModalVisible}
-        onClose={() => setEditModalVisible(false)}
-        onSave={handleSaveEdit}
-        initialData={{
-          caption: analysis?.caption || '',
-          tags: analysis?.tags || [],
-          emotion: currentEmotion || '평온',
-          intensity: currentIntensity || 3,
-        }}
-      />
+      {/* 일기 편집 모달 */}
+      <Modal
+        visible={diaryEditModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setDiaryEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
+            <Text style={[styles.modalTitle, isDark && styles.textLight]}>일기 편집</Text>
+
+            {/* 제목 입력 */}
+            <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>제목</Text>
+            <TextInput
+              style={[styles.textInput, isDark && styles.textInputDark]}
+              value={editTitle}
+              onChangeText={setEditTitle}
+              placeholder="제목을 입력하세요"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              maxLength={50}
+            />
+
+            {/* 내용 입력 */}
+            <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>내용</Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea, isDark && styles.textInputDark]}
+              value={editContent}
+              onChangeText={setEditContent}
+              placeholder="일기 내용을 입력하세요"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+            />
+
+            {/* 분위기 선택 */}
+            <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>분위기</Text>
+            <View style={styles.moodSelector}>
+              {MOOD_OPTIONS.map((mood) => (
+                <TouchableOpacity
+                  key={mood}
+                  style={[
+                    styles.moodOption,
+                    isDark && styles.moodOptionDark,
+                    editMood === mood && styles.moodOptionSelected,
+                  ]}
+                  onPress={() => setEditMood(mood)}
+                >
+                  <Text
+                    style={[
+                      styles.moodOptionText,
+                      isDark && styles.textSecondaryDark,
+                      editMood === mood && styles.moodOptionTextSelected,
+                    ]}
+                  >
+                    #{mood}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* 버튼 */}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.cancelButton, isDark && styles.cancelButtonDark]}
+                onPress={() => setDiaryEditModalVisible(false)}
+              >
+                <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveButton, isSaving && styles.buttonDisabled]}
+                onPress={handleSaveDiary}
+                disabled={isSaving}
+              >
+                <Text style={styles.saveButtonText}>
+                  {isSaving ? '저장 중...' : '저장'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 캡션 편집 모달 */}
+      <Modal
+        visible={captionEditModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setCaptionEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
+            <Text style={[styles.modalTitle, isDark && styles.textLight]}>사진 설명 편집</Text>
+
+            <TextInput
+              style={[styles.textInput, styles.textArea, isDark && styles.textInputDark]}
+              value={editCaption}
+              onChangeText={setEditCaption}
+              placeholder="이 사진에 대한 설명을 입력하세요"
+              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.cancelButton, isDark && styles.cancelButtonDark]}
+                onPress={() => setCaptionEditModalVisible(false)}
+              >
+                <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveButton, isSaving && styles.buttonDisabled]}
+                onPress={handleSaveCaption}
+                disabled={isSaving}
+              >
+                <Text style={styles.saveButtonText}>
+                  {isSaving ? '저장 중...' : '저장'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 감정 편집 모달 */}
+      <Modal
+        visible={emotionModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setEmotionModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, styles.emotionModalContent, isDark && styles.modalContentDark]}>
+            <Text style={[styles.modalTitle, isDark && styles.textLight]}>현재 기분은 어떤가요?</Text>
+
+            {/* 감정 그리드 (4x3) */}
+            <View style={styles.emotionGrid}>
+              {EMOTION_OPTIONS.map((option) => (
+                <TouchableOpacity
+                  key={option.name}
+                  style={[
+                    styles.emotionOption,
+                    isDark && styles.emotionOptionDark,
+                    editEmotion === option.name && styles.emotionOptionSelected,
+                  ]}
+                  onPress={() => setEditEmotion(option.name)}
+                >
+                  <Text style={styles.emotionOptionEmoji}>{option.emoji}</Text>
+                  <Text
+                    style={[
+                      styles.emotionOptionName,
+                      isDark && styles.textSecondaryDark,
+                      editEmotion === option.name && styles.emotionOptionNameSelected,
+                    ]}
+                  >
+                    {option.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* 강도 슬라이더 */}
+            <Text style={[styles.intensityLabel, isDark && styles.textSecondaryDark]}>
+              기분의 강도를 선택하세요
+            </Text>
+            <Slider
+              style={styles.slider}
+              minimumValue={1}
+              maximumValue={5}
+              step={1}
+              value={editIntensity}
+              onValueChange={(value) => setEditIntensity(value)}
+              minimumTrackTintColor={colors.brand.primary}
+              maximumTrackTintColor={isDark ? '#374151' : '#ddd'}
+              thumbTintColor={colors.brand.primary}
+            />
+            <View style={styles.sliderLabels}>
+              <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>약함 (1)</Text>
+              <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>보통 (3)</Text>
+              <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>강함 (5)</Text>
+            </View>
+
+            {/* 버튼 */}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.cancelButton, isDark && styles.cancelButtonDark]}
+                onPress={() => setEmotionModalVisible(false)}
+              >
+                <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveButton, isSaving && styles.buttonDisabled]}
+                onPress={handleSaveEmotion}
+                disabled={isSaving}
+              >
+                <Text style={styles.saveButtonText}>
+                  {isSaving ? '저장 중...' : '저장'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1375,5 +1687,213 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.text.inverse,
+  },
+  // 편집 버튼 섹션
+  editButtonsSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[2],
+    marginBottom: 8,
+  },
+  editActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.neutral[2],
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  editActionButtonDark: {
+    backgroundColor: '#374151',
+  },
+  editActionButtonText: {
+    fontSize: 14,
+    color: colors.text.primary,
+    fontWeight: '500',
+  },
+  // 모달 스타일
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  modalContentDark: {
+    backgroundColor: '#1F2937',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: colors.text.primary,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 6,
+    marginTop: 12,
+    color: colors.text.secondary,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: colors.neutral[3],
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: colors.text.primary,
+    backgroundColor: colors.background,
+  },
+  textInputDark: {
+    borderColor: '#374151',
+    backgroundColor: '#111827',
+    color: '#F9FAFB',
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  moodSelector: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  moodOption: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: colors.neutral[2],
+  },
+  moodOptionDark: {
+    backgroundColor: '#374151',
+  },
+  moodOptionSelected: {
+    backgroundColor: colors.brand.primary,
+  },
+  moodOptionText: {
+    fontSize: 13,
+    color: colors.text.secondary,
+  },
+  moodOptionTextSelected: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: colors.neutral[2],
+    alignItems: 'center',
+  },
+  cancelButtonDark: {
+    backgroundColor: '#374151',
+  },
+  cancelButtonText: {
+    color: colors.text.secondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  saveButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: colors.brand.primary,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    backgroundColor: '#D1D5DB',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // 감정 편집 관련 스타일
+  emotionPlaceholder: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    flex: 1,
+  },
+  emotionEditButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: colors.neutral[2],
+  },
+  emotionEditButtonDark: {
+    backgroundColor: '#374151',
+  },
+  emotionModalContent: {
+    maxHeight: '85%',
+  },
+  emotionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 20,
+  },
+  emotionOption: {
+    width: '23%',
+    aspectRatio: 1,
+    backgroundColor: colors.neutral[2],
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  emotionOptionDark: {
+    backgroundColor: '#374151',
+  },
+  emotionOptionSelected: {
+    backgroundColor: colors.brand.primary,
+  },
+  emotionOptionEmoji: {
+    fontSize: 24,
+  },
+  emotionOptionName: {
+    fontSize: 11,
+    color: colors.text.secondary,
+  },
+  emotionOptionNameSelected: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  intensityLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text.secondary,
+    marginBottom: 8,
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  sliderLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+    marginBottom: 16,
+  },
+  sliderLabelText: {
+    fontSize: 12,
+    color: colors.text.secondary,
   },
 });

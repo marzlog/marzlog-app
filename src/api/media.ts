@@ -93,6 +93,48 @@ export async function generateDiary(
   return response.data;
 }
 
+/**
+ * 개별 캡션 수정
+ */
+export async function updateCaption(
+  mediaId: string,
+  caption: string
+): Promise<{ success: boolean; caption: string }> {
+  const response = await apiClient.patch(`/media/${mediaId}`, { caption });
+  return response.data;
+}
+
+/**
+ * 일기 수정 (제목/내용/분위기)
+ */
+export async function updateDiary(
+  mediaId: string,
+  diary: {
+    title?: string;
+    content?: string;
+    mood?: string;
+  }
+): Promise<{
+  success: boolean;
+  title: string;
+  content: string;
+  mood: string;
+}> {
+  const response = await apiClient.patch(`/media/${mediaId}/diary`, diary);
+  return response.data;
+}
+
+/**
+ * 감정/강도 수정 (각 이미지별)
+ */
+export async function updateMediaEmotion(
+  mediaId: string,
+  data: { emotion?: string; intensity?: number }
+): Promise<{ success: boolean; emotion: string; intensity: number }> {
+  const response = await apiClient.patch(`/media/${mediaId}/emotion`, data);
+  return response.data;
+}
+
 export default {
   getMediaDetail,
   getMediaAnalysis,
@@ -101,4 +143,7 @@ export default {
   updateMediaAnalysis,
   setPrimaryImage,
   generateDiary,
+  updateCaption,
+  updateDiary,
+  updateMediaEmotion,
 };
