@@ -13,10 +13,12 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Keyboard,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 

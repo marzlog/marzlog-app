@@ -15,6 +15,10 @@ import {
   Modal,
   TextInput,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +37,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IMAGE_SIZE = SCREEN_WIDTH - 40;
 const CAROUSEL_IMAGE_WIDTH = SCREEN_WIDTH;
 const CAROUSEL_IMAGE_HEIGHT = SCREEN_HEIGHT * 0.45; // 화면 높이의 45%
+const isWeb = Platform.OS === 'web';
 
 export default function MediaDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -992,80 +997,109 @@ export default function MediaDetailScreen() {
         transparent={true}
         onRequestClose={() => setDiaryEditModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
-            <Text style={[styles.modalTitle, isDark && styles.textLight]}>일기 편집</Text>
-
-            {/* 제목 입력 */}
-            <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>제목</Text>
-            <TextInput
-              style={[styles.textInput, isDark && styles.textInputDark]}
-              value={editTitle}
-              onChangeText={setEditTitle}
-              placeholder="제목을 입력하세요"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-              maxLength={50}
-            />
-
-            {/* 내용 입력 */}
-            <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>내용</Text>
-            <TextInput
-              style={[styles.textInput, styles.textArea, isDark && styles.textInputDark]}
-              value={editContent}
-              onChangeText={setEditContent}
-              placeholder="일기 내용을 입력하세요"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-
-            {/* 분위기 선택 */}
-            <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>분위기</Text>
-            <View style={styles.moodSelector}>
-              {MOOD_OPTIONS.map((mood) => (
-                <TouchableOpacity
-                  key={mood}
-                  style={[
-                    styles.moodOption,
-                    isDark && styles.moodOptionDark,
-                    editMood === mood && styles.moodOptionSelected,
-                  ]}
-                  onPress={() => setEditMood(mood)}
-                >
-                  <Text
+        {isWeb ? (
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
+              <Text style={[styles.modalTitle, isDark && styles.textLight]}>일기 편집</Text>
+              <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>제목</Text>
+              <TextInput
+                style={[styles.textInput, isDark && styles.textInputDark]}
+                value={editTitle}
+                onChangeText={setEditTitle}
+                placeholder="제목을 입력하세요"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                maxLength={50}
+              />
+              <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>내용</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea, isDark && styles.textInputDark]}
+                value={editContent}
+                onChangeText={setEditContent}
+                placeholder="일기 내용을 입력하세요"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+              <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>분위기</Text>
+              <View style={styles.moodSelector}>
+                {MOOD_OPTIONS.map((mood) => (
+                  <TouchableOpacity
+                    key={mood}
                     style={[
-                      styles.moodOptionText,
-                      isDark && styles.textSecondaryDark,
-                      editMood === mood && styles.moodOptionTextSelected,
+                      styles.moodOption,
+                      isDark && styles.moodOptionDark,
+                      editMood === mood && styles.moodOptionSelected,
                     ]}
+                    onPress={() => setEditMood(mood)}
                   >
-                    #{mood}
-                  </Text>
+                    <Text style={[styles.moodOptionText, isDark && styles.textSecondaryDark, editMood === mood && styles.moodOptionTextSelected]}>
+                      #{mood}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setDiaryEditModalVisible(false)}>
+                  <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* 버튼 */}
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.cancelButton, isDark && styles.cancelButtonDark]}
-                onPress={() => setDiaryEditModalVisible(false)}
-              >
-                <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveButton, isSaving && styles.buttonDisabled]}
-                onPress={handleSaveDiary}
-                disabled={isSaving}
-              >
-                <Text style={styles.saveButtonText}>
-                  {isSaving ? '저장 중...' : '저장'}
-                </Text>
-              </TouchableOpacity>
+                <TouchableOpacity style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSaveDiary} disabled={isSaving}>
+                  <Text style={styles.saveButtonText}>{isSaving ? '저장 중...' : '저장'}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        ) : (
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+              <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
+                <Text style={[styles.modalTitle, isDark && styles.textLight]}>일기 편집</Text>
+                <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>제목</Text>
+                <TextInput
+                  style={[styles.textInput, isDark && styles.textInputDark]}
+                  value={editTitle}
+                  onChangeText={setEditTitle}
+                  placeholder="제목을 입력하세요"
+                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                  maxLength={50}
+                />
+                <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>내용</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textArea, isDark && styles.textInputDark]}
+                  value={editContent}
+                  onChangeText={setEditContent}
+                  placeholder="일기 내용을 입력하세요"
+                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+                <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>분위기</Text>
+                <View style={styles.moodSelector}>
+                  {MOOD_OPTIONS.map((mood) => (
+                    <TouchableOpacity
+                      key={mood}
+                      style={[styles.moodOption, isDark && styles.moodOptionDark, editMood === mood && styles.moodOptionSelected]}
+                      onPress={() => setEditMood(mood)}
+                    >
+                      <Text style={[styles.moodOptionText, isDark && styles.textSecondaryDark, editMood === mood && styles.moodOptionTextSelected]}>
+                        #{mood}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setDiaryEditModalVisible(false)}>
+                    <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSaveDiary} disabled={isSaving}>
+                    <Text style={styles.saveButtonText}>{isSaving ? '저장 중...' : '저장'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </TouchableWithoutFeedback>
+        )}
       </Modal>
 
       {/* 캡션 편집 모달 */}
@@ -1075,40 +1109,57 @@ export default function MediaDetailScreen() {
         transparent={true}
         onRequestClose={() => setCaptionEditModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
-            <Text style={[styles.modalTitle, isDark && styles.textLight]}>사진 설명 편집</Text>
-
-            <TextInput
-              style={[styles.textInput, styles.textArea, isDark && styles.textInputDark]}
-              value={editCaption}
-              onChangeText={setEditCaption}
-              placeholder="이 사진에 대한 설명을 입력하세요"
-              placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.cancelButton, isDark && styles.cancelButtonDark]}
-                onPress={() => setCaptionEditModalVisible(false)}
-              >
-                <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveButton, isSaving && styles.buttonDisabled]}
-                onPress={handleSaveCaption}
-                disabled={isSaving}
-              >
-                <Text style={styles.saveButtonText}>
-                  {isSaving ? '저장 중...' : '저장'}
-                </Text>
-              </TouchableOpacity>
+        {isWeb ? (
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
+              <Text style={[styles.modalTitle, isDark && styles.textLight]}>사진 설명 편집</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea, isDark && styles.textInputDark]}
+                value={editCaption}
+                onChangeText={setEditCaption}
+                placeholder="이 사진에 대한 설명을 입력하세요"
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+              />
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setCaptionEditModalVisible(false)}>
+                  <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSaveCaption} disabled={isSaving}>
+                  <Text style={styles.saveButtonText}>{isSaving ? '저장 중...' : '저장'}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        ) : (
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+              <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
+                <Text style={[styles.modalTitle, isDark && styles.textLight]}>사진 설명 편집</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textArea, isDark && styles.textInputDark]}
+                  value={editCaption}
+                  onChangeText={setEditCaption}
+                  placeholder="이 사진에 대한 설명을 입력하세요"
+                  placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setCaptionEditModalVisible(false)}>
+                    <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSaveCaption} disabled={isSaving}>
+                    <Text style={styles.saveButtonText}>{isSaving ? '저장 중...' : '저장'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </TouchableWithoutFeedback>
+        )}
       </Modal>
 
       {/* 감정 편집 모달 */}
@@ -1118,77 +1169,99 @@ export default function MediaDetailScreen() {
         transparent={true}
         onRequestClose={() => setEmotionModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, styles.emotionModalContent, isDark && styles.modalContentDark]}>
-            <Text style={[styles.modalTitle, isDark && styles.textLight]}>현재 기분은 어떤가요?</Text>
-
-            {/* 감정 그리드 (4x3) */}
-            <View style={styles.emotionGrid}>
-              {EMOTION_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option.name}
-                  style={[
-                    styles.emotionOption,
-                    isDark && styles.emotionOptionDark,
-                    editEmotion === option.name && styles.emotionOptionSelected,
-                  ]}
-                  onPress={() => setEditEmotion(option.name)}
-                >
-                  <Text style={styles.emotionOptionEmoji}>{option.emoji}</Text>
-                  <Text
-                    style={[
-                      styles.emotionOptionName,
-                      isDark && styles.textSecondaryDark,
-                      editEmotion === option.name && styles.emotionOptionNameSelected,
-                    ]}
+        {isWeb ? (
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, styles.emotionModalContent, isDark && styles.modalContentDark]}>
+              <Text style={[styles.modalTitle, isDark && styles.textLight]}>현재 기분은 어떤가요?</Text>
+              <View style={styles.emotionGrid}>
+                {EMOTION_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option.name}
+                    style={[styles.emotionOption, isDark && styles.emotionOptionDark, editEmotion === option.name && styles.emotionOptionSelected]}
+                    onPress={() => setEditEmotion(option.name)}
                   >
-                    {option.name}
-                  </Text>
+                    <Text style={styles.emotionOptionEmoji}>{option.emoji}</Text>
+                    <Text style={[styles.emotionOptionName, isDark && styles.textSecondaryDark, editEmotion === option.name && styles.emotionOptionNameSelected]}>
+                      {option.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={[styles.intensityLabel, isDark && styles.textSecondaryDark]}>기분의 강도를 선택하세요</Text>
+              <Slider
+                style={styles.slider}
+                minimumValue={1}
+                maximumValue={5}
+                step={1}
+                value={editIntensity}
+                onValueChange={(value) => setEditIntensity(value)}
+                minimumTrackTintColor={colors.brand.primary}
+                maximumTrackTintColor={isDark ? '#374151' : '#ddd'}
+                thumbTintColor={colors.brand.primary}
+              />
+              <View style={styles.sliderLabels}>
+                <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>약함 (1)</Text>
+                <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>보통 (3)</Text>
+                <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>강함 (5)</Text>
+              </View>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setEmotionModalVisible(false)}>
+                  <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-
-            {/* 강도 슬라이더 */}
-            <Text style={[styles.intensityLabel, isDark && styles.textSecondaryDark]}>
-              기분의 강도를 선택하세요
-            </Text>
-            <Slider
-              style={styles.slider}
-              minimumValue={1}
-              maximumValue={5}
-              step={1}
-              value={editIntensity}
-              onValueChange={(value) => setEditIntensity(value)}
-              minimumTrackTintColor={colors.brand.primary}
-              maximumTrackTintColor={isDark ? '#374151' : '#ddd'}
-              thumbTintColor={colors.brand.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>약함 (1)</Text>
-              <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>보통 (3)</Text>
-              <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>강함 (5)</Text>
-            </View>
-
-            {/* 버튼 */}
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.cancelButton, isDark && styles.cancelButtonDark]}
-                onPress={() => setEmotionModalVisible(false)}
-              >
-                <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveButton, isSaving && styles.buttonDisabled]}
-                onPress={handleSaveEmotion}
-                disabled={isSaving}
-              >
-                <Text style={styles.saveButtonText}>
-                  {isSaving ? '저장 중...' : '저장'}
-                </Text>
-              </TouchableOpacity>
+                <TouchableOpacity style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSaveEmotion} disabled={isSaving}>
+                  <Text style={styles.saveButtonText}>{isSaving ? '저장 중...' : '저장'}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
+        ) : (
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlay}>
+              <View style={[styles.modalContent, styles.emotionModalContent, isDark && styles.modalContentDark]}>
+                <Text style={[styles.modalTitle, isDark && styles.textLight]}>현재 기분은 어떤가요?</Text>
+                <View style={styles.emotionGrid}>
+                  {EMOTION_OPTIONS.map((option) => (
+                    <TouchableOpacity
+                      key={option.name}
+                      style={[styles.emotionOption, isDark && styles.emotionOptionDark, editEmotion === option.name && styles.emotionOptionSelected]}
+                      onPress={() => setEditEmotion(option.name)}
+                    >
+                      <Text style={styles.emotionOptionEmoji}>{option.emoji}</Text>
+                      <Text style={[styles.emotionOptionName, isDark && styles.textSecondaryDark, editEmotion === option.name && styles.emotionOptionNameSelected]}>
+                        {option.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={[styles.intensityLabel, isDark && styles.textSecondaryDark]}>기분의 강도를 선택하세요</Text>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={1}
+                  maximumValue={5}
+                  step={1}
+                  value={editIntensity}
+                  onValueChange={(value) => setEditIntensity(value)}
+                  minimumTrackTintColor={colors.brand.primary}
+                  maximumTrackTintColor={isDark ? '#374151' : '#ddd'}
+                  thumbTintColor={colors.brand.primary}
+                />
+                <View style={styles.sliderLabels}>
+                  <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>약함 (1)</Text>
+                  <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>보통 (3)</Text>
+                  <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>강함 (5)</Text>
+                </View>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setEmotionModalVisible(false)}>
+                    <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSaveEmotion} disabled={isSaving}>
+                    <Text style={styles.saveButtonText}>{isSaving ? '저장 중...' : '저장'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        )}
       </Modal>
     </View>
   );

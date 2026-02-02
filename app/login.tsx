@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -31,6 +33,9 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 입력 필드 ref
+  const passwordRef = useRef<TextInput>(null);
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
@@ -65,19 +70,15 @@ export default function LoginScreen() {
   const inputBorder = isDark ? '#374151' : '#E5E7EB';
   const placeholderColor = isDark ? '#6B7280' : '#9CA3AF';
 
-  return (
-    <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+  // 웹에서는 KeyboardAvoidingView 사용하지 않음
+  const isWeb = Platform.OS === 'web';
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
+  const scrollContent = (
+    <ScrollView
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
           {/* Mascot / Logo Image */}
           <View style={styles.logoArea}>
             <Image
@@ -112,6 +113,9 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                blurOnSubmit={false}
               />
             </View>
 
@@ -119,6 +123,7 @@ export default function LoginScreen() {
             <View style={[styles.inputWrapper, { backgroundColor: inputBg, borderColor: inputBorder }]}>
               <Ionicons name="lock-closed-outline" size={20} color={placeholderColor} style={styles.inputIcon} />
               <TextInput
+                ref={passwordRef}
                 style={[styles.input, { color: inputText, flex: 1 }]}
                 placeholder={t('auth.passwordPlaceholder')}
                 placeholderTextColor={placeholderColor}
@@ -126,6 +131,8 @@ export default function LoginScreen() {
                 onChangeText={(text) => { setPassword(text); setError(null); }}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                returnKeyType="done"
+                onSubmitEditing={handleEmailLogin}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
                 <Ionicons
@@ -204,8 +211,25 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+    </ScrollView>
+  );
+
+  return (
+    <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+
+      {isWeb ? (
+        scrollContent
+      ) : (
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            {scrollContent}
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
+      )}
     </SafeAreaView>
   );
 }
