@@ -94,13 +94,13 @@ export async function generateDiary(
 }
 
 /**
- * 개별 캡션 수정
+ * 개별 캡션 수정 (한글 캡션)
  */
 export async function updateCaption(
   mediaId: string,
-  caption: string
-): Promise<{ success: boolean; caption: string }> {
-  const response = await apiClient.patch(`/media/${mediaId}`, { caption });
+  captionKo: string
+): Promise<{ success: boolean; caption: string; caption_ko: string }> {
+  const response = await apiClient.put(`/media/${mediaId}/analysis`, { caption_ko: captionKo });
   return response.data;
 }
 

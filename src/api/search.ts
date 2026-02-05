@@ -4,14 +4,20 @@ export interface SearchResult {
     id: string;
     media_id: string;
     caption: string;
+    caption_ko?: string;
+    tags?: string[];
+    tags_ko?: string[];
     thumbnail_url: string;
     score: number;
+    search_type?: string;
 }
 
 export interface SearchResponse {
     query: string;
     results: SearchResult[];
     total: number;
+    search_mode?: string;
+    cached?: boolean;
 }
 
 export type SearchMode = 'hybrid' | 'vector' | 'text';

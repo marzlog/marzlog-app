@@ -29,6 +29,7 @@ import { timelineApi, GroupImageItem } from '@/src/api/timeline';
 import { colors } from '@/src/theme';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
+import { useTimelineStore } from '@/src/store/timelineStore';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { t } from '@/src/i18n';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
@@ -45,6 +46,7 @@ export default function MediaDetailScreen() {
   const insets = useSafeAreaInsets();
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
+  const { setLastViewedDate } = useTimelineStore();
   const { confirmDelete, alert } = useDialog();
 
   // 다크모드 결정
@@ -132,6 +134,12 @@ export default function MediaDetailScreen() {
 
       setMedia(mediaData);
       setAnalysis(analysisData);
+
+      // 미디어 날짜를 lastViewedDate에 저장 (뒤로가기 시 홈 화면에서 해당 날짜로 복원)
+      const mediaDate = mediaData.taken_at || mediaData.created_at;
+      if (mediaDate) {
+        setLastViewedDate(new Date(mediaDate));
+      }
 
       // 초기 analysis 캐시
       if (analysisData) {
@@ -391,7 +399,7 @@ export default function MediaDetailScreen() {
     setIsDeleting(true);
     try {
       await deleteMedia(id!);
-      router.replace('/(tabs)');
+      router.back(); // 이전 화면(해당 날짜 그룹)으로 돌아감
     } catch (err) {
       console.error('[MediaDetail] Delete error:', err);
       await alert('삭제 실패', '잠시 후에 다시 시도해 주세요.');
@@ -453,7 +461,7 @@ export default function MediaDetailScreen() {
 
   // 캡션 편집 모달 열기
   const openCaptionEditModal = () => {
-    setEditCaption(analysis?.caption || '');
+    setEditCaption(analysis?.caption_ko || analysis?.caption || '');
     setCaptionEditModalVisible(true);
   };
 
@@ -786,7 +794,7 @@ export default function MediaDetailScreen() {
               <Text style={styles.sectionIcon}>✨</Text>
               <Text style={[styles.sectionTitle, isDark && styles.textLight]}>AI Caption</Text>
             </View>
-            <Text style={[styles.captionText, isDark && styles.captionTextDark]}>{analysis.caption}</Text>
+            <Text style={[styles.captionText, isDark && styles.captionTextDark]}>{analysis.caption_ko || analysis.caption}</Text>
           </View>
         )}
 
@@ -815,7 +823,7 @@ export default function MediaDetailScreen() {
               <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Tags</Text>
             </View>
             <View style={styles.tagsContainer}>
-              {analysis.tags.map((tag, index) => (
+              {(analysis.tags_ko && analysis.tags_ko.length > 0 ? analysis.tags_ko : analysis.tags).map((tag, index) => (
                 <View key={index} style={[styles.tagChip, isDark && styles.chipDark]}>
                   <Text style={[styles.tagText, isDark && styles.textLight]}>{tag}</Text>
                 </View>

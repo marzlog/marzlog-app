@@ -21,6 +21,7 @@ import { Logo } from '@/src/components/common/Logo';
 import timelineApi, { TimelineItem } from '@/src/api/timeline';
 import { useAuthStore } from '@/src/store/authStore';
 import { useSettingsStore } from '@/src/store/settingsStore';
+import { useTimelineStore } from '@/src/store/timelineStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -228,6 +229,13 @@ export default function HomeScreen() {
   const systemColorScheme = useColorScheme();
   const { alert: showAlert } = useDialog();
 
+  // Timeline store - 선택된 날짜 유지
+  const {
+    getSelectedDate,
+    setSelectedDate: setStoreSelectedDate,
+    restoreFromLastViewed,
+  } = useTimelineStore();
+
   // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
@@ -235,7 +243,8 @@ export default function HomeScreen() {
 
   const theme = isDark ? darkTheme : lightTheme;
 
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  // 스토어에서 초기값 가져오기
+  const [selectedDate, setSelectedDateLocal] = useState(() => getSelectedDate());
   const [refreshing, setRefreshing] = useState(false);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [allItems, setAllItems] = useState<TimelineItem[]>([]);
@@ -355,6 +364,12 @@ export default function HomeScreen() {
     loadAllItems();
   }, [loadAllItems]);
 
+  // 선택된 날짜 변경 시 스토어에도 동기화
+  const setSelectedDate = useCallback((date: Date) => {
+    setSelectedDateLocal(date);
+    setStoreSelectedDate(date);
+  }, [setStoreSelectedDate]);
+
   // 화면 포커스 시 데이터 갱신 (상세에서 돌아올 때 새 데이터 반영)
   const isFirstFocus = useRef(true);
   useFocusEffect(
@@ -365,8 +380,16 @@ export default function HomeScreen() {
         return;
       }
       console.log('[Home] Screen focused - refreshing data');
+
+      // 상세보기에서 돌아올 때 lastViewedDate로 복원
+      const restoredDate = restoreFromLastViewed();
+      if (restoredDate) {
+        console.log('[Home] Restored date from lastViewed:', restoredDate);
+        setSelectedDateLocal(restoredDate);
+      }
+
       loadAllItems();
-    }, [loadAllItems])
+    }, [loadAllItems, restoreFromLastViewed])
   );
 
   const onRefresh = useCallback(async () => {

@@ -5,7 +5,9 @@
 export interface MediaAnalysis {
   card_id: string | null;
   caption: string | null;
+  caption_ko?: string | null;
   tags: string[];
+  tags_ko?: string[];
   ocr_text: string | null;
   scene_type: string | null;
   scene_scores: Record<string, number> | null;

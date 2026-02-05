@@ -138,13 +138,20 @@ export default function SearchScreen() {
     setIsSearching(true);
     setHasSearched(true);
     setError(null);
+    setResults([]); // 이전 결과 초기화
 
     const activeMode = mode || searchMode;
 
     try {
       console.log('[Search] Searching for:', term, 'mode:', activeMode);
       const response = await searchApi.search(term, 20, activeMode);
-      console.log('[Search] Results:', response.results?.length);
+      console.log('[Search] Results count:', response.results?.length);
+      console.log('[Search] Results:', JSON.stringify(response.results?.slice(0, 3).map(r => ({
+        id: r.id,
+        media_id: r.media_id,
+        caption: r.caption?.substring(0, 30),
+        url: r.thumbnail_url?.substring(0, 80)
+      })), null, 2));
       setResults(response.results || []);
       if (response.results?.length > 0) {
         saveRecentSearch(term);
@@ -205,7 +212,9 @@ export default function SearchScreen() {
     }
   };
 
-  const renderResultItem = ({ item }: { item: SearchResult }) => (
+  const renderResultItem = ({ item, index }: { item: SearchResult; index: number }) => {
+    console.log(`[Search] Rendering item ${index}:`, item.id, item.thumbnail_url?.substring(60, 100));
+    return (
     <View style={[styles.resultItem, isDark && styles.resultItemDark]}>
       <TouchableOpacity
         activeOpacity={0.8}
@@ -219,7 +228,7 @@ export default function SearchScreen() {
       </TouchableOpacity>
       <View style={styles.resultCaption}>
         <Text style={[styles.captionText, isDark && styles.textLight]} numberOfLines={2}>
-          {item.caption || t('search.noCaption')}
+          {item.caption_ko || item.caption || t('search.noCaption')}
         </Text>
         <View style={styles.resultFooter}>
           {item.score && (
@@ -238,6 +247,7 @@ export default function SearchScreen() {
       </View>
     </View>
   );
+  };
 
   return (
     <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
@@ -393,15 +403,21 @@ export default function SearchScreen() {
           </View>
         </View>
       ) : results.length > 0 ? (
-        <FlatList
-          data={results}
-          keyExtractor={(item) => item.id}
-          renderItem={renderResultItem}
-          numColumns={2}
-          contentContainerStyle={styles.resultsContainer}
-          columnWrapperStyle={styles.resultsRow}
-          showsVerticalScrollIndicator={false}
-        />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.loadingText, isDark && styles.textLight, { padding: 16 }]}>
+            {results.length}개 결과 (query: {query})
+          </Text>
+          <FlatList
+            data={results}
+            keyExtractor={(item, index) => `${item.id}-${index}`}
+            renderItem={renderResultItem}
+            numColumns={2}
+            contentContainerStyle={styles.resultsContainer}
+            columnWrapperStyle={styles.resultsRow}
+            showsVerticalScrollIndicator={false}
+            extraData={query}
+          />
+        </View>
       ) : (
         <View style={styles.noResultsContainer}>
           <Ionicons name="search-outline" size={64} color="#D1D5DB" />
