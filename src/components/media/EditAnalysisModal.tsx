@@ -10,9 +10,11 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme';
+import { EMOTIONS as EMOTION_DATA } from '@/constants/emotions';
 
 interface EditAnalysisModalProps {
   visible: boolean;
@@ -32,21 +34,6 @@ export interface EditData {
   emotion?: string;
   intensity?: number;
 }
-
-const EMOTIONS = [
-  { label: '기쁨', emoji: '😊' },
-  { label: '평온', emoji: '😌' },
-  { label: '사랑', emoji: '🥰' },
-  { label: '감사', emoji: '🙏' },
-  { label: '놀람', emoji: '😮' },
-  { label: '불안', emoji: '😰' },
-  { label: '슬픔', emoji: '😢' },
-  { label: '분노', emoji: '😠' },
-  { label: '몰입', emoji: '🎯' },
-  { label: '생각', emoji: '🤔' },
-  { label: '피곤', emoji: '😴' },
-  { label: '아픔', emoji: '🤒' },
-];
 
 export function EditAnalysisModal({
   visible,
@@ -134,27 +121,33 @@ export function EditAnalysisModal({
             <View style={styles.field}>
               <Text style={styles.label}>감정</Text>
               <View style={styles.emotionGrid}>
-                {EMOTIONS.map(e => (
-                  <TouchableOpacity
-                    key={e.label}
-                    style={[
-                      styles.emotionBtn,
-                      emotion === e.label && styles.emotionBtnActive,
-                    ]}
-                    onPress={() => setEmotion(e.label)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.emotionEmoji}>{e.emoji}</Text>
-                    <Text
+                {EMOTION_DATA.map(e => {
+                  const isSelected = emotion === e.nameKo;
+                  return (
+                    <TouchableOpacity
+                      key={e.key}
                       style={[
-                        styles.emotionLabel,
-                        emotion === e.label && styles.emotionLabelActive,
+                        styles.emotionBtn,
+                        isSelected && styles.emotionBtnActive,
                       ]}
+                      onPress={() => setEmotion(e.nameKo)}
+                      activeOpacity={0.7}
                     >
-                      {e.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                      <Image
+                        source={isSelected ? e.icons.color : e.icons.gray}
+                        style={styles.emotionIcon}
+                      />
+                      <Text
+                        style={[
+                          styles.emotionLabel,
+                          isSelected && styles.emotionLabelActive,
+                        ]}
+                      >
+                        {e.nameKo}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
 
@@ -285,8 +278,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand.primary,
     borderColor: colors.brand.primary,
   },
-  emotionEmoji: {
-    fontSize: 22,
+  emotionIcon: {
+    width: 28,
+    height: 28,
   },
   emotionLabel: {
     fontSize: 11,

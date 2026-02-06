@@ -1,54 +1,48 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { colors } from '@/src/theme';
-
-// 감정 데이터 (4열 x 3행 = 12개, label이 저장값)
-const EMOTIONS = [
-  { label: '기쁨', emoji: '😊' },
-  { label: '평온', emoji: '😌' },
-  { label: '사랑', emoji: '🥰' },
-  { label: '감사', emoji: '🙏' },
-  { label: '놀람', emoji: '😮' },
-  { label: '불안', emoji: '😰' },
-  { label: '슬픔', emoji: '😢' },
-  { label: '분노', emoji: '😠' },
-  { label: '몰입', emoji: '🎯' },
-  { label: '생각', emoji: '🤔' },
-  { label: '피곤', emoji: '😴' },
-  { label: '아픔', emoji: '🤒' },
-];
+import { EMOTIONS as EMOTION_DATA } from '@/constants/emotions';
 
 interface EmotionPickerProps {
   selectedEmotion: string;
   onSelect: (emotion: string) => void;
+  isDark?: boolean;
 }
 
-export function EmotionPicker({ selectedEmotion, onSelect }: EmotionPickerProps) {
+export function EmotionPicker({ selectedEmotion, onSelect, isDark = false }: EmotionPickerProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>현재 기분은 어떤가요?</Text>
+      <Text style={[styles.title, isDark && styles.titleDark]}>현재 기분은 어떤가요?</Text>
       <View style={styles.grid}>
-        {EMOTIONS.map((emotion) => (
-          <TouchableOpacity
-            key={emotion.label}
-            style={[
-              styles.emotionButton,
-              selectedEmotion === emotion.label && styles.emotionButtonSelected,
-            ]}
-            onPress={() => onSelect(emotion.label)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.emoji}>{emotion.emoji}</Text>
-            <Text
+        {EMOTION_DATA.map((emotion) => {
+          const isSelected = selectedEmotion === emotion.nameKo;
+          return (
+            <TouchableOpacity
+              key={emotion.key}
               style={[
-                styles.label,
-                selectedEmotion === emotion.label && styles.labelSelected,
+                styles.emotionButton,
+                isDark && styles.emotionButtonDark,
+                isSelected && styles.emotionButtonSelected,
               ]}
+              onPress={() => onSelect(emotion.nameKo)}
+              activeOpacity={0.7}
             >
-              {emotion.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+              <Image
+                source={isSelected ? emotion.icons.color : emotion.icons.gray}
+                style={styles.emotionIcon}
+              />
+              <Text
+                style={[
+                  styles.label,
+                  isDark && styles.labelDark,
+                  isSelected && styles.labelSelected,
+                ]}
+              >
+                {emotion.nameKo}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     </View>
   );
@@ -64,6 +58,9 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     marginBottom: 16,
   },
+  titleDark: {
+    color: '#F9FAFB',
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -78,16 +75,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
   },
+  emotionButtonDark: {
+    backgroundColor: '#374151',
+  },
   emotionButtonSelected: {
     backgroundColor: colors.brand.primary,
+    borderWidth: 2,
+    borderColor: colors.brand.primary,
   },
-  emoji: {
-    fontSize: 24,
+  emotionIcon: {
+    width: 32,
+    height: 32,
   },
   label: {
     fontSize: 12,
     fontWeight: '500',
     color: colors.text.primary,
+  },
+  labelDark: {
+    color: '#9CA3AF',
   },
   labelSelected: {
     color: colors.text.inverse,
