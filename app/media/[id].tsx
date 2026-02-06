@@ -33,6 +33,7 @@ import { useTimelineStore } from '@/src/store/timelineStore';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { t } from '@/src/i18n';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
+import { EMOTIONS, getEmotionByName, getEmotionIcon, getEmotionIllustration, EMOTION_KEY_TO_NAME } from '@/constants/emotions';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IMAGE_SIZE = SCREEN_WIDTH - 40;
@@ -77,28 +78,6 @@ export default function MediaDetailScreen() {
   const [emotionModalVisible, setEmotionModalVisible] = useState(false);
   const [editEmotion, setEditEmotion] = useState('');
   const [editIntensity, setEditIntensity] = useState(3);
-
-  // 감정 옵션
-  const EMOTION_OPTIONS = [
-    { name: '기쁨', emoji: '😊' },
-    { name: '평온', emoji: '😌' },
-    { name: '사랑', emoji: '🥰' },
-    { name: '감사', emoji: '🙏' },
-    { name: '놀람', emoji: '😲' },
-    { name: '불안', emoji: '😰' },
-    { name: '슬픔', emoji: '😢' },
-    { name: '분노', emoji: '😠' },
-    { name: '몰입', emoji: '🎯' },
-    { name: '생각', emoji: '🤔' },
-    { name: '피곤', emoji: '😫' },
-    { name: '아픔', emoji: '🤕' },
-  ];
-
-  // 감정 이모지 맵
-  const EMOTION_MAP: Record<string, string> = EMOTION_OPTIONS.reduce((acc, opt) => {
-    acc[opt.name] = opt.emoji;
-    return acc;
-  }, {} as Record<string, string>);
 
   // 그룹 이미지 관련 상태
   const [groupImages, setGroupImages] = useState<GroupImageItem[]>([]);
@@ -653,9 +632,17 @@ export default function MediaDetailScreen() {
         <View style={[styles.emotionSection, isDark && styles.sectionBorderDark]}>
           {currentEmotion ? (
             <>
-              <Text style={[styles.emotionText, isDark && styles.textLight]}>
-                {EMOTION_MAP[currentEmotion] || '😊'} {currentEmotion}
-              </Text>
+              <View style={styles.emotionDisplay}>
+                {getEmotionIcon(currentEmotion, 'color') && (
+                  <Image
+                    source={getEmotionIcon(currentEmotion, 'color')}
+                    style={styles.emotionIconDisplay}
+                  />
+                )}
+                <Text style={[styles.emotionText, isDark && styles.textLight]}>
+                  {currentEmotion}
+                </Text>
+              </View>
               {currentIntensity && (
                 <View style={styles.intensityBar}>
                   {[1, 2, 3, 4, 5].map((i) => (
@@ -683,6 +670,17 @@ export default function MediaDetailScreen() {
             <Ionicons name="pencil" size={14} color={isDark ? '#9CA3AF' : colors.text.secondary} />
           </TouchableOpacity>
         </View>
+
+        {/* 감정 일러스트레이션 */}
+        {currentEmotion && getEmotionIllustration(currentEmotion) && (
+          <View style={styles.illustrationSection}>
+            <Image
+              source={getEmotionIllustration(currentEmotion)}
+              style={styles.emotionIllustration}
+              resizeMode="contain"
+            />
+          </View>
+        )}
 
         {/* AI 일기 제목 + mood 배지 */}
         {media.title && (
@@ -1182,18 +1180,24 @@ export default function MediaDetailScreen() {
             <View style={[styles.modalContent, styles.emotionModalContent, isDark && styles.modalContentDark]}>
               <Text style={[styles.modalTitle, isDark && styles.textLight]}>현재 기분은 어떤가요?</Text>
               <View style={styles.emotionGrid}>
-                {EMOTION_OPTIONS.map((option) => (
-                  <TouchableOpacity
-                    key={option.name}
-                    style={[styles.emotionOption, isDark && styles.emotionOptionDark, editEmotion === option.name && styles.emotionOptionSelected]}
-                    onPress={() => setEditEmotion(option.name)}
-                  >
-                    <Text style={styles.emotionOptionEmoji}>{option.emoji}</Text>
-                    <Text style={[styles.emotionOptionName, isDark && styles.textSecondaryDark, editEmotion === option.name && styles.emotionOptionNameSelected]}>
-                      {option.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+                {EMOTIONS.map((emotion) => {
+                  const isSelected = editEmotion === emotion.nameKo;
+                  return (
+                    <TouchableOpacity
+                      key={emotion.key}
+                      style={[styles.emotionOption, isDark && styles.emotionOptionDark, isSelected && styles.emotionOptionSelected]}
+                      onPress={() => setEditEmotion(emotion.nameKo)}
+                    >
+                      <Image
+                        source={isSelected ? emotion.icons.color : (isDark ? emotion.icons.gray : emotion.icons.gray)}
+                        style={styles.emotionOptionIcon}
+                      />
+                      <Text style={[styles.emotionOptionName, isDark && styles.textSecondaryDark, isSelected && styles.emotionOptionNameSelected]}>
+                        {emotion.nameKo}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
               <Text style={[styles.intensityLabel, isDark && styles.textSecondaryDark]}>기분의 강도를 선택하세요</Text>
               <Slider
@@ -1228,18 +1232,24 @@ export default function MediaDetailScreen() {
               <View style={[styles.modalContent, styles.emotionModalContent, isDark && styles.modalContentDark]}>
                 <Text style={[styles.modalTitle, isDark && styles.textLight]}>현재 기분은 어떤가요?</Text>
                 <View style={styles.emotionGrid}>
-                  {EMOTION_OPTIONS.map((option) => (
-                    <TouchableOpacity
-                      key={option.name}
-                      style={[styles.emotionOption, isDark && styles.emotionOptionDark, editEmotion === option.name && styles.emotionOptionSelected]}
-                      onPress={() => setEditEmotion(option.name)}
-                    >
-                      <Text style={styles.emotionOptionEmoji}>{option.emoji}</Text>
-                      <Text style={[styles.emotionOptionName, isDark && styles.textSecondaryDark, editEmotion === option.name && styles.emotionOptionNameSelected]}>
-                        {option.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {EMOTIONS.map((emotion) => {
+                    const isSelected = editEmotion === emotion.nameKo;
+                    return (
+                      <TouchableOpacity
+                        key={emotion.key}
+                        style={[styles.emotionOption, isDark && styles.emotionOptionDark, isSelected && styles.emotionOptionSelected]}
+                        onPress={() => setEditEmotion(emotion.nameKo)}
+                      >
+                        <Image
+                          source={isSelected ? emotion.icons.color : (isDark ? emotion.icons.gray : emotion.icons.gray)}
+                          style={styles.emotionOptionIcon}
+                        />
+                        <Text style={[styles.emotionOptionName, isDark && styles.textSecondaryDark, isSelected && styles.emotionOptionNameSelected]}>
+                          {emotion.nameKo}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
                 <Text style={[styles.intensityLabel, isDark && styles.textSecondaryDark]}>기분의 강도를 선택하세요</Text>
                 <Slider
@@ -1945,13 +1955,37 @@ const styles = StyleSheet.create({
   },
   emotionOptionSelected: {
     backgroundColor: colors.brand.primary,
+    borderWidth: 2,
+    borderColor: colors.brand.primary,
   },
-  emotionOptionEmoji: {
-    fontSize: 24,
+  emotionOptionIcon: {
+    width: 32,
+    height: 32,
   },
   emotionOptionName: {
     fontSize: 11,
     color: colors.text.secondary,
+  },
+  // 감정 표시 영역 스타일
+  emotionDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  emotionIconDisplay: {
+    width: 24,
+    height: 24,
+  },
+  // 감정 일러스트레이션 스타일
+  illustrationSection: {
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingVertical: 8,
+  },
+  emotionIllustration: {
+    width: 120,
+    height: 160,
   },
   emotionOptionNameSelected: {
     color: '#fff',
