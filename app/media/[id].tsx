@@ -576,8 +576,8 @@ export default function MediaDetailScreen() {
           ))}
         </ScrollView>
 
-        {/* 좌측 버튼 (이전) */}
-        {displayImages.length > 1 && currentImageIndex > 0 && (
+        {/* 좌측 버튼 (이전) - 웹에서만 표시 */}
+        {isWeb && displayImages.length > 1 && currentImageIndex > 0 && (
           <Pressable
             style={[styles.carouselButton, styles.carouselButtonLeft]}
             onPress={goToPrevious}
@@ -586,8 +586,8 @@ export default function MediaDetailScreen() {
           </Pressable>
         )}
 
-        {/* 우측 버튼 (다음) */}
-        {displayImages.length > 1 && currentImageIndex < displayImages.length - 1 && (
+        {/* 우측 버튼 (다음) - 웹에서만 표시 */}
+        {isWeb && displayImages.length > 1 && currentImageIndex < displayImages.length - 1 && (
           <Pressable
             style={[styles.carouselButton, styles.carouselButtonRight]}
             onPress={goToNext}
@@ -596,7 +596,7 @@ export default function MediaDetailScreen() {
           </Pressable>
         )}
 
-        {/* Pagination Dots */}
+        {/* Pagination Dots - 이미지 하단 오버레이 */}
         {displayImages.length > 1 && (
           <View style={styles.paginationContainer}>
             {displayImages.map((_, index) => (
@@ -628,59 +628,46 @@ export default function MediaDetailScreen() {
         contentContainerStyle={styles.detailContentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* 감정 + 강도 (이미지별 독립) */}
-        <View style={[styles.emotionSection, isDark && styles.sectionBorderDark]}>
+        {/* 감정 카드 (일러스트 + 아이콘 + 텍스트) */}
+        <TouchableOpacity
+          style={[styles.emotionCard, isDark && styles.emotionCardDark]}
+          onPress={openEmotionModal}
+          activeOpacity={0.8}
+        >
           {currentEmotion ? (
             <>
-              <View style={styles.emotionDisplay}>
+              {/* 좌측: 일러스트 (카드 60% 꽉 채움) */}
+              <View style={styles.emotionCardIllustWrap}>
+                <Image
+                  source={getEmotionIllustration(currentEmotion) || getEmotionIcon(currentEmotion, 'color')}
+                  style={styles.emotionCardIllustration}
+                  resizeMode="cover"
+                />
+              </View>
+              {/* 우측: 아이콘 + 텍스트 (세로 중앙) */}
+              <View style={styles.emotionCardLabel}>
                 {getEmotionIcon(currentEmotion, 'color') && (
                   <Image
                     source={getEmotionIcon(currentEmotion, 'color')}
-                    style={styles.emotionIconDisplay}
+                    style={styles.emotionCardIcon}
                   />
                 )}
-                <Text style={[styles.emotionText, isDark && styles.textLight]}>
-                  {currentEmotion}
+                <Text style={[styles.emotionCardText, isDark && styles.emotionCardTextDark]}>
+                  {currentIntensity
+                    ? `${currentIntensity <= 2 ? '약간' : currentIntensity === 3 ? '보통' : '매우'} ${currentEmotion}`
+                    : currentEmotion}
                 </Text>
               </View>
-              {currentIntensity && (
-                <View style={styles.intensityBar}>
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.intensityDot,
-                        i <= currentIntensity! && styles.intensityDotActive,
-                      ]}
-                    />
-                  ))}
-                  <Text style={styles.intensityText}>({currentIntensity}/5)</Text>
-                </View>
-              )}
             </>
           ) : (
-            <Text style={[styles.emotionPlaceholder, isDark && styles.textSecondaryDark]}>
-              감정을 선택해주세요
-            </Text>
+            <View style={styles.emotionCardEmpty}>
+              <Ionicons name="add-circle-outline" size={28} color={isDark ? '#6B7280' : '#9CA3AF'} />
+              <Text style={[styles.emotionPlaceholder, isDark && styles.textSecondaryDark]}>
+                감정을 선택해주세요
+              </Text>
+            </View>
           )}
-          <TouchableOpacity
-            style={[styles.emotionEditButton, isDark && styles.emotionEditButtonDark]}
-            onPress={openEmotionModal}
-          >
-            <Ionicons name="pencil" size={14} color={isDark ? '#9CA3AF' : colors.text.secondary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* 감정 일러스트레이션 */}
-        {currentEmotion && getEmotionIllustration(currentEmotion) && (
-          <View style={styles.illustrationSection}>
-            <Image
-              source={getEmotionIllustration(currentEmotion)}
-              style={styles.emotionIllustration}
-              resizeMode="contain"
-            />
-          </View>
-        )}
+        </TouchableOpacity>
 
         {/* AI 일기 제목 + mood 배지 */}
         {media.title && (
@@ -1189,7 +1176,7 @@ export default function MediaDetailScreen() {
                       onPress={() => setEditEmotion(emotion.nameKo)}
                     >
                       <Image
-                        source={isSelected ? emotion.icons.color : (isDark ? emotion.icons.gray : emotion.icons.gray)}
+                        source={emotion.icons.color}
                         style={styles.emotionOptionIcon}
                       />
                       <Text style={[styles.emotionOptionName, isDark && styles.textSecondaryDark, isSelected && styles.emotionOptionNameSelected]}>
@@ -1241,7 +1228,7 @@ export default function MediaDetailScreen() {
                         onPress={() => setEditEmotion(emotion.nameKo)}
                       >
                         <Image
-                          source={isSelected ? emotion.icons.color : (isDark ? emotion.icons.gray : emotion.icons.gray)}
+                          source={emotion.icons.color}
                           style={styles.emotionOptionIcon}
                         />
                         <Text style={[styles.emotionOptionName, isDark && styles.textSecondaryDark, isSelected && styles.emotionOptionNameSelected]}>
@@ -1455,21 +1442,26 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   paginationContainer: {
+    position: 'absolute',
+    bottom: 12,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 12,
-    gap: 8,
+    gap: 6,
   },
   paginationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.neutral[3],
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
   },
   paginationDotActive: {
-    backgroundColor: colors.brand.primary,
-    width: 24,
+    width: 20,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#fff',
   },
   aiBadge: {
     position: 'absolute',
@@ -1623,40 +1615,50 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.neutral[5],
   },
-  // 사용자 입력 정보 스타일
-  emotionSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 4,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[2],
+  // 감정 카드 스타일
+  emotionCard: {
+    backgroundColor: '#FEF7F0',
+    borderRadius: 16,
+    height: 210,
     marginBottom: 16,
-  },
-  emotionText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
-  intensityBar: {
+    overflow: 'hidden',
     flexDirection: 'row',
+  },
+  emotionCardDark: {
+    backgroundColor: '#2A2520',
+  },
+  emotionCardIllustWrap: {
+    width: '48%',
+    height: 210,
+    overflow: 'hidden',
+  },
+  emotionCardIllustration: {
+    width: '100%',
+    height: '100%',
+  },
+  emotionCardLabel: {
+    flex: 1,
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
   },
-  intensityDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.neutral[3],
+  emotionCardIcon: {
+    width: 30,
+    height: 30,
   },
-  intensityDotActive: {
-    backgroundColor: colors.brand.primary,
-  },
-  intensityText: {
+  emotionCardText: {
     fontSize: 12,
-    color: colors.text.secondary,
-    marginLeft: 4,
+    fontWeight: '600',
+    color: '#6B5C4F',
+    marginTop: 4,
+  },
+  emotionCardTextDark: {
+    color: '#D1C4B2',
+  },
+  emotionCardEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   userSection: {
     paddingVertical: 12,
@@ -1921,15 +1923,6 @@ const styles = StyleSheet.create({
   emotionPlaceholder: {
     fontSize: 14,
     color: colors.text.secondary,
-    flex: 1,
-  },
-  emotionEditButton: {
-    padding: 8,
-    borderRadius: 6,
-    backgroundColor: colors.neutral[2],
-  },
-  emotionEditButtonDark: {
-    backgroundColor: '#374151',
   },
   emotionModalContent: {
     maxHeight: '85%',
@@ -1944,19 +1937,19 @@ const styles = StyleSheet.create({
   emotionOption: {
     width: '23%',
     aspectRatio: 1,
-    backgroundColor: colors.neutral[2],
-    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
+    borderWidth: 3,
+    borderColor: 'transparent',
   },
   emotionOptionDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#1F2937',
   },
   emotionOptionSelected: {
-    backgroundColor: colors.brand.primary,
-    borderWidth: 2,
-    borderColor: colors.brand.primary,
+    borderColor: '#FF6B6B',
   },
   emotionOptionIcon: {
     width: 32,
@@ -1967,28 +1960,9 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   // 감정 표시 영역 스타일
-  emotionDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  emotionIconDisplay: {
-    width: 24,
-    height: 24,
-  },
-  // 감정 일러스트레이션 스타일
-  illustrationSection: {
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingVertical: 8,
-  },
-  emotionIllustration: {
-    width: 120,
-    height: 160,
-  },
+  // 감정 편집 플레이스홀더
   emotionOptionNameSelected: {
-    color: '#fff',
+    color: '#1F2937',
     fontWeight: '600',
   },
   intensityLabel: {

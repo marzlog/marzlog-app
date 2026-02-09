@@ -134,7 +134,7 @@ export function EditAnalysisModal({
                       activeOpacity={0.7}
                     >
                       <Image
-                        source={isSelected ? e.icons.color : e.icons.gray}
+                        source={e.icons.color}
                         style={styles.emotionIcon}
                       />
                       <Text
@@ -268,15 +268,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingHorizontal: 4,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderRadius: 16,
+    borderWidth: 3,
+    borderColor: 'transparent',
     width: '23%',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#fff',
   },
   emotionBtnActive: {
-    backgroundColor: colors.brand.primary,
-    borderColor: colors.brand.primary,
+    borderColor: '#FF6B6B',
   },
   emotionIcon: {
     width: 28,
@@ -288,7 +287,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   emotionLabelActive: {
-    color: '#fff',
+    color: '#1F2937',
+    fontWeight: '600',
   },
   intensityRow: {
     flexDirection: 'row',

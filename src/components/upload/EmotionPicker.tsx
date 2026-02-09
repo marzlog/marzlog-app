@@ -28,7 +28,7 @@ export function EmotionPicker({ selectedEmotion, onSelect, isDark = false }: Emo
               activeOpacity={0.7}
             >
               <Image
-                source={isSelected ? emotion.icons.color : emotion.icons.gray}
+                source={emotion.icons.color}
                 style={styles.emotionIcon}
               />
               <Text
@@ -69,19 +69,19 @@ const styles = StyleSheet.create({
   emotionButton: {
     width: '23%',
     aspectRatio: 1,
-    backgroundColor: colors.neutral[2],
+    backgroundColor: '#fff',
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
+    borderWidth: 3,
+    borderColor: 'transparent',
   },
   emotionButtonDark: {
-    backgroundColor: '#374151',
+    backgroundColor: '#1F2937',
   },
   emotionButtonSelected: {
-    backgroundColor: colors.brand.primary,
-    borderWidth: 2,
-    borderColor: colors.brand.primary,
+    borderColor: '#FF6B6B',
   },
   emotionIcon: {
     width: 32,
@@ -96,7 +96,8 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
   labelSelected: {
-    color: colors.text.inverse,
+    color: colors.text.primary,
+    fontWeight: '600',
   },
 });
 
