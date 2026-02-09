@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
+  Image,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
@@ -11,6 +12,7 @@ import { palette, lightTheme, darkTheme } from '@/src/theme/colors';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
+import { getEmotionIcon } from '@/constants/emotions';
 
 const { width } = Dimensions.get('window');
 
@@ -76,13 +78,13 @@ function GridViewIcon({ color }: { color: string }) {
 interface DateSelectorProps {
   selectedDate: Date;
   onDateSelect: (date: Date) => void;
-  datesWithPhotos?: Set<string>; // 'YYYY-MM-DD' format
+  dateEmotions?: Map<string, string>; // 'YYYY-MM-DD' → emotion name
 }
 
 export function DateSelector({
   selectedDate,
   onDateSelect,
-  datesWithPhotos = new Set(),
+  dateEmotions = new Map(),
 }: DateSelectorProps) {
   const { t, language } = useTranslation();
   const systemColorScheme = useColorScheme();
@@ -157,9 +159,10 @@ export function DateSelector({
     return date.toDateString() === today.toDateString();
   };
 
-  const hasPhotos = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
-    return datesWithPhotos.has(dateStr);
+  const getDateEmotion = (date: Date): string | undefined => {
+    // formatDateKey와 동일하게 로컬 타임존(KST) 기준으로 키 생성
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    return dateEmotions.get(key);
   };
 
   const goToPrevMonth = () => {
@@ -222,7 +225,8 @@ export function DateSelector({
       <View style={styles.weekContainer}>
         {weekDays.map((date, index) => {
           const selected = isSelected(date);
-          const hasPhoto = hasPhotos(date);
+          const emotion = getDateEmotion(date);
+          const emotionIcon = emotion ? getEmotionIcon(emotion, 'color') : null;
           return (
             <TouchableOpacity
               key={index}
@@ -249,12 +253,9 @@ export function DateSelector({
               >
                 {date.getDate()}
               </Text>
-              {hasPhoto && (
-                <View style={[
-                  styles.photoIndicator,
-                  { backgroundColor: selected ? palette.neutral[0] : palette.primary[500] },
-                ]} />
-              )}
+              {emotionIcon ? (
+                <Image source={emotionIcon} style={styles.weekEmotionIcon} />
+              ) : null}
             </TouchableOpacity>
           );
         })}
@@ -323,12 +324,14 @@ export function DateSelector({
                 ]}>
                   {date.getDate()}
                 </Text>
-                {hasPhotos(date) && (
-                  <View style={[
-                    styles.monthPhotoIndicator,
-                    { backgroundColor: isSelected(date) ? palette.neutral[0] : palette.primary[500] },
-                  ]} />
-                )}
+                {(() => {
+                  const emo = getDateEmotion(date);
+                  const emoIcon = emo ? getEmotionIcon(emo, 'color') : null;
+                  if (emoIcon) {
+                    return <Image source={emoIcon} style={styles.monthEmotionIcon} />;
+                  }
+                  return null;
+                })()}
               </TouchableOpacity>
             )}
           </View>
@@ -448,10 +451,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.96,
     lineHeight: 34,
   },
-  photoIndicator: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+  weekEmotionIcon: {
+    width: 16,
+    height: 16,
   },
   // Month View
   monthContainer: {
@@ -525,12 +527,11 @@ const styles = StyleSheet.create({
   saturdayText: {
     color: palette.info[500],
   },
-  monthPhotoIndicator: {
+  monthEmotionIcon: {
     position: 'absolute',
-    bottom: 4,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    bottom: 2,
+    width: 14,
+    height: 14,
   },
   todayButton: {
     marginTop: 12,

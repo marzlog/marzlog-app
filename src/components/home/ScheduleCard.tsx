@@ -4,6 +4,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { palette, lightTheme, darkTheme, Theme } from '@/src/theme/colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
+import { getEmotionIcon } from '@/constants/emotions';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 24; // Figma: 풀 너비에 가깝게
@@ -56,6 +57,7 @@ interface ScheduleCardProps {
   time: string;
   imageUrl: string;
   emoji?: string;
+  emotion?: string | null;
   groupCount?: number;  // 그룹 내 이미지 수 (2 이상이면 배지 표시)
   onPress?: () => void;
   onEmojiPress?: () => void;
@@ -72,6 +74,7 @@ export function ScheduleCard({
   time,
   imageUrl,
   emoji,
+  emotion,
   groupCount,
   onPress,
   onEmojiPress,
@@ -103,6 +106,15 @@ export function ScheduleCard({
           style={styles.compactImage}
           resizeMode="cover"
         />
+        {/* Emotion Icon - 좌측 상단 */}
+        {emotion && getEmotionIcon(emotion, 'color') && (
+          <View style={styles.compactEmotionBadge}>
+            <Image
+              source={getEmotionIcon(emotion, 'color')}
+              style={styles.compactEmotionIcon}
+            />
+          </View>
+        )}
         {/* Group Badge */}
         {groupCount && groupCount > 1 && (
           <View style={styles.compactGroupBadge}>
@@ -151,14 +163,17 @@ export function ScheduleCard({
 
         {/* Overlay Buttons */}
         <View style={styles.overlayContainer}>
-          {/* Emoji Button (Figma: 반투명 배경 + 이모티콘 아이콘) */}
-          <TouchableOpacity
-            style={styles.emojiButton}
-            onPress={onEmojiPress}
-            activeOpacity={0.8}
-          >
-            <EmotionIcon color={palette.neutral[900]} />
-          </TouchableOpacity>
+          {/* Emotion Icon (실제 감정 아이콘 또는 기본 아이콘) */}
+          <View style={styles.emojiButton}>
+            {emotion && getEmotionIcon(emotion, 'color') ? (
+              <Image
+                source={getEmotionIcon(emotion, 'color')}
+                style={styles.emotionIconImage}
+              />
+            ) : (
+              <EmotionIcon color={palette.neutral[900]} />
+            )}
+          </View>
 
           {/* Time Badge (Figma: 반투명 배경 + 시간 텍스트) */}
           <View style={styles.timeBadge}>
@@ -266,6 +281,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
+  emotionIconImage: {
+    width: 24,
+    height: 24,
+  },
   // Compact (Grid) 스타일
   compactContainer: {
     width: GRID_CARD_SIZE,
@@ -307,6 +326,24 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#fff',
+  },
+  compactEmotionBadge: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 3,
+    zIndex: 10,
+  },
+  compactEmotionIcon: {
+    width: 20,
+    height: 20,
   },
 });
 

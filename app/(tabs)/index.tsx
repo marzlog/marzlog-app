@@ -218,6 +218,7 @@ interface ScheduleItem {
   mediaId: string;
   groupId?: string;
   groupCount?: number;
+  emotion?: string | null;
 }
 
 export default function HomeScreen() {
@@ -260,26 +261,29 @@ export default function HomeScreen() {
     takePhoto,
   } = useImageUpload();
 
-  // 사진이 있는 날짜 Set (group_dates 기준 - 그룹 내 모든 이미지의 날짜)
-  const datesWithPhotos = useMemo(() => {
-    const dates = new Set<string>();
+  // 날짜별 대표 감정 매핑 (첫 번째 그룹의 감정)
+  const dateEmotions = useMemo(() => {
+    const map = new Map<string, string>();
     allItems.forEach((item) => {
-      // group_dates가 있으면 모든 날짜 추가, 없으면 taken_at 사용
+      const emotion = item.media?.emotion;
+      if (!emotion) return;
+      // group_dates는 서버에서 KST 기준 'YYYY-MM-DD' 형식으로 반환
       const groupDates = item.media?.group_dates;
       if (groupDates && groupDates.length > 0) {
         groupDates.forEach((dateStr) => {
           if (dateStr) {
-            dates.add(formatDateKey(new Date(dateStr)));
+            // 이미 YYYY-MM-DD 형식이므로 직접 사용
+            const key = dateStr.substring(0, 10);
+            if (!map.has(key)) map.set(key, emotion);
           }
         });
       } else {
-        // fallback: taken_at 또는 created_at
         const takenAt = new Date(item.media?.taken_at || item.created_at);
-        dates.add(formatDateKey(takenAt));
+        const key = formatDateKey(takenAt);
+        if (!map.has(key)) map.set(key, emotion);
       }
     });
-    console.log('[Home] datesWithPhotos:', Array.from(dates));
-    return dates;
+    return map;
   }, [allItems]);
 
   // 전체 타임라인 로드
@@ -319,26 +323,19 @@ export default function HomeScreen() {
     const selectedDateStr = formatDateKey(selectedDate);
 
     const filtered = allItems.filter((item) => {
-      // group_dates가 있으면 그룹 내 아무 날짜라도 매칭되면 표시
+      // group_dates는 서버에서 KST 기준 'YYYY-MM-DD' 형식으로 반환
       const groupDates = item.media?.group_dates;
       if (groupDates && groupDates.length > 0) {
         const isMatch = groupDates.some((dateStr) => {
           if (!dateStr) return false;
-          return formatDateKey(new Date(dateStr)) === selectedDateStr;
+          return dateStr.substring(0, 10) === selectedDateStr;
         });
-        if (isMatch) {
-          console.log(`[Home] Match found (group_dates): id=${item.id}, group_dates=${groupDates.join(', ')}`);
-        }
         return isMatch;
       }
 
       // fallback: taken_at 또는 created_at
       const takenAt = new Date(item.media?.taken_at || item.created_at);
-      const isMatch = isSameDay(takenAt, selectedDate);
-      if (isMatch) {
-        console.log(`[Home] Match found (taken_at): id=${item.id}, taken_at=${item.media?.taken_at}`);
-      }
-      return isMatch;
+      return isSameDay(takenAt, selectedDate);
     });
 
     console.log('[Home] Filtered count:', filtered.length);
@@ -352,6 +349,7 @@ export default function HomeScreen() {
       mediaId: item.media_id,
       groupId: item.media?.group_id || undefined,
       groupCount: item.media?.group_count || undefined,
+      emotion: item.media?.emotion || null,
     }));
 
     setSchedules(mapped);
@@ -567,7 +565,7 @@ export default function HomeScreen() {
           <DateSelector
             selectedDate={selectedDate}
             onDateSelect={handleDateSelect}
-            datesWithPhotos={datesWithPhotos}
+            dateEmotions={dateEmotions}
           />
         </View>
 
@@ -624,6 +622,7 @@ export default function HomeScreen() {
                 time={schedule.time}
                 imageUrl={schedule.imageUrl}
                 groupCount={schedule.groupCount}
+                emotion={schedule.emotion}
                 onPress={() => handlePhotoPress(schedule.mediaId)}
                 theme={theme}
                 size={viewMode === 'grid' ? 'compact' : 'large'}

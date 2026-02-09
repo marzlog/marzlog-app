@@ -28,6 +28,8 @@ export interface MediaInfo {
   is_primary?: boolean | null;
   group_count?: number | null;  // 그룹 내 이미지 수
   group_dates?: string[] | null;  // 그룹 내 모든 이미지의 taken_at 목록
+  emotion?: string | null;
+  intensity?: number | null;
 }
 
 // 타임라인 아이템 (실제 API 구조)
