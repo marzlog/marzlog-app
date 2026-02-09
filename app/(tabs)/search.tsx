@@ -7,6 +7,7 @@ import searchApi, { SearchResult } from '@/src/api/search';
 import { colors } from '@/src/theme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { ScheduleCard } from '@/src/components/home';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ActivityIndicator,
@@ -213,40 +214,19 @@ export default function SearchScreen() {
   };
 
   const renderResultItem = ({ item, index }: { item: SearchResult; index: number }) => {
-    console.log(`[Search] Rendering item ${index}:`, item.id, item.thumbnail_url?.substring(60, 100));
     return (
-    <View style={[styles.resultItem, isDark && styles.resultItemDark]}>
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={() => handleResultPress(item.media_id)}
-      >
-        <Image
-          source={{ uri: getImageUrl(item) }}
-          style={styles.resultImage}
-          onError={(e) => console.log('[Search] Image error:', e.nativeEvent.error)}
+      <View style={styles.resultCardWrapper}>
+        <ScheduleCard
+          id={item.id}
+          title={item.title || item.caption_ko || item.caption || t('search.noCaption')}
+          time={item.score ? `${(item.score * 100).toFixed(0)}%` : ''}
+          imageUrl={getImageUrl(item)}
+          emotion={item.emotion}
+          onPress={() => handleResultPress(item.media_id)}
+          size="compact"
         />
-      </TouchableOpacity>
-      <View style={styles.resultCaption}>
-        <Text style={[styles.captionText, isDark && styles.textLight]} numberOfLines={2}>
-          {item.caption_ko || item.caption || t('search.noCaption')}
-        </Text>
-        <View style={styles.resultFooter}>
-          {item.score && (
-            <Text style={styles.scoreText}>
-              {(item.score * 100).toFixed(0)}%
-            </Text>
-          )}
-          <TouchableOpacity
-            style={styles.similarButton}
-            onPress={() => handleSimilarSearch(item.media_id)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="images-outline" size={14} color={colors.brand.primary} />
-          </TouchableOpacity>
-        </View>
       </View>
-    </View>
-  );
+    );
   };
 
   return (
@@ -589,31 +569,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  resultItem: {
+  resultCardWrapper: {
     width: ITEM_SIZE,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
-  },
-  resultItemDark: {
-    backgroundColor: '#1F2937',
-  },
-  resultImage: {
-    width: '100%',
-    height: ITEM_SIZE,
-  },
-  resultCaption: {
-    padding: 12,
-  },
-  captionText: {
-    fontSize: 14,
-    color: '#374151',
-    lineHeight: 18,
-  },
-  scoreText: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    marginTop: 4,
   },
   noResultsContainer: {
     flex: 1,
@@ -699,15 +656,5 @@ const styles = StyleSheet.create({
   },
   modeTextActive: {
     color: '#FFFFFF',
-  },
-  // 결과 푸터
-  resultFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  similarButton: {
-    padding: 4,
   },
 });

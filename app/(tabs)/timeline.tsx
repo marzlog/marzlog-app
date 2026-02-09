@@ -25,6 +25,7 @@ import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
+import { ScheduleCard } from '@/src/components/home';
 
 // 다크 그린 색상
 const DARK_GREEN = '#2D3A35';
@@ -505,26 +506,19 @@ export default function TimelineScreen() {
 
   // 그리드 뷰 카드
   const renderGridCard = (photo: TimelineItem) => (
-    <TouchableOpacity
-      key={photo.id}
-      style={[styles.gridItem, { backgroundColor: theme.background.tertiary }]}
-      activeOpacity={0.8}
-      onPress={() => handlePhotoPress(photo.media_id)}
-    >
-      <Image
-        source={{ uri: getImageUrl(photo) }}
-        style={styles.gridImage}
-        resizeMode="cover"
+    <View key={photo.id} style={styles.gridCardWrapper}>
+      <ScheduleCard
+        id={photo.id}
+        title={photo.title || photo.caption || t('common.noTitle')}
+        time={formatTime(photo.media?.taken_at || photo.created_at)}
+        imageUrl={getImageUrl(photo)}
+        emotion={photo.media?.emotion}
+        groupCount={photo.media?.group_count || undefined}
+        onPress={() => handlePhotoPress(photo.media_id)}
+        theme={theme}
+        size="compact"
       />
-      {/* 북마크 아이콘 */}
-      <View style={styles.bookmarkBadge}>
-        <BookmarkIcon color={palette.neutral[0]} />
-      </View>
-      {/* 시간 태그 */}
-      <View style={[styles.timeBadge, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
-        <Text style={styles.timeBadgeText}>{formatTime(photo.media?.taken_at || photo.created_at)}</Text>
-      </View>
-    </TouchableOpacity>
+    </View>
   );
 
   // 리스트 뷰 카드 (텍스트 탭용 - OCR 텍스트 표시)
@@ -947,34 +941,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
-  gridItem: {
+  gridCardWrapper: {
     width: ITEM_SIZE,
-    height: ITEM_SIZE,
-    borderRadius: 16,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  gridImage: {
-    width: '100%',
-    height: '100%',
-  },
-  bookmarkBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-  },
-  timeBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  timeBadgeText: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: palette.neutral[0],
   },
   // List View
   listContainer: {

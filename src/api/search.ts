@@ -5,11 +5,13 @@ export interface SearchResult {
     media_id: string;
     caption: string;
     caption_ko?: string;
+    title?: string;
     tags?: string[];
     tags_ko?: string[];
     thumbnail_url: string;
     score: number;
     search_type?: string;
+    emotion?: string;
 }
 
 export interface SearchResponse {

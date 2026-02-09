@@ -9,7 +9,6 @@ import { getEmotionIcon } from '@/constants/emotions';
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 24; // Figma: 풀 너비에 가깝게
 const CARD_HEIGHT = 437;
-const GRID_CARD_SIZE = (width - 32) / 2; // 2열 그리드용
 
 // Figma 기반 이모티콘 아이콘 (감정 표시용)
 function EmotionIcon({ color = palette.neutral[900] }: { color?: string }) {
@@ -287,8 +286,7 @@ const styles = StyleSheet.create({
   },
   // Compact (Grid) 스타일
   compactContainer: {
-    width: GRID_CARD_SIZE,
-    height: GRID_CARD_SIZE,
+    aspectRatio: 1,
     borderRadius: 16,
     overflow: 'hidden',
   },

@@ -11,6 +11,7 @@ import {
   Modal,
   Platform,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,6 +28,8 @@ import { useTranslation } from '@/src/hooks/useTranslation';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useDialog } from '@/src/components/ui/Dialog';
 import notificationsApi from '@/src/api/notifications';
+
+const { width } = Dimensions.get('window');
 
 // Figma 기반 아이콘들
 function SearchIcon({ color = palette.neutral[900] }: { color?: string }) {
@@ -614,19 +617,20 @@ export default function HomeScreen() {
             </View>
           ) : (
             schedules.map((schedule) => (
-              <ScheduleCard
-                key={schedule.id}
-                id={schedule.id}
-                title={schedule.title}
-                location={schedule.location}
-                time={schedule.time}
-                imageUrl={schedule.imageUrl}
-                groupCount={schedule.groupCount}
-                emotion={schedule.emotion}
-                onPress={() => handlePhotoPress(schedule.mediaId)}
-                theme={theme}
-                size={viewMode === 'grid' ? 'compact' : 'large'}
-              />
+              <View key={schedule.id} style={viewMode === 'grid' ? styles.gridCardWrapper : undefined}>
+                <ScheduleCard
+                  id={schedule.id}
+                  title={schedule.title}
+                  location={schedule.location}
+                  time={schedule.time}
+                  imageUrl={schedule.imageUrl}
+                  groupCount={schedule.groupCount}
+                  emotion={schedule.emotion}
+                  onPress={() => handlePhotoPress(schedule.mediaId)}
+                  theme={theme}
+                  size={viewMode === 'grid' ? 'compact' : 'large'}
+                />
+              </View>
             ))
           )}
         </View>
@@ -744,6 +748,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  gridCardWrapper: {
+    width: (width - 24 - 8) / 2,  // paddingHorizontal 12*2 + gap 8
   },
   filterBar: {
     flexDirection: 'row',
