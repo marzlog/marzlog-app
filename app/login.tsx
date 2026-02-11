@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   TouchableWithoutFeedback,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -194,6 +195,14 @@ export default function LoginScreen() {
               onSuccess={handleSuccess}
               onError={handleError}
             />
+            <TouchableOpacity
+              style={styles.appleButton}
+              onPress={() => Alert.alert('준비 중', 'Apple 로그인은 준비 중입니다.')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="logo-apple" size={22} color="#fff" />
+              <Text style={styles.appleButtonText}>Apple로 계속하기</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Terms Agreement */}
@@ -361,8 +370,25 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
   socialArea: {
+    alignItems: 'center',
     gap: 12,
     marginBottom: 20,
+  },
+  appleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000',
+    borderRadius: 8,
+    width: '68%',
+    height: 44,
+    gap: 10,
+    alignSelf: 'center',
+  },
+  appleButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   termsArea: {
     alignItems: 'center',

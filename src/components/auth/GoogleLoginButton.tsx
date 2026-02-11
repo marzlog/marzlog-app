@@ -152,7 +152,7 @@ function NativeGoogleButton({ onSuccess, onError }: Props) {
       disabled={!request}
     >
       <Ionicons name="logo-google" size={20} color="#4285F4" />
-      <Text style={styles.googleBtnText}>Continue with Google</Text>
+      <Text style={styles.googleBtnText}>Google 계정으로 계속하기</Text>
     </TouchableOpacity>
   );
 }
@@ -177,13 +177,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    minHeight: 52,
+    borderRadius: 8,
+    width: '100%',
+    height: 52,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    gap: 12,
+    borderColor: '#ddd',
+    gap: 10,
   },
   googleBtnText: {
     color: '#1F2937',
