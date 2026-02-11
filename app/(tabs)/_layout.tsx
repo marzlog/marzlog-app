@@ -8,7 +8,8 @@ import { palette, lightTheme, darkTheme } from '@/src/theme/colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 
-// Figma 기반 아이콘들
+// --- Tab Icons ---
+
 function HomeIcon({ color }: { color: string }) {
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
@@ -30,22 +31,49 @@ function HomeIcon({ color }: { color: string }) {
   );
 }
 
-function BookIcon({ color }: { color: string }) {
+function ImagesIcon({ color }: { color: string }) {
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
       <Path
-        d="M4 19.5C4 18.837 4.26339 18.2011 4.73223 17.7322C5.20107 17.2634 5.83696 17 6.5 17H20"
+        d="M18 3H6C4.34315 3 3 4.34315 3 6V14C3 15.6569 4.34315 17 6 17H18C19.6569 17 21 15.6569 21 14V6C21 4.34315 19.6569 3 18 3Z"
         stroke={color}
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
       <Path
-        d="M6.5 2H20V22H6.5C5.83696 22 5.20107 21.7366 4.73223 21.2678C4.26339 20.7989 4 20.163 4 19.5V4.5C4 3.83696 4.26339 3.20107 4.73223 2.73223C5.20107 2.26339 5.83696 2 6.5 2Z"
+        d="M5 21H19C20.1046 21 21 20.1046 21 19V18"
         stroke={color}
         strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
+      />
+      <Path
+        d="M3 13L7.29289 8.70711C7.68342 8.31658 8.31658 8.31658 8.70711 8.70711L12 12L14.2929 9.70711C14.6834 9.31658 15.3166 9.31658 15.7071 9.70711L21 15"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function SearchIcon({ color }: { color: string }) {
+  return (
+    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+      <Circle
+        cx="11"
+        cy="11"
+        r="7"
+        stroke={color}
+        strokeWidth={2}
+      />
+      <Path
+        d="M16.5 16.5L21 21"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
       />
     </Svg>
   );
@@ -84,7 +112,11 @@ function MoreIcon({ color }: { color: string }) {
   );
 }
 
-// 커스텀 탭바 컴포넌트
+// --- Custom Tab Bar ---
+
+// 탭 순서: index(0), timeline(1), search(2), profile(3), more(4)
+const CENTER_TAB_INDEX = 2; // search가 중앙
+
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
@@ -93,33 +125,37 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
 
-  const theme = isDark ? darkTheme : lightTheme;
-
-  // 아이콘 렌더링 함수
   const renderIcon = (routeName: string, color: string) => {
     switch (routeName) {
       case 'index':
         return <HomeIcon color={color} />;
       case 'timeline':
-        return <BookIcon color={color} />;
+        return <ImagesIcon color={color} />;
+      case 'search':
+        return <SearchIcon color={color} />;
       case 'profile':
         return <PersonIcon color={color} />;
-      case 'search':
+      case 'more':
         return <MoreIcon color={color} />;
       default:
         return <HomeIcon color={color} />;
     }
   };
 
+  // href: null 제외한 보이는 탭만 필터
+  const visibleRoutes = state.routes.filter((route) => {
+    const { options } = descriptors[route.key];
+    return (options as any).href !== null;
+  });
+
   return (
     <View style={styles.tabBarContainer}>
       <View style={[styles.tabBar, { backgroundColor: isDark ? palette.neutral[800] : palette.neutral[200] }]}>
-        {state.routes.map((route, index) => {
+        {visibleRoutes.map((route) => {
           const { options } = descriptors[route.key];
-          const isFocused = state.index === index;
-
-          // href: null인 탭은 렌더링하지 않음 (Expo Router 확장 속성)
-          if ((options as any).href === null) return null;
+          const routeIndex = state.routes.indexOf(route);
+          const isFocused = state.index === routeIndex;
+          const isCenter = route.name === 'search';
 
           const onPress = () => {
             const event = navigation.emit({
@@ -133,7 +169,6 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             }
           };
 
-          // 선택 상태에 따른 색상
           const iconColor = isFocused ? '#FFFFFF' : '#A3A3A3';
 
           return (
@@ -145,9 +180,10 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
             >
               <View style={[
                 styles.iconWrapper,
-                isFocused && styles.iconWrapperActive
+                isCenter && !isFocused && styles.iconWrapperCenter,
+                isFocused && styles.iconWrapperActive,
               ]}>
-                {renderIcon(route.name, iconColor)}
+                {renderIcon(route.name, isCenter && !isFocused ? '#FFFFFF' : iconColor)}
               </View>
             </TouchableOpacity>
           );
@@ -165,9 +201,10 @@ export default function TabLayout() {
         headerShown: false,
       }}>
       <Tabs.Screen name="index" options={{ title: '홈' }} />
-      <Tabs.Screen name="timeline" options={{ title: '일상' }} />
-      <Tabs.Screen name="profile" options={{ title: '프로필' }} />
-      <Tabs.Screen name="search" options={{ title: '더보기' }} />
+      <Tabs.Screen name="timeline" options={{ title: '일상모아보기' }} />
+      <Tabs.Screen name="search" options={{ title: 'AI 검색' }} />
+      <Tabs.Screen name="profile" options={{ title: '마이페이지' }} />
+      <Tabs.Screen name="more" options={{ title: '더보기' }} />
       <Tabs.Screen name="albums" options={{ href: null }} />
     </Tabs>
   );
@@ -186,7 +223,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     ...Platform.select({
       web: {
         boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
@@ -217,5 +254,8 @@ const styles = StyleSheet.create({
   },
   iconWrapperActive: {
     backgroundColor: '#FF6A5F', // 코랄/핑크 배경 (Figma)
+  },
+  iconWrapperCenter: {
+    backgroundColor: 'rgba(255, 106, 95, 0.35)', // 반투명 코랄 — 중앙 강조
   },
 });

@@ -152,6 +152,11 @@
     "terms": "이용약관",
     "privacy": "개인정보처리방침"
   },
+  "more": {
+    "title": "더보기",
+    "notices": "공지사항",
+    "feedback": "문의하기 / 피드백"
+  },
   "home": {
     "title": "홈",
     "recentPhotos": "최근 사진",

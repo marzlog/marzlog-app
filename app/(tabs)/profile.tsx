@@ -21,7 +21,7 @@ import { useDialog } from '@/src/components/ui/Dialog';
 
 export default function ProfileScreen() {
   const systemColorScheme = useColorScheme();
-  const { user, logout, deleteAccount } = useAuthStore();
+  const { user, deleteAccount } = useAuthStore();
   const { t, language, changeLanguage } = useTranslation();
   const { confirm } = useDialog();
   const {
@@ -117,21 +117,6 @@ export default function ProfileScreen() {
       } catch {
         Alert.alert(t('common.error'), t('account.deleteAccountWarning'));
       }
-    }
-  };
-
-  const handleLogout = async () => {
-    const confirmed = await confirm({
-      title: t('auth.logout'),
-      description: t('auth.logoutConfirm'),
-      confirmText: t('auth.logout'),
-      cancelText: t('common.cancel'),
-      variant: 'danger',
-    });
-
-    if (confirmed) {
-      logout();
-      // _layout.tsx에서 isAuthenticated 변경 감지하여 자동 리디렉션
     }
   };
 
@@ -323,15 +308,6 @@ export default function ProfileScreen() {
           {t('account.title')}
         </Text>
 
-        <SettingsItem
-          icon="log-out-outline"
-          label={t('auth.logout')}
-          isDark={isDark}
-          onPress={handleLogout}
-          rightElement={
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          }
-        />
         <TouchableOpacity
           style={[styles.settingsItem, styles.settingsItemLast]}
           onPress={handleDeleteAccount}
@@ -346,41 +322,6 @@ export default function ProfileScreen() {
           </View>
         </TouchableOpacity>
       </View>
-
-      {/* Support */}
-      <View style={[styles.settingsContainer, isDark && styles.cardDark]}>
-        <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
-          {t('support.title')}
-        </Text>
-
-        <SettingsItem
-          icon="help-circle-outline"
-          label={t('support.help')}
-          isDark={isDark}
-          onPress={() => { }}
-        />
-        <SettingsItem
-          icon="chatbubble-outline"
-          label={t('support.contact')}
-          isDark={isDark}
-          onPress={() => { }}
-        />
-        <SettingsItem
-          icon="document-text-outline"
-          label={t('support.terms')}
-          isDark={isDark}
-          onPress={() => { }}
-        />
-        <SettingsItem
-          icon="shield-outline"
-          label={t('support.privacy')}
-          isDark={isDark}
-          onPress={() => { }}
-        />
-      </View>
-
-      {/* Version */}
-      <Text style={styles.versionText}>{t('version')} 1.0.0</Text>
     </ScrollView>
   );
 }

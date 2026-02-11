@@ -152,6 +152,11 @@
     "terms": "Terms of Service",
     "privacy": "Privacy Policy"
   },
+  "more": {
+    "title": "More",
+    "notices": "Notices",
+    "feedback": "Contact / Feedback"
+  },
   "home": {
     "title": "Home",
     "recentPhotos": "Recent Photos",
