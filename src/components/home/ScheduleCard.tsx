@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, Image as RNImage, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { palette, lightTheme, darkTheme, Theme } from '@/src/theme/colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -101,9 +102,11 @@ export function ScheduleCard({
         activeOpacity={0.9}
       >
         <Image
-          source={{ uri: imageUrl }}
+          source={imageUrl}
           style={styles.compactImage}
-          resizeMode="cover"
+          contentFit="cover"
+          transition={200}
+          cachePolicy="memory-disk"
         />
         {/* Emotion Icon - 좌측 상단 */}
         {emotion && getEmotionIcon(emotion, 'color') && (
@@ -155,9 +158,11 @@ export function ScheduleCard({
         activeOpacity={0.9}
       >
         <Image
-          source={{ uri: imageUrl }}
+          source={imageUrl}
           style={styles.image}
-          resizeMode="cover"
+          contentFit="cover"
+          transition={200}
+          cachePolicy="memory-disk"
         />
 
         {/* Overlay Buttons */}

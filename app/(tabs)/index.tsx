@@ -252,6 +252,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [allItems, setAllItems] = useState<TimelineItem[]>([]);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -289,7 +290,9 @@ export default function HomeScreen() {
     return map;
   }, [allItems]);
 
-  // 전체 타임라인 로드
+  const PAGE_SIZE = 20;
+
+  // 전체 타임라인 로드 (초기 20개 + 자동 추가 로드)
   const loadAllItems = useCallback(async () => {
     console.log('[Home] loadAllItems called, accessToken:', accessToken ? 'EXISTS' : 'MISSING');
 
@@ -300,18 +303,34 @@ export default function HomeScreen() {
     }
 
     try {
-      console.log('[Home] Calling timelineApi.getTimeline with limit=50...');
-      // 그룹 단위로 조회 (showAll=false), group_dates로 날짜 필터링
-      const response = await timelineApi.getTimeline(50, 0, false);
+      console.log('[Home] Calling timelineApi.getTimeline with limit=', PAGE_SIZE);
+      const response = await timelineApi.getTimeline(PAGE_SIZE, 0, false);
       console.log('[Home] API Response - total:', response.total, 'items:', response.items.length);
       setAllItems(response.items);
-      console.log('[Home] setAllItems called with', response.items.length, 'items');
+      setHasMore(response.has_more);
+
+      // 추가 페이지가 있으면 백그라운드로 나머지 로드
+      if (response.has_more) {
+        loadRemainingItems(response.items.length, response.total);
+      }
     } catch (err) {
       console.error('[Home] Failed to load all items:', err);
     } finally {
       setLoading(false);
     }
   }, [accessToken]);
+
+  // 나머지 아이템 백그라운드 로드 (캘린더 점 표시용)
+  const loadRemainingItems = useCallback(async (loaded: number, total: number) => {
+    try {
+      const remaining = await timelineApi.getTimeline(total - loaded, loaded, false);
+      console.log('[Home] Background loaded', remaining.items.length, 'more items');
+      setAllItems(prev => [...prev, ...remaining.items]);
+      setHasMore(false);
+    } catch (err) {
+      console.error('[Home] Failed to load remaining items:', err);
+    }
+  }, []);
 
   // accessToken 변경 감지
   useEffect(() => {
@@ -348,7 +367,7 @@ export default function HomeScreen() {
       title: item.title || item.caption || t('common.noTitle'),
       location: undefined,
       time: formatTime(item.media?.taken_at || item.created_at),
-      imageUrl: item.media?.download_url || item.media?.thumbnail_url || '',
+      imageUrl: item.media?.thumbnail_url || item.media?.download_url || '',
       mediaId: item.media_id,
       groupId: item.media?.group_id || undefined,
       groupCount: item.media?.group_count || undefined,

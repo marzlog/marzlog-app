@@ -4,10 +4,10 @@ import {
   View,
   Text,
   FlatList,
-  Image,
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
@@ -67,7 +67,7 @@ export default function AlbumsScreen() {
   const renderAlbumItem = ({ item }: { item: typeof MOCK_ALBUMS[0] }) => (
     <TouchableOpacity style={styles.albumItem} activeOpacity={0.8}>
       <View style={styles.albumCover}>
-        <Image source={{ uri: item.coverUri }} style={styles.albumImage} />
+        <Image source={item.coverUri} style={styles.albumImage} contentFit="cover" cachePolicy="memory-disk" />
         <View style={styles.albumOverlay}>
           <Ionicons name="images" size={16} color="#fff" />
           <Text style={styles.photoCount}>{item.count}</Text>

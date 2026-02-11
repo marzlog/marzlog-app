@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
-  Image,
+  Image as RNImage,
   ScrollView,
   StyleSheet,
   ActivityIndicator,
@@ -20,6 +20,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -568,9 +569,11 @@ export default function MediaDetailScreen() {
           {displayImages.map((img, index) => (
             <View key={img.id || index} style={styles.carouselImageContainer}>
               <Image
-                source={{ uri: img.download_url || img.thumbnail_url }}
+                source={img.download_url || img.thumbnail_url}
                 style={styles.carouselImage}
-                resizeMode="contain"
+                contentFit="contain"
+                transition={200}
+                cachePolicy="memory-disk"
               />
             </View>
           ))}
@@ -641,7 +644,7 @@ export default function MediaDetailScreen() {
                 <Image
                   source={getEmotionIllustration(currentEmotion) || getEmotionIcon(currentEmotion, 'color')}
                   style={styles.emotionCardIllustration}
-                  resizeMode="cover"
+                  contentFit="cover"
                 />
               </View>
               {/* 우측: 아이콘 + 텍스트 (세로 중앙) */}

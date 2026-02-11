@@ -4,7 +4,6 @@ import {
   View,
   Text,
   FlatList,
-  Image,
   TouchableOpacity,
   Dimensions,
   RefreshControl,
@@ -13,6 +12,7 @@ import {
   Platform,
   StatusBar,
 } from 'react-native';
+import { Image } from 'expo-image';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -530,9 +530,11 @@ export default function TimelineScreen() {
       onPress={() => handlePhotoPress(photo.media_id)}
     >
       <Image
-        source={{ uri: getImageUrl(photo) }}
+        source={getImageUrl(photo)}
         style={styles.listImage}
-        resizeMode="cover"
+        contentFit="cover"
+        transition={200}
+        cachePolicy="memory-disk"
       />
       <View style={styles.listContent}>
         <View style={styles.listHeader}>

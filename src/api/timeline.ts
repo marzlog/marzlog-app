@@ -56,7 +56,7 @@ export interface TimelineItem {
 export interface TimelineResponse {
   total: number;
   items: TimelineItem[];
-  // has_more 없음!
+  has_more: boolean;
 }
 
 export interface TimelineStats {
@@ -90,7 +90,7 @@ export interface GroupImagesResponse {
 }
 
 export const timelineApi = {
-  async getTimeline(limit = 50, offset = 0, showAll = false): Promise<TimelineResponse> {
+  async getTimeline(limit = 20, offset = 0, showAll = false): Promise<TimelineResponse> {
     const response = await apiClient.get<TimelineResponse>('/timeline', {
       params: { limit, offset, show_all: showAll },
     });

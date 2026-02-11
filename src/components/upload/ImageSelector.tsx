@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  Image,
   Image as RNImage,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme';
 import type { UploadItem } from '@/src/hooks/useImageUpload';
@@ -74,9 +74,10 @@ export function ImageSelector({
         {primaryImage ? (
           <View style={[styles.primaryImageContainer, { aspectRatio: imageAspectRatio }]}>
             <Image
-              source={{ uri: primaryImage.uri }}
+              source={primaryImage.uri}
               style={styles.primaryImage}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
             />
             {onEditImage && (
               <TouchableOpacity
@@ -110,9 +111,10 @@ export function ImageSelector({
             return (
               <View key={image.id} style={styles.gridItem}>
                 <Image
-                  source={{ uri: image.uri }}
+                  source={image.uri}
                   style={styles.gridImage}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
                 />
                 <TouchableOpacity
                   style={styles.removeButton}
