@@ -9,6 +9,7 @@
     "error": "Error",
     "success": "Success",
     "comingSoon": "Coming Soon",
+    "comingSoonDesc": "This feature is coming soon.",
     "retry": "Retry",
     "noTitle": "No Title",
     "back": "Back",
@@ -108,7 +109,9 @@
     "title": "My Page",
     "account": "Account",
     "googleAccount": "Google Account",
-    "appleAccount": "Apple Account"
+    "appleAccount": "Apple Account",
+    "editProfile": "Edit Profile",
+    "notifications": "Notifications"
   },
   "stats": {
     "title": "Statistics",
@@ -128,7 +131,16 @@
     "title": "Account",
     "deleteAccount": "Delete Account",
     "deleteAccountConfirm": "Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.",
-    "deleteAccountWarning": "Deleted data cannot be recovered"
+    "deleteAccountWarning": "Deleted data cannot be recovered",
+    "withdraw": "Delete Account",
+    "withdrawDesc": "All data (photos, AI analysis, account info) will be permanently deleted and cannot be recovered.",
+    "withdrawReason": "Please select a reason",
+    "withdrawConfirm": "Are you sure? All data will be deleted.",
+    "withdrawError": "An error occurred during account deletion.",
+    "withdrawOtherPlaceholder": "Please enter your reason",
+    "withdrawCompleteTitle": "Account Deleted",
+    "withdrawCompleteDesc": "Thank you for using Marzlog.\nWe hope to see you again.",
+    "startService": "Get Started"
   },
   "settings": {
     "title": "Settings",
@@ -155,7 +167,8 @@
   "more": {
     "title": "More",
     "notices": "Notices",
-    "feedback": "Contact / Feedback"
+    "feedback": "Contact / Feedback",
+    "appInfo": "App Info"
   },
   "home": {
     "title": "Home",

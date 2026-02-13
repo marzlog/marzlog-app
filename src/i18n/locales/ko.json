@@ -9,6 +9,7 @@
     "error": "오류",
     "success": "성공",
     "comingSoon": "준비 중",
+    "comingSoonDesc": "이 기능은 준비 중입니다.",
     "retry": "다시 시도",
     "noTitle": "제목 없음",
     "back": "뒤로",
@@ -108,7 +109,9 @@
     "title": "마이페이지",
     "account": "계정",
     "googleAccount": "Google 계정",
-    "appleAccount": "Apple 계정"
+    "appleAccount": "Apple 계정",
+    "editProfile": "프로필 수정",
+    "notifications": "알림"
   },
   "stats": {
     "title": "통계",
@@ -128,7 +131,16 @@
     "title": "계정",
     "deleteAccount": "계정 삭제",
     "deleteAccountConfirm": "정말로 계정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며, 모든 데이터가 영구적으로 삭제됩니다.",
-    "deleteAccountWarning": "삭제된 데이터는 복구할 수 없습니다"
+    "deleteAccountWarning": "삭제된 데이터는 복구할 수 없습니다",
+    "withdraw": "회원탈퇴",
+    "withdrawDesc": "탈퇴 시 모든 데이터(사진, AI 분석 결과, 계정 정보)가 영구적으로 삭제되며 복구할 수 없습니다.",
+    "withdrawReason": "탈퇴 사유를 선택해 주세요",
+    "withdrawConfirm": "정말로 탈퇴하시겠습니까? 모든 데이터가 삭제됩니다.",
+    "withdrawError": "탈퇴 처리 중 오류가 발생했습니다.",
+    "withdrawOtherPlaceholder": "탈퇴 사유를 입력해 주세요",
+    "withdrawCompleteTitle": "탈퇴가 완료되었습니다",
+    "withdrawCompleteDesc": "그동안 Marzlog를 이용해 주셔서 감사합니다.\n언제든 다시 돌아와 주세요.",
+    "startService": "서비스 시작하기"
   },
   "settings": {
     "title": "설정",
@@ -155,7 +167,8 @@
   "more": {
     "title": "더보기",
     "notices": "공지사항",
-    "feedback": "문의하기 / 피드백"
+    "feedback": "문의하기 / 피드백",
+    "appInfo": "앱 정보"
   },
   "home": {
     "title": "홈",

@@ -2,109 +2,135 @@ import React from 'react';
 import {
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
-import { useSettingsStore } from '@/src/store/settingsStore';
+import { useSettingsStore, type ThemeMode, type AIMode } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
-import { useAuthStore } from '@/src/store/authStore';
-import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
 
 export default function MoreScreen() {
   const systemColorScheme = useColorScheme();
-  const { themeMode } = useSettingsStore();
-  const { t } = useTranslation();
-  const { logout } = useAuthStore();
-  const { confirm } = useDialog();
+  const { t, language, changeLanguage } = useTranslation();
+  const router = useRouter();
   const insets = useSafeAreaInsets();
+  const {
+    themeMode,
+    aiMode,
+    notificationsEnabled,
+    setThemeMode,
+    setAIMode,
+    setNotificationsEnabled,
+  } = useSettingsStore();
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
 
-  const handleLogout = async () => {
-    const confirmed = await confirm({
-      title: t('auth.logout'),
-      description: t('auth.logoutConfirm'),
-      confirmText: t('auth.logout'),
-      cancelText: t('common.cancel'),
-      variant: 'danger',
-    });
-    if (confirmed) {
-      logout();
-    }
+  const handleAppInfo = () => {
+    router.push('/app-info');
   };
-
-  const menuItems: {
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-    onPress?: () => void;
-  }[] = [
-    { icon: 'megaphone-outline', label: t('more.notices') },
-    { icon: 'document-text-outline', label: t('support.terms') },
-    { icon: 'shield-outline', label: t('support.privacy') },
-    { icon: 'chatbubble-outline', label: t('more.feedback') },
-  ];
 
   return (
     <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Logo size={32} showText={false} color={isDark ? '#F9FAFB' : '#1F2937'} />
-          <Text style={[styles.title, isDark && styles.textLight]}>{t('more.title')}</Text>
+          <Text style={[styles.headerTitle, isDark && styles.textLight]}>{t('more.title')}</Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Menu Items */}
+        {/* Settings */}
         <View style={[styles.card, isDark && styles.cardDark]}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.menuItem,
-                index === menuItems.length - 1 && styles.menuItemLast,
-              ]}
-              onPress={item.onPress}
-              activeOpacity={0.7}
-            >
-              <View style={styles.menuItemLeft}>
-                <Ionicons name={item.icon} size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                <Text style={[styles.menuLabel, isDark && styles.textLight]}>{item.label}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Version */}
-        <View style={[styles.card, isDark && styles.cardDark]}>
-          <View style={[styles.menuItem, styles.menuItemLast]}>
+          {/* 푸시 알림 설정 */}
+          <View style={styles.menuItem}>
             <View style={styles.menuItemLeft}>
-              <Ionicons name="information-circle-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('version')}</Text>
+              <Ionicons name="notifications-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('settings.notifications')}</Text>
             </View>
-            <Text style={styles.versionValue}>1.0.0</Text>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={setNotificationsEnabled}
+              trackColor={{ false: '#D1D5DB', true: '#6366F1' }}
+              thumbColor="#FFFFFF"
+            />
           </View>
-        </View>
 
-        {/* Logout */}
-        <View style={[styles.card, isDark && styles.cardDark]}>
+          {/* 언어 선택 */}
           <TouchableOpacity
-            style={[styles.menuItem, styles.menuItemLast]}
-            onPress={handleLogout}
+            style={styles.menuItem}
+            onPress={() => changeLanguage(language === 'ko' ? 'en' : 'ko')}
             activeOpacity={0.7}
           >
             <View style={styles.menuItemLeft}>
-              <Ionicons name="log-out-outline" size={22} color="#EF4444" />
-              <Text style={styles.dangerText}>{t('auth.logout')}</Text>
+              <Ionicons name="language-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('settings.language')}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#EF4444" />
+            <Text style={styles.settingValue}>
+              {language === 'ko' ? t('settings.languageKo') : t('settings.languageEn')}
+            </Text>
+          </TouchableOpacity>
+
+          {/* 다크 모드 */}
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => {
+              const modes: ThemeMode[] = ['system', 'light', 'dark'];
+              const currentIndex = modes.indexOf(themeMode);
+              const nextMode = modes[(currentIndex + 1) % modes.length];
+              setThemeMode(nextMode);
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="moon-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('settings.darkMode')}</Text>
+            </View>
+            <Text style={styles.settingValue}>
+              {themeMode === 'system' ? t('settings.darkModeSystem') : themeMode === 'dark' ? t('settings.darkModeDark') : t('settings.darkModeLight')}
+            </Text>
+          </TouchableOpacity>
+
+          {/* AI 분석 모드 */}
+          <TouchableOpacity
+            style={[styles.menuItem, styles.menuItemLast]}
+            onPress={() => {
+              const modes: AIMode[] = ['fast', 'precise'];
+              const currentIndex = modes.indexOf(aiMode);
+              const nextMode = modes[(currentIndex + 1) % modes.length];
+              setAIMode(nextMode);
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="sparkles-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('settings.aiMode')}</Text>
+            </View>
+            <Text style={styles.settingValue}>
+              {aiMode === 'fast' ? t('settings.aiModeFast') : t('settings.aiModePrecise')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* App Info */}
+        <View style={[styles.card, isDark && styles.cardDark]}>
+          <TouchableOpacity
+            style={[styles.menuItem, styles.menuItemLast]}
+            onPress={handleAppInfo}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="information-circle-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('more.appInfo')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -131,7 +157,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  title: {
+  headerTitle: {
     fontSize: 18,
     fontWeight: '300',
     color: '#1F2937',
@@ -156,10 +182,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    height: 56,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E5E5E5',
   },
   menuItemLast: {
     borderBottomWidth: 0,
@@ -173,13 +199,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#374151',
   },
-  versionValue: {
+  settingValue: {
     fontSize: 14,
     color: '#9CA3AF',
-  },
-  dangerText: {
-    fontSize: 16,
-    color: '#EF4444',
-    fontWeight: '500',
   },
 });

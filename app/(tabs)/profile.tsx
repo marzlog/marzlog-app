@@ -1,57 +1,42 @@
 import { useColorScheme } from '@/components/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@src/store/authStore';
-import { useSettingsStore, type ThemeMode, type AIMode } from '@src/store/settingsStore';
+import { useSettingsStore } from '@src/store/settingsStore';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { authApi } from '@src/api/auth';
 import type { UserStats } from '@src/types/auth';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
-  Alert,
-  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const systemColorScheme = useColorScheme();
-  const { user, deleteAccount } = useAuthStore();
-  const { t, language, changeLanguage } = useTranslation();
+  const router = useRouter();
+  const { user, logout } = useAuthStore();
+  const { t } = useTranslation();
   const { confirm } = useDialog();
-  const {
-    themeMode,
-    autoUploadEnabled,
-    aiMode,
-    notificationsEnabled,
-    setThemeMode,
-    setAutoUploadEnabled,
-    setAIMode,
-    setNotificationsEnabled,
-    loadSettings,
-  } = useSettingsStore();
+  const { themeMode } = useSettingsStore();
 
-  // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
+
   const [stats, setStats] = useState<UserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
-  const [cacheSize, setCacheSize] = useState<string>('0 B');
-  const [clearingCache, setClearingCache] = useState(false);
 
   useEffect(() => {
     loadStats();
-    loadSettings();
-    loadCacheSize();
   }, []);
 
   const loadStats = async () => {
@@ -66,61 +51,25 @@ export default function ProfileScreen() {
     }
   };
 
-  const formatBytes = (bytes: number): string => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const loadCacheSize = async () => {
-    // Cache size calculation - placeholder for now
-    // In a real implementation, calculate actual cache size
-    setCacheSize('-- MB');
-  };
-
-  const handleClearCache = async () => {
+  const handleLogout = async () => {
     const confirmed = await confirm({
-      title: t('storage.clearCache'),
-      description: t('storage.clearCacheConfirm'),
-      confirmText: t('common.confirm'),
-      cancelText: t('common.cancel'),
-      variant: 'confirm',
-    });
-
-    if (confirmed) {
-      setClearingCache(true);
-      try {
-        // Clear image cache, AsyncStorage cache, etc.
-        // This is a placeholder - implement actual cache clearing logic
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setCacheSize('0 B');
-        Alert.alert(t('common.success'), t('storage.cacheCleared'));
-      } catch (error) {
-        console.error('Failed to clear cache:', error);
-      } finally {
-        setClearingCache(false);
-      }
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    const confirmed = await confirm({
-      title: t('account.deleteAccount'),
-      description: t('account.deleteAccountConfirm'),
-      confirmText: t('common.delete'),
+      title: t('auth.logout'),
+      description: t('auth.logoutConfirm'),
+      confirmText: t('auth.logout'),
       cancelText: t('common.cancel'),
       variant: 'danger',
     });
-
     if (confirmed) {
-      try {
-        await deleteAccount();
-      } catch {
-        Alert.alert(t('common.error'), t('account.deleteAccountWarning'));
-      }
+      logout();
     }
+  };
+
+  const handleEditProfile = () => {
+    // TODO: 프로필 수정 화면
+  };
+
+  const handleNotifications = () => {
+    router.push('/notifications');
   };
 
   return (
@@ -134,217 +83,90 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView
-        style={[styles.container, isDark && styles.containerDark]}
+        style={styles.scrollView}
         contentContainerStyle={styles.content}
       >
-      {/* Profile Header */}
-      <View style={[styles.profileHeader, isDark && styles.cardDark]}>
-        <View style={styles.avatarContainer}>
+        {/* Profile Card */}
+        <View style={[styles.profileCard, isDark && styles.cardDark]}>
           <View style={[styles.avatar, isDark && styles.avatarDark]}>
             <Text style={styles.avatarText}>
               {user?.email?.charAt(0).toUpperCase() || 'U'}
             </Text>
           </View>
-        </View>
-        <Text style={[styles.userName, isDark && styles.textLight]}>
-          {user?.email?.split('@')[0] || 'User'}
-        </Text>
-        <Text style={styles.userEmail}>
-          {user?.email || 'test@marzlog.com'}
-        </Text>
-        <View style={styles.providerBadge}>
-          <Ionicons
-            name={user?.oauth_provider === 'apple' ? 'logo-apple' : 'logo-google'}
-            size={14}
-            color="#6B7280"
-          />
-          <Text style={styles.providerText}>
-            {user?.oauth_provider === 'apple' ? t('profile.appleAccount') : t('profile.googleAccount')}
+          <Text style={[styles.userName, isDark && styles.textLight]}>
+            {user?.email?.split('@')[0] || 'User'}
           </Text>
+          <Text style={styles.userEmail}>
+            {user?.email || 'test@marzlog.com'}
+          </Text>
+          <View style={[styles.providerBadge, isDark && { backgroundColor: '#374151' }]}>
+            <Ionicons
+              name={user?.oauth_provider === 'apple' ? 'logo-apple' : 'logo-google'}
+              size={14}
+              color={isDark ? '#9CA3AF' : '#6B7280'}
+            />
+            <Text style={[styles.providerText, isDark && { color: '#9CA3AF' }]}>
+              {user?.oauth_provider === 'apple' ? t('profile.appleAccount') : t('profile.googleAccount')}
+            </Text>
+          </View>
         </View>
-      </View>
 
-      {/* Statistics */}
-      <View style={[styles.statsContainer, isDark && styles.cardDark]}>
-        <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
-          {t('stats.title')}
-        </Text>
-        {statsLoading ? (
-          <View style={styles.statsLoading}>
-            <ActivityIndicator size="small" color="#6366F1" />
-          </View>
-        ) : (
-          <View style={styles.statsGrid}>
-            <StatItem
-              icon="images-outline"
-              label={t('stats.photos')}
-              value={stats?.total_photos?.toString() || '0'}
-              isDark={isDark}
-            />
-            <StatItem
-              icon="albums-outline"
-              label={t('stats.albums')}
-              value={stats?.total_albums?.toString() || '0'}
-              isDark={isDark}
-            />
-            <StatItem
-              icon="layers-outline"
-              label={t('stats.groups')}
-              value={stats?.total_groups?.toString() || '0'}
-              isDark={isDark}
-            />
-            <StatItem
-              icon="cloud-outline"
-              label={t('stats.storage')}
-              value={stats?.storage_used_formatted || '0 B'}
-              isDark={isDark}
-            />
-          </View>
-        )}
-      </View>
-
-      {/* Settings */}
-      <View style={[styles.settingsContainer, isDark && styles.cardDark]}>
-        <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
-          {t('settings.title')}
-        </Text>
-
-        <SettingsItem
-          icon="notifications-outline"
-          label={t('settings.notifications')}
-          isDark={isDark}
-          onPress={() => setNotificationsEnabled(!notificationsEnabled)}
-          rightElement={
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
-              trackColor={{ false: '#D1D5DB', true: '#6366F1' }}
-              thumbColor="#FFFFFF"
-            />
-          }
-        />
-        <SettingsItem
-          icon="cloud-upload-outline"
-          label={t('settings.autoUpload')}
-          isDark={isDark}
-          onPress={() => setAutoUploadEnabled(!autoUploadEnabled)}
-          rightElement={
-            <Switch
-              value={autoUploadEnabled}
-              onValueChange={setAutoUploadEnabled}
-              trackColor={{ false: '#D1D5DB', true: '#6366F1' }}
-              thumbColor="#FFFFFF"
-            />
-          }
-        />
-        <SettingsItem
-          icon="sparkles-outline"
-          label={t('settings.aiMode')}
-          isDark={isDark}
-          onPress={() => {
-            const modes: AIMode[] = ['fast', 'precise'];
-            const currentIndex = modes.indexOf(aiMode);
-            const nextMode = modes[(currentIndex + 1) % modes.length];
-            setAIMode(nextMode);
-          }}
-          rightElement={
-            <Text style={styles.settingValue}>
-              {aiMode === 'fast' ? t('settings.aiModeFast') : t('settings.aiModePrecise')}
-            </Text>
-          }
-        />
-        <SettingsItem
-          icon="moon-outline"
-          label={t('settings.darkMode')}
-          isDark={isDark}
-          onPress={() => {
-            const modes: ThemeMode[] = ['system', 'light', 'dark'];
-            const currentIndex = modes.indexOf(themeMode);
-            const nextMode = modes[(currentIndex + 1) % modes.length];
-            setThemeMode(nextMode);
-          }}
-          rightElement={
-            <Text style={styles.settingValue}>
-              {themeMode === 'system' ? t('settings.darkModeSystem') : themeMode === 'dark' ? t('settings.darkModeDark') : t('settings.darkModeLight')}
-            </Text>
-          }
-        />
-        <SettingsItem
-          icon="language-outline"
-          label={t('settings.language')}
-          isDark={isDark}
-          onPress={() => {
-            changeLanguage(language === 'ko' ? 'en' : 'ko');
-          }}
-          rightElement={
-            <Text style={styles.settingValue}>
-              {language === 'ko' ? t('settings.languageKo') : t('settings.languageEn')}
-            </Text>
-          }
-        />
-      </View>
-
-      {/* Storage */}
-      <View style={[styles.settingsContainer, isDark && styles.cardDark]}>
-        <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
-          {t('storage.title')}
-        </Text>
-
-        <SettingsItem
-          icon="folder-outline"
-          label={t('storage.cacheSize')}
-          isDark={isDark}
-          onPress={() => {}}
-          rightElement={
-            <Text style={styles.settingValue}>{cacheSize}</Text>
-          }
-        />
-        <SettingsItem
-          icon="trash-outline"
-          label={t('storage.clearCache')}
-          isDark={isDark}
-          onPress={handleClearCache}
-          rightElement={
-            clearingCache ? (
+        {/* Statistics */}
+        <View style={[styles.card, isDark && styles.cardDark]}>
+          <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
+            {t('stats.title')}
+          </Text>
+          {statsLoading ? (
+            <View style={styles.statsLoading}>
               <ActivityIndicator size="small" color="#6366F1" />
-            ) : (
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            )
-          }
-        />
-      </View>
+            </View>
+          ) : (
+            <View style={styles.statsGrid}>
+              <StatItem icon="images-outline" label={t('stats.photos')} value={stats?.total_photos?.toString() || '0'} isDark={isDark} />
+              <StatItem icon="albums-outline" label={t('stats.albums')} value={stats?.total_albums?.toString() || '0'} isDark={isDark} />
+              <StatItem icon="layers-outline" label={t('stats.groups')} value={stats?.total_groups?.toString() || '0'} isDark={isDark} />
+              <StatItem icon="cloud-outline" label={t('stats.storage')} value={stats?.storage_used_formatted || '0 B'} isDark={isDark} />
+            </View>
+          )}
+        </View>
 
-      {/* Account */}
-      <View style={[styles.settingsContainer, isDark && styles.cardDark]}>
-        <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
-          {t('account.title')}
-        </Text>
+        {/* Menu */}
+        <View style={[styles.card, isDark && styles.cardDark]}>
+          <MenuItem
+            icon="person-outline"
+            label={t('profile.editProfile')}
+            isDark={isDark}
+            onPress={handleEditProfile}
+          />
+          <MenuItem
+            icon="notifications-outline"
+            label={t('profile.notifications')}
+            isDark={isDark}
+            onPress={handleNotifications}
+            isLast
+          />
+        </View>
 
-        <TouchableOpacity
-          style={[styles.settingsItem, styles.settingsItemLast]}
-          onPress={handleDeleteAccount}
-          activeOpacity={0.7}
-        >
-          <View style={styles.settingsItemLeft}>
-            <Ionicons name="trash-outline" size={22} color="#EF4444" />
-            <Text style={styles.dangerText}>{t('account.deleteAccount')}</Text>
-          </View>
-          <View style={styles.settingsItemRight}>
-            <Ionicons name="chevron-forward" size={20} color="#EF4444" />
-          </View>
-        </TouchableOpacity>
-      </View>
+        {/* Logout */}
+        <View style={[styles.card, isDark && styles.cardDark]}>
+          <TouchableOpacity
+            style={[styles.menuItem, styles.menuItemLast]}
+            onPress={handleLogout}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="log-out-outline" size={22} color="#FF4444" />
+              <Text style={styles.dangerText}>{t('auth.logout')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#FF4444" />
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
 }
 
-function StatItem({
-  icon,
-  label,
-  value,
-  isDark
-}: {
+function StatItem({ icon, label, value, isDark }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
@@ -359,33 +181,24 @@ function StatItem({
   );
 }
 
-function SettingsItem({
-  icon,
-  label,
-  isDark,
-  onPress,
-  rightElement,
-}: {
+function MenuItem({ icon, label, isDark, onPress, isLast }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   isDark: boolean;
   onPress: () => void;
-  rightElement?: React.ReactNode;
+  isLast?: boolean;
 }) {
   return (
     <TouchableOpacity
-      style={styles.settingsItem}
+      style={[styles.menuItem, isLast && styles.menuItemLast]}
       onPress={onPress}
       activeOpacity={0.7}
-      delayPressIn={100}
     >
-      <View style={styles.settingsItemLeft}>
+      <View style={styles.menuItemLeft}>
         <Ionicons name={icon} size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-        <Text style={[styles.settingsLabel, isDark && styles.textLight]}>{label}</Text>
+        <Text style={[styles.menuLabel, isDark && styles.textLight]}>{label}</Text>
       </View>
-      <View style={styles.settingsItemRight}>
-        {rightElement || <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />}
-      </View>
+      <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
     </TouchableOpacity>
   );
 }
@@ -394,6 +207,9 @@ const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  containerDark: {
+    backgroundColor: '#111827',
   },
   header: {
     height: 64,
@@ -411,17 +227,18 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     color: '#1F2937',
   },
-  container: {
-    flex: 1,
+  textLight: {
+    color: '#F9FAFB',
   },
-  containerDark: {
-    backgroundColor: '#111827',
+  scrollView: {
+    flex: 1,
   },
   content: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
-  profileHeader: {
+  // Profile Card
+  profileCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 24,
@@ -431,9 +248,6 @@ const styles = StyleSheet.create({
   cardDark: {
     backgroundColor: '#1F2937',
   },
-  avatarContainer: {
-    marginBottom: 16,
-  },
   avatar: {
     width: 80,
     height: 80,
@@ -441,6 +255,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#6366F1',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 16,
   },
   avatarDark: {
     backgroundColor: '#4F46E5',
@@ -460,9 +275,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 4,
   },
-  textLight: {
-    color: '#F9FAFB',
-  },
   providerBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -477,26 +289,29 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
   },
-  statsContainer: {
+  // Card
+  card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 20,
     marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 16,
+    padding: 20,
+    paddingBottom: 8,
   },
+  // Stats
   statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    padding: 20,
+    paddingTop: 8,
   },
   statsLoading: {
     paddingVertical: 24,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   statItem: {
     alignItems: 'center',
@@ -512,50 +327,31 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     marginTop: 4,
   },
-  settingsContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-  },
-  settingsItem: {
+  // Menu
+  menuItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
+    height: 56,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#E5E5E5',
   },
-  settingsItemLast: {
+  menuItemLast: {
     borderBottomWidth: 0,
   },
-  settingsItemLeft: {
+  menuItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  settingsLabel: {
+  menuLabel: {
     fontSize: 16,
     color: '#374151',
   },
-  settingsItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  settingValue: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    marginRight: 4,
-  },
   dangerText: {
     fontSize: 16,
-    color: '#EF4444',
+    color: '#FF4444',
     fontWeight: '500',
-  },
-  versionText: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginTop: 24,
   },
 });
