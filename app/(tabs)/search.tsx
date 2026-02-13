@@ -8,6 +8,7 @@ import { colors } from '@/src/theme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { ScheduleCard } from '@/src/components/home';
+import { Logo } from '@/src/components/common/Logo';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ActivityIndicator,
@@ -231,6 +232,14 @@ export default function SearchScreen() {
 
   return (
     <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Logo size={32} showText={false} color={isDark ? '#F9FAFB' : '#1F2937'} />
+          <Text style={[styles.headerTitle, isDark && styles.textLight]}>{t('search.title')}</Text>
+        </View>
+      </View>
+
       {/* Search Input */}
       <View style={styles.searchContainer}>
         <View style={[styles.searchInputWrapper, isDark && styles.inputDark]}>
@@ -417,6 +426,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  header: {
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '300',
+    color: '#1F2937',
   },
   containerDark: {
     backgroundColor: '#111827',

@@ -200,11 +200,11 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
       }}>
-      <Tabs.Screen name="index" options={{ title: '홈' }} />
-      <Tabs.Screen name="timeline" options={{ title: '일상모아보기' }} />
-      <Tabs.Screen name="search" options={{ title: 'AI 검색' }} />
-      <Tabs.Screen name="profile" options={{ title: '마이페이지' }} />
-      <Tabs.Screen name="more" options={{ title: '더보기' }} />
+      <Tabs.Screen name="index" options={{ title: 'Marzlog' }} />
+      <Tabs.Screen name="timeline" options={{ title: 'Moments' }} />
+      <Tabs.Screen name="search" options={{ title: 'AI Search' }} />
+      <Tabs.Screen name="profile" options={{ title: 'My Page' }} />
+      <Tabs.Screen name="more" options={{ title: 'More' }} />
       <Tabs.Screen name="albums" options={{ href: null }} />
     </Tabs>
   );

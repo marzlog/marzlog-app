@@ -579,8 +579,8 @@ export default function TimelineScreen() {
       {/* 헤더 */}
       <View style={[styles.header, { backgroundColor: theme.background.primary }]}>
         <View style={styles.headerLeft}>
-          <Logo size={28} showText={false} color={theme.text.primary} />
-          <Text style={[styles.headerTitle, { color: theme.text.primary, fontWeight: '300' }]}>{t('timeline.title')}</Text>
+          <Logo size={32} showText={false} color={theme.text.primary} />
+          <Text style={[styles.headerTitle, { color: theme.text.primary }]}>{t('timeline.title')}</Text>
         </View>
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.iconButton} onPress={handleSearchPress}>
@@ -801,7 +801,7 @@ const styles = StyleSheet.create({
   },
   // Header
   header: {
-    height: 56,
+    height: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -814,7 +814,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '300',
   },
   headerRight: {
     flexDirection: 'row',

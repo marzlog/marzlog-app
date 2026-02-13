@@ -13,6 +13,7 @@ import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useAuthStore } from '@/src/store/authStore';
 import { useDialog } from '@/src/components/ui/Dialog';
+import { Logo } from '@/src/components/common/Logo';
 
 export default function MoreScreen() {
   const systemColorScheme = useColorScheme();
@@ -53,7 +54,10 @@ export default function MoreScreen() {
   return (
     <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Text style={[styles.title, isDark && styles.textLight]}>{t('more.title')}</Text>
+        <View style={styles.headerLeft}>
+          <Logo size={32} showText={false} color={isDark ? '#F9FAFB' : '#1F2937'} />
+          <Text style={[styles.title, isDark && styles.textLight]}>{t('more.title')}</Text>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -117,12 +121,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#111827',
   },
   header: {
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '300',
     color: '#1F2937',
   },
   textLight: {

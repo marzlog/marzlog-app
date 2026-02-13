@@ -17,9 +17,12 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDialog } from '@/src/components/ui/Dialog';
+import { Logo } from '@/src/components/common/Logo';
 
 export default function ProfileScreen() {
+  const insets = useSafeAreaInsets();
   const systemColorScheme = useColorScheme();
   const { user, deleteAccount } = useAuthStore();
   const { t, language, changeLanguage } = useTranslation();
@@ -121,10 +124,19 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView
-      style={[styles.container, isDark && styles.containerDark]}
-      contentContainerStyle={styles.content}
-    >
+    <View style={[styles.outerContainer, isDark && styles.containerDark, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Logo size={32} showText={false} color={isDark ? '#F9FAFB' : '#1F2937'} />
+          <Text style={[styles.headerTitle, isDark && styles.textLight]}>{t('profile.title')}</Text>
+        </View>
+      </View>
+
+      <ScrollView
+        style={[styles.container, isDark && styles.containerDark]}
+        contentContainerStyle={styles.content}
+      >
       {/* Profile Header */}
       <View style={[styles.profileHeader, isDark && styles.cardDark]}>
         <View style={styles.avatarContainer}>
@@ -322,7 +334,8 @@ export default function ProfileScreen() {
           </View>
         </TouchableOpacity>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -378,9 +391,28 @@ function SettingsItem({
 }
 
 const styles = StyleSheet.create({
-  container: {
+  outerContainer: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+  },
+  header: {
+    height: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '300',
+    color: '#1F2937',
+  },
+  container: {
+    flex: 1,
   },
   containerDark: {
     backgroundColor: '#111827',

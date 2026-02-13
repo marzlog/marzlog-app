@@ -105,7 +105,7 @@
     "aiCaptioningDesc": "Auto-generated descriptions"
   },
   "profile": {
-    "title": "Profile",
+    "title": "My Page",
     "account": "Account",
     "googleAccount": "Google Account",
     "appleAccount": "Apple Account"
@@ -180,7 +180,7 @@
     "listView": "List"
   },
   "search": {
-    "title": "Search",
+    "title": "AI Search",
     "placeholder": "Search photos (e.g., beach sunset)",
     "searching": "Searching...",
     "noResults": "No results found",

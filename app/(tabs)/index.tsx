@@ -541,12 +541,12 @@ export default function HomeScreen() {
 
       {/* Header (Figma 기반) */}
       <View style={[styles.header, { backgroundColor: theme.background.primary }]}>
-        <View style={styles.topAppBar}>
-          <View style={styles.logoContainer}>
-            <Logo size={32} showText={true} color={theme.text.primary} />
-          </View>
+        <View style={styles.headerLeft}>
+          <Logo size={32} showText={false} color={theme.text.primary} />
+          <Text style={[styles.headerTitle, { color: theme.text.primary }]}>Marzlog</Text>
+        </View>
 
-          <View style={styles.headerActions}>
+        <View style={styles.headerRight}>
             <TouchableOpacity style={styles.iconButton} onPress={handleSearchPress}>
               <SearchIcon color={theme.icon.primary} />
             </TouchableOpacity>
@@ -565,7 +565,6 @@ export default function HomeScreen() {
               <BellIcon color={theme.icon.primary} />
               {unreadCount > 0 && <View style={styles.bellBadge} />}
             </TouchableOpacity>
-          </View>
         </View>
       </View>
 
@@ -714,18 +713,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {},
-  topAppBar: {
+  header: {
     height: 64,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
   },
-  logoContainer: {
-    paddingLeft: 12,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  headerActions: {
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '300',
+  },
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,

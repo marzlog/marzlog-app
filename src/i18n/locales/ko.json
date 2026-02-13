@@ -105,7 +105,7 @@
     "aiCaptioningDesc": "자동 설명 생성"
   },
   "profile": {
-    "title": "프로필",
+    "title": "마이페이지",
     "account": "계정",
     "googleAccount": "Google 계정",
     "appleAccount": "Apple 계정"
@@ -180,7 +180,7 @@
     "listView": "리스트"
   },
   "search": {
-    "title": "검색",
+    "title": "AI검색",
     "placeholder": "Search in English (e.g., beach)",
     "searching": "검색 중...",
     "noResults": "검색 결과가 없습니다",
