@@ -219,12 +219,21 @@
   "notification": {
     "title": "알림",
     "comingSoon": "알림 기능은 곧 추가될 예정입니다.",
-    "empty": "현재 알림이 없습니다.",
+    "empty": "알림이 없습니다.",
     "deleteConfirmTitle": "삭제 하시겠습니까?",
     "deleteConfirmDesc": "선택한 알림이 삭제됩니다.",
     "deleteSelected": "{{count}}개 삭제",
     "am": "오전",
-    "pm": "오후"
+    "pm": "오후",
+    "tabAll": "전체",
+    "tabAnnouncements": "공지사항",
+    "tabPersonal": "개인 알림"
+  },
+  "announcement": {
+    "system": "시스템 공지",
+    "event": "이벤트",
+    "update": "업데이트",
+    "new": "NEW"
   },
   "date": {
     "today": "오늘",

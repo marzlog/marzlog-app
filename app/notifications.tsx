@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,20 @@ import { useSettingsStore } from '@src/store/settingsStore';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { useDialog } from '@/src/components/ui/Dialog';
 import notificationsApi, { Notification } from '@src/api/notifications';
+import announcementsApi, { Announcement } from '@src/api/announcements';
+
+type TabType = 'all' | 'announcements' | 'personal';
+
+// Unified item for FlatList
+interface UnifiedItem {
+  id: string;
+  source: 'announcement' | 'notification';
+  title: string;
+  body: string | null;
+  type: string;
+  is_read: boolean;
+  created_at: string;
+}
 
 export default function NotificationsScreen() {
   const systemColorScheme = useColorScheme();
@@ -26,10 +40,12 @@ export default function NotificationsScreen() {
   const { confirm } = useDialog();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [activeTab, setActiveTab] = useState<TabType>('all');
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
@@ -40,11 +56,17 @@ export default function NotificationsScreen() {
   const textColor = isDark ? '#F9FAFB' : '#2D3A35';
   const subtextColor = isDark ? '#9CA3AF' : '#6B7280';
   const borderColor = isDark ? '#374151' : '#E8E8E3';
+  const tabActiveBg = isDark ? '#374151' : '#2D3A35';
+  const tabInactiveBg = isDark ? '#1F2937' : '#FFFFFF';
 
-  const fetchNotifications = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const data = await notificationsApi.getNotifications();
-      setNotifications(data.notifications);
+      const [notifData, annData] = await Promise.all([
+        notificationsApi.getNotifications().catch(() => ({ notifications: [], total: 0 })),
+        announcementsApi.getAnnouncements().catch(() => ({ announcements: [], total: 0, unread_count: 0 })),
+      ]);
+      setNotifications(notifData.notifications);
+      setAnnouncements(annData.announcements);
     } catch {
       // silent
     } finally {
@@ -54,25 +76,72 @@ export default function NotificationsScreen() {
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    fetchData();
+  }, [fetchData]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchNotifications();
+    fetchData();
   };
 
-  const handleItemPress = async (item: Notification) => {
+  // Merge and sort by created_at
+  const unifiedItems = useMemo<UnifiedItem[]>(() => {
+    const annItems: UnifiedItem[] = announcements.map(a => ({
+      id: `ann_${a.id}`,
+      source: 'announcement',
+      title: a.title,
+      body: a.body,
+      type: a.type,
+      is_read: a.is_read,
+      created_at: a.created_at,
+    }));
+
+    const notifItems: UnifiedItem[] = notifications.map(n => ({
+      id: `notif_${n.id}`,
+      source: 'notification',
+      title: n.title,
+      body: n.body,
+      type: n.type,
+      is_read: n.is_read,
+      created_at: n.created_at,
+    }));
+
+    let items: UnifiedItem[];
+    switch (activeTab) {
+      case 'announcements':
+        items = annItems;
+        break;
+      case 'personal':
+        items = notifItems;
+        break;
+      default:
+        items = [...annItems, ...notifItems];
+    }
+
+    return items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [announcements, notifications, activeTab]);
+
+  const handleItemPress = async (item: UnifiedItem) => {
     if (deleteMode) {
-      toggleSelect(item.id);
+      if (item.source === 'notification') {
+        toggleSelect(item.id);
+      }
       return;
     }
     if (!item.is_read) {
       try {
-        await notificationsApi.markAsRead(item.id);
-        setNotifications(prev =>
-          prev.map(n => n.id === item.id ? { ...n, is_read: true } : n)
-        );
+        const realId = item.id.replace(/^(ann_|notif_)/, '');
+        if (item.source === 'announcement') {
+          await announcementsApi.markAsRead(realId);
+          setAnnouncements(prev =>
+            prev.map(a => a.id === realId ? { ...a, is_read: true } : a)
+          );
+        } else {
+          await notificationsApi.markAsRead(realId);
+          setNotifications(prev =>
+            prev.map(n => n.id === realId ? { ...n, is_read: true } : n)
+          );
+        }
       } catch {}
     }
   };
@@ -99,8 +168,9 @@ export default function NotificationsScreen() {
 
     if (confirmed) {
       try {
-        await notificationsApi.deleteNotifications(Array.from(selectedIds));
-        setNotifications(prev => prev.filter(n => !selectedIds.has(n.id)));
+        const realIds = Array.from(selectedIds).map(id => id.replace(/^notif_/, ''));
+        await notificationsApi.deleteNotifications(realIds);
+        setNotifications(prev => prev.filter(n => !realIds.includes(n.id)));
         setSelectedIds(new Set());
         setDeleteMode(false);
       } catch {}
@@ -124,46 +194,113 @@ export default function NotificationsScreen() {
     return `${year}-${month}-${day}, ${ampm} ${String(h12).padStart(2, '0')}:${minutes}`;
   };
 
-  const renderItem = ({ item }: { item: Notification }) => (
-    <TouchableOpacity
-      style={[
-        styles.notifCard,
-        { backgroundColor: cardBg, borderColor },
-        !item.is_read && styles.notifCardUnread,
-      ]}
-      onPress={() => handleItemPress(item)}
-      activeOpacity={0.7}
-    >
-      {deleteMode && (
-        <View style={[styles.checkbox, selectedIds.has(item.id) && styles.checkboxSelected]}>
-          {selectedIds.has(item.id) && (
-            <Ionicons name="checkmark" size={14} color="#FFFFFF" />
-          )}
-        </View>
-      )}
-      <View style={[styles.notifIcon, { backgroundColor: isDark ? '#374151' : '#FFF0ED' }]}>
-        <Ionicons
-          name={item.type === 'recall' ? 'images-outline' : item.type === 'marketing' ? 'megaphone-outline' : 'flag-outline'}
-          size={18}
-          color="#FF6A5F"
-        />
-      </View>
-      <View style={styles.notifContent}>
-        <Text style={[styles.notifTitle, { color: textColor }]} numberOfLines={1}>
-          {item.title}
+  const getIcon = (item: UnifiedItem): { name: keyof typeof Ionicons.glyphMap; bgColor: string; color: string } => {
+    if (item.source === 'announcement') {
+      // 공지사항: 파란색
+      return {
+        name: 'megaphone-outline',
+        bgColor: isDark ? '#1E3A5F' : '#EBF5FF',
+        color: '#3B82F6',
+      };
+    }
+    // 개인 알림: 빨간색
+    const notifBg = isDark ? '#3B2020' : '#FFF0ED';
+    if (item.type === 'recall') return { name: 'images-outline', bgColor: notifBg, color: '#FF6A5F' };
+    if (item.type === 'marketing') return { name: 'gift-outline', bgColor: notifBg, color: '#FF6A5F' };
+    return { name: 'notifications-outline', bgColor: notifBg, color: '#FF6A5F' };
+  };
+
+  const getTypeLabel = (item: UnifiedItem): string | null => {
+    if (item.source !== 'announcement') return null;
+    switch (item.type) {
+      case 'system': return t('announcement.system');
+      case 'event': return t('announcement.event');
+      case 'update': return t('announcement.update');
+      default: return null;
+    }
+  };
+
+  const unreadAnnCount = announcements.filter(a => !a.is_read).length;
+  const unreadNotifCount = notifications.filter(n => !n.is_read).length;
+
+  const renderTab = (tab: TabType, label: string, count?: number) => {
+    const isActive = activeTab === tab;
+    return (
+      <TouchableOpacity
+        key={tab}
+        style={[
+          styles.tab,
+          { backgroundColor: isActive ? tabActiveBg : tabInactiveBg, borderColor },
+        ]}
+        onPress={() => { setActiveTab(tab); setDeleteMode(false); setSelectedIds(new Set()); }}
+        activeOpacity={0.7}
+      >
+        <Text style={[styles.tabText, { color: isActive ? '#FFFFFF' : subtextColor }]}>
+          {label}
         </Text>
-        {item.body && (
-          <Text style={[styles.notifBody, { color: subtextColor }]} numberOfLines={1}>
-            {item.body}
-          </Text>
+        {count !== undefined && count > 0 && (
+          <View style={styles.tabBadge}>
+            <Text style={styles.tabBadgeText}>{count}</Text>
+          </View>
         )}
-        <Text style={[styles.notifDate, { color: subtextColor }]}>
-          {formatDate(item.created_at)}
-        </Text>
-      </View>
-      {!item.is_read && !deleteMode && <View style={styles.unreadDot} />}
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
+
+  const renderItem = ({ item }: { item: UnifiedItem }) => {
+    const icon = getIcon(item);
+    const typeLabel = getTypeLabel(item);
+    const isAnn = item.source === 'announcement';
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.notifCard,
+          { backgroundColor: cardBg, borderColor },
+          !item.is_read && (isAnn ? styles.notifCardUnreadAnn : styles.notifCardUnread),
+        ]}
+        onPress={() => handleItemPress(item)}
+        activeOpacity={0.7}
+      >
+        {deleteMode && !isAnn && (
+          <View style={[styles.checkbox, selectedIds.has(item.id) && styles.checkboxSelected]}>
+            {selectedIds.has(item.id) && (
+              <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+            )}
+          </View>
+        )}
+        <View style={[styles.notifIcon, { backgroundColor: icon.bgColor }]}>
+          <Ionicons name={icon.name} size={18} color={icon.color} />
+        </View>
+        <View style={styles.notifContent}>
+          {typeLabel && (
+            <View style={styles.typeLabelRow}>
+              <Text style={[styles.typeLabel, { color: isAnn ? '#3B82F6' : '#FF6A5F' }]}>
+                {typeLabel}
+              </Text>
+              {!item.is_read && (
+                <View style={styles.newBadge}>
+                  <Text style={styles.newBadgeText}>{t('announcement.new')}</Text>
+                </View>
+              )}
+            </View>
+          )}
+          <Text style={[styles.notifTitle, { color: textColor }]} numberOfLines={1}>
+            {item.title}
+          </Text>
+          {item.body && (
+            <Text style={[styles.notifBody, { color: subtextColor }]} numberOfLines={2}>
+              {item.body}
+            </Text>
+          )}
+          <Text style={[styles.notifDate, { color: subtextColor }]}>
+            {formatDate(item.created_at)}
+          </Text>
+        </View>
+        {!item.is_read && !deleteMode && !typeLabel && <View style={styles.unreadDot} />}
+      </TouchableOpacity>
+    );
+  };
 
   const renderEmpty = () => (
     <View style={styles.emptyContainer}>
@@ -208,13 +345,20 @@ export default function NotificationsScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Tabs */}
+      <View style={styles.tabRow}>
+        {renderTab('all', t('notification.tabAll'), unreadAnnCount + unreadNotifCount)}
+        {renderTab('announcements', t('notification.tabAnnouncements'), unreadAnnCount)}
+        {renderTab('personal', t('notification.tabPersonal'), unreadNotifCount)}
+      </View>
+
       {/* List */}
       <FlatList
-        data={notifications}
+        data={unifiedItems}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         ListEmptyComponent={renderEmpty}
-        contentContainerStyle={notifications.length === 0 ? styles.emptyList : styles.listContent}
+        contentContainerStyle={unifiedItems.length === 0 ? styles.emptyList : styles.listContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FF6A5F" />
@@ -265,9 +409,43 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
   },
-  listContent: {
+  tabRow: {
+    flexDirection: 'row',
     paddingHorizontal: 16,
     paddingTop: 12,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 6,
+  },
+  tabText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  tabBadge: {
+    backgroundColor: '#FF6A5F',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  tabBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 4,
     paddingBottom: 80,
   },
   emptyList: {
@@ -286,6 +464,10 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: '#FF6A5F',
   },
+  notifCardUnreadAnn: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#3B82F6',
+  },
   notifIcon: {
     width: 40,
     height: 40,
@@ -295,6 +477,28 @@ const styles = StyleSheet.create({
   },
   notifContent: {
     flex: 1,
+  },
+  typeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  typeLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  newBadge: {
+    backgroundColor: '#FF6A5F',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  newBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
   },
   notifTitle: {
     fontSize: 15,

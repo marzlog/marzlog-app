@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   StyleSheet,
   View,
@@ -26,6 +27,8 @@ import { useTranslation } from '@/src/hooks/useTranslation';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
 import { ScheduleCard } from '@/src/components/home';
+import notificationsApi from '@/src/api/notifications';
+import announcementsApi from '@/src/api/announcements';
 
 // 다크 그린 색상
 const DARK_GREEN = '#2D3A35';
@@ -253,6 +256,8 @@ export default function TimelineScreen() {
   const [activeTab, setActiveTab] = useState<TabFilter>('image');
   const [timeFilter, setTimeFilter] = useState<'week' | 'month'>('month');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [unreadAnnCount, setUnreadAnnCount] = useState(0);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   const allItemsRef = useRef<TimelineItem[]>([]);
   const offsetRef = useRef(0);
@@ -440,8 +445,26 @@ export default function TimelineScreen() {
   };
 
   const handleNotificationPress = () => {
-    showAlert(t('notification.title'), t('notification.comingSoon'));
+    router.push('/notifications');
   };
+
+  // 읽지 않은 알림 수 조회 (화면 focus 시마다 refetch)
+  const fetchUnreadCount = useCallback(() => {
+    if (!accessToken) return;
+    Promise.all([
+      notificationsApi.getUnreadCount().catch(() => ({ count: 0 })),
+      announcementsApi.getUnreadCount().catch(() => ({ count: 0 })),
+    ]).then(([notif, ann]) => {
+      setUnreadNotifCount(notif.count);
+      setUnreadAnnCount(ann.count);
+    });
+  }, [accessToken]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchUnreadCount();
+    }, [fetchUnreadCount])
+  );
 
   // 업로드 관련 핸들러
   const handleFabPress = () => {
@@ -595,6 +618,13 @@ export default function TimelineScreen() {
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={handleNotificationPress}>
             <BellIcon color={theme.icon.primary} />
+            {(unreadAnnCount + unreadNotifCount) > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>
+                  {(unreadAnnCount + unreadNotifCount) > 9 ? '9+' : unreadAnnCount + unreadNotifCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -827,6 +857,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 20,
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#3B82F6',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  bellBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 18,
   },
   // Filter Bar
   filterBar: {

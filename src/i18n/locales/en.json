@@ -224,7 +224,16 @@
     "deleteConfirmDesc": "Selected notifications will be deleted.",
     "deleteSelected": "Delete {{count}}",
     "am": "AM",
-    "pm": "PM"
+    "pm": "PM",
+    "tabAll": "All",
+    "tabAnnouncements": "Notices",
+    "tabPersonal": "Personal"
+  },
+  "announcement": {
+    "system": "System Notice",
+    "event": "Event",
+    "update": "Update",
+    "new": "NEW"
   },
   "date": {
     "today": "Today",
