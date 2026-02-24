@@ -6,14 +6,13 @@ import {
   SafeAreaView,
   StatusBar,
   Platform,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Alert,
   Image,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
@@ -81,7 +80,7 @@ export default function RegisterScreen() {
         setErrors(rest);
       }
     } catch {
-      Alert.alert(t('common.error'), t('auth.registerFailed'));
+      Alert.alert(t('common.error'), t('auth.emailCheckFailed'));
     } finally {
       setEmailCheckLoading(false);
     }
@@ -171,15 +170,14 @@ export default function RegisterScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <KeyboardAwareScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        bounces={false}
+        enableOnAndroid={true}
+        extraScrollHeight={20}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
           <Text style={[styles.title, { color: textColor }]}>
             {t('auth.registerTitle')}
           </Text>
@@ -318,8 +316,7 @@ export default function RegisterScreen() {
               <Text style={styles.registerButtonText}>{t('auth.register')}</Text>
             )}
           </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }

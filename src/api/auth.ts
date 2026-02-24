@@ -5,6 +5,7 @@ import type {
   User,
   UserStats,
   MessageResponse,
+  VerifyResetCodeResponse,
 } from '../types/auth';
 
 export const authApi = {
@@ -62,6 +63,17 @@ export const authApi = {
   },
 
   /**
+   * 인증코드 검증
+   */
+  async verifyResetCode(email: string, code: string): Promise<VerifyResetCodeResponse> {
+    const response = await apiClient.post<VerifyResetCodeResponse>('/auth/verify-reset-code', {
+      email,
+      code,
+    });
+    return response.data;
+  },
+
+  /**
    * 비밀번호 재설정
    */
   async resetPassword(token: string, newPassword: string): Promise<MessageResponse> {
@@ -108,14 +120,6 @@ export const authApi = {
   },
 
   /**
-   * 개발용 로그인 (테스트 전용)
-   */
-  async devLogin(email: string = 'test@marzlog.com'): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>('/auth/dev-login', { email });
-    return response.data;
-  },
-
-  /**
    * 계정 삭제
    */
   async deleteAccount(): Promise<void> {
@@ -127,6 +131,25 @@ export const authApi = {
    */
   async getUserStats(): Promise<UserStats> {
     const response = await apiClient.get<UserStats>('/auth/me/stats');
+    return response.data;
+  },
+
+  /**
+   * 프로필 수정
+   */
+  async updateProfile(data: { nickname?: string }): Promise<User> {
+    const response = await apiClient.patch<User>('/auth/me/profile', data);
+    return response.data;
+  },
+
+  /**
+   * 비밀번호 변경
+   */
+  async changePassword(currentPassword: string, newPassword: string): Promise<MessageResponse> {
+    const response = await apiClient.patch<MessageResponse>('/auth/me/password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
     return response.data;
   },
 };

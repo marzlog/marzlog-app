@@ -2,6 +2,8 @@ export interface User {
   id: string;
   email: string;
   name?: string;
+  nickname?: string | null;
+  profile_image?: string | null;
   oauth_provider?: 'google' | 'apple' | null;
   oauth_sub?: string | null;
   role: 'user' | 'admin';
@@ -47,6 +49,10 @@ export interface ResetPasswordRequest {
 
 export interface MessageResponse {
   message: string;
+}
+
+export interface VerifyResetCodeResponse {
+  reset_token: string;
 }
 
 export interface AuthState {

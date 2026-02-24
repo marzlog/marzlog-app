@@ -9,17 +9,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
-import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
 
 export default function AppInfoScreen() {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
   const { t } = useTranslation();
-  const { confirm } = useDialog();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -29,16 +28,6 @@ export default function AppInfoScreen() {
 
   const handleWithdraw = () => {
     router.push('/withdraw');
-  };
-
-  const handleComingSoon = () => {
-    confirm({
-      title: t('common.comingSoon'),
-      description: t('common.comingSoonDesc'),
-      confirmText: t('common.confirm'),
-      cancelText: t('common.cancel'),
-      variant: 'confirm',
-    });
   };
 
   return (
@@ -58,7 +47,7 @@ export default function AppInfoScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Menu */}
         <View style={[styles.card, isDark && styles.cardDark]}>
-          <TouchableOpacity style={styles.menuItem} onPress={handleComingSoon} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/notifications')} activeOpacity={0.7}>
             <View style={styles.menuItemLeft}>
               <Ionicons name="megaphone-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
               <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('more.notices')}</Text>
@@ -66,7 +55,7 @@ export default function AppInfoScreen() {
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem} onPress={handleComingSoon} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => WebBrowser.openBrowserAsync('https://marzlog.com/terms')} activeOpacity={0.7}>
             <View style={styles.menuItemLeft}>
               <Ionicons name="document-text-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
               <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('support.terms')}</Text>
@@ -74,7 +63,7 @@ export default function AppInfoScreen() {
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem} onPress={handleComingSoon} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => WebBrowser.openBrowserAsync('https://marzlog.com/privacy')} activeOpacity={0.7}>
             <View style={styles.menuItemLeft}>
               <Ionicons name="shield-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
               <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('support.privacy')}</Text>

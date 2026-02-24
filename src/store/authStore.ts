@@ -44,8 +44,6 @@ interface AuthStore extends AuthState {
   deleteAccount: () => Promise<void>;
   checkAuth: () => Promise<void>;
 
-  // Mock login for development
-  mockLogin: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -205,29 +203,6 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 
-  // Mock login for development (uses real backend dev-login)
-  mockLogin: async () => {
-    set({ isLoading: true, error: null });
-
-    try {
-      const response = await authApi.devLogin('prettysuh@gmail.com');
-
-      await storage.setItem('access_token', response.tokens.access_token);
-      await storage.setItem('refresh_token', response.tokens.refresh_token);
-
-      set({
-        user: response.user as User,
-        accessToken: response.tokens.access_token,
-        refreshToken: response.tokens.refresh_token,
-        isAuthenticated: true,
-        isLoading: false,
-      });
-    } catch (error: any) {
-      const message = extractErrorMessage(error, 'Dev login failed');
-      set({ error: message, isLoading: false });
-      throw new Error(message);
-    }
-  },
 }));
 
 export default useAuthStore;

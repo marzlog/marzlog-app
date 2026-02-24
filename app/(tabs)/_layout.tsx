@@ -3,6 +3,7 @@ import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { Tabs } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { palette, lightTheme, darkTheme } from '@/src/theme/colors';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -118,6 +119,7 @@ function MoreIcon({ color }: { color: string }) {
 const CENTER_TAB_INDEX = 2; // search가 중앙
 
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
+  const insets = useSafeAreaInsets();
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
 
@@ -149,7 +151,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   });
 
   return (
-    <View style={styles.tabBarContainer}>
+    <View style={[styles.tabBarContainer, { bottom: Math.max(insets.bottom, 16) }]}>
       <View style={[styles.tabBar, { backgroundColor: isDark ? palette.neutral[800] : palette.neutral[200] }]}>
         {visibleRoutes.map((route) => {
           const { options } = descriptors[route.key];
@@ -213,7 +215,7 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBarContainer: {
     position: 'absolute',
-    bottom: 16,
+    bottom: 16, // fallback, overridden by insets.bottom inline
     left: 16,
     right: 16,
   },

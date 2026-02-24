@@ -14,7 +14,7 @@
         "simulator": false
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://43.202.146.68:8000"
+        "EXPO_PUBLIC_API_URL": "https://api.marzlog.com"
       }
     },
     "production": {
@@ -25,7 +25,7 @@
         "autoIncrement": true
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://43.202.146.68:8000"
+        "EXPO_PUBLIC_API_URL": "https://api.marzlog.com"
       }
     }
   },

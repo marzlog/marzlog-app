@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,11 @@ import {
   SafeAreaView,
   StatusBar,
   Platform,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  KeyboardAvoidingView,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
@@ -21,7 +20,7 @@ import { authApi } from '@src/api/auth';
 import { extractErrorMessage } from '@src/utils/errorMessages';
 
 type Tab = 'findId' | 'findPassword';
-type Step = 'email' | 'reset' | 'complete';
+type Step = 'email' | 'verify' | 'reset' | 'complete';
 
 export default function ForgotPasswordScreen() {
   const systemColorScheme = useColorScheme();
@@ -34,6 +33,7 @@ export default function ForgotPasswordScreen() {
   );
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
@@ -41,6 +41,9 @@ export default function ForgotPasswordScreen() {
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [timeLeft, setTimeLeft] = useState(300);
+  const [timerActive, setTimerActive] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
@@ -55,9 +58,38 @@ export default function ForgotPasswordScreen() {
   const subtextColor = isDark ? '#9CA3AF' : '#6B7280';
   const cardBg = isDark ? '#1F2937' : '#FFFFFF';
 
+  // Timer effect
+  useEffect(() => {
+    if (timerActive && timeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            setTimerActive(false);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [timerActive, timeLeft]);
+
+  const startTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTimeLeft(300);
+    setTimerActive(true);
+  }, []);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
   const handleTabChange = (tab: Tab) => {
     setActiveTab(tab);
-    // Reset password step when switching tabs
     if (tab === 'findPassword') {
       setStep('email');
       setErrors({});
@@ -73,9 +105,45 @@ export default function ForgotPasswordScreen() {
     setIsSubmitting(true);
     setErrors({});
     try {
-      const result = await authApi.forgotPassword(email.trim());
-      setResetToken(result.message);
+      await authApi.forgotPassword(email.trim());
+      setStep('verify');
+      setVerificationCode('');
+      startTimer();
+    } catch (e: any) {
+      setErrors({ form: extractErrorMessage(e, t('common.error')) });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!verificationCode.trim()) {
+      setErrors({ code: t('auth.requiredField') });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrors({});
+    try {
+      const result = await authApi.verifyResetCode(email.trim(), verificationCode.trim());
+      setResetToken(result.reset_token);
+      setTimerActive(false);
+      if (timerRef.current) clearInterval(timerRef.current);
       setStep('reset');
+    } catch (e: any) {
+      setErrors({ form: extractErrorMessage(e, t('auth.invalidCode')) });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setIsSubmitting(true);
+    setErrors({});
+    try {
+      await authApi.forgotPassword(email.trim());
+      setVerificationCode('');
+      startTimer();
     } catch (e: any) {
       setErrors({ form: extractErrorMessage(e, t('common.error')) });
     } finally {
@@ -108,6 +176,17 @@ export default function ForgotPasswordScreen() {
     }
   };
 
+  const handleBackPress = () => {
+    if (step === 'verify' || step === 'reset') {
+      setStep('email');
+      setTimerActive(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+      setErrors({});
+    } else {
+      router.back();
+    }
+  };
+
   // Complete screen
   if (step === 'complete') {
     return (
@@ -121,11 +200,11 @@ export default function ForgotPasswordScreen() {
             {t('auth.resetPasswordComplete')}
           </Text>
           <TouchableOpacity
-            style={styles.coralButton}
+            style={styles.completeButton}
             onPress={() => router.replace('/login')}
             activeOpacity={0.8}
           >
-            <Text style={styles.coralButtonText}>{t('auth.goToLogin')}</Text>
+            <Text style={styles.completeButtonText}>{t('auth.goToLogin')}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -139,7 +218,7 @@ export default function ForgotPasswordScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => step === 'reset' ? setStep('email') : router.back()}
+          onPress={handleBackPress}
           style={styles.backButton}
         >
           <Ionicons name="chevron-back" size={24} color={textColor} />
@@ -184,15 +263,13 @@ export default function ForgotPasswordScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <KeyboardAwareScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        enableOnAndroid={true}
+        extraScrollHeight={20}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
           {/* ===== Find ID Tab ===== */}
           {activeTab === 'findId' && (
             <View style={styles.findIdContent}>
@@ -234,7 +311,7 @@ export default function ForgotPasswordScreen() {
             </View>
           )}
 
-          {/* ===== Find Password Tab ===== */}
+          {/* ===== Find Password Tab - Email Step ===== */}
           {activeTab === 'findPassword' && step === 'email' && (
             <>
               <Text style={[styles.sectionTitle, { color: textColor }]}>
@@ -279,12 +356,102 @@ export default function ForgotPasswordScreen() {
                 {isSubmitting ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <Text style={styles.coralButtonText}>{t('auth.sendResetLink')}</Text>
+                  <Text style={styles.coralButtonText}>{t('auth.sendVerificationCode')}</Text>
                 )}
               </TouchableOpacity>
             </>
           )}
 
+          {/* ===== Find Password Tab - Verify Step ===== */}
+          {activeTab === 'findPassword' && step === 'verify' && (
+            <>
+              <Text style={[styles.sectionTitle, { color: textColor }]}>
+                {t('auth.verificationCode')}
+              </Text>
+              <Text style={[styles.description, { color: subtextColor }]}>
+                {t('auth.verificationCodeDesc')}
+              </Text>
+
+              {/* Timer */}
+              <View style={styles.timerContainer}>
+                <Ionicons
+                  name="time-outline"
+                  size={20}
+                  color={timeLeft <= 60 ? '#EF4444' : '#FF6A5F'}
+                />
+                <Text style={[
+                  styles.timerText,
+                  { color: timeLeft <= 60 ? '#EF4444' : '#FF6A5F' },
+                ]}>
+                  {formatTime(timeLeft)}
+                </Text>
+              </View>
+
+              {/* Code Input */}
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.label, { color: textColor }]}>{t('auth.verificationCode')}</Text>
+                <View style={[styles.inputWrapper, { backgroundColor: inputBg, borderColor: errors.code ? '#EF4444' : inputBorder }]}>
+                  <Ionicons name="key-outline" size={20} color={placeholderColor} style={styles.inputIcon} />
+                  <TextInput
+                    style={[styles.input, styles.codeInput, { color: inputText }]}
+                    placeholder={t('auth.verificationCodePlaceholder')}
+                    placeholderTextColor={placeholderColor}
+                    value={verificationCode}
+                    onChangeText={(text) => {
+                      const cleaned = text.replace(/[^0-9]/g, '').slice(0, 6);
+                      setVerificationCode(cleaned);
+                      setErrors({});
+                    }}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    autoFocus
+                  />
+                </View>
+                {errors.code ? <Text style={styles.errorText}>{errors.code}</Text> : null}
+              </View>
+
+              {errors.form ? (
+                <View style={styles.formError}>
+                  <Ionicons name="alert-circle" size={16} color="#EF4444" />
+                  <Text style={styles.formErrorText}>{errors.form}</Text>
+                </View>
+              ) : null}
+
+              {timeLeft === 0 ? (
+                <View style={styles.formError}>
+                  <Ionicons name="alert-circle" size={16} color="#EF4444" />
+                  <Text style={styles.formErrorText}>{t('auth.codeExpired')}</Text>
+                </View>
+              ) : null}
+
+              <TouchableOpacity
+                style={[styles.coralButton, (isSubmitting || timeLeft === 0) && { opacity: 0.6 }]}
+                onPress={handleVerifyCode}
+                disabled={isSubmitting || timeLeft === 0}
+                activeOpacity={0.8}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.coralButtonText}>{t('auth.verifyCode')}</Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Resend link */}
+              <TouchableOpacity
+                onPress={handleResendCode}
+                disabled={isSubmitting}
+                style={styles.resendLink}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.resendText, { color: subtextColor }]}>
+                  {t('auth.resendCode')}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {/* ===== Find Password Tab - Reset Step ===== */}
           {activeTab === 'findPassword' && step === 'reset' && (
             <>
               <Text style={[styles.sectionTitle, { color: textColor }]}>
@@ -364,8 +531,7 @@ export default function ForgotPasswordScreen() {
               </TouchableOpacity>
             </>
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   );
 }
@@ -518,6 +684,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     paddingVertical: 14,
   },
+  codeInput: {
+    letterSpacing: 6,
+    fontSize: 18,
+    fontWeight: '600',
+  },
   eyeIcon: {
     padding: 4,
   },
@@ -539,6 +710,28 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 13,
     flex: 1,
+  },
+  // Timer
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    gap: 6,
+  },
+  timerText: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  // Resend
+  resendLink: {
+    alignItems: 'center',
+    marginTop: 16,
+    paddingVertical: 8,
+  },
+  resendText: {
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
   // Shared coral button
   coralButton: {
@@ -570,5 +763,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 32,
     textAlign: 'center',
+  },
+  completeButton: {
+    backgroundColor: '#F08E76',
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'stretch',
+    minHeight: 48,
+  },
+  completeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

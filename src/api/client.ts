@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'ax
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.marzlog.com';
 
 // Storage abstraction for web/native
 const storage = {
@@ -33,7 +33,6 @@ const apiClient: AxiosInstance = axios.create({
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
-    'ngrok-skip-browser-warning': 'true',
   },
 });
 
@@ -41,7 +40,6 @@ const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
     const token = await storage.getItem('access_token');
-    console.log('[API] Request to:', config.url, 'Token:', token ? 'exists' : 'missing');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -56,7 +54,9 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config;
     
-    if (error.response?.status === 401 && originalRequest) {
+    const isAuthEndpoint = originalRequest?.url?.startsWith('/auth/');
+
+    if (error.response?.status === 401 && originalRequest && !isAuthEndpoint) {
       const refreshToken = await storage.getItem('refresh_token');
       
       if (refreshToken) {

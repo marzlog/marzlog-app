@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import {
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -93,11 +91,13 @@ export default function WithdrawScreen() {
         <View style={styles.backButton} />
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.flex}>
+        <KeyboardAwareScrollView
+          contentContainerStyle={styles.content}
+          enableOnAndroid={true}
+          extraScrollHeight={20}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Description */}
           <Text style={[styles.description, isDark && styles.textSecondaryDark]}>
             {t('account.withdrawDesc')}
@@ -149,7 +149,7 @@ export default function WithdrawScreen() {
               maxLength={200}
             />
           )}
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         {/* Bottom Button */}
         <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
@@ -170,7 +170,7 @@ export default function WithdrawScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </View>
   );
 }

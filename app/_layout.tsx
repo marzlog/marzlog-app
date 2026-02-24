@@ -3,7 +3,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font';
 import { Stack, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -22,7 +22,7 @@ export const unstable_settings = {
   initialRouteName: '(tabs)',
 };
 
-const INTRO_SEEN_KEY = 'marzlog_intro_seen';
+const ONBOARDING_KEY = '@marzlog_onboarding_completed';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -33,11 +33,10 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
 
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
-  const { loadSettings, isLoaded: settingsLoaded } = useSettingsStore();
+  const { isAuthenticated, checkAuth } = useAuthStore();
+  const { loadSettings } = useSettingsStore();
   const [initialReady, setInitialReady] = useState(false);
-  const [introSeen, setIntroSeen] = useState(true); // default true to avoid flash
-  const hasNavigated = useRef(false);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
@@ -50,45 +49,36 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
-  // Check auth status, load settings, and check intro on app start
+  // Check auth status, load settings, and onboarding state on app start
   useEffect(() => {
     const init = async () => {
       await Promise.all([
         checkAuth(),
         loadSettings(),
       ]);
-      // Check if intro has been seen
       try {
-        const value = await AsyncStorage.getItem(INTRO_SEEN_KEY);
-        setIntroSeen(value === 'true');
-      } catch {}
+        const value = await AsyncStorage.getItem(ONBOARDING_KEY);
+        setOnboardingCompleted(value === 'true');
+      } catch {
+        setOnboardingCompleted(false);
+      }
       setInitialReady(true);
     };
     init();
   }, []);
 
-  // Handle initial navigation only (once, on app start)
+  // Single navigation effect: handles initial routing + logout redirect
   useEffect(() => {
-    if (!initialReady || !loaded || hasNavigated.current) return;
+    if (!initialReady || !loaded || onboardingCompleted === null) return;
 
-    if (!isAuthenticated) {
-      hasNavigated.current = true;
-      if (!introSeen) {
-        router.replace('/intro');
-      } else {
-        router.replace('/login');
-      }
-    }
-  }, [isAuthenticated, initialReady, loaded, introSeen]);
+    if (isAuthenticated) return; // logged in → show tabs (initialRouteName)
 
-  // Handle logout: redirect to login (not intro)
-  useEffect(() => {
-    if (!hasNavigated.current || !initialReady || isLoading) return;
-
-    if (!isAuthenticated) {
+    if (!onboardingCompleted) {
+      router.replace('/onboarding');
+    } else {
       router.replace('/login');
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, initialReady, loaded, onboardingCompleted]);
 
   if (!loaded || !initialReady) {
     return null;
@@ -104,6 +94,7 @@ function RootLayoutNav() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <DialogProvider>
         <Stack>
+          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
           <Stack.Screen name="intro" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="register" options={{ headerShown: false }} />
@@ -113,6 +104,7 @@ function RootLayoutNav() {
           <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="notifications" options={{ headerShown: false }} />
+          <Stack.Screen name="profile-edit" options={{ headerShown: false }} />
           <Stack.Screen name="upload" options={{ headerShown: false }} />
           <Stack.Screen name="media" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />

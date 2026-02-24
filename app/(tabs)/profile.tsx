@@ -65,7 +65,7 @@ export default function ProfileScreen() {
   };
 
   const handleEditProfile = () => {
-    // TODO: 프로필 수정 화면
+    router.push('/profile-edit');
   };
 
   const handleNotifications = () => {
@@ -94,10 +94,10 @@ export default function ProfileScreen() {
             </Text>
           </View>
           <Text style={[styles.userName, isDark && styles.textLight]}>
-            {user?.email?.split('@')[0] || 'User'}
+            {user?.nickname || user?.email?.split('@')[0] || 'User'}
           </Text>
           <Text style={styles.userEmail}>
-            {user?.email || 'test@marzlog.com'}
+            {user?.email || ''}
           </Text>
           <View style={[styles.providerBadge, isDark && { backgroundColor: '#374151' }]}>
             <Ionicons

@@ -6,16 +6,13 @@ import {
   SafeAreaView,
   StatusBar,
   Platform,
-  ScrollView,
   Image,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Keyboard,
-  TouchableWithoutFeedback,
   Alert,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
@@ -71,14 +68,15 @@ export default function LoginScreen() {
   const inputBorder = isDark ? '#374151' : '#E5E7EB';
   const placeholderColor = isDark ? '#6B7280' : '#9CA3AF';
 
-  // 웹에서는 KeyboardAvoidingView 사용하지 않음
-  const isWeb = Platform.OS === 'web';
-
   const scrollContent = (
-    <ScrollView
+    <KeyboardAwareScrollView
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      bounces={false}
+      enableOnAndroid={true}
+      extraScrollHeight={20}
+      keyboardDismissMode="on-drag"
     >
           {/* Mascot / Logo Image */}
           <View style={styles.logoArea}>
@@ -197,7 +195,7 @@ export default function LoginScreen() {
             />
             <TouchableOpacity
               style={styles.appleButton}
-              onPress={() => Alert.alert('준비 중', 'Apple 로그인은 준비 중입니다.')}
+              onPress={() => Alert.alert('Apple 로그인', 'Apple 로그인은 현재 지원되지 않습니다. Google 계정을 이용해주세요.')}
               activeOpacity={0.8}
             >
               <Ionicons name="logo-apple" size={22} color="#fff" />
@@ -220,25 +218,13 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
           </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-
-      {isWeb ? (
-        scrollContent
-      ) : (
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          >
-            {scrollContent}
-          </KeyboardAvoidingView>
-        </TouchableWithoutFeedback>
-      )}
+      {scrollContent}
     </SafeAreaView>
   );
 }
@@ -254,40 +240,40 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 20 : 20,
-    paddingBottom: 40,
-    justifyContent: 'center',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 12 : 12,
+    paddingBottom: 24,
   },
   logoArea: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
+    marginTop: 8,
   },
   mascotImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 25,
+    width: 80,
+    height: 80,
+    borderRadius: 20,
   },
   titleArea: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
   },
   textLogo: {
-    width: 160,
-    height: 40,
+    width: 140,
+    height: 36,
   },
   slogan: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6B7280',
-    marginTop: 8,
+    marginTop: 6,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 18,
   },
   sloganDark: {
     color: '#9CA3AF',
   },
   inputArea: {
-    gap: 12,
-    marginBottom: 12,
+    gap: 10,
+    marginBottom: 10,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -295,7 +281,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     paddingHorizontal: 14,
-    minHeight: 50,
+    minHeight: 46,
   },
   inputIcon: {
     marginRight: 10,
@@ -303,7 +289,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 15,
-    paddingVertical: 14,
+    paddingVertical: 12,
   },
   eyeIcon: {
     padding: 4,
@@ -325,11 +311,11 @@ const styles = StyleSheet.create({
   loginButton: {
     backgroundColor: '#FF6A5F',
     borderRadius: 12,
-    paddingVertical: 15,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-    minHeight: 50,
+    marginBottom: 14,
+    minHeight: 46,
   },
   loginButtonDisabled: {
     opacity: 0.6,
@@ -343,7 +329,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
     gap: 16,
   },
   linkText: {
@@ -358,7 +344,7 @@ const styles = StyleSheet.create({
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     gap: 12,
   },
   dividerLine: {
@@ -371,8 +357,8 @@ const styles = StyleSheet.create({
   },
   socialArea: {
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 20,
+    gap: 10,
+    marginBottom: 16,
   },
   appleButton: {
     flexDirection: 'row',

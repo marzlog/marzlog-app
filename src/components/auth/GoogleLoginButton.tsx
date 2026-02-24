@@ -82,23 +82,23 @@ function NativeGoogleButton({ onSuccess, onError }: Props) {
         fetchUserInfoAndLogin(authentication.accessToken);
       }
     } else if (response?.type === 'error') {
-      console.log('[NativeGoogleLogin] Error:', response.error);
+      // console.log('[NativeGoogleLogin] Error:', response.error);
       onError?.(response.error?.message || 'Google 로그인 실패');
       setIsLoading(false);
     } else if (response?.type === 'cancel' || response?.type === 'dismiss') {
-      console.log('[NativeGoogleLogin] Cancelled');
+      // console.log('[NativeGoogleLogin] Cancelled');
       setIsLoading(false);
     }
   }, [response]);
 
   const handleGoogleLogin = async (idToken: string) => {
     try {
-      console.log('[NativeGoogleLogin] Got ID token, logging in...');
+      // console.log('[NativeGoogleLogin] Got ID token, logging in...');
       await loginWithGoogle(idToken);
-      console.log('[NativeGoogleLogin] Login success!');
+      // console.log('[NativeGoogleLogin] Login success!');
       onSuccess?.();
     } catch (e: any) {
-      console.log('[NativeGoogleLogin] Login error:', e.message);
+      // console.log('[NativeGoogleLogin] Login error:', e.message);
       onError?.(e.message);
     } finally {
       setIsLoading(false);
@@ -107,19 +107,19 @@ function NativeGoogleButton({ onSuccess, onError }: Props) {
 
   const fetchUserInfoAndLogin = async (accessToken: string) => {
     try {
-      console.log('[NativeGoogleLogin] Fetching user info with access token...');
+      // console.log('[NativeGoogleLogin] Fetching user info with access token...');
       const userInfoResponse = await fetch('https://www.googleapis.com/userinfo/v2/me', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const userInfo = await userInfoResponse.json();
-      console.log('[NativeGoogleLogin] User info:', userInfo.email);
+      // console.log('[NativeGoogleLogin] User info:', userInfo.email);
 
       // Access Token을 ID Token처럼 사용 (백엔드에서 처리 필요할 수 있음)
       // 또는 백엔드에 별도의 access token 처리 엔드포인트 필요
       await loginWithGoogle(accessToken);
       onSuccess?.();
     } catch (e: any) {
-      console.log('[NativeGoogleLogin] Error fetching user info:', e.message);
+      // console.log('[NativeGoogleLogin] Error fetching user info:', e.message);
       onError?.(e.message);
     } finally {
       setIsLoading(false);
@@ -128,7 +128,7 @@ function NativeGoogleButton({ onSuccess, onError }: Props) {
 
   const handlePress = async () => {
     if (!request) {
-      onError?.('Google 로그인을 준비 중입니다...');
+      onError?.('Google 로그인을 초기화하고 있습니다. 잠시 후 다시 시도해주세요.');
       return;
     }
     setIsLoading(true);
