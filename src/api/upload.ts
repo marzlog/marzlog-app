@@ -5,7 +5,6 @@
  * - 업로드 완료 콜백
  */
 import * as Crypto from 'expo-crypto';
-import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 import type {
   GroupUploadCompleteRequest,
@@ -106,36 +105,19 @@ export async function uploadToS3(
       xhr.send(blob);
     });
   } else {
-    // Native: Use expo-file-system File class
-    const file = new FileSystem.File(fileUri);
-    const exists = file.exists;
-    if (!exists) {
-      throw new Error('File not found');
-    }
-
-    // Read file as base64 and upload
-    const base64 = await file.base64();
-
-    // Convert base64 to blob
-    const byteCharacters = atob(base64);
-    const byteNumbers = new Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: contentType });
-
-    // Upload using fetch
-    const response = await fetch(presignedUrl, {
-      method: 'PUT',
+    // Native: Use legacy uploadAsync to avoid Hermes Blob limitation
+    // Dynamic require to prevent web bundle from including this module
+    const LegacyFS = require('expo-file-system/legacy');
+    const result = await LegacyFS.uploadAsync(presignedUrl, fileUri, {
+      httpMethod: 'PUT',
+      uploadType: LegacyFS.FileSystemUploadType.BINARY_CONTENT,
       headers: {
         'Content-Type': contentType,
       },
-      body: blob,
     });
 
-    if (!response.ok) {
-      throw new Error(`S3 upload failed: ${response.status}`);
+    if (result.status < 200 || result.status >= 300) {
+      throw new Error(`S3 upload failed: ${result.status}`);
     }
 
     onProgress?.(100);

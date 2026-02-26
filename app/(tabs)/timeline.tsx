@@ -425,9 +425,9 @@ export default function TimelineScreen() {
     return date.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
-  // AWS S3 presigned URL 직접 사용
+  // 썸네일 우선 (그리드/리스트 뷰용, 16KB vs 3MB)
   const getImageUrl = (item: TimelineItem): string => {
-    return item.media?.download_url || item.media?.thumbnail_url || '';
+    return item.media?.thumbnail_url || item.media?.download_url || '';
   };
 
   // 사진 클릭 → 상세 페이지로 이동
