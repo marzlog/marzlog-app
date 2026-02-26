@@ -148,19 +148,30 @@ export default function SearchScreen() {
       console.log('[Search] Searching for:', term, 'mode:', activeMode);
       const response = await searchApi.search(term, 20, activeMode);
       console.log('[Search] Results count:', response.results?.length);
-      console.log('[Search] Results:', JSON.stringify(response.results?.slice(0, 3).map(r => ({
-        id: r.id,
-        media_id: r.media_id,
-        caption: r.caption?.substring(0, 30),
-        url: r.thumbnail_url?.substring(0, 80)
-      })), null, 2));
       setResults(response.results || []);
       if (response.results?.length > 0) {
         saveRecentSearch(term);
       }
     } catch (err: any) {
+      const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+      if (isTimeout && !err._retried) {
+        console.log('[Search] Timeout, retrying once...');
+        try {
+          const response = await searchApi.search(term, 20, activeMode);
+          setResults(response.results || []);
+          if (response.results?.length > 0) {
+            saveRecentSearch(term);
+          }
+          return;
+        } catch (retryErr: any) {
+          retryErr._retried = true;
+          console.error('[Search] Retry failed:', retryErr);
+        }
+      }
       console.error('[Search] Error:', err);
-      setError(err.response?.data?.detail || err.message || t('search.searchFailed'));
+      setError(isTimeout
+        ? 'AI 검색 준비 중입니다. 잠시 후 다시 시도해주세요.'
+        : err.response?.data?.detail || err.message || t('search.searchFailed'));
       setResults([]);
     } finally {
       setIsSearching(false);

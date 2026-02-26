@@ -31,7 +31,7 @@ export const searchApi = {
             query,
             mode,
             limit,
-        });
+        }, { timeout: 60000 });
         return response.data;
     },
 
