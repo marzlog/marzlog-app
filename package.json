@@ -17,6 +17,7 @@
     "@react-oauth/google": "^0.12.2",
     "axios": "^1.13.2",
     "expo": "~54.0.29",
+    "expo-alternate-app-icons": "^8.0.0",
     "expo-auth-session": "^7.0.10",
     "expo-constants": "~18.0.12",
     "expo-crypto": "~15.0.8",

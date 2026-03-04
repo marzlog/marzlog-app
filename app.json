@@ -12,7 +12,7 @@
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#6366F1"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": true,
@@ -26,8 +26,8 @@
     "android": {
       "package": "com.marzlog.app",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#6366F1"
+        "foregroundImage": "./assets/images/adaptive-foreground.png",
+        "backgroundColor": "#FFFFFF"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -52,7 +52,13 @@
           "photosPermission": "사진을 업로드하고 추억을 기록하기 위해 사진 라이브러리 접근 권한이 필요합니다.",
           "cameraPermission": "사진 촬영을 위해 카메라 접근 권한이 필요합니다."
         }
-      ]
+      ],
+      ["expo-alternate-app-icons", {
+        "icons": {
+          "coral": "./assets/images/app-icons/coral.png",
+          "red": "./assets/images/app-icons/red.png"
+        }
+      }]
     ],
     "experiments": {
       "typedRoutes": true
