@@ -38,10 +38,14 @@ export interface DialogProps {
   confirmText?: string;
   /** 취소 버튼 텍스트 */
   cancelText?: string;
+  /** 위험 액션 버튼 텍스트 (3버튼 모드) */
+  destructiveText?: string;
   /** 확인 버튼 클릭 핸들러 */
   onConfirm: () => void;
   /** 취소 버튼 클릭 핸들러 (없으면 단일 버튼 모드) */
   onCancel?: () => void;
+  /** 위험 액션 클릭 핸들러 */
+  onDestructive?: () => void;
   /** 다이얼로그 타입 */
   variant?: DialogVariant;
   /** 다크모드 */
@@ -54,13 +58,16 @@ export function Dialog({
   description,
   confirmText = '확인',
   cancelText = '취소',
+  destructiveText,
   onConfirm,
   onCancel,
+  onDestructive,
   variant = 'confirm',
   isDark = false,
 }: DialogProps) {
   const theme = isDark ? darkTheme : lightTheme;
   const hasCancel = !!onCancel;
+  const hasDestructive = !!onDestructive && !!destructiveText;
 
   // 확인 버튼 색상
   const getConfirmButtonColor = () => {
@@ -83,11 +90,11 @@ export function Dialog({
       statusBarTranslucent
       onRequestClose={onCancel || onConfirm}
     >
-      <View style={styles.overlay}>
-        <View style={[
+      <Pressable style={styles.overlay} onPress={(e) => { e.stopPropagation(); (onCancel || onConfirm)(); }}>
+        <Pressable style={[
           styles.container,
           { backgroundColor: isDark ? palette.neutral[800] : palette.neutral[0] }
-        ]}>
+        ]} onPress={(e) => e.stopPropagation()}>
           {/* Title */}
           <Text style={[
             styles.title,
@@ -107,6 +114,52 @@ export function Dialog({
           )}
 
           {/* Buttons */}
+          {/* Buttons */}
+          {hasDestructive ? (
+            <View style={styles.buttonContainerVertical}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.buttonVertical,
+                  { backgroundColor: getConfirmButtonColor() },
+                  pressed && styles.buttonPressed,
+                ]}
+                onPress={(e) => { e.stopPropagation(); onConfirm(); }}
+              >
+                <Text style={[styles.buttonText, styles.confirmButtonText]}>
+                  {confirmText}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.buttonVertical,
+                  { backgroundColor: palette.error[500] },
+                  pressed && styles.buttonPressed,
+                ]}
+                onPress={(e) => { e.stopPropagation(); onDestructive?.(); }}
+              >
+                <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>
+                  {destructiveText}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.buttonVertical,
+                  { backgroundColor: isDark ? palette.neutral[700] : palette.neutral[200] },
+                  pressed && styles.buttonPressed,
+                ]}
+                onPress={(e) => { e.stopPropagation(); onCancel?.(); }}
+              >
+                <Text style={[
+                  styles.buttonText,
+                  { color: isDark ? palette.neutral[100] : palette.neutral[900] }
+                ]}>
+                  {cancelText}
+                </Text>
+              </Pressable>
+            </View>
+          ) : (
           <View style={[
             styles.buttonContainer,
             !hasCancel && styles.buttonContainerSingle
@@ -119,7 +172,7 @@ export function Dialog({
                   { backgroundColor: isDark ? palette.neutral[700] : palette.neutral[200] },
                   pressed && styles.buttonPressed,
                 ]}
-                onPress={onCancel}
+                onPress={(e) => { e.stopPropagation(); onCancel?.(); }}
               >
                 <Text style={[
                   styles.buttonText,
@@ -138,15 +191,16 @@ export function Dialog({
                 pressed && styles.buttonPressed,
                 !hasCancel && styles.buttonFull,
               ]}
-              onPress={onConfirm}
+              onPress={(e) => { e.stopPropagation(); onConfirm(); }}
             >
               <Text style={[styles.buttonText, styles.confirmButtonText]}>
                 {confirmText}
               </Text>
             </Pressable>
           </View>
-        </View>
-      </View>
+          )}
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
@@ -183,8 +237,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  buttonContainerVertical: {
+    flexDirection: 'column',
+    gap: 8,
+  },
   buttonContainerSingle: {
     justifyContent: 'center',
+  },
+  buttonVertical: {
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   button: {
     flex: 1,

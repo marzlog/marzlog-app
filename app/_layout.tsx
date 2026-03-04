@@ -107,6 +107,12 @@ function RootLayoutNav() {
           <Stack.Screen name="profile-edit" options={{ headerShown: false }} />
           <Stack.Screen name="upload" options={{ headerShown: false }} />
           <Stack.Screen name="media" options={{ headerShown: false }} />
+          <Stack.Screen name="app-info" options={{ headerShown: false }} />
+          <Stack.Screen name="withdraw" options={{ headerShown: false }} />
+          <Stack.Screen name="withdraw-complete" options={{ headerShown: false }} />
+          <Stack.Screen name="settings" options={{ headerShown: false }} />
+          <Stack.Screen name="language-select" options={{ headerShown: false }} />
+          <Stack.Screen name="labs" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>
       </DialogProvider>

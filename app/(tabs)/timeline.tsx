@@ -29,6 +29,8 @@ import { Logo } from '@/src/components/common/Logo';
 import { ScheduleCard } from '@/src/components/home';
 import notificationsApi from '@/src/api/notifications';
 import announcementsApi from '@/src/api/announcements';
+import { getErrorMessage } from '@/src/utils/errorMessages';
+import ErrorView from '@/src/components/common/ErrorView';
 
 // 다크 그린 색상
 const DARK_GREEN = '#2D3A35';
@@ -170,20 +172,6 @@ function ImageIcon({ color = palette.neutral[500] }: { color?: string }) {
   );
 }
 
-function AlertIcon({ color = palette.error[500] }: { color?: string }) {
-  return (
-    <Svg width={64} height={64} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M12 9V13M12 17H12.01M12 3L2 21H22L12 3Z"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
 function CameraIcon({ color = palette.primary[500] }: { color?: string }) {
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
@@ -314,7 +302,7 @@ export default function TimelineScreen() {
       setDateGroups(groups);
     } catch (err: any) {
       console.error('Timeline load error:', err);
-      setError(err.message || '타임라인을 불러올 수 없습니다');
+      setError(getErrorMessage(err));
     } finally {
       loadingRef.current = false;
       setLoading(false);
@@ -515,24 +503,33 @@ export default function TimelineScreen() {
   if (error) {
     return (
       <View style={[styles.centerContainer, { backgroundColor: theme.background.primary }]}>
-        <AlertIcon color={theme.error.default} />
-        <Text style={[styles.errorText, { color: theme.text.primary }]}>{error}</Text>
-        <Text style={{ color: theme.text.tertiary, fontSize: 12, marginTop: 8 }}>
-          Token: {accessToken ? `${accessToken.substring(0, 20)}...` : 'MISSING'}
-        </Text>
-        <TouchableOpacity style={[styles.retryButton, { backgroundColor: palette.primary[500] }]} onPress={() => loadTimeline()}>
-          <Text style={[styles.retryButtonText, { color: palette.neutral[0] }]}>{t('common.retry')}</Text>
-        </TouchableOpacity>
+        <ErrorView
+          message={error}
+          onRetry={() => loadTimeline()}
+          textColor={theme.text.primary}
+          subTextColor={theme.text.secondary}
+          buttonColor={palette.primary[500]}
+        />
       </View>
     );
   }
+
+  // analysis_status 기반 제목 결정
+  const getDisplayTitle = (item: TimelineItem): string => {
+    const title = item.title || item.caption_ko || item.caption;
+    if (title) return title;
+    const status = item.analysis_status;
+    if (status === 'queued' || status === 'running') return 'AI 분석 중...';
+    if (status === 'failed') return '분석 실패';
+    return t('common.noTitle');
+  };
 
   // 그리드 뷰 카드
   const renderGridCard = (photo: TimelineItem) => (
     <View key={photo.id} style={styles.gridCardWrapper}>
       <ScheduleCard
         id={photo.id}
-        title={photo.title || photo.caption || t('common.noTitle')}
+        title={getDisplayTitle(photo)}
         time={formatTime(photo.media?.taken_at || photo.created_at)}
         imageUrl={getImageUrl(photo)}
         emotion={photo.media?.emotion}
@@ -954,22 +951,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-  },
-  errorText: {
-    marginTop: 16,
-    fontSize: 16,
-    textAlign: 'center',
-    paddingHorizontal: 32,
-  },
-  retryButton: {
-    marginTop: 24,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
   // List Content
   flatListContent: {

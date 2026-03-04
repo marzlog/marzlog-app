@@ -1,3 +1,29 @@
+import { AxiosError } from 'axios';
+import { t } from '../i18n';
+
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof AxiosError) {
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      return t('error.network');
+    }
+    if (error.code === 'ECONNABORTED') {
+      return t('error.timeout');
+    }
+    const status = error.response?.status;
+    if (status === 401) {
+      return t('error.sessionExpired');
+    }
+    if (status && status >= 500) {
+      return t('error.server');
+    }
+    return extractErrorMessage(error, t('error.unknown'));
+  }
+  if (error instanceof Error) {
+    return error.message || t('error.unknown');
+  }
+  return t('error.unknown');
+}
+
 /**
  * Translate English backend/Pydantic error messages to Korean.
  * Uses partial matching so "value is not a valid email address: ..." still matches.

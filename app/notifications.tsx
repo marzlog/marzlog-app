@@ -19,6 +19,8 @@ import { useTranslation } from '@src/hooks/useTranslation';
 import { useDialog } from '@/src/components/ui/Dialog';
 import notificationsApi, { Notification } from '@src/api/notifications';
 import announcementsApi, { Announcement } from '@src/api/announcements';
+import { getErrorMessage } from '@/src/utils/errorMessages';
+import ErrorView from '@/src/components/common/ErrorView';
 
 type TabType = 'all' | 'announcements' | 'personal';
 
@@ -37,11 +39,12 @@ export default function NotificationsScreen() {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
   const { t } = useTranslation();
-  const { confirm } = useDialog();
+  const { confirm, alert: showAlert } = useDialog();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -61,14 +64,24 @@ export default function NotificationsScreen() {
 
   const fetchData = useCallback(async () => {
     try {
+      setError(null);
+      let notifFailed = false;
+      let annFailed = false;
+      let lastError: unknown;
+
       const [notifData, annData] = await Promise.all([
-        notificationsApi.getNotifications().catch(() => ({ notifications: [], total: 0 })),
-        announcementsApi.getAnnouncements().catch(() => ({ announcements: [], total: 0, unread_count: 0 })),
+        notificationsApi.getNotifications().catch((err) => { notifFailed = true; lastError = err; return { notifications: [] as Notification[], total: 0 }; }),
+        announcementsApi.getAnnouncements().catch((err) => { annFailed = true; lastError = err; return { announcements: [] as Announcement[], total: 0, unread_count: 0 }; }),
       ]);
-      setNotifications(notifData.notifications);
-      setAnnouncements(annData.announcements);
-    } catch {
-      // silent
+
+      if (notifFailed && annFailed) {
+        setError(getErrorMessage(lastError));
+      } else {
+        setNotifications(notifData.notifications);
+        setAnnouncements(annData.announcements);
+      }
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -142,7 +155,9 @@ export default function NotificationsScreen() {
             prev.map(n => n.id === realId ? { ...n, is_read: true } : n)
           );
         }
-      } catch {}
+      } catch (err) {
+        console.warn('[Notifications] Failed to mark as read:', err);
+      }
     }
   };
 
@@ -173,7 +188,9 @@ export default function NotificationsScreen() {
         setNotifications(prev => prev.filter(n => !realIds.includes(n.id)));
         setSelectedIds(new Set());
         setDeleteMode(false);
-      } catch {}
+      } catch (err) {
+        showAlert(getErrorMessage(err));
+      }
     }
   };
 
@@ -322,6 +339,28 @@ export default function NotificationsScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FF6A5F" />
         </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <View style={[styles.header, { borderBottomColor: borderColor }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
+            <Ionicons name="chevron-back" size={24} color={textColor} />
+          </TouchableOpacity>
+          <Text style={[styles.headerTitle, { color: textColor }]}>{t('notification.title')}</Text>
+          <View style={styles.headerBtn} />
+        </View>
+        <ErrorView
+          message={error}
+          onRetry={fetchData}
+          textColor={textColor}
+          subTextColor={subtextColor}
+          buttonColor="#FF6A5F"
+        />
       </SafeAreaView>
     );
   }

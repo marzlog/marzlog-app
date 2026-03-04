@@ -5,7 +5,8 @@ import { useSettingsStore } from '@src/store/settingsStore';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { authApi } from '@src/api/auth';
 import type { UserStats } from '@src/types/auth';
-import React, { useEffect, useState } from 'react';
+import { Image } from 'expo-image';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
@@ -16,14 +17,16 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
+import { getErrorMessage } from '@/src/utils/errorMessages';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const systemColorScheme = useColorScheme();
   const router = useRouter();
-  const { user, logout } = useAuthStore();
+  const { user, logout, setUser } = useAuthStore();
   const { t } = useTranslation();
   const { confirm } = useDialog();
   const { themeMode } = useSettingsStore();
@@ -34,18 +37,37 @@ export default function ProfileScreen() {
 
   const [stats, setStats] = useState<UserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
 
   useEffect(() => {
     loadStats();
   }, []);
 
+  // 화면 복귀 시 최신 유저 정보 + 통계 새로고침
+  useFocusEffect(
+    useCallback(() => {
+      const refreshUser = async () => {
+        try {
+          const freshUser = await authApi.getCurrentUser();
+          setUser(freshUser);
+        } catch (err) {
+          console.warn('[Profile] Failed to refresh user:', err);
+        }
+      };
+      refreshUser();
+      loadStats();
+    }, [])
+  );
+
   const loadStats = async () => {
     try {
       setStatsLoading(true);
+      setStatsError(null);
       const userStats = await authApi.getUserStats();
       setStats(userStats);
     } catch (error) {
       console.error('Failed to load stats:', error);
+      setStatsError(getErrorMessage(error));
     } finally {
       setStatsLoading(false);
     }
@@ -88,10 +110,20 @@ export default function ProfileScreen() {
       >
         {/* Profile Card */}
         <View style={[styles.profileCard, isDark && styles.cardDark]}>
-          <View style={[styles.avatar, isDark && styles.avatarDark]}>
-            <Text style={styles.avatarText}>
-              {user?.email?.charAt(0).toUpperCase() || 'U'}
-            </Text>
+          <View style={[styles.avatar, isDark && styles.avatarDark, user?.avatar_url && styles.avatarWithImage]}>
+            {user?.avatar_url ? (
+              <Image
+                key={user.avatar_url}
+                source={{ uri: user.avatar_url }}
+                style={styles.avatarImage}
+                contentFit="cover"
+                transition={200}
+              />
+            ) : (
+              <Text style={styles.avatarText}>
+                {user?.email?.charAt(0).toUpperCase() || 'U'}
+              </Text>
+            )}
           </View>
           <Text style={[styles.userName, isDark && styles.textLight]}>
             {user?.nickname || user?.email?.split('@')[0] || 'User'}
@@ -120,6 +152,15 @@ export default function ProfileScreen() {
             <View style={styles.statsLoading}>
               <ActivityIndicator size="small" color="#6366F1" />
             </View>
+          ) : statsError ? (
+            <TouchableOpacity style={styles.statsLoading} onPress={loadStats} activeOpacity={0.7}>
+              <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280', fontSize: 13, textAlign: 'center' }}>
+                {statsError}
+              </Text>
+              <Text style={{ color: '#6366F1', fontSize: 13, fontWeight: '500', marginTop: 4 }}>
+                {t('error.tapToRetry')}
+              </Text>
+            </TouchableOpacity>
           ) : (
             <View style={styles.statsGrid}>
               <StatItem icon="images-outline" label={t('stats.photos')} value={stats?.total_photos?.toString() || '0'} isDark={isDark} />
@@ -259,6 +300,14 @@ const styles = StyleSheet.create({
   },
   avatarDark: {
     backgroundColor: '#4F46E5',
+  },
+  avatarWithImage: {
+    overflow: 'hidden' as const,
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   avatarText: {
     fontSize: 32,

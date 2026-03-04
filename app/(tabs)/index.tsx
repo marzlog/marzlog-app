@@ -29,6 +29,8 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useDialog } from '@/src/components/ui/Dialog';
 import notificationsApi from '@/src/api/notifications';
 import announcementsApi from '@/src/api/announcements';
+import { getErrorMessage } from '@/src/utils/errorMessages';
+import ErrorView from '@/src/components/common/ErrorView';
 
 const { width } = Dimensions.get('window');
 
@@ -251,6 +253,7 @@ export default function HomeScreen() {
   // 스토어에서 초기값 가져오기
   const [selectedDate, setSelectedDateLocal] = useState(() => getSelectedDate());
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [allItems, setAllItems] = useState<TimelineItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -306,6 +309,7 @@ export default function HomeScreen() {
 
     try {
       console.log('[Home] Calling timelineApi.getTimeline with limit=', PAGE_SIZE);
+      setError(null);
       const response = await timelineApi.getTimeline(PAGE_SIZE, 0, false);
       console.log('[Home] API Response - total:', response.total, 'items:', response.items.length);
       setAllItems(response.items);
@@ -317,6 +321,7 @@ export default function HomeScreen() {
       }
     } catch (err) {
       console.error('[Home] Failed to load all items:', err);
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -364,9 +369,22 @@ export default function HomeScreen() {
 
     console.log('[Home] Filtered count:', filtered.length);
 
-    const mapped: ScheduleItem[] = filtered.map((item) => ({
+    const mapped: ScheduleItem[] = filtered.map((item) => {
+      // analysis_status 기반 제목 분기
+      const status = item.analysis_status;
+      let displayTitle = item.title || item.caption_ko || item.caption;
+      if (!displayTitle) {
+        if (status === 'queued' || status === 'running') {
+          displayTitle = 'AI 분석 중...';
+        } else if (status === 'failed') {
+          displayTitle = '분석 실패';
+        } else {
+          displayTitle = t('common.noTitle');
+        }
+      }
+      return {
       id: item.id,
-      title: item.title || item.caption || t('common.noTitle'),
+      title: displayTitle,
       location: undefined,
       time: formatTime(item.media?.taken_at || item.created_at),
       imageUrl: item.media?.thumbnail_url || item.media?.download_url || '',
@@ -374,7 +392,8 @@ export default function HomeScreen() {
       groupId: item.media?.group_id || undefined,
       groupCount: item.media?.group_count || undefined,
       emotion: item.media?.emotion || null,
-    }));
+    };
+    });
 
     setSchedules(mapped);
     setLoading(false);
@@ -639,6 +658,14 @@ export default function HomeScreen() {
               <ActivityIndicator size="large" color={palette.primary[500]} />
               <Text style={[styles.loadingText, { color: theme.text.secondary }]}>{t('common.loading')}</Text>
             </View>
+          ) : error ? (
+            <ErrorView
+              message={error}
+              onRetry={loadAllItems}
+              textColor={theme.text.primary}
+              subTextColor={theme.text.secondary}
+              buttonColor={palette.primary[500]}
+            />
           ) : schedules.length === 0 ? (
             <View style={styles.emptyState}>
               <ImageIcon color={theme.icon.secondary} />

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import { authApi } from '../api/auth';
 
 // Storage abstraction (same as authStore)
 const storage = {
@@ -30,6 +31,15 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 export type Language = 'ko' | 'en';
 export type AIMode = 'fast' | 'precise';
 
+// Frontend ↔ Backend mode mapping
+export function aiModeToBackend(mode: AIMode): 'light' | 'precision' {
+  return mode === 'fast' ? 'light' : 'precision';
+}
+
+export function backendToAiMode(mode: string): AIMode {
+  return mode === 'light' ? 'fast' : 'precise';
+}
+
 interface SettingsState {
   // Theme
   themeMode: ThemeMode;
@@ -58,6 +68,7 @@ interface SettingsActions {
   setAutoUploadEnabled: (enabled: boolean) => Promise<void>;
   setAutoUploadWifiOnly: (wifiOnly: boolean) => Promise<void>;
   setAIMode: (mode: AIMode) => Promise<void>;
+  syncAIModeFromServer: (mode: AIMode) => Promise<void>;
   setLanguage: (language: Language) => Promise<void>;
 
   // Load settings from storage
@@ -105,6 +116,14 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   },
 
   setAIMode: async (mode) => {
+    set({ aiMode: mode });
+    await saveSettings(get());
+    // Sync to backend (fire-and-forget)
+    authApi.updateSettings({ analysis_mode: aiModeToBackend(mode) }).catch(() => {});
+  },
+
+  // Sync from server without calling API back
+  syncAIModeFromServer: async (mode) => {
     set({ aiMode: mode });
     await saveSettings(get());
   },

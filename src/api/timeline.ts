@@ -38,9 +38,11 @@ export interface TimelineItem {
   user_id: string;
   media_id: string;
   caption: string | null;
+  caption_ko?: string | null;
   ocr_text: string | null;    // OCR 텍스트
   embedding: number[] | null;
   tags: string[];
+  tags_ko?: string[];
   created_at: string;
   updated_at: string;
   media: MediaInfo;           // ← media 객체!
@@ -50,6 +52,8 @@ export interface TimelineItem {
   content?: string | null;
   mood?: string | null;
   ai_provider?: string | null;
+  // Job status
+  analysis_status?: string | null;  // queued, running, done, failed
 }
 
 // 타임라인 응답

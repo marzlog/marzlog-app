@@ -1,3 +1,5 @@
+
+import { Platform } from 'react-native';
 import apiClient from './client';
 import type {
   AuthResponse,
@@ -143,6 +145,14 @@ export const authApi = {
   },
 
   /**
+   * 사용자 설정 변경
+   */
+  async updateSettings(data: { analysis_mode?: string }): Promise<{ status: string; analysis_mode: string }> {
+    const response = await apiClient.patch<{ status: string; analysis_mode: string }>('/auth/me/settings', data);
+    return response.data;
+  },
+
+  /**
    * 비밀번호 변경
    */
   async changePassword(currentPassword: string, newPassword: string): Promise<MessageResponse> {
@@ -150,6 +160,42 @@ export const authApi = {
       current_password: currentPassword,
       new_password: newPassword,
     });
+    return response.data;
+  },
+
+  /**
+   * 아바타 직접 업로드 (multipart/form-data)
+   */
+  async uploadAvatar(fileUri: string, mimeType: string = 'image/jpeg'): Promise<{ avatar_url: string; storage_key: string; user: User }> {
+    const formData = new FormData();
+
+    if (Platform.OS === 'web') {
+      // Web: fetch URI as blob, then create File object
+      const res = await fetch(fileUri);
+      const blob = await res.blob();
+      const file = new File([blob], 'avatar.jpg', { type: mimeType });
+      formData.append('file', file);
+    } else {
+      // Native (Android/iOS): React Native FormData pattern
+      formData.append('file', {
+        uri: fileUri,
+        type: mimeType,
+        name: 'avatar.jpg',
+      } as any);
+    }
+
+    const response = await apiClient.post('/auth/me/avatar/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    });
+    return response.data;
+  },
+
+  /**
+   * 아바타 삭제
+   */
+  async deleteAvatar(): Promise<{ message: string; user: User }> {
+    const response = await apiClient.delete('/auth/me/avatar');
     return response.data;
   },
 };

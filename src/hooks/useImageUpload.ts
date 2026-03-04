@@ -9,6 +9,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { Alert, Platform } from 'react-native';
 import { uploadImage, prepareUpload, uploadToS3, calculateSHA256, completeGroupUpload, addImagesToGroup } from '../api/upload';
 import type { SelectedImage, UploadItem, UploadCompleteResponse, UploadStatus, GroupUploadCompleteResponse, GroupUploadItem } from '../types/upload';
+import { getErrorMessage } from '../utils/errorMessages';
+import { t } from '../i18n';
+import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
 
 const MAX_SELECTION = 5; // 대표 1개 + 서브 4개
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
@@ -178,7 +181,7 @@ export function useImageUpload() {
 
         console.log(`✅ 업로드 완료: ${item.filename}, media_id: ${result.media_id}`);
       } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : '업로드 실패';
+        const errorMsg = getErrorMessage(err);
         updateItem(item.id, {
           status: 'error',
           error: errorMsg,
@@ -334,7 +337,7 @@ export function useImageUpload() {
       const groupRequestBody = {
         items: uploadedItems,
         primary_index: adjustedPrimaryIndex,
-        analysis_mode: 'light' as const,
+        analysis_mode: aiModeToBackend(useSettingsStore.getState().aiMode),
         taken_at: takenAt,  // 캘린더에서 선택한 날짜
         ...metadata,
       };
@@ -364,10 +367,10 @@ export function useImageUpload() {
       return result;
 
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : '그룹 업로드 실패';
+      const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       console.error('❌ 그룹 업로드 실패:', err);
-      Alert.alert('오류', errorMsg);
+      Alert.alert(t('common.error'), errorMsg);
       setIsUploading(false);
       return null;
     }
@@ -480,7 +483,7 @@ export function useImageUpload() {
       return true;
 
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : '이미지 추가 실패';
+      const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       console.error('❌ 그룹 이미지 추가 실패:', err);
       setIsUploading(false);

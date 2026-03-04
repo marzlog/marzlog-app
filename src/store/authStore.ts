@@ -2,8 +2,10 @@ import { create } from 'zustand';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import authApi from '../api/auth';
+import { setOnSessionExpired } from '../api/client';
 import type { User, AuthState } from '../types/auth';
 import { extractErrorMessage } from '../utils/errorMessages';
+import { useSettingsStore, backendToAiMode } from './settingsStore';
 
 // Storage abstraction
 const storage = {
@@ -41,9 +43,9 @@ interface AuthStore extends AuthState {
   loginWithEmail: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  forceLogout: () => void;
   deleteAccount: () => Promise<void>;
   checkAuth: () => Promise<void>;
-
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -153,6 +155,20 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 
+  // Force logout (no API call — used when session expired)
+  forceLogout: () => {
+    storage.removeItem('access_token');
+    storage.removeItem('refresh_token');
+    set({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+    });
+  },
+
   // Delete Account
   deleteAccount: async () => {
     try {
@@ -195,6 +211,14 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
       });
+
+      // Sync server analysis_mode to local settings (without triggering API call back)
+      if (user.analysis_mode) {
+        const localMode = backendToAiMode(user.analysis_mode);
+        if (useSettingsStore.getState().aiMode !== localMode) {
+          useSettingsStore.getState().syncAIModeFromServer(localMode);
+        }
+      }
     } catch {
       // Clear invalid tokens
       await storage.removeItem('access_token');
@@ -204,5 +228,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
 }));
+
+// Register session expired callback: 401 refresh failure → forceLogout → _layout.tsx redirects to /login
+setOnSessionExpired(() => useAuthStore.getState().forceLogout());
 
 export default useAuthStore;

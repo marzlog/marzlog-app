@@ -33,6 +33,9 @@ import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTimelineStore } from '@/src/store/timelineStore';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { t } from '@/src/i18n';
+import { getErrorMessage } from '@/src/utils/errorMessages';
+import ErrorView from '@/src/components/common/ErrorView';
+import { AiNotice } from '@/src/components/common/AiNotice';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 import { EMOTIONS, getEmotionByName, getEmotionIcon, getEmotionIllustration, EMOTION_KEY_TO_NAME } from '@/constants/emotions';
 
@@ -151,9 +154,15 @@ export default function MediaDetailScreen() {
           console.log('[MediaDetail] Failed to load group images:', groupErr);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Load error:', err);
-      setError(err instanceof Error ? err.message : '로딩 실패');
+      // 404: media가 삭제된 경우 → 홈으로 돌아가기
+      if (err?.response?.status === 404) {
+        alert(t('media.deleted'), t('media.deletedDesc'));
+        router.back();
+        return;
+      }
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -354,7 +363,7 @@ export default function MediaDetailScreen() {
     return (
       <View style={[styles.centered, isDark && styles.containerDark, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={colors.brand.primary} />
-        <Text style={[styles.loadingText, isDark && styles.textLight]}>불러오는 중...</Text>
+        <Text style={[styles.loadingText, isDark && styles.textLight]}>{t('media.loading')}</Text>
       </View>
     );
   }
@@ -362,11 +371,13 @@ export default function MediaDetailScreen() {
   if (error || !media) {
     return (
       <View style={[styles.centered, isDark && styles.containerDark, { paddingTop: insets.top }]}>
-        <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
-        <Text style={[styles.errorText, isDark && styles.textLight]}>{error || '사진을 찾을 수 없습니다'}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadData}>
-          <Text style={styles.retryText}>다시 시도</Text>
-        </TouchableOpacity>
+        <ErrorView
+          message={error || t('media.notFound')}
+          onRetry={loadData}
+          textColor={isDark ? '#F9FAFB' : '#1F2937'}
+          subTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+          buttonColor={colors.brand.primary}
+        />
       </View>
     );
   }
@@ -382,7 +393,7 @@ export default function MediaDetailScreen() {
       router.back(); // 이전 화면(해당 날짜 그룹)으로 돌아감
     } catch (err) {
       console.error('[MediaDetail] Delete error:', err);
-      await alert('삭제 실패', '잠시 후에 다시 시도해 주세요.');
+      await alert(t('common.error'), t('error.deleteFailed'));
     } finally {
       setIsDeleting(false);
     }
@@ -394,14 +405,14 @@ export default function MediaDetailScreen() {
 
     // 그룹이면서 메인이 아닌 경우 경고
     if (media.group_id && !isCurrentImagePrimary) {
-      await alert('알림', '그룹 일기는 대표 사진에서만 생성할 수 있습니다.');
+      await alert(t('common.confirm'), t('media.diaryGroupOnly'));
       return;
     }
 
     setIsGeneratingDiary(true);
     try {
       await generateDiary(id!);
-      await alert('일기 생성 시작', 'AI가 일기를 생성하고 있습니다.\n10초 후 자동으로 새로고침됩니다.');
+      await alert(t('media.diaryStartedTitle'), t('media.diaryStarted'));
 
       // 10초 후 자동 새로고침
       setTimeout(async () => {
@@ -419,8 +430,7 @@ export default function MediaDetailScreen() {
       }, 10000);
     } catch (err: any) {
       console.error('[MediaDetail] Diary generation error:', err);
-      const message = err?.response?.data?.detail || '일기 생성에 실패했습니다.';
-      await alert('오류', message);
+      await alert(t('common.error'), getErrorMessage(err));
     } finally {
       setIsGeneratingDiary(false);
     }
@@ -460,10 +470,9 @@ export default function MediaDetailScreen() {
       setMedia(mediaData);
 
       setDiaryEditModalVisible(false);
-      await alert('완료', '일기가 수정되었습니다.');
+      await alert(t('common.done'), t('media.diaryUpdated'));
     } catch (err: any) {
-      const message = err?.response?.data?.detail || '저장에 실패했습니다.';
-      await alert('오류', message);
+      await alert(t('common.error'), getErrorMessage(err));
     } finally {
       setIsSaving(false);
     }
@@ -486,9 +495,9 @@ export default function MediaDetailScreen() {
       setAnalysis(newAnalysis);
 
       setCaptionEditModalVisible(false);
-      await alert('완료', '사진 설명이 수정되었습니다.');
+      await alert(t('common.done'), t('media.captionUpdated'));
     } catch (err) {
-      await alert('오류', '저장에 실패했습니다.');
+      await alert(t('common.error'), t('error.saveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -525,9 +534,9 @@ export default function MediaDetailScreen() {
       }
 
       setEmotionModalVisible(false);
-      await alert('완료', '감정이 수정되었습니다.');
+      await alert(t('common.done'), t('media.emotionUpdated'));
     } catch (err) {
-      await alert('오류', '저장에 실패했습니다.');
+      await alert(t('common.error'), t('error.saveFailed'));
     } finally {
       setIsSaving(false);
     }
@@ -691,6 +700,7 @@ export default function MediaDetailScreen() {
                 </Text>
               </View>
             )}
+            <AiNotice text={t('ai.draftNotice')} fontSize={12} isDark={isDark} />
           </View>
         )}
 
@@ -783,6 +793,7 @@ export default function MediaDetailScreen() {
               <Text style={[styles.sectionTitle, isDark && styles.textLight]}>AI Caption</Text>
             </View>
             <Text style={[styles.captionText, isDark && styles.captionTextDark]}>{analysis.caption_ko || analysis.caption}</Text>
+            <AiNotice text={t('ai.captionNotice')} isDark={isDark} />
           </View>
         )}
 
@@ -1326,25 +1337,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: colors.neutral[5],
-  },
-  errorText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: '#EF4444',
-    textAlign: 'center',
-    paddingHorizontal: 32,
-  },
-  retryButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: colors.brand.primary,
-    borderRadius: 12,
-  },
-  retryText: {
-    color: colors.text.inverse,
-    fontSize: 16,
-    fontWeight: '600',
   },
   header: {
     height: 56,

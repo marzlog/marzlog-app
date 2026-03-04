@@ -16,6 +16,11 @@ import type {
   UploadPrepareResponse,
 } from '../types/upload';
 import { apiClient } from './client';
+import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
+
+function getCurrentAnalysisMode(): 'light' | 'precision' {
+  return aiModeToBackend(useSettingsStore.getState().aiMode);
+}
 
 /**
  * 파일의 SHA256 해시 계산
@@ -204,7 +209,7 @@ export async function uploadImage(
     const requestBody = {
       upload_id: prepareResponse.upload_id,
       storage_key: prepareResponse.storage_key!,
-      analysis_mode: 'light' as const,
+      analysis_mode: getCurrentAnalysisMode(),
       taken_at: takenAt,
     };
 
@@ -240,7 +245,7 @@ export async function uploadImage(
   const requestBody = {
     upload_id: prepareResponse.upload_id,
     storage_key: prepareResponse.storage_key,
-    analysis_mode: 'light' as const,
+    analysis_mode: getCurrentAnalysisMode(),
     taken_at: takenAt,  // 캘린더에서 선택한 날짜
   };
 

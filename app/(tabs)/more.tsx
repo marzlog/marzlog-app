@@ -1,8 +1,6 @@
 import React from 'react';
 import {
-  ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -11,31 +9,33 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
-import { useSettingsStore, type ThemeMode, type AIMode } from '@/src/store/settingsStore';
+import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { Logo } from '@/src/components/common/Logo';
 
+interface MenuItem {
+  icon: keyof typeof Ionicons.glyphMap;
+  labelKey: string;
+  route: string;
+}
+
+const MENU_ITEMS: MenuItem[] = [
+  { icon: 'home-outline', labelKey: 'more.home', route: '/(tabs)/' },
+  { icon: 'albums-outline', labelKey: 'more.album', route: '/(tabs)/timeline' },
+  { icon: 'person-outline', labelKey: 'more.profile', route: '/(tabs)/profile' },
+  { icon: 'settings-outline', labelKey: 'more.settings', route: '/settings' },
+];
+
 export default function MoreScreen() {
   const systemColorScheme = useColorScheme();
-  const { t, language, changeLanguage } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const {
-    themeMode,
-    aiMode,
-    notificationsEnabled,
-    setThemeMode,
-    setAIMode,
-    setNotificationsEnabled,
-  } = useSettingsStore();
+  const { themeMode } = useSettingsStore();
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
-
-  const handleAppInfo = () => {
-    router.push('/app-info');
-  };
 
   return (
     <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
@@ -46,94 +46,27 @@ export default function MoreScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Settings */}
+      <View style={styles.content}>
         <View style={[styles.card, isDark && styles.cardDark]}>
-          {/* 푸시 알림 설정 */}
-          <View style={styles.menuItem}>
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="notifications-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('settings.notifications')}</Text>
-            </View>
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
-              trackColor={{ false: '#D1D5DB', true: '#6366F1' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-
-          {/* 언어 선택 */}
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => changeLanguage(language === 'ko' ? 'en' : 'ko')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="language-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('settings.language')}</Text>
-            </View>
-            <Text style={styles.settingValue}>
-              {language === 'ko' ? t('settings.languageKo') : t('settings.languageEn')}
-            </Text>
-          </TouchableOpacity>
-
-          {/* 다크 모드 */}
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              const modes: ThemeMode[] = ['system', 'light', 'dark'];
-              const currentIndex = modes.indexOf(themeMode);
-              const nextMode = modes[(currentIndex + 1) % modes.length];
-              setThemeMode(nextMode);
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="moon-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('settings.darkMode')}</Text>
-            </View>
-            <Text style={styles.settingValue}>
-              {themeMode === 'system' ? t('settings.darkModeSystem') : themeMode === 'dark' ? t('settings.darkModeDark') : t('settings.darkModeLight')}
-            </Text>
-          </TouchableOpacity>
-
-          {/* AI 분석 모드 */}
-          <TouchableOpacity
-            style={[styles.menuItem, styles.menuItemLast]}
-            onPress={() => {
-              const modes: AIMode[] = ['fast', 'precise'];
-              const currentIndex = modes.indexOf(aiMode);
-              const nextMode = modes[(currentIndex + 1) % modes.length];
-              setAIMode(nextMode);
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="sparkles-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('settings.aiMode')}</Text>
-            </View>
-            <Text style={styles.settingValue}>
-              {aiMode === 'fast' ? t('settings.aiModeFast') : t('settings.aiModePrecise')}
-            </Text>
-          </TouchableOpacity>
+          {MENU_ITEMS.map((item, index) => (
+            <TouchableOpacity
+              key={item.route}
+              style={[
+                styles.menuItem,
+                index === MENU_ITEMS.length - 1 && styles.menuItemLast,
+              ]}
+              onPress={() => router.push(item.route as any)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.menuItemLeft}>
+                <Ionicons name={item.icon} size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
+                <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t(item.labelKey as any)}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+          ))}
         </View>
-
-        {/* App Info */}
-        <View style={[styles.card, isDark && styles.cardDark]}>
-          <TouchableOpacity
-            style={[styles.menuItem, styles.menuItemLast]}
-            onPress={handleAppInfo}
-            activeOpacity={0.7}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="information-circle-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('more.appInfo')}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -168,12 +101,10 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingTop: 0,
-    paddingBottom: 120,
   },
   card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    marginBottom: 16,
   },
   cardDark: {
     backgroundColor: '#1F2937',
@@ -198,9 +129,5 @@ const styles = StyleSheet.create({
   menuLabel: {
     fontSize: 16,
     color: '#374151',
-  },
-  settingValue: {
-    fontSize: 14,
-    color: '#9CA3AF',
   },
 });

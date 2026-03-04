@@ -4,6 +4,19 @@ import { Platform } from 'react-native';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.marzlog.com';
 
+// Session expired callback (set by authStore)
+let _onSessionExpired: (() => void) | null = null;
+
+export function setOnSessionExpired(callback: () => void) {
+  _onSessionExpired = callback;
+}
+
+function notifySessionExpired() {
+  if (_onSessionExpired) {
+    _onSessionExpired();
+  }
+}
+
 // Storage abstraction for web/native
 const storage = {
   async getItem(key: string): Promise<string | null> {
@@ -81,11 +94,16 @@ apiClient.interceptors.response.use(
           // Clear tokens on refresh failure
           await storage.removeItem('access_token');
           await storage.removeItem('refresh_token');
+          notifySessionExpired();
           return Promise.reject(refreshError);
         }
+      } else {
+        // No refresh token available — force logout
+        await storage.removeItem('access_token');
+        notifySessionExpired();
       }
     }
-    
+
     return Promise.reject(error);
   }
 );

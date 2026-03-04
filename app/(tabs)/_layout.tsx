@@ -144,11 +144,9 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
     }
   };
 
-  // href: null 제외한 보이는 탭만 필터
-  const visibleRoutes = state.routes.filter((route) => {
-    const { options } = descriptors[route.key];
-    return (options as any).href !== null;
-  });
+  // 5개 탭만 표시 (그 외 href: null 라우트 제외)
+  const VISIBLE_TABS = ['index', 'timeline', 'search', 'profile', 'more'];
+  const visibleRoutes = state.routes.filter((route) => VISIBLE_TABS.includes(route.name));
 
   return (
     <View style={[styles.tabBarContainer, { bottom: Math.max(insets.bottom, 16) }]}>
@@ -207,7 +205,7 @@ export default function TabLayout() {
       <Tabs.Screen name="search" options={{ title: 'AI Search' }} />
       <Tabs.Screen name="profile" options={{ title: 'My Page' }} />
       <Tabs.Screen name="more" options={{ title: 'More' }} />
-      <Tabs.Screen name="albums" options={{ href: null }} />
+      <Tabs.Screen name="albums" options={{ href: null, title: '' }} />
     </Tabs>
   );
 }

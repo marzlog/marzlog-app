@@ -3,10 +3,12 @@ export interface User {
   email: string;
   name?: string;
   nickname?: string | null;
-  profile_image?: string | null;
+  avatar_url?: string | null;
+  profile_image?: string | null;  // legacy alias
   oauth_provider?: 'google' | 'apple' | null;
   oauth_sub?: string | null;
   role: 'user' | 'admin';
+  analysis_mode?: 'light' | 'precision';
   created_at: string;
   updated_at: string;
 }
