@@ -1,4 +1,10 @@
 {
+  "ai": {
+    "draftNotice": "This is an AI-generated draft. Tap to edit freely.",
+    "captionNotice": "AI-generated description. May not be fully accurate.",
+    "searchNotice": "AI-powered results. Some may be inaccurate.",
+    "disclaimer": "Marzlog's AI features (captions, diary, search, OCR) provide auto-generated drafts. Results may not be fully accurate and can be edited by the user."
+  },
   "common": {
     "cancel": "Cancel",
     "confirm": "Confirm",
@@ -158,13 +164,19 @@
     "aiMode": "AI Analysis Mode",
     "aiModeFast": "Fast",
     "aiModePrecise": "Precise",
+    "aiModeFastDesc": "Captions and search only (5-10 sec)",
+    "aiModePreciseDesc": "Captions, search, OCR, and AI diary (20-30 sec)",
     "darkMode": "Dark Mode",
     "darkModeSystem": "System",
     "darkModeLight": "Light",
     "darkModeDark": "Dark",
     "language": "Language",
     "languageKo": "한국어",
-    "languageEn": "English"
+    "languageEn": "English",
+    "labs": "Labs",
+    "appInfo": "App Info",
+    "languageSelect": "Language",
+    "pushNotification": "Push Notifications"
   },
   "support": {
     "title": "Support",
@@ -175,6 +187,10 @@
   },
   "more": {
     "title": "More",
+    "home": "Home",
+    "album": "Album",
+    "profile": "Profile",
+    "settings": "Settings",
     "notices": "Notices",
     "feedback": "Contact / Feedback",
     "appInfo": "App Info"
@@ -213,6 +229,9 @@
     "aiSearch": "AI Semantic Search",
     "aiSearchDesc": "Find photos using natural language.\n\"Last summer at the beach\", \"Dinner with family\", etc.",
     "searchFailed": "Search failed",
+    "aiPreparing": "AI search is preparing. Please try again shortly",
+    "similarFailed": "Failed to find similar images",
+    "resultCount": "{{count}} results",
     "englishOnly": "Currently supports English search only",
     "recentSearches": "Recent Searches",
     "clearAll": "Clear All"
@@ -285,6 +304,68 @@
     "frame6Subtitle": "Photos processed on-device first, minimal cloud transfer.\nFind any memory with just a few words",
     "frame7Title": "Turn Moments into Memories",
     "frame7Subtitle": "No likes. No followers.\nJust your memories."
+  },
+  "error": {
+    "network": "Please check your internet connection",
+    "timeout": "Request timed out. Please try again",
+    "server": "Server error occurred. Please try again later",
+    "sessionExpired": "Session expired. Please log in again",
+    "unknown": "An unknown error occurred",
+    "tapToRetry": "Tap to retry",
+    "loadFailed": "Failed to load",
+    "saveFailed": "Failed to save",
+    "deleteFailed": "Delete failed. Please try again later",
+    "uploadFailed": "Upload failed",
+    "groupUploadFailed": "Group upload failed",
+    "addImageFailed": "Failed to add images"
+  },
+  "media": {
+    "notFound": "Photo not found",
+    "deleted": "Photo deleted",
+    "deletedDesc": "This photo no longer exists",
+    "deleteConfirm": "Delete this photo?",
+    "diaryGroupOnly": "Group diary can only be created from the main photo",
+    "diaryStarted": "AI is generating a diary.\nIt will auto-refresh in 10 seconds",
+    "diaryStartedTitle": "Diary generation started",
+    "diaryUpdated": "Diary has been updated",
+    "captionUpdated": "Photo caption has been updated",
+    "emotionUpdated": "Emotion has been updated",
+    "loading": "Loading..."
+  },
+  "appInfo": {
+    "title": "App Info",
+    "termsSection": "Terms & Policies",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "appIcon": "App Icon",
+    "iconNotSupported": "Change App Icon",
+    "iconNotSupportedDesc": "This feature is only available in built apps.",
+    "iconDefault": "Default",
+    "iconCoral": "Coral",
+    "iconRed": "Red",
+    "version": "Version",
+    "deleteAccount": "Delete Account"
+  },
+  "language": {
+    "title": "Select Language",
+    "korean": "Korean (한국어)",
+    "english": "English (영어)",
+    "confirm": "Confirm"
+  },
+  "labs": {
+    "title": "Labs",
+    "desc": "Try new features early",
+    "aiClassify": "AI Auto Classify",
+    "aiClassifyDesc": "Auto-classify photos by category",
+    "landscape": "Landscape",
+    "people": "People",
+    "food": "Food",
+    "animal": "Pets",
+    "text": "Text",
+    "object": "Objects",
+    "comingSoon": "Coming Soon",
+    "photoUnit": "",
+    "noPhotos": "No photos in this category"
   },
   "exif": {
     "noInfo": "No camera info",

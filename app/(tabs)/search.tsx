@@ -9,6 +9,9 @@ import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { ScheduleCard } from '@/src/components/home';
 import { Logo } from '@/src/components/common/Logo';
+import { getErrorMessage } from '@/src/utils/errorMessages';
+import ErrorView from '@/src/components/common/ErrorView';
+import { AiNotice } from '@/src/components/common/AiNotice';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ActivityIndicator,
@@ -170,8 +173,8 @@ export default function SearchScreen() {
       }
       console.error('[Search] Error:', err);
       setError(isTimeout
-        ? 'AI 검색 준비 중입니다. 잠시 후 다시 시도해주세요.'
-        : err.response?.data?.detail || err.message || t('search.searchFailed'));
+        ? t('search.aiPreparing')
+        : getErrorMessage(err));
       setResults([]);
     } finally {
       setIsSearching(false);
@@ -219,7 +222,7 @@ export default function SearchScreen() {
       setQuery(`Similar to image`);
     } catch (err: any) {
       console.error('[Search] Similar search error:', err);
-      setError(err.response?.data?.detail || err.message || 'Failed to find similar images');
+      setError(getErrorMessage(err));
     } finally {
       setIsSearching(false);
     }
@@ -330,10 +333,13 @@ export default function SearchScreen() {
           </Text>
         </View>
       ) : error ? (
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={48} color="#EF4444" />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
+        <ErrorView
+          message={error}
+          onRetry={() => handleSearch()}
+          textColor={isDark ? '#F9FAFB' : '#1F2937'}
+          subTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+          buttonColor={colors.brand.primary}
+        />
       ) : !hasSearched ? (
         <View style={styles.suggestionsContainer}>
           {/* 최근 검색어 */}
@@ -404,9 +410,12 @@ export default function SearchScreen() {
         </View>
       ) : results.length > 0 ? (
         <View style={{ flex: 1 }}>
-          <Text style={[styles.loadingText, isDark && styles.textLight, { padding: 16 }]}>
-            {results.length}개 결과 (query: {query})
-          </Text>
+          <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 }}>
+            <Text style={[styles.loadingText, isDark && styles.textLight]}>
+              {t('search.resultCount', { count: results.length })}
+            </Text>
+            <AiNotice text={t('ai.searchNotice')} isDark={isDark} />
+          </View>
           <FlatList
             data={results}
             keyExtractor={(item, index) => `${item.id}-${index}`}
@@ -494,16 +503,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
     color: '#6B7280',
-  },
-  errorContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#EF4444',
   },
   suggestionsContainer: {
     padding: 16,

@@ -1,4 +1,10 @@
 {
+  "ai": {
+    "draftNotice": "AI가 작성한 초안입니다. 탭하여 자유롭게 수정할 수 있습니다.",
+    "captionNotice": "AI가 생성한 설명이며, 실제와 다를 수 있습니다.",
+    "searchNotice": "AI 기반 검색 결과이며, 일부 부정확할 수 있습니다.",
+    "disclaimer": "Marzlog의 AI 기능(캡션, 일기, 검색, OCR)은 자동 생성된 초안을 제공합니다. 결과가 정확하지 않을 수 있으며, 사용자가 직접 수정할 수 있습니다."
+  },
   "common": {
     "cancel": "취소",
     "confirm": "확인",
@@ -154,17 +160,23 @@
   "settings": {
     "title": "설정",
     "notifications": "알림 설정",
+    "pushNotification": "푸시 알림 설정",
     "autoUpload": "자동 업로드",
     "aiMode": "AI 분석 모드",
     "aiModeFast": "빠름",
     "aiModePrecise": "정밀",
+    "aiModeFastDesc": "캡션과 검색 기능만 제공 (5~10초)",
+    "aiModePreciseDesc": "캡션, 검색, OCR 텍스트 인식, AI 일기 자동 생성 (20~30초)",
     "darkMode": "다크 모드",
     "darkModeSystem": "시스템",
     "darkModeLight": "라이트",
     "darkModeDark": "다크",
     "language": "언어",
     "languageKo": "한국어",
-    "languageEn": "English"
+    "languageEn": "English",
+    "labs": "실험실",
+    "appInfo": "앱정보",
+    "languageSelect": "언어 선택"
   },
   "support": {
     "title": "지원",
@@ -175,6 +187,10 @@
   },
   "more": {
     "title": "더보기",
+    "home": "홈",
+    "album": "앨범",
+    "profile": "프로필",
+    "settings": "설정",
     "notices": "공지사항",
     "feedback": "문의하기 / 피드백",
     "appInfo": "앱 정보"
@@ -213,6 +229,9 @@
     "aiSearch": "AI 시맨틱 검색",
     "aiSearchDesc": "자연어로 원하는 사진을 찾아보세요.\n\"작년 여름 해운대\", \"가족과 저녁 식사\" 등",
     "searchFailed": "검색에 실패했습니다",
+    "aiPreparing": "AI 검색 준비 중입니다. 잠시 후 다시 시도해주세요",
+    "similarFailed": "유사 이미지 검색에 실패했습니다",
+    "resultCount": "{{count}}개 결과",
     "englishOnly": "현재 영어 검색만 지원됩니다",
     "recentSearches": "최근 검색어",
     "clearAll": "전체 삭제"
@@ -285,6 +304,68 @@
     "frame6Subtitle": "사진은 내 기기 우선 처리, 클라우드 전송은 최소화.\n'비 오던 날 카페' 한마디로 추억을 찾으세요",
     "frame7Title": "소중한 순간을 기억으로",
     "frame7Subtitle": "좋아요도, 팔로워도 필요 없습니다.\n오직 나를 위한 기억을 시작하세요"
+  },
+  "error": {
+    "network": "인터넷 연결을 확인해주세요",
+    "timeout": "요청 시간이 초과되었습니다. 다시 시도해주세요",
+    "server": "서버에 문제가 발생했습니다. 잠시 후 다시 시도해주세요",
+    "sessionExpired": "로그인이 만료되었습니다. 다시 로그인해주세요",
+    "unknown": "알 수 없는 오류가 발생했습니다",
+    "tapToRetry": "탭하여 다시 시도",
+    "loadFailed": "로딩 실패",
+    "saveFailed": "저장에 실패했습니다",
+    "deleteFailed": "삭제 실패. 잠시 후에 다시 시도해 주세요",
+    "uploadFailed": "업로드 실패",
+    "groupUploadFailed": "그룹 업로드 실패",
+    "addImageFailed": "이미지 추가 실패"
+  },
+  "media": {
+    "notFound": "사진을 찾을 수 없습니다",
+    "deleted": "삭제된 사진",
+    "deletedDesc": "이 사진은 더 이상 존재하지 않습니다",
+    "deleteConfirm": "이 사진을 삭제하시겠습니까?",
+    "diaryGroupOnly": "그룹 일기는 대표 사진에서만 생성할 수 있습니다",
+    "diaryStarted": "AI가 일기를 생성하고 있습니다.\n10초 후 자동으로 새로고침됩니다",
+    "diaryStartedTitle": "일기 생성 시작",
+    "diaryUpdated": "일기가 수정되었습니다",
+    "captionUpdated": "사진 설명이 수정되었습니다",
+    "emotionUpdated": "감정이 수정되었습니다",
+    "loading": "불러오는 중..."
+  },
+  "appInfo": {
+    "title": "앱정보",
+    "termsSection": "약관 및 서비스 정책",
+    "terms": "서비스 이용약관",
+    "privacy": "개인정보 취급방침",
+    "appIcon": "앱 아이콘 설정",
+    "iconNotSupported": "앱 아이콘 변경",
+    "iconNotSupportedDesc": "이 기능은 빌드된 앱에서만 사용 가능합니다.",
+    "iconDefault": "기본",
+    "iconCoral": "코랄",
+    "iconRed": "레드",
+    "version": "버전 정보",
+    "deleteAccount": "회원 탈퇴"
+  },
+  "language": {
+    "title": "언어선택",
+    "korean": "Korean (한국어)",
+    "english": "English (영어)",
+    "confirm": "확인"
+  },
+  "labs": {
+    "title": "실험실",
+    "desc": "새로운 기능을 미리 체험해보세요",
+    "aiClassify": "AI 자동 분류",
+    "aiClassifyDesc": "사진을 자동으로 카테고리별 분류",
+    "landscape": "풍경",
+    "people": "사람",
+    "food": "음식",
+    "animal": "반려동물",
+    "text": "텍스트",
+    "object": "사물",
+    "comingSoon": "준비 중",
+    "photoUnit": "장",
+    "noPhotos": "분류된 사진이 없습니다"
   },
   "exif": {
     "noInfo": "촬영 정보 없음",
