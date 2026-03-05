@@ -42,19 +42,12 @@ export function PinSetup({ onSetup, onCancel, isDark }: PinSetupProps) {
         </TouchableOpacity>
       </View>
 
-      {step === 'set' ? (
-        <PinInput
-          onComplete={handleFirstPin}
-          title={t('appLock.setPin')}
-          error={error}
-        />
-      ) : (
-        <PinInput
-          onComplete={handleConfirmPin}
-          title={t('appLock.confirmPin')}
-          error={error}
-        />
-      )}
+      <PinInput
+        key={step}
+        onComplete={step === 'set' ? handleFirstPin : handleConfirmPin}
+        title={step === 'set' ? t('appLock.setPin') : t('appLock.confirmPin')}
+        error={error}
+      />
     </View>
   );
 }

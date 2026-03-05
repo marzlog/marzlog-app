@@ -708,7 +708,7 @@ export default function MediaDetailScreen() {
               <View style={styles.aiProviderRow}>
                 <Ionicons name="sparkles" size={12} color={isDark ? '#9CA3AF' : colors.neutral[5]} />
                 <Text style={[styles.aiProviderText, isDark && styles.textTertiaryDark]}>
-                  AI 생성 ({media.ai_provider})
+                  AI 생성
                 </Text>
               </View>
             )}

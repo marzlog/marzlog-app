@@ -82,7 +82,7 @@ export function PinInput({ onComplete, title, subtitle, error, lockoutSeconds }:
           <View key={ri} style={styles.keypadRow}>
             {row.map((key, ki) => {
               if (key === '') {
-                return <View key={ki} style={styles.keyButton} />;
+                return <View key={ki} style={styles.keyButtonEmpty} />;
               }
               if (key === 'delete') {
                 return (
@@ -175,6 +175,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F3F4F6',
+  },
+  keyButtonEmpty: {
+    width: 72,
+    height: 72,
+    backgroundColor: 'transparent',
   },
   keyButtonDisabled: {
     opacity: 0.4,

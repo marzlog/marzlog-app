@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Switch,
   Platform,
+  Alert,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,7 +58,7 @@ export default function UploadScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { startUpload, startGroupUpload, addToExistingGroup, pickFromGallery } = useImageUpload();
+  const { startUpload, startGroupUpload, addToExistingGroup, pickFromGallery, takePhoto } = useImageUpload();
 
   // 현재 시간
   const getCurrentTime = () => {
@@ -198,17 +199,42 @@ export default function UploadScreen() {
 
   // ========== 이미지 핸들러 ==========
 
-  const handleAddMoreImages = async () => {
+  const handleAddMoreImages = () => {
     const remainingSlots = 5 - images.length;
     if (remainingSlots <= 0) {
       showAlert('최대 5장까지 추가할 수 있습니다. (대표 1장 + 서브 4장)');
       return;
     }
-    const pickedItems = await pickFromGallery(true);
-    if (pickedItems && pickedItems.length > 0) {
-      const newImages = [...images, ...pickedItems].slice(0, 5);
-      setImages(newImages);
+
+    const addFromGallery = async () => {
+      const pickedItems = await pickFromGallery(true);
+      if (pickedItems && pickedItems.length > 0) {
+        const newImages = [...images, ...pickedItems].slice(0, 5);
+        setImages(newImages);
+      }
+    };
+
+    const addFromCamera = async () => {
+      const item = await takePhoto();
+      if (item) {
+        setImages(prev => [...prev, item].slice(0, 5));
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      addFromGallery();
+      return;
     }
+
+    Alert.alert(
+      '사진 추가',
+      '사진을 추가할 방법을 선택하세요.',
+      [
+        { text: '카메라로 촬영', onPress: addFromCamera },
+        { text: '갤러리에서 선택', onPress: addFromGallery },
+        { text: '취소', style: 'cancel' },
+      ],
+    );
   };
 
   const handleRemoveImage = (index: number) => {

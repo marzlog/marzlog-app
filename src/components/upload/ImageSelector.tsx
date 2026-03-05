@@ -234,6 +234,7 @@ const styles = StyleSheet.create({
   imageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'center',
     gap: GRID_GAP,
   },
   gridItem: {
