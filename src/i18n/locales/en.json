@@ -367,6 +367,46 @@
     "photoUnit": "",
     "noPhotos": "No photos in this category"
   },
+  "reminder": {
+    "title": "Daily Reminder",
+    "description": "Get daily reminders to capture your memories",
+    "timeTitle": "Reminder Time",
+    "permissionTitle": "Notification Permission Required",
+    "permissionMessage": "Please allow notifications in Settings to receive daily reminders.",
+    "openSettings": "Open Settings"
+  },
+  "share": {
+    "title": "Share",
+    "photoOnly": "Photo only",
+    "photoWithCaption": "Photo + AI caption",
+    "diary": "Today's diary",
+    "aiCaption": "This moment, seen by AI",
+    "watermark": "-- MarZlog",
+    "loading": "Preparing to share...",
+    "error": "Failed to share",
+    "notSupported": "Sharing is not supported on this device"
+  },
+  "appLock": {
+    "title": "App Lock",
+    "description": "Lock app with Face ID / fingerprint",
+    "authenticate": "Unlock MarZlog",
+    "usePin": "Use PIN",
+    "enterPin": "Enter your PIN",
+    "setPin": "Set a PIN",
+    "confirmPin": "Confirm your PIN",
+    "pinMismatch": "PINs do not match",
+    "wrongPin": "Wrong PIN",
+    "attemptsLeft": "{{count}} attempts left",
+    "lockedOut": "Try again in {{seconds}}s",
+    "forceLogout": "5 failed attempts - logging out",
+    "enabled": "App lock enabled",
+    "disabled": "App lock disabled",
+    "changePin": "Change PIN",
+    "currentPin": "Enter current PIN",
+    "faceId": "Face ID",
+    "touchId": "Touch ID",
+    "fingerprint": "Fingerprint"
+  },
   "exif": {
     "noInfo": "No camera info",
     "noInfoDesc": "Photos shared via messaging apps or SNS\nmay have camera data removed.",

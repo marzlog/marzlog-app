@@ -20,7 +20,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "사진 촬영을 위해 카메라 접근 권한이 필요합니다.",
         "NSPhotoLibraryUsageDescription": "사진을 업로드하고 추억을 기록하기 위해 사진 라이브러리 접근 권한이 필요합니다.",
-        "NSPhotoLibraryAddUsageDescription": "촬영한 사진을 저장하기 위해 사진 라이브러리 쓰기 권한이 필요합니다."
+        "NSPhotoLibraryAddUsageDescription": "촬영한 사진을 저장하기 위해 사진 라이브러리 쓰기 권한이 필요합니다.",
+        "NSFaceIDUsageDescription": "사진과 일기를 안전하게 보호하기 위해 Face ID를 사용합니다."
       }
     },
     "android": {
@@ -45,6 +46,12 @@
       "expo-router",
       "expo-secure-store",
       "expo-localization",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "사진과 일기를 안전하게 보호하기 위해 Face ID를 사용합니다."
+        }
+      ],
       "expo-web-browser",
       [
         "expo-image-picker",
@@ -58,7 +65,8 @@
           "coral": "./assets/images/app-icons/coral.png",
           "red": "./assets/images/app-icons/red.png"
         }
-      }]
+      }],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

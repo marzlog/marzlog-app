@@ -1,6 +1,5 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import { secureStorage as storage } from '../utils/secureStorage';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.marzlog.com';
 
@@ -16,30 +15,6 @@ function notifySessionExpired() {
     _onSessionExpired();
   }
 }
-
-// Storage abstraction for web/native
-const storage = {
-  async getItem(key: string): Promise<string | null> {
-    if (Platform.OS === 'web') {
-      return localStorage.getItem(key);
-    }
-    return SecureStore.getItemAsync(key);
-  },
-  async setItem(key: string, value: string): Promise<void> {
-    if (Platform.OS === 'web') {
-      localStorage.setItem(key, value);
-      return;
-    }
-    return SecureStore.setItemAsync(key, value);
-  },
-  async removeItem(key: string): Promise<void> {
-    if (Platform.OS === 'web') {
-      localStorage.removeItem(key);
-      return;
-    }
-    return SecureStore.deleteItemAsync(key);
-  },
-};
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,

@@ -38,6 +38,8 @@ import ErrorView from '@/src/components/common/ErrorView';
 import { AiNotice } from '@/src/components/common/AiNotice';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 import { EMOTIONS, getEmotionByName, getEmotionIcon, getEmotionIllustration, EMOTION_KEY_TO_NAME } from '@/constants/emotions';
+import { ShareSheet } from '@/src/components/media/ShareSheet';
+import { ShareCardView } from '@/src/components/media/ShareCardView';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IMAGE_SIZE = SCREEN_WIDTH - 40;
@@ -82,6 +84,10 @@ export default function MediaDetailScreen() {
   const [emotionModalVisible, setEmotionModalVisible] = useState(false);
   const [editEmotion, setEditEmotion] = useState('');
   const [editIntensity, setEditIntensity] = useState(3);
+
+  // 공유 관련 상태
+  const [showShareSheet, setShowShareSheet] = useState(false);
+  const shareCardRef = useRef<View>(null);
 
   // 그룹 이미지 관련 상태
   const [groupImages, setGroupImages] = useState<GroupImageItem[]>([]);
@@ -551,6 +557,12 @@ export default function MediaDetailScreen() {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, isDark && styles.textLight]}>상세보기</Text>
         <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={() => setShowShareSheet(true)}
+          >
+            <Ionicons name="share-outline" size={20} color={isDark ? '#F9FAFB' : colors.text.primary} />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={handleDelete}
@@ -1282,6 +1294,24 @@ export default function MediaDetailScreen() {
           </TouchableWithoutFeedback>
         )}
       </Modal>
+
+      {/* Share */}
+      <View style={styles.offscreen}>
+        <ShareCardView
+          ref={shareCardRef}
+          imageUrl={media?.download_url || ''}
+          caption={analysis?.caption_ko || analysis?.caption || ''}
+        />
+      </View>
+
+      <ShareSheet
+        visible={showShareSheet}
+        onClose={() => setShowShareSheet(false)}
+        imageUrl={media?.download_url || ''}
+        caption={analysis?.caption_ko || analysis?.caption}
+        diary={media?.title && media?.content ? { title: media.title, content: media.content } : null}
+        cardViewRef={shareCardRef}
+      />
     </View>
   );
 }
@@ -1293,6 +1323,10 @@ const styles = StyleSheet.create({
   },
   containerDark: {
     backgroundColor: '#111827',
+  },
+  offscreen: {
+    position: 'absolute',
+    left: -9999,
   },
   centered: {
     flex: 1,

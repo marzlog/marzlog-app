@@ -3,14 +3,19 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font';
 import { Stack, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { AppState, Platform } from 'react-native';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { useAuthStore } from '@src/store/authStore';
 import { useSettingsStore } from '@src/store/settingsStore';
+import { useAppLockStore } from '@src/store/appLockStore';
+import { useReminderStore } from '@src/store/reminderStore';
 import { DialogProvider } from '@/src/components/ui/Dialog';
+import { BiometricLock } from '@/src/components/auth/BiometricLock';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -35,8 +40,11 @@ export default function RootLayout() {
 
   const { isAuthenticated, checkAuth } = useAuthStore();
   const { loadSettings } = useSettingsStore();
+  const { isLocked, isEnabled: appLockEnabled, initialize: initAppLock, lock: lockApp } = useAppLockStore();
   const [initialReady, setInitialReady] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  const backgroundTimestamp = useRef<number | null>(null);
+  const LOCK_THRESHOLD_MS = 30_000;
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
@@ -49,12 +57,13 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
-  // Check auth status, load settings, and onboarding state on app start
+  // Check auth status, load settings, app lock, and onboarding state on app start
   useEffect(() => {
     const init = async () => {
       await Promise.all([
         checkAuth(),
         loadSettings(),
+        initAppLock(),
       ]);
       try {
         const value = await AsyncStorage.getItem(ONBOARDING_KEY);
@@ -65,6 +74,50 @@ export default function RootLayout() {
       setInitialReady(true);
     };
     init();
+  }, []);
+
+  // Background → foreground: lock after 30s
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        backgroundTimestamp.current = Date.now();
+      }
+      if (nextState === 'active') {
+        const { isEnabled } = useAppLockStore.getState();
+        if (isEnabled && backgroundTimestamp.current) {
+          const elapsed = Date.now() - backgroundTimestamp.current;
+          if (elapsed > LOCK_THRESHOLD_MS) {
+            lockApp();
+          }
+        }
+        backgroundTimestamp.current = null;
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
+  // Notification initialization + deep link handling
+  useEffect(() => {
+    useReminderStore.getState().initialize();
+
+    const responseSubscription =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        const data = response.notification.request.content.data;
+        const ALLOWED_SCREENS = ['upload', 'home'];
+        if (data?.screen && ALLOWED_SCREENS.includes(data.screen as string)) {
+          if (data.screen === 'upload') {
+            router.push('/upload');
+          }
+        }
+      });
+
+    if (Platform.OS === 'ios') {
+      Notifications.setBadgeCountAsync(0);
+    }
+
+    return () => {
+      responseSubscription.remove();
+    };
   }, []);
 
   // Single navigation effect: handles initial routing + logout redirect
@@ -84,7 +137,12 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
+  return (
+    <>
+      <RootLayoutNav />
+      {isAuthenticated && isLocked && <BiometricLock />}
+    </>
+  );
 }
 
 function RootLayoutNav() {

@@ -367,6 +367,46 @@
     "photoUnit": "장",
     "noPhotos": "분류된 사진이 없습니다"
   },
+  "reminder": {
+    "title": "데일리 리마인더",
+    "description": "매일 기억을 기록하라는 알림을 받습니다",
+    "timeTitle": "알림 시간",
+    "permissionTitle": "알림 권한 필요",
+    "permissionMessage": "데일리 리마인더를 받으려면 설정에서 알림을 허용해주세요.",
+    "openSettings": "설정 열기"
+  },
+  "share": {
+    "title": "공유하기",
+    "photoOnly": "사진만 공유",
+    "photoWithCaption": "사진 + AI 캡션",
+    "diary": "오늘의 일기",
+    "aiCaption": "AI가 읽은 이 순간",
+    "watermark": "-- MarZlog",
+    "loading": "공유 준비 중...",
+    "error": "공유에 실패했습니다",
+    "notSupported": "이 기기에서 공유를 지원하지 않습니다"
+  },
+  "appLock": {
+    "title": "앱 잠금",
+    "description": "Face ID / 지문으로 앱을 잠급니다",
+    "authenticate": "MarZlog 잠금 해제",
+    "usePin": "PIN 사용",
+    "enterPin": "PIN을 입력하세요",
+    "setPin": "PIN을 설정하세요",
+    "confirmPin": "PIN을 다시 입력하세요",
+    "pinMismatch": "PIN이 일치하지 않습니다",
+    "wrongPin": "잘못된 PIN입니다",
+    "attemptsLeft": "남은 시도: {{count}}회",
+    "lockedOut": "{{seconds}}초 후 다시 시도하세요",
+    "forceLogout": "5회 실패 - 로그아웃됩니다",
+    "enabled": "앱 잠금이 활성화되었습니다",
+    "disabled": "앱 잠금이 해제되었습니다",
+    "changePin": "PIN 변경",
+    "currentPin": "현재 PIN을 입력하세요",
+    "faceId": "Face ID",
+    "touchId": "Touch ID",
+    "fingerprint": "지문 인식"
+  },
   "exif": {
     "noInfo": "촬영 정보 없음",
     "noInfoDesc": "카카오톡, SNS 등에서 공유된 사진은\n원본 촬영 정보가 제거될 수 있습니다.",
