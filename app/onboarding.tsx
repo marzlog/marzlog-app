@@ -1,22 +1,22 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
-  Dimensions,
   TouchableOpacity,
-  Image,
   ViewToken,
   ImageSourcePropType,
+  useWindowDimensions,
+  Platform,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '@src/hooks/useTranslation';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const ONBOARDING_KEY = '@marzlog_onboarding_completed';
 
 const ACCENT = '#FF6A5F';
@@ -37,19 +37,16 @@ interface FrameConfig {
 }
 
 const FRAMES: FrameConfig[] = [
-  // Page 1: Astronaut splash
   {
     key: 'splash1',
     type: 'splash',
     titleKey: 'onboarding.frame1Title',
     subtitleKey: 'onboarding.frame1Subtitle',
   },
-  // Page 2: Logo page
   {
     key: 'logo',
     type: 'logo',
   },
-  // Pages 3-7: Illustration pages
   {
     key: 'illust1',
     type: 'illustration',
@@ -85,12 +82,10 @@ const FRAMES: FrameConfig[] = [
     subtitleKey: 'onboarding.frame6Subtitle',
     illustration: require('@/assets/images/onboarding/illust_5_secure.png'),
   },
-  // Page 8: Astronaut splash again
   {
     key: 'splash2',
     type: 'splash',
   },
-  // Page 9: Final CTA
   {
     key: 'final',
     type: 'final',
@@ -102,6 +97,7 @@ const FRAMES: FrameConfig[] = [
 export default function OnboardingScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -115,11 +111,14 @@ export default function OnboardingScreen() {
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
 
-  const getItemLayout = (_: any, index: number) => ({
-    length: SCREEN_WIDTH,
-    offset: SCREEN_WIDTH * index,
-    index,
-  });
+  const getItemLayout = useCallback(
+    (_: any, index: number) => ({
+      length: screenWidth,
+      offset: screenWidth * index,
+      index,
+    }),
+    [screenWidth]
+  );
 
   const completeOnboarding = async () => {
     await AsyncStorage.setItem(ONBOARDING_KEY, 'true');
@@ -127,17 +126,22 @@ export default function OnboardingScreen() {
   };
 
   const handleNext = () => {
-    if (currentIndex < FRAMES.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1, animated: true });
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < FRAMES.length) {
+      setCurrentIndex(nextIndex);
+      flatListRef.current?.scrollToOffset({
+        offset: screenWidth * nextIndex,
+        animated: true,
+      });
     }
   };
 
   const renderSplash = (item: FrameConfig) => (
-    <View style={styles.page}>
+    <View style={[styles.page, { width: screenWidth, height: screenHeight }]}>
       <Image
         source={require('@/assets/images/onboarding/splash_astronaut_space.png')}
-        style={styles.splashImage}
-        resizeMode="cover"
+        style={[styles.splashImage, { width: screenWidth, height: screenHeight }]}
+        contentFit="cover"
       />
       {item.titleKey && (
         <LinearGradient
@@ -154,30 +158,30 @@ export default function OnboardingScreen() {
   );
 
   const renderLogo = () => (
-    <View style={[styles.page, styles.logoBg]}>
+    <View style={[styles.page, styles.logoBg, { width: screenWidth, height: screenHeight }]}>
       <View style={styles.logoContent}>
         <Image
           source={require('@/assets/images/onboarding/logo_moon.png')}
           style={styles.logoMoon}
-          resizeMode="contain"
+          contentFit="contain"
         />
         <Image
           source={require('@/assets/images/onboarding/logo_text.png')}
           style={styles.logoText}
-          resizeMode="contain"
+          contentFit="contain"
         />
       </View>
     </View>
   );
 
   const renderIllustration = (item: FrameConfig) => (
-    <View style={[styles.page, styles.whiteBg]}>
+    <View style={[styles.page, styles.whiteBg, { width: screenWidth, height: screenHeight }]}>
       <View style={styles.illustContent}>
         {item.illustration && (
           <Image
             source={item.illustration}
             style={styles.illustration}
-            resizeMode="contain"
+            contentFit="contain"
           />
         )}
         <View style={styles.textBlock}>
@@ -189,7 +193,7 @@ export default function OnboardingScreen() {
   );
 
   const renderFinal = (item: FrameConfig) => (
-    <View style={styles.page}>
+    <View style={[styles.page, { width: screenWidth, height: screenHeight }]}>
       <LinearGradient
         colors={['rgba(20,21,30,0.5)', 'rgba(255,255,255,0.25)']}
         style={StyleSheet.absoluteFill}
@@ -198,7 +202,7 @@ export default function OnboardingScreen() {
         <Image
           source={require('@/assets/images/onboarding/logo_text.png')}
           style={styles.finalLogoText}
-          resizeMode="contain"
+          contentFit="contain"
         />
         <View style={styles.finalBottom}>
           <View style={styles.textBlock}>
@@ -233,7 +237,10 @@ export default function OnboardingScreen() {
         renderItem={renderFrame}
         keyExtractor={(item) => item.key}
         horizontal
-        pagingEnabled
+        pagingEnabled={Platform.OS !== 'web'}
+        snapToInterval={Platform.OS === 'web' ? screenWidth : undefined}
+        decelerationRate={Platform.OS === 'web' ? 'fast' : undefined}
+        snapToAlignment="start"
         showsHorizontalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
@@ -242,7 +249,10 @@ export default function OnboardingScreen() {
       />
 
       {/* Bottom section */}
-      <View style={[styles.bottomSection, { paddingBottom: insets.bottom + 24 }]}>
+      <View
+        style={[styles.bottomSection, { paddingBottom: insets.bottom + 24 }]}
+        pointerEvents="box-none"
+      >
         {/* Dot indicators */}
         <View style={styles.dotContainer}>
           {FRAMES.map((_, i) => (
@@ -290,15 +300,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   page: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    overflow: 'hidden',
   },
 
   // Splash pages (1 & 8)
   splashImage: {
     ...StyleSheet.absoluteFillObject,
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
   },
   splashGradient: {
     position: 'absolute',
@@ -332,14 +339,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 20,
+    gap: 29,
   },
   logoMoon: {
     width: 136,
     height: 136,
   },
   logoText: {
-    width: 100,
+    width: 99,
     height: 25,
   },
 
@@ -391,7 +398,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   finalLogoText: {
-    width: 100,
+    width: 99,
     height: 25,
   },
   finalBottom: {
@@ -407,6 +414,7 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     paddingHorizontal: 32,
+    zIndex: 10,
   },
   dotContainer: {
     flexDirection: 'row',
