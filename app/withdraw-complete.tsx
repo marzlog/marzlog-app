@@ -11,6 +11,9 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { Logo } from '@/src/components/common/Logo';
+import { useAuthStore } from '@/src/store/authStore';
+import { useAppLockStore } from '@/src/store/appLockStore';
+import { secureStorage, SECURE_KEYS } from '@/src/utils/secureStorage';
 
 export default function WithdrawCompleteScreen() {
   const router = useRouter();
@@ -23,8 +26,16 @@ export default function WithdrawCompleteScreen() {
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
 
-  const handleStart = () => {
-    router.replace('/');
+  const handleStart = async () => {
+    // Ensure all auth state is cleared (defensive — deleteAccount should have done this)
+    useAuthStore.getState().forceLogout();
+
+    // Clear app lock / PIN data
+    await secureStorage.removeItem(SECURE_KEYS.PIN_HASH);
+    await secureStorage.removeItem(SECURE_KEYS.APP_LOCK_ENABLED);
+    useAppLockStore.getState().unlock();
+
+    router.replace('/login');
   };
 
   return (

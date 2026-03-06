@@ -3,7 +3,7 @@ import authApi from '../api/auth';
 import { setOnSessionExpired } from '../api/client';
 import type { User, AuthState } from '../types/auth';
 import { extractErrorMessage } from '../utils/errorMessages';
-import { secureStorage as storage } from '../utils/secureStorage';
+import { secureStorage as storage, SECURE_KEYS } from '../utils/secureStorage';
 import { useSettingsStore, backendToAiMode } from './settingsStore';
 
 interface AuthStore extends AuthState {
@@ -151,8 +151,13 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     } catch {
       throw new Error('Account deletion failed');
     } finally {
+      // Clear auth tokens
       await storage.removeItem('access_token');
       await storage.removeItem('refresh_token');
+
+      // Clear app lock / PIN data
+      await storage.removeItem(SECURE_KEYS.PIN_HASH);
+      await storage.removeItem(SECURE_KEYS.APP_LOCK_ENABLED);
 
       set({
         user: null,
