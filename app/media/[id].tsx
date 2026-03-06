@@ -576,82 +576,85 @@ export default function MediaDetailScreen() {
         </View>
       </View>
 
-      {/* Image Carousel - 세로 스크롤과 분리하여 스와이프 충돌 방지 */}
-      <View style={[styles.carouselWrapper, isDark && styles.carouselWrapperDark]}>
-        <ScrollView
-          ref={carouselRef}
-          horizontal={true}
-          pagingEnabled={true}
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={handleCarouselScroll}
-          scrollEventThrottle={16}
-          style={{ width: CAROUSEL_IMAGE_WIDTH }}
-        >
-          {displayImages.map((img, index) => (
-            <View key={img.id || index} style={styles.carouselImageContainer}>
-              <Image
-                source={img.download_url || img.thumbnail_url}
-                style={styles.carouselImage}
-                contentFit="contain"
-                transition={200}
-                cachePolicy="memory-disk"
-              />
-            </View>
-          ))}
-        </ScrollView>
-
-        {/* 좌측 버튼 (이전) - 웹에서만 표시 */}
-        {isWeb && displayImages.length > 1 && currentImageIndex > 0 && (
-          <Pressable
-            style={[styles.carouselButton, styles.carouselButtonLeft]}
-            onPress={goToPrevious}
-          >
-            <Ionicons name="chevron-back" size={28} color="#fff" />
-          </Pressable>
-        )}
-
-        {/* 우측 버튼 (다음) - 웹에서만 표시 */}
-        {isWeb && displayImages.length > 1 && currentImageIndex < displayImages.length - 1 && (
-          <Pressable
-            style={[styles.carouselButton, styles.carouselButtonRight]}
-            onPress={goToNext}
-          >
-            <Ionicons name="chevron-forward" size={28} color="#fff" />
-          </Pressable>
-        )}
-
-        {/* Pagination Dots - 이미지 하단 오버레이 */}
-        {displayImages.length > 1 && (
-          <View style={styles.paginationContainer}>
-            {displayImages.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.paginationDot,
-                  index === currentImageIndex && styles.paginationDotActive,
-                ]}
-              />
-            ))}
-          </View>
-        )}
-
-        {/* AI Badge - 분석된 모든 이미지에 표시 */}
-        {analysis?.ai_analyzed && (
-          <View style={styles.aiBadge}>
-            <Ionicons name="sparkles" size={12} color="#fff" />
-            <Text style={styles.aiBadgeText}>
-              {analysis.ai_reused ? 'AI (재사용)' : 'AI'}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* 분석 정보 등 나머지 컨텐츠 */}
+      {/* 전체 스크롤 (이미지 + 콘텐츠) */}
       <ScrollView
         style={styles.detailContent}
         contentContainerStyle={styles.detailContentContainer}
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled={true}
       >
+        {/* Image Carousel */}
+        <View style={[styles.carouselWrapper, isDark && styles.carouselWrapperDark]}>
+          <ScrollView
+            ref={carouselRef}
+            horizontal={true}
+            pagingEnabled={true}
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={handleCarouselScroll}
+            scrollEventThrottle={16}
+            style={{ width: CAROUSEL_IMAGE_WIDTH }}
+          >
+            {displayImages.map((img, index) => (
+              <View key={img.id || index} style={styles.carouselImageContainer}>
+                <Image
+                  source={img.download_url || img.thumbnail_url}
+                  style={styles.carouselImage}
+                  contentFit="contain"
+                  transition={200}
+                  cachePolicy="memory-disk"
+                />
+              </View>
+            ))}
+          </ScrollView>
+
+          {/* 좌측 버튼 (이전) - 웹에서만 표시 */}
+          {isWeb && displayImages.length > 1 && currentImageIndex > 0 && (
+            <Pressable
+              style={[styles.carouselButton, styles.carouselButtonLeft]}
+              onPress={goToPrevious}
+            >
+              <Ionicons name="chevron-back" size={28} color="#fff" />
+            </Pressable>
+          )}
+
+          {/* 우측 버튼 (다음) - 웹에서만 표시 */}
+          {isWeb && displayImages.length > 1 && currentImageIndex < displayImages.length - 1 && (
+            <Pressable
+              style={[styles.carouselButton, styles.carouselButtonRight]}
+              onPress={goToNext}
+            >
+              <Ionicons name="chevron-forward" size={28} color="#fff" />
+            </Pressable>
+          )}
+
+          {/* Pagination Dots - 이미지 하단 오버레이 */}
+          {displayImages.length > 1 && (
+            <View style={styles.paginationContainer}>
+              {displayImages.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.paginationDot,
+                    index === currentImageIndex && styles.paginationDotActive,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+
+          {/* AI Badge - 분석된 모든 이미지에 표시 */}
+          {analysis?.ai_analyzed && (
+            <View style={styles.aiBadge}>
+              <Ionicons name="sparkles" size={12} color="#fff" />
+              <Text style={styles.aiBadgeText}>
+                {analysis.ai_reused ? 'AI (재사용)' : 'AI'}
+              </Text>
+            </View>
+          )}
+        </View>
+        {/* 콘텐츠 영역 (padding 적용) */}
+        <View style={styles.contentPadding}>
+
         {/* 감정 카드 (일러스트 + 아이콘 + 텍스트) */}
         <TouchableOpacity
           style={[styles.emotionCard, isDark && styles.emotionCardDark]}
@@ -1000,6 +1003,7 @@ export default function MediaDetailScreen() {
 
         {/* Bottom Spacer for button */}
         <View style={{ height: 100 }} />
+        </View>
       </ScrollView>
 
       {/* Confirm Button - Fixed at bottom */}
@@ -1455,8 +1459,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   detailContentContainer: {
-    padding: 20,
     paddingBottom: 100,
+  },
+  contentPadding: {
+    padding: 20,
   },
   // 기존 스타일 유지 (단일 이미지용)
   imageContainer: {
