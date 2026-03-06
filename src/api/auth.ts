@@ -185,7 +185,7 @@ export const authApi = {
     }
 
     const response = await apiClient.post('/auth/me/avatar/upload', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
       timeout: 60000,
     });
     return response.data;
