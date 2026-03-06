@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '@src/hooks/useTranslation';
@@ -28,6 +29,7 @@ interface FrameConfig {
   icons: IconName[];
   hasMascot?: boolean;
   rotated?: boolean;
+  backgroundImage?: boolean;
 }
 
 const FRAMES: FrameConfig[] = [
@@ -35,9 +37,8 @@ const FRAMES: FrameConfig[] = [
     key: 'frame1',
     titleKey: 'onboarding.frame1Title',
     subtitleKey: 'onboarding.frame1Subtitle',
-    icons: ['heart', 'thumbs-up'],
-    hasMascot: true,
-    rotated: true,
+    icons: [],
+    backgroundImage: true,
   },
   {
     key: 'frame2',
@@ -113,6 +114,25 @@ export default function OnboardingScreen() {
   };
 
   const renderFrame = ({ item, index }: { item: FrameConfig; index: number }) => {
+    if (item.backgroundImage) {
+      return (
+        <View style={[styles.page, { paddingTop: 0, paddingHorizontal: 0 }]}>
+          <Image
+            source={require('@/assets/images/onboarding/splash_astronaut_space.png')}
+            style={styles.bgImage}
+            resizeMode="cover"
+          />
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.6)']}
+            style={styles.bgGradient}
+          >
+            <Text style={styles.bgTitle}>{t(item.titleKey)}</Text>
+            <Text style={styles.bgSubtitle}>{t(item.subtitleKey)}</Text>
+          </LinearGradient>
+        </View>
+      );
+    }
+
     const isRotated = item.rotated;
 
     return (
@@ -311,5 +331,33 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: CORAL,
+  },
+  bgImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  bgGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 32,
+    paddingBottom: 160,
+    paddingTop: 80,
+    alignItems: 'center',
+  },
+  bgTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  bgSubtitle: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: 'rgba(255, 255, 255, 0.85)',
+    textAlign: 'center',
   },
 });
