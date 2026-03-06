@@ -8,75 +8,94 @@ import {
   TouchableOpacity,
   Image,
   ViewToken,
+  ImageSourcePropType,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '@src/hooks/useTranslation';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CORAL = '#F08E76';
 const ONBOARDING_KEY = '@marzlog_onboarding_completed';
 
-type IconName = React.ComponentProps<typeof Ionicons>['name'];
+const ACCENT = '#FF6A5F';
+const DARK_GREEN = '#1A2E28';
+const HEADING_COLOR = '#0F172A';
+const PARAGRAPH_COLOR = '#334155';
+const DOT_ACTIVE = ACCENT;
+const DOT_INACTIVE = '#D9D9D9';
+
+type PageType = 'splash' | 'logo' | 'illustration' | 'final';
 
 interface FrameConfig {
   key: string;
-  titleKey: string;
-  subtitleKey: string;
-  icons: IconName[];
-  hasMascot?: boolean;
-  rotated?: boolean;
-  backgroundImage?: boolean;
+  type: PageType;
+  titleKey?: string;
+  subtitleKey?: string;
+  illustration?: ImageSourcePropType;
 }
 
 const FRAMES: FrameConfig[] = [
+  // Page 1: Astronaut splash
   {
-    key: 'frame1',
+    key: 'splash1',
+    type: 'splash',
     titleKey: 'onboarding.frame1Title',
     subtitleKey: 'onboarding.frame1Subtitle',
-    icons: [],
-    backgroundImage: true,
   },
+  // Page 2: Logo page
   {
-    key: 'frame2',
+    key: 'logo',
+    type: 'logo',
+  },
+  // Pages 3-7: Illustration pages
+  {
+    key: 'illust1',
+    type: 'illustration',
     titleKey: 'onboarding.frame2Title',
     subtitleKey: 'onboarding.frame2Subtitle',
-    icons: ['lock-closed', 'eye-off'],
-    rotated: true,
+    illustration: require('@/assets/images/onboarding/illust_1_algorithm.png'),
   },
   {
-    key: 'frame3',
+    key: 'illust2',
+    type: 'illustration',
     titleKey: 'onboarding.frame3Title',
     subtitleKey: 'onboarding.frame3Subtitle',
-    icons: ['sparkles'],
+    illustration: require('@/assets/images/onboarding/illust_2_recall.png'),
   },
   {
-    key: 'frame4',
+    key: 'illust3',
+    type: 'illustration',
     titleKey: 'onboarding.frame4Title',
     subtitleKey: 'onboarding.frame4Subtitle',
-    icons: ['camera'],
+    illustration: require('@/assets/images/onboarding/illust_3_caption.png'),
   },
   {
-    key: 'frame5',
+    key: 'illust4',
+    type: 'illustration',
     titleKey: 'onboarding.frame5Title',
     subtitleKey: 'onboarding.frame5Subtitle',
-    icons: ['document-text', 'receipt'],
+    illustration: require('@/assets/images/onboarding/illust_4_ocr.png'),
   },
   {
-    key: 'frame6',
+    key: 'illust5',
+    type: 'illustration',
     titleKey: 'onboarding.frame6Title',
     subtitleKey: 'onboarding.frame6Subtitle',
-    icons: ['shield-checkmark', 'search'],
+    illustration: require('@/assets/images/onboarding/illust_5_secure.png'),
   },
+  // Page 8: Astronaut splash again
   {
-    key: 'frame7',
+    key: 'splash2',
+    type: 'splash',
+  },
+  // Page 9: Final CTA
+  {
+    key: 'final',
+    type: 'final',
     titleKey: 'onboarding.frame7Title',
     subtitleKey: 'onboarding.frame7Subtitle',
-    icons: ['heart'],
-    hasMascot: true,
   },
 ];
 
@@ -113,52 +132,95 @@ export default function OnboardingScreen() {
     }
   };
 
-  const renderFrame = ({ item, index }: { item: FrameConfig; index: number }) => {
-    if (item.backgroundImage) {
-      return (
-        <View style={[styles.page, { paddingTop: 0, paddingHorizontal: 0 }]}>
-          <Image
-            source={require('@/assets/images/onboarding/splash_astronaut_space.png')}
-            style={styles.bgImage}
-            resizeMode="cover"
-          />
-          <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.6)']}
-            style={styles.bgGradient}
-          >
-            <Text style={styles.bgTitle}>{t(item.titleKey)}</Text>
-            <Text style={styles.bgSubtitle}>{t(item.subtitleKey)}</Text>
-          </LinearGradient>
-        </View>
-      );
-    }
-
-    const isRotated = item.rotated;
-
-    return (
-      <View style={[styles.page, { paddingTop: insets.top + 40 }]}>
-        <View style={[styles.card, isRotated && styles.cardRotated]}>
-          <View style={styles.iconRow}>
-            {item.icons.map((icon, i) => (
-              <View key={i} style={styles.iconCircle}>
-                <Ionicons name={icon} size={28} color={CORAL} />
-              </View>
-            ))}
-          </View>
-
-          {item.hasMascot && (
-            <Image
-              source={require('@/assets/images/mascot.png')}
-              style={styles.mascot}
-              resizeMode="contain"
-            />
+  const renderSplash = (item: FrameConfig) => (
+    <View style={styles.page}>
+      <Image
+        source={require('@/assets/images/onboarding/splash_astronaut_space.png')}
+        style={styles.splashImage}
+        resizeMode="cover"
+      />
+      {item.titleKey && (
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.6)']}
+          style={styles.splashGradient}
+        >
+          <Text style={styles.splashTitle}>{t(item.titleKey)}</Text>
+          {item.subtitleKey && (
+            <Text style={styles.splashSubtitle}>{t(item.subtitleKey)}</Text>
           )}
+        </LinearGradient>
+      )}
+    </View>
+  );
 
-          <Text style={styles.cardTitle}>{t(item.titleKey)}</Text>
-          <Text style={styles.cardSubtitle}>{t(item.subtitleKey)}</Text>
+  const renderLogo = () => (
+    <View style={[styles.page, styles.logoBg]}>
+      <View style={styles.logoContent}>
+        <Image
+          source={require('@/assets/images/onboarding/logo_moon.png')}
+          style={styles.logoMoon}
+          resizeMode="contain"
+        />
+        <Image
+          source={require('@/assets/images/onboarding/logo_text.png')}
+          style={styles.logoText}
+          resizeMode="contain"
+        />
+      </View>
+    </View>
+  );
+
+  const renderIllustration = (item: FrameConfig) => (
+    <View style={[styles.page, styles.whiteBg]}>
+      <View style={styles.illustContent}>
+        {item.illustration && (
+          <Image
+            source={item.illustration}
+            style={styles.illustration}
+            resizeMode="contain"
+          />
+        )}
+        <View style={styles.textBlock}>
+          <Text style={styles.heading}>{t(item.titleKey!)}</Text>
+          <Text style={styles.paragraph}>{t(item.subtitleKey!)}</Text>
         </View>
       </View>
-    );
+    </View>
+  );
+
+  const renderFinal = (item: FrameConfig) => (
+    <View style={styles.page}>
+      <LinearGradient
+        colors={['rgba(20,21,30,0.5)', 'rgba(255,255,255,0.25)']}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.finalContent}>
+        <Image
+          source={require('@/assets/images/onboarding/logo_text.png')}
+          style={styles.finalLogoText}
+          resizeMode="contain"
+        />
+        <View style={styles.finalBottom}>
+          <View style={styles.textBlock}>
+            <Text style={styles.heading}>{t(item.titleKey!)}</Text>
+            <Text style={styles.paragraph}>{t(item.subtitleKey!)}</Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderFrame = ({ item }: { item: FrameConfig }) => {
+    switch (item.type) {
+      case 'splash':
+        return renderSplash(item);
+      case 'logo':
+        return renderLogo();
+      case 'illustration':
+        return renderIllustration(item);
+      case 'final':
+        return renderFinal(item);
+    }
   };
 
   const isLastPage = currentIndex === FRAMES.length - 1;
@@ -188,7 +250,7 @@ export default function OnboardingScreen() {
               key={i}
               style={[
                 styles.dot,
-                i === currentIndex ? styles.dotActive : styles.dotInactive,
+                { backgroundColor: i === currentIndex ? DOT_ACTIVE : DOT_INACTIVE },
               ]}
             />
           ))}
@@ -196,7 +258,11 @@ export default function OnboardingScreen() {
 
         {/* Buttons */}
         {isLastPage ? (
-          <TouchableOpacity style={styles.startButton} onPress={completeOnboarding} activeOpacity={0.8}>
+          <TouchableOpacity
+            style={styles.startButton}
+            onPress={completeOnboarding}
+            activeOpacity={0.8}
+          >
             <Text style={styles.startButtonText}>{t('onboarding.start')}</Text>
           </TouchableOpacity>
         ) : (
@@ -204,7 +270,11 @@ export default function OnboardingScreen() {
             <TouchableOpacity onPress={completeOnboarding} activeOpacity={0.7}>
               <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.nextButton} onPress={handleNext} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.nextButton}
+              onPress={handleNext}
+              activeOpacity={0.8}
+            >
               <Text style={styles.nextButtonText}>{t('onboarding.next')}</Text>
             </TouchableOpacity>
           </View>
@@ -214,66 +284,122 @@ export default function OnboardingScreen() {
   );
 }
 
-const CARD_HORIZONTAL_MARGIN = 32;
-const CARD_WIDTH = SCREEN_WIDTH - CARD_HORIZONTAL_MARGIN * 2;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: CORAL,
+    backgroundColor: '#fff',
   },
   page: {
     width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+
+  // Splash pages (1 & 8)
+  splashImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+  },
+  splashGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 32,
+    paddingBottom: 160,
+    paddingTop: 80,
     alignItems: 'center',
-    paddingHorizontal: CARD_HORIZONTAL_MARGIN,
   },
-  card: {
-    width: CARD_WIDTH,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    paddingVertical: 40,
-    paddingHorizontal: 28,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  cardRotated: {
-    transform: [{ rotate: '-3deg' }],
-  },
-  iconRow: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 24,
-  },
-  iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#FFF0EC',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mascot: {
-    width: 100,
-    height: 100,
-    marginBottom: 16,
-  },
-  cardTitle: {
-    fontSize: 24,
+  splashTitle: {
+    fontSize: 28,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: '#fff',
     textAlign: 'center',
     marginBottom: 12,
   },
-  cardSubtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: '#666',
+  splashSubtitle: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: 'rgba(255, 255, 255, 0.85)',
     textAlign: 'center',
   },
+
+  // Logo page (2)
+  logoBg: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  logoContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 20,
+  },
+  logoMoon: {
+    width: 136,
+    height: 136,
+  },
+  logoText: {
+    width: 100,
+    height: 25,
+  },
+
+  // Illustration pages (3-7)
+  whiteBg: {
+    backgroundColor: '#FFFFFF',
+  },
+  illustContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingBottom: 140,
+  },
+  illustration: {
+    width: 280,
+    height: 240,
+    marginBottom: 40,
+  },
+  textBlock: {
+    alignItems: 'center',
+    gap: 10,
+    width: '100%',
+  },
+  heading: {
+    fontSize: 24,
+    fontWeight: '500',
+    color: HEADING_COLOR,
+    textAlign: 'center',
+    letterSpacing: -0.96,
+    lineHeight: 34,
+  },
+  paragraph: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: PARAGRAPH_COLOR,
+    textAlign: 'center',
+    letterSpacing: -0.4,
+    lineHeight: 24,
+  },
+
+  // Final page (9)
+  finalContent: {
+    flex: 1,
+    paddingHorizontal: 32,
+    paddingTop: 160,
+    paddingBottom: 140,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  finalLogoText: {
+    width: 100,
+    height: 25,
+  },
+  finalBottom: {
+    width: '100%',
+    alignItems: 'center',
+  },
+
+  // Bottom section
   bottomSection: {
     position: 'absolute',
     bottom: 0,
@@ -284,19 +410,13 @@ const styles = StyleSheet.create({
   },
   dotContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 9,
     marginBottom: 24,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-  },
-  dotActive: {
-    backgroundColor: '#fff',
-  },
-  dotInactive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
   },
   buttonRow: {
     flexDirection: 'row',
@@ -306,58 +426,30 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: 'rgba(150, 150, 150, 0.8)',
     fontWeight: '500',
   },
   nextButton: {
-    backgroundColor: '#fff',
-    borderRadius: 28,
-    paddingVertical: 14,
-    paddingHorizontal: 40,
+    backgroundColor: ACCENT,
+    borderRadius: 360,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
   },
   nextButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: CORAL,
+    color: '#292928',
   },
   startButton: {
-    backgroundColor: '#fff',
-    borderRadius: 28,
+    backgroundColor: DARK_GREEN,
+    borderRadius: 360,
     paddingVertical: 16,
     width: '100%',
     alignItems: 'center',
   },
   startButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: CORAL,
-  },
-  bgImage: {
-    ...StyleSheet.absoluteFillObject,
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
-  },
-  bgGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 32,
-    paddingBottom: 160,
-    paddingTop: 80,
-    alignItems: 'center',
-  },
-  bgTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  bgSubtitle: {
     fontSize: 16,
-    lineHeight: 24,
-    color: 'rgba(255, 255, 255, 0.85)',
-    textAlign: 'center',
+    fontWeight: '600',
+    color: '#FAFAF9',
   },
 });
