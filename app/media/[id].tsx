@@ -181,7 +181,7 @@ export default function MediaDetailScreen() {
         `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ko`,
         {
           headers: {
-            'User-Agent': 'Marzlog/1.0',
+            'User-Agent': 'MarZlog/1.0',
           },
         }
       );

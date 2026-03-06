@@ -200,7 +200,7 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
       }}>
-      <Tabs.Screen name="index" options={{ title: 'Marzlog' }} />
+      <Tabs.Screen name="index" options={{ title: 'MarZlog' }} />
       <Tabs.Screen name="timeline" options={{ title: 'Moments' }} />
       <Tabs.Screen name="search" options={{ title: 'AI Search' }} />
       <Tabs.Screen name="profile" options={{ title: 'My Page' }} />

@@ -574,7 +574,7 @@ export default function HomeScreen() {
       <View style={[styles.header, { backgroundColor: theme.background.primary }]}>
         <View style={styles.headerLeft}>
           <Logo size={32} showText={false} color={theme.text.primary} />
-          <Text style={[styles.headerTitle, { color: theme.text.primary }]}>Marzlog</Text>
+          <Text style={[styles.headerTitle, { color: theme.text.primary }]}>MarZlog</Text>
         </View>
 
         <View style={styles.headerRight}>

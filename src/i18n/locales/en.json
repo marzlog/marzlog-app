@@ -3,7 +3,7 @@
     "draftNotice": "This is an AI-generated draft. Tap to edit freely.",
     "captionNotice": "AI-generated description. May not be fully accurate.",
     "searchNotice": "AI-powered results. Some may be inaccurate.",
-    "disclaimer": "Marzlog's AI features (captions, diary, search, OCR) provide auto-generated drafts. Results may not be fully accurate and can be edited by the user."
+    "disclaimer": "MarZlog's AI features (captions, diary, search, OCR) provide auto-generated drafts. Results may not be fully accurate and can be edited by the user."
   },
   "common": {
     "cancel": "Cancel",
@@ -154,7 +154,7 @@
     "withdrawError": "An error occurred during account deletion.",
     "withdrawOtherPlaceholder": "Please enter your reason",
     "withdrawCompleteTitle": "Account Deleted",
-    "withdrawCompleteDesc": "Thank you for using Marzlog.\nWe hope to see you again.",
+    "withdrawCompleteDesc": "Thank you for using MarZlog.\nWe hope to see you again.",
     "startService": "Get Started"
   },
   "settings": {

@@ -3,7 +3,7 @@
     "draftNotice": "AI가 작성한 초안입니다. 탭하여 자유롭게 수정할 수 있습니다.",
     "captionNotice": "AI가 생성한 설명이며, 실제와 다를 수 있습니다.",
     "searchNotice": "AI 기반 검색 결과이며, 일부 부정확할 수 있습니다.",
-    "disclaimer": "Marzlog의 AI 기능(캡션, 일기, 검색, OCR)은 자동 생성된 초안을 제공합니다. 결과가 정확하지 않을 수 있으며, 사용자가 직접 수정할 수 있습니다."
+    "disclaimer": "MarZlog의 AI 기능(캡션, 일기, 검색, OCR)은 자동 생성된 초안을 제공합니다. 결과가 정확하지 않을 수 있으며, 사용자가 직접 수정할 수 있습니다."
   },
   "common": {
     "cancel": "취소",
@@ -154,7 +154,7 @@
     "withdrawError": "탈퇴 처리 중 오류가 발생했습니다.",
     "withdrawOtherPlaceholder": "탈퇴 사유를 입력해 주세요",
     "withdrawCompleteTitle": "탈퇴가 완료되었습니다",
-    "withdrawCompleteDesc": "그동안 Marzlog를 이용해 주셔서 감사합니다.\n언제든 다시 돌아와 주세요.",
+    "withdrawCompleteDesc": "그동안 MarZlog를 이용해 주셔서 감사합니다.\n언제든 다시 돌아와 주세요.",
     "startService": "서비스 시작하기"
   },
   "settings": {
