@@ -20,7 +20,7 @@ import { useTranslation } from '@src/hooks/useTranslation';
 const ONBOARDING_KEY = '@marzlog_onboarding_completed';
 
 const ACCENT = '#FF6A5F';
-const DARK_GREEN = '#1A2E28';
+const DARK_GREEN = '#6B6B6B';
 const HEADING_COLOR = '#0F172A';
 const PARAGRAPH_COLOR = '#334155';
 const DOT_ACTIVE = ACCENT;
@@ -164,11 +164,13 @@ export default function OnboardingScreen() {
           source={require('@/assets/images/onboarding/logo_moon.png')}
           style={styles.logoMoon}
           contentFit="contain"
+          onError={(e: any) => console.log('logo_moon load error:', e)}
         />
         <Image
           source={require('@/assets/images/onboarding/logo_text.png')}
           style={styles.logoText}
           contentFit="contain"
+          onError={(e: any) => console.log('logo_text load error:', e)}
         />
       </View>
     </View>
@@ -195,7 +197,8 @@ export default function OnboardingScreen() {
   const renderFinal = (item: FrameConfig) => (
     <View style={[styles.page, { width: screenWidth, height: screenHeight }]}>
       <LinearGradient
-        colors={['rgba(20,21,30,0.5)', 'rgba(255,255,255,0.25)']}
+        colors={['#8A8A8A', '#C0C0C0', '#E8E8E8', '#F5F5F5']}
+        locations={[0, 0.3, 0.6, 1.0]}
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.finalContent}>
@@ -203,6 +206,7 @@ export default function OnboardingScreen() {
           source={require('@/assets/images/onboarding/logo_text.png')}
           style={styles.finalLogoText}
           contentFit="contain"
+          tintColor={'#FFFFFF'}
         />
         <View style={styles.finalBottom}>
           <View style={styles.textBlock}>
@@ -254,17 +258,19 @@ export default function OnboardingScreen() {
         pointerEvents="box-none"
       >
         {/* Dot indicators */}
-        <View style={styles.dotContainer}>
-          {FRAMES.map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                { backgroundColor: i === currentIndex ? DOT_ACTIVE : DOT_INACTIVE },
-              ]}
-            />
-          ))}
-        </View>
+        {!isLastPage && (
+          <View style={styles.dotContainer}>
+            {FRAMES.map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.dot,
+                  { backgroundColor: i === currentIndex ? DOT_ACTIVE : DOT_INACTIVE },
+                ]}
+              />
+            ))}
+          </View>
+        )}
 
         {/* Buttons */}
         {isLastPage ? (
@@ -333,7 +339,7 @@ const styles = StyleSheet.create({
 
   // Logo page (2)
   logoBg: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: DARK_GREEN,
   },
   logoContent: {
     flex: 1,
@@ -342,8 +348,8 @@ const styles = StyleSheet.create({
     gap: 29,
   },
   logoMoon: {
-    width: 136,
-    height: 136,
+    width: 160,
+    height: 160,
   },
   logoText: {
     width: 99,
@@ -392,18 +398,19 @@ const styles = StyleSheet.create({
   finalContent: {
     flex: 1,
     paddingHorizontal: 32,
-    paddingTop: 160,
     paddingBottom: 140,
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
   finalLogoText: {
     width: 99,
     height: 25,
+    marginTop: '40%',
   },
   finalBottom: {
     width: '100%',
     alignItems: 'center',
+    marginTop: 'auto',
+    marginBottom: 70,
   },
 
   // Bottom section
@@ -449,7 +456,7 @@ const styles = StyleSheet.create({
     color: '#292928',
   },
   startButton: {
-    backgroundColor: DARK_GREEN,
+    backgroundColor: '#FA5252',
     borderRadius: 360,
     paddingVertical: 16,
     width: '100%',
@@ -458,6 +465,6 @@ const styles = StyleSheet.create({
   startButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FAFAF9',
+    color: '#FFFFFF',
   },
 });

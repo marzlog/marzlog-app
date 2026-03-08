@@ -5,6 +5,7 @@ import type { User, AuthState } from '../types/auth';
 import { extractErrorMessage } from '../utils/errorMessages';
 import { secureStorage as storage, SECURE_KEYS } from '../utils/secureStorage';
 import { useSettingsStore, backendToAiMode } from './settingsStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AuthStore extends AuthState {
   // Actions
@@ -158,6 +159,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       // Clear app lock / PIN data
       await storage.removeItem(SECURE_KEYS.PIN_HASH);
       await storage.removeItem(SECURE_KEYS.APP_LOCK_ENABLED);
+
+      // Clear onboarding flag so re-signup shows onboarding again
+      await AsyncStorage.removeItem('@marzlog_onboarding_completed');
 
       set({
         user: null,
