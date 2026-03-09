@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,9 @@ import {
   ImageSourcePropType,
   useWindowDimensions,
   Platform,
+  Image as RNImage,
+  Animated,
+  Easing,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
@@ -101,6 +104,174 @@ export default function OnboardingScreen() {
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  // === Splash (page 1 & 8) star animations ===
+  const stars = useMemo(() => {
+    return Array.from({ length: 25 }, (_, i) => {
+      const isBig = i < 5;
+      const isMedium = i >= 5 && i < 15;
+      return {
+        top: `${Math.random() * 75}%`,
+        left: `${Math.random() * 95}%`,
+        size: isBig
+          ? Math.random() * 4 + 7
+          : isMedium
+            ? Math.random() * 3 + 4
+            : Math.random() * 2 + 2,
+        duration: Math.random() * 2000 + 500,
+        delay: Math.random() * 1000,
+        glow: isBig || isMedium,
+      };
+    });
+  }, []);
+
+  const starOpacities = useRef(stars.map(() => new Animated.Value(0))).current;
+  const splashLogoOpacity = useRef(new Animated.Value(0)).current;
+  const splashLogoTranslateY = useRef(new Animated.Value(20)).current;
+  const splashSubOpacity = useRef(new Animated.Value(0)).current;
+  const splashSubTranslateY = useRef(new Animated.Value(20)).current;
+
+  // === Splash2 (page 8) animations ===
+  const splash2TranslateY = useRef(new Animated.Value(0)).current;
+
+  // === Final page animations ===
+  const finalLogoTranslateY = useRef(new Animated.Value(0)).current;
+  const finalTextOpacity = useRef(new Animated.Value(0)).current;
+  const finalButtonScale = useRef(new Animated.Value(1)).current;
+
+  const starAnimsRef = useRef<Animated.CompositeAnimation[]>([]);
+  const finalLoopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const finalPulseRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  useEffect(() => {
+    // Star twinkle (shared by splash1 & splash2)
+    const starAnims = starOpacities.map((opacity, i) => {
+      const anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(opacity, {
+            toValue: 1,
+            duration: stars[i].duration,
+            delay: stars[i].delay,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacity, {
+            toValue: 0,
+            duration: stars[i].duration,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      anim.start();
+      return anim;
+    });
+    starAnimsRef.current = starAnims;
+
+    // Splash2 (page 8) - float up/down
+    const splash2Anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(splash2TranslateY, {
+          toValue: -12,
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(splash2TranslateY, {
+          toValue: 12,
+          duration: 2000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    splash2Anim.start();
+
+    // Logo fade in
+    Animated.parallel([
+      Animated.timing(splashLogoOpacity, {
+        toValue: 1,
+        duration: 1000,
+        delay: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(splashLogoTranslateY, {
+        toValue: 0,
+        duration: 1000,
+        delay: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Subtitle fade in
+    Animated.parallel([
+      Animated.timing(splashSubOpacity, {
+        toValue: 1,
+        duration: 800,
+        delay: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.timing(splashSubTranslateY, {
+        toValue: 0,
+        duration: 800,
+        delay: 1000,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Final page - logo float
+    const floatAnim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(finalLogoTranslateY, {
+          toValue: -8,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(finalLogoTranslateY, {
+          toValue: 8,
+          duration: 1500,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    floatAnim.start();
+    finalLoopRef.current = floatAnim;
+
+    // Final page - text fade in
+    Animated.timing(finalTextOpacity, {
+      toValue: 1,
+      duration: 800,
+      delay: 300,
+      useNativeDriver: true,
+    }).start();
+
+    // Final page - button pulse
+    const pulseAnim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(finalButtonScale, {
+          toValue: 1.05,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(finalButtonScale, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulseAnim.start();
+    finalPulseRef.current = pulseAnim;
+
+    return () => {
+      starAnims.forEach((a) => a.stop());
+      splash2Anim.stop();
+      floatAnim.stop();
+      pulseAnim.stop();
+    };
+  }, []);
+
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       if (viewableItems.length > 0 && viewableItems[0].index != null) {
@@ -136,21 +307,84 @@ export default function OnboardingScreen() {
     }
   };
 
+  const renderStars = () =>
+    stars.map((star, i) => (
+      <Animated.View
+        key={i}
+        style={{
+          position: 'absolute',
+          width: star.size,
+          height: star.size,
+          borderRadius: star.size / 2,
+          backgroundColor: '#FFFFFF',
+          top: star.top,
+          left: star.left,
+          opacity: starOpacities[i],
+          ...(star.glow
+            ? {
+                shadowColor: '#FFFFFF',
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 1,
+                shadowRadius: star.size > 6 ? 10 : 4,
+                elevation: star.size > 6 ? 10 : 4,
+              }
+            : {}),
+        }}
+      />
+    ));
+
   const renderSplash = (item: FrameConfig) => (
     <View style={[styles.page, { width: screenWidth, height: screenHeight }]}>
-      <Image
-        source={require('@/assets/images/onboarding/splash_astronaut_space.png')}
-        style={[styles.splashImage, { width: screenWidth, height: screenHeight }]}
-        contentFit="cover"
-      />
+      {item.key === 'splash2' ? (
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            { transform: [{ translateY: splash2TranslateY }] },
+          ]}
+        >
+          <Image
+            source={require('@/assets/images/onboarding/splash_astronaut_space.png')}
+            style={[styles.splashImage, { width: screenWidth, height: screenHeight }]}
+            contentFit="cover"
+          />
+        </Animated.View>
+      ) : (
+        <Image
+          source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
+          style={[styles.splashImage, { width: screenWidth, height: screenHeight }]}
+          contentFit="cover"
+        />
+      )}
+      {renderStars()}
       {item.titleKey && (
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.6)']}
           style={styles.splashGradient}
         >
-          <Text style={styles.splashTitle}>{t(item.titleKey)}</Text>
+          <Animated.View
+            style={{
+              opacity: splashLogoOpacity,
+              transform: [{ translateY: splashLogoTranslateY }],
+            }}
+          >
+            <RNImage
+              source={require('@/assets/images/onboarding/logo_text.png')}
+              style={[styles.splashTitle, { width: 150, height: 38 }]}
+              resizeMode="contain"
+            />
+          </Animated.View>
           {item.subtitleKey && (
-            <Text style={styles.splashSubtitle}>{t(item.subtitleKey)}</Text>
+            <Animated.Text
+              style={[
+                styles.splashSubtitle,
+                {
+                  opacity: splashSubOpacity,
+                  transform: [{ translateY: splashSubTranslateY }],
+                },
+              ]}
+            >
+              {t(item.subtitleKey)}
+            </Animated.Text>
           )}
         </LinearGradient>
       )}
@@ -202,18 +436,20 @@ export default function OnboardingScreen() {
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.finalContent}>
-        <Image
-          source={require('@/assets/images/onboarding/logo_text.png')}
-          style={styles.finalLogoText}
-          contentFit="contain"
-          tintColor={'#FFFFFF'}
-        />
-        <View style={styles.finalBottom}>
-          <View style={styles.textBlock}>
-            <Text style={styles.heading}>{t(item.titleKey!)}</Text>
-            <Text style={styles.paragraph}>{t(item.subtitleKey!)}</Text>
-          </View>
-        </View>
+        <View style={{ flex: 1.2 }} />
+        <Animated.View style={{ transform: [{ translateY: finalLogoTranslateY }] }}>
+          <Image
+            source={require('@/assets/images/onboarding/logo_text.png')}
+            style={styles.finalLogoText}
+            contentFit="contain"
+            tintColor={'#FFFFFF'}
+          />
+        </Animated.View>
+        <View style={{ flex: 1 }} />
+        <Animated.View style={[styles.textBlock, { opacity: finalTextOpacity }]}>
+          <Text style={styles.heading}>{t(item.titleKey!)}</Text>
+          <Text style={styles.paragraph}>{t(item.subtitleKey!)}</Text>
+        </Animated.View>
       </View>
     </View>
   );
@@ -274,13 +510,15 @@ export default function OnboardingScreen() {
 
         {/* Buttons */}
         {isLastPage ? (
-          <TouchableOpacity
-            style={styles.startButton}
-            onPress={completeOnboarding}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.startButtonText}>{t('onboarding.start')}</Text>
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: finalButtonScale }], width: '100%' }}>
+            <TouchableOpacity
+              style={styles.startButton}
+              onPress={completeOnboarding}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.startButtonText}>{t('onboarding.start')}</Text>
+            </TouchableOpacity>
+          </Animated.View>
         ) : (
           <View style={styles.buttonRow}>
             <TouchableOpacity onPress={completeOnboarding} activeOpacity={0.7}>
@@ -404,13 +642,6 @@ const styles = StyleSheet.create({
   finalLogoText: {
     width: 99,
     height: 25,
-    marginTop: '40%',
-  },
-  finalBottom: {
-    width: '100%',
-    alignItems: 'center',
-    marginTop: 'auto',
-    marginBottom: 70,
   },
 
   // Bottom section
