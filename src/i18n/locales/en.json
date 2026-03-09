@@ -303,7 +303,11 @@
     "frame6Title": "Private and Fast",
     "frame6Subtitle": "Photos processed on-device first, minimal cloud transfer.\nFind any memory with just a few words",
     "frame7Title": "Turn Moments into Memories",
-    "frame7Subtitle": "No likes. No followers.\nJust your memories."
+    "frame7Subtitle": "No likes. No followers.\nJust your memories.",
+    "final": {
+      "title": "Turn Moments into Memories",
+      "subtitle": "No likes. No followers.\nJust your memories."
+    }
   },
   "error": {
     "network": "Please check your internet connection",

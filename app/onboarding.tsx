@@ -19,17 +19,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '@src/hooks/useTranslation';
+import { Video, ResizeMode } from 'expo-av';
 
 const ONBOARDING_KEY = '@marzlog_onboarding_completed';
 
 const ACCENT = '#FF6A5F';
-const DARK_GREEN = '#6B6B6B';
 const HEADING_COLOR = '#0F172A';
 const PARAGRAPH_COLOR = '#334155';
 const DOT_ACTIVE = ACCENT;
 const DOT_INACTIVE = '#D9D9D9';
 
-type PageType = 'splash' | 'logo' | 'illustration' | 'final';
+type PageType = 'splash' | 'illustration' | 'final';
 
 interface FrameConfig {
   key: string;
@@ -45,10 +45,6 @@ const FRAMES: FrameConfig[] = [
     type: 'splash',
     titleKey: 'onboarding.frame1Title',
     subtitleKey: 'onboarding.frame1Subtitle',
-  },
-  {
-    key: 'logo',
-    type: 'logo',
   },
   {
     key: 'illust1',
@@ -92,8 +88,6 @@ const FRAMES: FrameConfig[] = [
   {
     key: 'final',
     type: 'final',
-    titleKey: 'onboarding.frame7Title',
-    subtitleKey: 'onboarding.frame7Subtitle',
   },
 ];
 
@@ -104,25 +98,30 @@ export default function OnboardingScreen() {
   const flatListRef = useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // === Splash (page 1 & 8) star animations ===
+  // === Stars (30 total: 7 big, 10 medium, 13 small) ===
   const stars = useMemo(() => {
-    return Array.from({ length: 25 }, (_, i) => {
-      const isBig = i < 5;
-      const isMedium = i >= 5 && i < 15;
+    return Array.from({ length: 30 }, (_, i) => {
+      const isBig = i < 7;
+      const isMedium = i >= 7 && i < 17;
       return {
-        top: `${Math.random() * 75}%`,
+        top: `${Math.random() * 80}%`,
         left: `${Math.random() * 95}%`,
         size: isBig
-          ? Math.random() * 4 + 7
+          ? Math.random() * 3 + 10
           : isMedium
-            ? Math.random() * 3 + 4
+            ? Math.random() * 3 + 5
             : Math.random() * 2 + 2,
-        duration: Math.random() * 2000 + 500,
-        delay: Math.random() * 1000,
+        duration: Math.random() * 1200 + 300,
+        delay: Math.random() * 800,
         glow: isBig || isMedium,
       };
     });
   }, []);
+
+  // === Meteor ===
+  const meteorOpacity = useRef(new Animated.Value(0)).current;
+  const meteorTranslateX = useRef(new Animated.Value(0)).current;
+  const meteorTranslateY = useRef(new Animated.Value(0)).current;
 
   const starOpacities = useRef(stars.map(() => new Animated.Value(0))).current;
   const splashLogoOpacity = useRef(new Animated.Value(0)).current;
@@ -130,20 +129,14 @@ export default function OnboardingScreen() {
   const splashSubOpacity = useRef(new Animated.Value(0)).current;
   const splashSubTranslateY = useRef(new Animated.Value(20)).current;
 
-  // === Splash2 (page 8) animations ===
+  // === Splash2 (page 7) ===
   const splash2TranslateY = useRef(new Animated.Value(0)).current;
-
-  // === Final page animations ===
-  const finalLogoTranslateY = useRef(new Animated.Value(0)).current;
-  const finalTextOpacity = useRef(new Animated.Value(0)).current;
-  const finalButtonScale = useRef(new Animated.Value(1)).current;
+  const splash2Scale = useRef(new Animated.Value(1)).current;
 
   const starAnimsRef = useRef<Animated.CompositeAnimation[]>([]);
-  const finalLoopRef = useRef<Animated.CompositeAnimation | null>(null);
-  const finalPulseRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
-    // Star twinkle (shared by splash1 & splash2)
+    // Star twinkle
     const starAnims = starOpacities.map((opacity, i) => {
       const anim = Animated.loop(
         Animated.sequence([
@@ -165,110 +158,77 @@ export default function OnboardingScreen() {
     });
     starAnimsRef.current = starAnims;
 
-    // Splash2 (page 8) - float up/down
-    const splash2Anim = Animated.loop(
+    // Splash2 float
+    const splash2FloatAnim = Animated.loop(
       Animated.sequence([
         Animated.timing(splash2TranslateY, {
-          toValue: -12,
+          toValue: -15,
           duration: 2000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(splash2TranslateY, {
-          toValue: 12,
+          toValue: 15,
           duration: 2000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ])
     );
-    splash2Anim.start();
+    splash2FloatAnim.start();
 
-    // Logo fade in
-    Animated.parallel([
-      Animated.timing(splashLogoOpacity, {
-        toValue: 1,
-        duration: 1000,
-        delay: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(splashLogoTranslateY, {
-        toValue: 0,
-        duration: 1000,
-        delay: 500,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Subtitle fade in
-    Animated.parallel([
-      Animated.timing(splashSubOpacity, {
-        toValue: 1,
-        duration: 800,
-        delay: 1000,
-        useNativeDriver: true,
-      }),
-      Animated.timing(splashSubTranslateY, {
-        toValue: 0,
-        duration: 800,
-        delay: 1000,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Final page - logo float
-    const floatAnim = Animated.loop(
+    // Splash2 breathe scale
+    const splash2ScaleAnim = Animated.loop(
       Animated.sequence([
-        Animated.timing(finalLogoTranslateY, {
-          toValue: -8,
-          duration: 1500,
+        Animated.timing(splash2Scale, {
+          toValue: 1.03,
+          duration: 4000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
-        Animated.timing(finalLogoTranslateY, {
-          toValue: 8,
-          duration: 1500,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    floatAnim.start();
-    finalLoopRef.current = floatAnim;
-
-    // Final page - text fade in
-    Animated.timing(finalTextOpacity, {
-      toValue: 1,
-      duration: 800,
-      delay: 300,
-      useNativeDriver: true,
-    }).start();
-
-    // Final page - button pulse
-    const pulseAnim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(finalButtonScale, {
-          toValue: 1.05,
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(finalButtonScale, {
+        Animated.timing(splash2Scale, {
           toValue: 1,
-          duration: 1000,
+          duration: 4000,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ])
     );
-    pulseAnim.start();
-    finalPulseRef.current = pulseAnim;
+    splash2ScaleAnim.start();
+
+    // Meteor
+    const runMeteor = () => {
+      meteorTranslateX.setValue(0);
+      meteorTranslateY.setValue(0);
+      meteorOpacity.setValue(0);
+      Animated.sequence([
+        Animated.delay(Math.random() * 4000 + 2000),
+        Animated.parallel([
+          Animated.timing(meteorOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+          Animated.timing(meteorTranslateX, { toValue: 200, duration: 800, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+          Animated.timing(meteorTranslateY, { toValue: 150, duration: 800, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+        ]),
+        Animated.timing(meteorOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start(() => runMeteor());
+    };
+    runMeteor();
+
+    // Splash1 logo fade in
+    Animated.parallel([
+      Animated.timing(splashLogoOpacity, { toValue: 1, duration: 1000, delay: 500, useNativeDriver: true }),
+      Animated.timing(splashLogoTranslateY, { toValue: 0, duration: 1000, delay: 500, useNativeDriver: true }),
+    ]).start();
+
+    // Splash1 subtitle fade in
+    Animated.parallel([
+      Animated.timing(splashSubOpacity, { toValue: 1, duration: 800, delay: 1000, useNativeDriver: true }),
+      Animated.timing(splashSubTranslateY, { toValue: 0, duration: 800, delay: 1000, useNativeDriver: true }),
+    ]).start();
 
     return () => {
       starAnims.forEach((a) => a.stop());
-      splash2Anim.stop();
-      floatAnim.stop();
-      pulseAnim.stop();
+      splash2FloatAnim.stop();
+      splash2ScaleAnim.stop();
     };
   }, []);
 
@@ -325,13 +285,34 @@ export default function OnboardingScreen() {
                 shadowColor: '#FFFFFF',
                 shadowOffset: { width: 0, height: 0 },
                 shadowOpacity: 1,
-                shadowRadius: star.size > 6 ? 10 : 4,
-                elevation: star.size > 6 ? 10 : 4,
+                shadowRadius: star.size > 8 ? 15 : star.size > 5 ? 10 : 4,
+                elevation: star.size > 8 ? 15 : star.size > 5 ? 10 : 4,
               }
             : {}),
         }}
       />
     ));
+
+  const renderMeteor = () => (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        top: '15%',
+        left: '10%',
+        width: 3,
+        height: 3,
+        borderRadius: 1.5,
+        backgroundColor: '#FFFFFF',
+        opacity: meteorOpacity,
+        transform: [{ translateX: meteorTranslateX }, { translateY: meteorTranslateY }],
+        shadowColor: '#FFFFFF',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 6,
+        elevation: 6,
+      }}
+    />
+  );
 
   const renderSplash = (item: FrameConfig) => (
     <View style={[styles.page, { width: screenWidth, height: screenHeight }]}>
@@ -339,7 +320,7 @@ export default function OnboardingScreen() {
         <Animated.View
           style={[
             StyleSheet.absoluteFill,
-            { transform: [{ translateY: splash2TranslateY }] },
+            { transform: [{ translateY: splash2TranslateY }, { scale: splash2Scale }] },
           ]}
         >
           <Image
@@ -356,6 +337,7 @@ export default function OnboardingScreen() {
         />
       )}
       {renderStars()}
+      {renderMeteor()}
       {item.titleKey && (
         <LinearGradient
           colors={['transparent', 'rgba(0,0,0,0.6)']}
@@ -391,25 +373,6 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const renderLogo = () => (
-    <View style={[styles.page, styles.logoBg, { width: screenWidth, height: screenHeight }]}>
-      <View style={styles.logoContent}>
-        <Image
-          source={require('@/assets/images/onboarding/logo_moon.png')}
-          style={styles.logoMoon}
-          contentFit="contain"
-          onError={(e: any) => console.log('logo_moon load error:', e)}
-        />
-        <Image
-          source={require('@/assets/images/onboarding/logo_text.png')}
-          style={styles.logoText}
-          contentFit="contain"
-          onError={(e: any) => console.log('logo_text load error:', e)}
-        />
-      </View>
-    </View>
-  );
-
   const renderIllustration = (item: FrameConfig) => (
     <View style={[styles.page, styles.whiteBg, { width: screenWidth, height: screenHeight }]}>
       <View style={styles.illustContent}>
@@ -428,29 +391,39 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const renderFinal = (item: FrameConfig) => (
-    <View style={[styles.page, { width: screenWidth, height: screenHeight }]}>
-      <LinearGradient
-        colors={['#8A8A8A', '#C0C0C0', '#E8E8E8', '#F5F5F5']}
-        locations={[0, 0.3, 0.6, 1.0]}
-        style={StyleSheet.absoluteFill}
+  const renderFinal = () => (
+    <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
+      <Video
+        source={require('@/assets/videos/onboarding_bg.mp4')}
+        style={StyleSheet.absoluteFillObject}
+        resizeMode={ResizeMode.COVER}
+        shouldPlay
+        isLooping
+        isMuted
       />
-      <View style={styles.finalContent}>
-        <View style={{ flex: 1.2 }} />
-        <Animated.View style={{ transform: [{ translateY: finalLogoTranslateY }] }}>
-          <Image
-            source={require('@/assets/images/onboarding/logo_text.png')}
-            style={styles.finalLogoText}
-            contentFit="contain"
-            tintColor={'#FFFFFF'}
-          />
-        </Animated.View>
-        <View style={{ flex: 1 }} />
-        <Animated.View style={[styles.textBlock, { opacity: finalTextOpacity }]}>
-          <Text style={styles.heading}>{t(item.titleKey!)}</Text>
-          <Text style={styles.paragraph}>{t(item.subtitleKey!)}</Text>
-        </Animated.View>
+      <LinearGradient
+        colors={['transparent', 'rgba(255,255,255,0.7)', 'rgba(255,255,255,0.9)']}
+        locations={[0.5, 0.7, 1.0]}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <View style={styles.finalLogoWrap}>
+        <RNImage
+          source={require('@/assets/images/onboarding/logo_text.png')}
+          style={{ width: 180, height: 45 }}
+          resizeMode="contain"
+        />
       </View>
+      <View style={styles.finalTextWrap}>
+        <Text style={styles.finalTitle}>{t('onboarding.final.title')}</Text>
+        <Text style={styles.finalSubtitle}>{t('onboarding.final.subtitle')}</Text>
+      </View>
+      <TouchableOpacity
+        style={[styles.finalStartButton, { bottom: insets.bottom + 40 }]}
+        onPress={completeOnboarding}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.finalStartButtonText}>{t('onboarding.start')}</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -458,12 +431,10 @@ export default function OnboardingScreen() {
     switch (item.type) {
       case 'splash':
         return renderSplash(item);
-      case 'logo':
-        return renderLogo();
       case 'illustration':
         return renderIllustration(item);
       case 'final':
-        return renderFinal(item);
+        return renderFinal();
     }
   };
 
@@ -488,13 +459,12 @@ export default function OnboardingScreen() {
         bounces={false}
       />
 
-      {/* Bottom section */}
-      <View
-        style={[styles.bottomSection, { paddingBottom: insets.bottom + 24 }]}
-        pointerEvents="box-none"
-      >
-        {/* Dot indicators */}
-        {!isLastPage && (
+      {/* Bottom section — hidden on final page */}
+      {!isLastPage && (
+        <View
+          style={[styles.bottomSection, { paddingBottom: insets.bottom + 24 }]}
+          pointerEvents="box-none"
+        >
           <View style={styles.dotContainer}>
             {FRAMES.map((_, i) => (
               <View
@@ -506,20 +476,6 @@ export default function OnboardingScreen() {
               />
             ))}
           </View>
-        )}
-
-        {/* Buttons */}
-        {isLastPage ? (
-          <Animated.View style={{ transform: [{ scale: finalButtonScale }], width: '100%' }}>
-            <TouchableOpacity
-              style={styles.startButton}
-              onPress={completeOnboarding}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.startButtonText}>{t('onboarding.start')}</Text>
-            </TouchableOpacity>
-          </Animated.View>
-        ) : (
           <View style={styles.buttonRow}>
             <TouchableOpacity onPress={completeOnboarding} activeOpacity={0.7}>
               <Text style={styles.skipText}>{t('onboarding.skip')}</Text>
@@ -532,8 +488,8 @@ export default function OnboardingScreen() {
               <Text style={styles.nextButtonText}>{t('onboarding.next')}</Text>
             </TouchableOpacity>
           </View>
-        )}
-      </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -547,7 +503,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  // Splash pages (1 & 8)
+  // Splash pages (1 & 7)
   splashImage: {
     ...StyleSheet.absoluteFillObject,
   },
@@ -575,26 +531,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Logo page (2)
-  logoBg: {
-    backgroundColor: DARK_GREEN,
-  },
-  logoContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 29,
-  },
-  logoMoon: {
-    width: 160,
-    height: 160,
-  },
-  logoText: {
-    width: 99,
-    height: 25,
-  },
-
-  // Illustration pages (3-7)
+  // Illustration pages (2-6)
   whiteBg: {
     backgroundColor: '#FFFFFF',
   },
@@ -632,16 +569,46 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
 
-  // Final page (9)
-  finalContent: {
-    flex: 1,
-    paddingHorizontal: 32,
-    paddingBottom: 140,
+  // Final page (8) - video overlay
+  finalLogoWrap: {
+    position: 'absolute',
+    top: '30%',
+    width: '100%',
     alignItems: 'center',
   },
-  finalLogoText: {
-    width: 99,
-    height: 25,
+  finalTextWrap: {
+    position: 'absolute',
+    bottom: 170,
+    width: '100%',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  finalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  finalSubtitle: {
+    fontSize: 15,
+    color: '#555',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  finalStartButton: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    backgroundColor: '#FA5252',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  finalStartButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
   },
 
   // Bottom section
@@ -685,17 +652,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#292928',
-  },
-  startButton: {
-    backgroundColor: '#FA5252',
-    borderRadius: 360,
-    paddingVertical: 16,
-    width: '100%',
-    alignItems: 'center',
-  },
-  startButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
   },
 });
