@@ -271,25 +271,27 @@ export default function OnboardingScreen() {
     stars.map((star, i) => (
       <Animated.View
         key={i}
-        style={{
-          position: 'absolute',
-          width: star.size,
-          height: star.size,
-          borderRadius: star.size / 2,
-          backgroundColor: '#FFFFFF',
-          top: star.top,
-          left: star.left,
-          opacity: starOpacities[i],
-          ...(star.glow
-            ? {
-                shadowColor: '#FFFFFF',
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 1,
-                shadowRadius: star.size > 8 ? 15 : star.size > 5 ? 10 : 4,
-                elevation: star.size > 8 ? 15 : star.size > 5 ? 10 : 4,
-              }
-            : {}),
-        }}
+        style={[
+          {
+            position: 'absolute' as const,
+            width: star.size,
+            height: star.size,
+            borderRadius: star.size / 2,
+            backgroundColor: '#FFFFFF',
+            top: star.top as any,
+            left: star.left as any,
+            ...(star.glow
+              ? {
+                  shadowColor: '#FFFFFF',
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: 1,
+                  shadowRadius: star.size > 8 ? 15 : star.size > 5 ? 10 : 4,
+                  elevation: star.size > 8 ? 15 : star.size > 5 ? 10 : 4,
+                }
+              : {}),
+          },
+          { opacity: starOpacities[i] },
+        ]}
       />
     ));
 
