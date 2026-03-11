@@ -66,8 +66,20 @@
           "red": "./assets/images/app-icons/red.png"
         }
       }],
-      "expo-notifications"
+      "expo-notifications",
+      ["@sentry/react-native/expo", {
+        "organization": "jjsim-inc",
+        "project": "react-native"
+      }]
     ],
+    "updates": {
+      "enabled": true,
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/992b64cc-e784-4984-8e08-fdc26f45088b"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "experiments": {
       "typedRoutes": true
     },

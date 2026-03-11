@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { initSentry } from '../src/utils/sentry';
 import { useAuthStore } from '@src/store/authStore';
 import { useSettingsStore } from '@src/store/settingsStore';
 import { useAppLockStore } from '@src/store/appLockStore';
@@ -21,6 +22,8 @@ export {
   // Catch any errors thrown by the Layout component.
   ErrorBoundary,
 } from 'expo-router';
+
+initSentry();
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
