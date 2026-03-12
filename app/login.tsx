@@ -121,7 +121,7 @@ const floatStyles = StyleSheet.create({
   wrapper: {
     paddingTop: 18,
     paddingBottom: 4,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   label: {
     position: 'absolute',
@@ -211,9 +211,9 @@ export default function LoginScreen() {
 
         {/* 소셜 로그인 - 상단 */}
         <View style={styles.socialArea}>
-          <GoogleLoginButton onSuccess={handleSuccess} onError={handleError} />
+          <GoogleLoginButton onSuccess={handleSuccess} onError={handleError} style={{ marginHorizontal: 16 }} />
           <TouchableOpacity
-            style={[styles.appleButton, isDark && styles.appleButtonDark]}
+            style={[styles.appleButton, isDark && styles.appleButtonDark, { marginHorizontal: 16 }]}
             onPress={() => Alert.alert('Apple 로그인', 'Apple 로그인은 현재 지원되지 않습니다. Google 계정을 이용해주세요.')}
             activeOpacity={0.8}
           >
@@ -361,9 +361,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   socialArea: {
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: 10,
     marginBottom: 20,
+    paddingHorizontal: 16,
   },
   appleButton: {
     flexDirection: 'row',
@@ -371,10 +372,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#000',
     borderRadius: 8,
-    width: '68%',
+    width: '100%',
     height: 44,
     gap: 8,
-    alignSelf: 'center',
   },
   appleButtonDark: {
     backgroundColor: '#1F2937',
@@ -417,11 +417,12 @@ const styles = StyleSheet.create({
   loginButton: {
     backgroundColor: '#FF6A5F',
     borderRadius: 10,
-    paddingVertical: 13,
+    paddingVertical: 11,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
     marginTop: 4,
+    marginHorizontal: 16,
   },
   loginButtonDisabled: {
     opacity: 0.6,

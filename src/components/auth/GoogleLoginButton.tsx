@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
-import { GoogleLogin, GoogleOAuthProvider } from '@react-oauth/google';
+import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,27 +16,30 @@ const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_I
 interface Props {
   onSuccess?: () => void;
   onError?: (error: string) => void;
+  style?: object;
 }
 
-function WebGoogleButton({ onSuccess, onError }: Props) {
+function WebGoogleButtonInner({ onSuccess, onError, style }: Props) {
   const { loginWithGoogle } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSuccess = async (response: any) => {
-    if (!response.credential) {
-      onError?.('No credential');
-      return;
-    }
-    setIsLoading(true);
-    try {
-      await loginWithGoogle(response.credential);
-      onSuccess?.();
-    } catch (e: any) {
-      onError?.(e.message);
-    } finally {
+  const login = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      setIsLoading(true);
+      try {
+        await loginWithGoogle(tokenResponse.access_token);
+        onSuccess?.();
+      } catch (e: any) {
+        onError?.(e.message);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    onError: () => {
+      onError?.('Google 로그인 실패');
       setIsLoading(false);
-    }
-  };
+    },
+  });
 
   if (isLoading) {
     return (
@@ -48,19 +51,26 @@ function WebGoogleButton({ onSuccess, onError }: Props) {
   }
 
   return (
+    <TouchableOpacity
+      style={[styles.googleBtn, style]}
+      onPress={() => login()}
+      activeOpacity={0.8}
+    >
+      <Ionicons name="logo-google" size={20} color="#4285F4" />
+      <Text style={styles.googleBtnText}>Google 계정으로 계속하기</Text>
+    </TouchableOpacity>
+  );
+}
+
+function WebGoogleButton(props: Props) {
+  return (
     <GoogleOAuthProvider clientId={GOOGLE_WEB_CLIENT_ID}>
-      <GoogleLogin
-        onSuccess={handleSuccess}
-        onError={() => onError?.('Login failed')}
-        theme="outline"
-        size="large"
-        width="300"
-      />
+      <WebGoogleButtonInner {...props} />
     </GoogleOAuthProvider>
   );
 }
 
-function NativeGoogleButton({ onSuccess, onError }: Props) {
+function NativeGoogleButton({ onSuccess, onError, style }: Props) {
   const { loginWithGoogle } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -147,7 +157,7 @@ function NativeGoogleButton({ onSuccess, onError }: Props) {
 
   return (
     <TouchableOpacity
-      style={[styles.googleBtn, !request && styles.btnDisabled]}
+      style={[styles.googleBtn, !request && styles.btnDisabled, style]}
       onPress={handlePress}
       disabled={!request}
     >
@@ -162,6 +172,11 @@ export default function GoogleLoginButton(props: Props) {
 }
 
 const styles = StyleSheet.create({
+  webGoogleWrapper: {
+    width: '100%',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
   loading: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -179,7 +194,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     width: '100%',
-    height: 52,
+    height: 44,
     borderWidth: 1,
     borderColor: '#ddd',
     gap: 10,
