@@ -21,6 +21,7 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { FloatingInput } from '@/src/components/common/FloatingInput';
 
 export default function ProfileEditScreen() {
   const insets = useSafeAreaInsets();
@@ -236,37 +237,21 @@ export default function ProfileEditScreen() {
           </View>
 
           {/* Email (read-only) */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, isDark && styles.labelDark]}>{t('auth.email')}</Text>
-            <View style={[styles.readOnlyField, isDark && styles.readOnlyFieldDark]}>
-              <Text style={[styles.readOnlyText, isDark && styles.readOnlyTextDark]}>
-                {user?.email || ''}
-              </Text>
-              {isOAuth && (
-                <View style={styles.oauthBadge}>
-                  <Ionicons
-                    name={user?.oauth_provider === 'apple' ? 'logo-apple' : 'logo-google'}
-                    size={14}
-                    color="#6B7280"
-                  />
-                </View>
-              )}
-            </View>
-          </View>
+          <FloatingInput
+            label={t('auth.email')}
+            value={user?.email || ''}
+            isDark={isDark}
+            editable={false}
+          />
 
           {/* Nickname */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, isDark && styles.labelDark]}>{t('profileEdit.nickname')}</Text>
-            <TextInput
-              style={[styles.input, isDark && styles.inputDark]}
-              value={nickname}
-              onChangeText={setNickname}
-              placeholder={t('profileEdit.nicknamePlaceholder')}
-              placeholderTextColor="#9CA3AF"
-              maxLength={20}
-              autoCapitalize="none"
-            />
-          </View>
+          <FloatingInput
+            label={t('profileEdit.nickname')}
+            value={nickname}
+            onChangeText={setNickname}
+            isDark={isDark}
+            autoCapitalize="none"
+          />
 
           {/* Save Button */}
           <TouchableOpacity
@@ -279,9 +264,9 @@ export default function ProfileEditScreen() {
             activeOpacity={0.7}
           >
             {saving ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color="#6366F1" />
             ) : (
-              <Text style={styles.saveButtonText}>{t('common.save')}</Text>
+              <Text style={[styles.saveButtonText, (!hasNicknameChanged) && styles.saveButtonTextDisabled]}>{t('common.save')}</Text>
             )}
           </TouchableOpacity>
 
@@ -292,47 +277,27 @@ export default function ProfileEditScreen() {
                 {t('profileEdit.changePassword')}
               </Text>
 
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.label, isDark && styles.labelDark]}>
-                  {t('profileEdit.currentPassword')}
-                </Text>
-                <TextInput
-                  style={[styles.input, isDark && styles.inputDark]}
-                  value={currentPassword}
-                  onChangeText={setCurrentPassword}
-                  placeholder={t('profileEdit.currentPasswordPlaceholder')}
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.label, isDark && styles.labelDark]}>
-                  {t('auth.newPassword')}
-                </Text>
-                <TextInput
-                  style={[styles.input, isDark && styles.inputDark]}
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  placeholder={t('auth.newPasswordPlaceholder')}
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.label, isDark && styles.labelDark]}>
-                  {t('auth.newPasswordConfirm')}
-                </Text>
-                <TextInput
-                  style={[styles.input, isDark && styles.inputDark]}
-                  value={newPasswordConfirm}
-                  onChangeText={setNewPasswordConfirm}
-                  placeholder={t('auth.newPasswordConfirmPlaceholder')}
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry
-                />
-              </View>
+              <FloatingInput
+                label={t('profileEdit.currentPassword')}
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                isDark={isDark}
+                secureTextEntry
+              />
+              <FloatingInput
+                label={t('auth.newPassword')}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                isDark={isDark}
+                secureTextEntry
+              />
+              <FloatingInput
+                label={t('auth.newPasswordConfirm')}
+                value={newPasswordConfirm}
+                onChangeText={setNewPasswordConfirm}
+                isDark={isDark}
+                secureTextEntry
+              />
 
               <TouchableOpacity
                 style={[
@@ -599,19 +564,21 @@ const styles = StyleSheet.create({
   // Save Button
   saveButton: {
     height: 48,
-    backgroundColor: '#6366F1',
     borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#6366F1',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 32,
   },
   saveButtonDisabled: {
-    backgroundColor: '#9CA3AF',
+    opacity: 0.4,
   },
+  saveButtonTextDisabled: {},
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#6366F1',
   },
   // Password Section
   passwordSection: {

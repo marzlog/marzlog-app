@@ -15,29 +15,48 @@ import { AiNotice } from '@/src/components/common/AiNotice';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Dimensions,
   FlatList,
-  Image,
-  Keyboard,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
 } from 'react-native';
 
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 40) / 2;
-
-const DEFAULT_SUGGESTIONS = ['음식', 'food', '가족', 'sunset', 'birthday'];
-
 const RECENT_SEARCHES_KEY = 'marzlog_recent_searches';
 const MAX_RECENT_SEARCHES = 10;
 const DEBOUNCE_DELAY = 300;
 
-// 검색 모드 타입
-type SearchMode = 'hybrid' | 'vector' | 'text';
+const ROTATING_PLACEHOLDERS = [
+  '작년 여름 바다에서 찍은 사진',
+  '가족과 함께한 저녁 식사',
+  '생일 케이크가 있는 순간',
+  '친구들과 여행 갔을 때',
+  '새로 산 물건 기록',
+  'beach sunset',
+  '눈 오던 날',
+];
+
+const CATEGORY_CHIPS = [
+  { label: '음식', icon: '🍽️', query: '음식' },
+  { label: '가족', icon: '👨‍👩‍👧', query: '가족' },
+  { label: '특별한 날', icon: '🎉', query: '생일 파티 기념일' },
+  { label: '풍경', icon: '🌅', query: 'sunset 풍경 자연' },
+  { label: '친구', icon: '👥', query: '친구' },
+  { label: '여행', icon: '✈️', query: '여행' },
+  { label: '텍스트', icon: '📝', query: '' },
+];
+
+const SEARCH_TIPS = [
+  { icon: '💬', example: '"작년 여름 바다"', desc: '기억나는 상황을 그대로 입력' },
+  { icon: '🎯', example: '"가족과 저녁 식사"', desc: '사람 + 행동 조합으로 검색' },
+  { icon: '📅', example: '"3월에 찍은 꽃"', desc: '날짜나 계절도 이해해요' },
+];
 
 export default function SearchScreen() {
   const systemColorScheme = useColorScheme();
@@ -46,7 +65,6 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
 
-  // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
@@ -57,63 +75,63 @@ export default function SearchScreen() {
   const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
-
-  // 새로운 상태들
-  const [searchMode, setSearchMode] = useState<SearchMode>('hybrid');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const placeholderOpacity = useRef(new Animated.Value(1)).current;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<TextInput>(null);
 
-  // 최근 검색어 로드
   useEffect(() => {
     loadRecentSearches();
   }, []);
 
-  // 자동완성 (debounce)
+  // 회전 placeholder 애니메이션
+  useEffect(() => {
+    const interval = setInterval(() => {
+      Animated.timing(placeholderOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        setPlaceholderIndex(i => (i + 1) % ROTATING_PLACEHOLDERS.length);
+        Animated.timing(placeholderOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
+      });
+    }, 2500);
+    return () => clearInterval(interval);
+  }, []);
+
+  // 자동완성 debounce
   useEffect(() => {
     if (query.length < 2) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
     }
-
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
-      setIsLoadingSuggestions(true);
       try {
         const response = await searchApi.suggestions(query);
         const combined = [...(response.tags || []), ...(response.words || [])];
-        const unique = [...new Set(combined)].slice(0, 8);
+        const unique = [...new Set(combined)].slice(0, 6);
         setSuggestions(unique);
         setShowSuggestions(unique.length > 0);
-      } catch (err) {
-        console.log('[Search] Suggestions error:', err);
+      } catch {
         setSuggestions([]);
-      } finally {
-        setIsLoadingSuggestions(false);
       }
     }, DEBOUNCE_DELAY);
-
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query]);
 
   const loadRecentSearches = async () => {
     try {
       const stored = await AsyncStorage.getItem(RECENT_SEARCHES_KEY);
-      if (stored) {
-        setRecentSearches(JSON.parse(stored));
-      }
-    } catch (e) {
-      console.error('Failed to load recent searches:', e);
-    }
+      if (stored) setRecentSearches(JSON.parse(stored));
+    } catch {}
   };
 
   const saveRecentSearch = async (term: string) => {
@@ -121,80 +139,14 @@ export default function SearchScreen() {
       const updated = [term, ...recentSearches.filter(s => s !== term)].slice(0, MAX_RECENT_SEARCHES);
       setRecentSearches(updated);
       await AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
-    } catch (e) {
-      console.error('Failed to save recent search:', e);
-    }
+    } catch {}
   };
 
   const clearRecentSearches = async () => {
     try {
       setRecentSearches([]);
       await AsyncStorage.removeItem(RECENT_SEARCHES_KEY);
-    } catch (e) {
-      console.error('Failed to clear recent searches:', e);
-    }
-  };
-
-  const handleSearch = async (searchQuery?: string, mode?: SearchMode) => {
-    const term = (typeof searchQuery === 'string' ? searchQuery : query).trim();
-    if (!term) return;
-
-    setShowSuggestions(false);
-    setIsSearching(true);
-    setHasSearched(true);
-    setError(null);
-    setResults([]); // 이전 결과 초기화
-
-    const activeMode = mode || searchMode;
-
-    try {
-      console.log('[Search] Searching for:', term, 'mode:', activeMode);
-      const response = await searchApi.search(term, 20, activeMode);
-      console.log('[Search] Results count:', response.results?.length);
-      setResults(response.results || []);
-      if (response.results?.length > 0) {
-        saveRecentSearch(term);
-      }
-    } catch (err: any) {
-      const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
-      if (isTimeout && !err._retried) {
-        console.log('[Search] Timeout, retrying once...');
-        try {
-          const response = await searchApi.search(term, 20, activeMode);
-          setResults(response.results || []);
-          if (response.results?.length > 0) {
-            saveRecentSearch(term);
-          }
-          return;
-        } catch (retryErr: any) {
-          retryErr._retried = true;
-          console.error('[Search] Retry failed:', retryErr);
-        }
-      }
-      console.error('[Search] Error:', err);
-      setError(isTimeout
-        ? t('search.aiPreparing')
-        : getErrorMessage(err));
-      setResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handleSuggestionSelect = (suggestion: string) => {
-    setQuery(suggestion);
-    setShowSuggestions(false);
-    handleSearch(suggestion);
-  };
-
-  const handleSuggestionPress = (suggestion: string) => {
-    setQuery(suggestion);
-    handleSearch(suggestion);
-  };
-
-  const handleRecentPress = (term: string) => {
-    setQuery(term);
-    handleSearch(term);
+    } catch {}
   };
 
   const removeRecentSearch = async (term: string) => {
@@ -203,132 +155,140 @@ export default function SearchScreen() {
     await AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
   };
 
-  const getImageUrl = (item: SearchResult) => {
-    return item.thumbnail_url || '';
+  const handleSearch = async (searchQuery?: string) => {
+    const term = (typeof searchQuery === 'string' ? searchQuery : query).trim();
+    if (!term) return;
+
+    setShowSuggestions(false);
+    setIsSearching(true);
+    setHasSearched(true);
+    setError(null);
+    setResults([]);
+    inputRef.current?.blur();
+
+    try {
+      const response = await searchApi.search(term, 20, 'hybrid');
+      setResults(response.results || []);
+      if (response.results?.length > 0) saveRecentSearch(term);
+    } catch (err: any) {
+      const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+      if (isTimeout && !err._retried) {
+        try {
+          const response = await searchApi.search(term, 20, 'hybrid');
+          setResults(response.results || []);
+          if (response.results?.length > 0) saveRecentSearch(term);
+          return;
+        } catch (retryErr: any) { retryErr._retried = true; }
+      }
+      setError(isTimeout ? t('search.aiPreparing') : getErrorMessage(err));
+      setResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleCategoryPress = (chip: typeof CATEGORY_CHIPS[0]) => {
+    const q = chip.query || chip.label;
+    setQuery(q);
+    handleSearch(q);
   };
 
   const handleResultPress = (mediaId: string) => {
     router.push(`/media/${mediaId}`);
   };
 
-  const handleSimilarSearch = async (mediaId: string) => {
-    setIsSearching(true);
-    setError(null);
-    try {
-      console.log('[Search] Finding similar to:', mediaId);
-      const response = await searchApi.similar(mediaId);
-      setResults(response.results || []);
-      setHasSearched(true);
-      setQuery(`Similar to image`);
-    } catch (err: any) {
-      console.error('[Search] Similar search error:', err);
-      setError(getErrorMessage(err));
-    } finally {
-      setIsSearching(false);
-    }
-  };
+  const getImageUrl = (item: SearchResult) => item.thumbnail_url || '';
 
-  const renderResultItem = ({ item, index }: { item: SearchResult; index: number }) => {
-    return (
-      <View style={styles.resultCardWrapper}>
-        <ScheduleCard
-          id={item.id}
-          title={item.title || item.caption_ko || item.caption || t('search.noCaption')}
-          time={item.score ? `${(item.score * 100).toFixed(0)}%` : ''}
-          imageUrl={getImageUrl(item)}
-          emotion={item.emotion}
-          onPress={() => handleResultPress(item.media_id)}
-          size="compact"
-        />
-      </View>
-    );
+  const renderResultItem = ({ item }: { item: SearchResult }) => (
+    <View style={styles.resultCardWrapper}>
+      <ScheduleCard
+        id={item.id}
+        title={item.title || item.caption_ko || item.caption || t('search.noCaption')}
+        time={item.score ? `${(item.score * 100).toFixed(0)}%` : ''}
+        imageUrl={getImageUrl(item)}
+        emotion={item.emotion}
+        onPress={() => handleResultPress(item.media_id)}
+        size="compact"
+      />
+    </View>
+  );
+
+  const theme = {
+    bg: isDark ? '#111827' : '#F9FAFB',
+    surface: isDark ? '#1F2937' : '#FFFFFF',
+    border: isDark ? '#374151' : '#E5E7EB',
+    text: isDark ? '#F9FAFB' : '#1F2937',
+    subText: isDark ? '#9CA3AF' : '#6B7280',
+    chipBg: isDark ? '#374151' : '#F3F4F6',
   };
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { backgroundColor: theme.bg, paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Logo size={32} showText={false} color={isDark ? '#F9FAFB' : '#1F2937'} />
-          <Text style={[styles.headerTitle, isDark && styles.textLight]}>{t('search.title')}</Text>
+          <Logo size={32} showText={false} color={theme.text} />
+          <Text style={[styles.headerTitle, { color: theme.text }]}>{t('search.title')}</Text>
         </View>
       </View>
 
-      {/* Search Input */}
-      <View style={styles.searchContainer}>
-        <View style={[styles.searchInputWrapper, isDark && styles.inputDark]}>
-          <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+      {/* Search Bar */}
+      <View style={[styles.searchBar, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <Ionicons name="search" size={20} color="#9CA3AF" />
+        <View style={styles.searchInputContainer}>
           <TextInput
-            style={[styles.searchInput, isDark && styles.textLight]}
-            placeholder={t('search.placeholder')}
-            placeholderTextColor="#9CA3AF"
+            ref={inputRef}
+            style={[styles.searchInput, { color: theme.text }]}
             value={query}
             onChangeText={setQuery}
             onSubmitEditing={() => handleSearch()}
             onFocus={() => query.length >= 2 && suggestions.length > 0 && setShowSuggestions(true)}
             returnKeyType="search"
+            placeholderTextColor="transparent"
           />
-          {query.length > 0 && (
-            <TouchableOpacity onPress={() => { setQuery(''); setHasSearched(false); setShowSuggestions(false); }}>
-              <Ionicons name="close-circle" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
+          {!query && (
+            <Animated.Text
+              style={[styles.rotatePlaceholder, { color: theme.subText, opacity: placeholderOpacity }]}
+              numberOfLines={1}
+              pointerEvents="none"
+            >
+              {ROTATING_PLACEHOLDERS[placeholderIndex]}
+            </Animated.Text>
           )}
         </View>
-
-        {/* 자동완성 드롭다운 */}
-        {showSuggestions && suggestions.length > 0 && (
-          <View style={[styles.suggestionsDropdown, isDark && styles.dropdownDark]}>
-            {suggestions.map((suggestion, index) => (
-              <TouchableOpacity
-                key={`${suggestion}-${index}`}
-                style={[styles.suggestionItem, isDark && styles.suggestionItemDark]}
-                onPress={() => handleSuggestionSelect(suggestion)}
-              >
-                <Ionicons name="search-outline" size={16} color="#9CA3AF" />
-                <Text style={[styles.suggestionItemText, isDark && styles.textLight]}>{suggestion}</Text>
-              </TouchableOpacity>
-            ))}
+        {query.length > 0 ? (
+          <TouchableOpacity onPress={() => { setQuery(''); setHasSearched(false); setShowSuggestions(false); }}>
+            <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+        ) : (
+          <View style={[styles.aiBadge, { backgroundColor: colors.primary[50] }]}>
+            <Ionicons name="sparkles" size={12} color={colors.brand.primary} />
+            <Text style={[styles.aiBadgeText, { color: colors.brand.primary }]}>AI</Text>
           </View>
         )}
+      </View>
 
-        {/* 검색 모드 선택 */}
-        <View style={styles.modeContainer}>
-          {(['hybrid', 'vector', 'text'] as SearchMode[]).map((mode) => (
+      {/* 자동완성 드롭다운 */}
+      {showSuggestions && suggestions.length > 0 && (
+        <View style={[styles.dropdown, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          {suggestions.map((s, i) => (
             <TouchableOpacity
-              key={mode}
-              style={[
-                styles.modeChip,
-                searchMode === mode && styles.modeChipActive,
-                isDark && styles.modeChipDark,
-                searchMode === mode && isDark && styles.modeChipActiveDark,
-              ]}
-              onPress={() => {
-                setSearchMode(mode);
-                if (hasSearched) handleSearch(query, mode);
-              }}
+              key={`${s}-${i}`}
+              style={[styles.dropdownItem, { borderBottomColor: theme.border }]}
+              onPress={() => { setQuery(s); setShowSuggestions(false); handleSearch(s); }}
             >
-              <Ionicons
-                name={mode === 'hybrid' ? 'git-merge-outline' : mode === 'vector' ? 'sparkles-outline' : 'text-outline'}
-                size={14}
-                color={searchMode === mode ? '#FFFFFF' : (isDark ? '#9CA3AF' : '#6B7280')}
-              />
-              <Text style={[
-                styles.modeText,
-                searchMode === mode && styles.modeTextActive,
-                isDark && !searchMode.includes(mode) && { color: '#9CA3AF' },
-              ]}>
-                {mode === 'hybrid' ? 'AI + Text' : mode === 'vector' ? 'AI' : 'Text'}
-              </Text>
+              <Ionicons name="search-outline" size={15} color="#9CA3AF" />
+              <Text style={[styles.dropdownText, { color: theme.text }]}>{s}</Text>
             </TouchableOpacity>
           ))}
         </View>
-      </View>
+      )}
 
       {/* Content */}
       {isSearching ? (
-        <View style={styles.loadingContainer}>
+        <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.brand.primary} />
-          <Text style={[styles.loadingText, isDark && styles.textLight]}>
+          <Text style={[styles.centerText, { color: theme.subText, marginTop: 16 }]}>
             {t('search.searching')}
           </Text>
         </View>
@@ -336,39 +296,40 @@ export default function SearchScreen() {
         <ErrorView
           message={error}
           onRetry={() => handleSearch()}
-          textColor={isDark ? '#F9FAFB' : '#1F2937'}
-          subTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+          textColor={theme.text}
+          subTextColor={theme.subText}
           buttonColor={colors.brand.primary}
         />
       ) : !hasSearched ? (
-        <View style={styles.suggestionsContainer}>
+        <ScrollView
+          style={styles.emptyScroll}
+          contentContainerStyle={styles.emptyContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* 최근 검색어 */}
           {recentSearches.length > 0 && (
-            <View style={styles.recentSection}>
+            <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={[styles.suggestionsTitle, isDark && styles.textLight]}>
-                  {t('search.recentSearches')}
-                </Text>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>최근 검색</Text>
                 <TouchableOpacity onPress={clearRecentSearches}>
-                  <Text style={styles.clearText}>
-                    {t('search.clearAll')}
-                  </Text>
+                  <Text style={{ fontSize: 13, color: colors.brand.primary }}>전체 삭제</Text>
                 </TouchableOpacity>
               </View>
-              <View style={styles.suggestionsList}>
-                {recentSearches.slice(0, 5).map((term) => (
+              <View style={styles.chipRow}>
+                {recentSearches.slice(0, 6).map(term => (
                   <TouchableOpacity
                     key={term}
-                    style={[styles.recentChip, isDark && styles.recentChipDark]}
-                    onPress={() => handleRecentPress(term)}
+                    style={[styles.recentChip, { backgroundColor: theme.chipBg }]}
+                    onPress={() => { setQuery(term); handleSearch(term); }}
                   >
-                    <Ionicons name="time-outline" size={14} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                    <Text style={[styles.recentText, isDark && styles.textLight]}>{term}</Text>
+                    <Ionicons name="time-outline" size={13} color={theme.subText} />
+                    <Text style={[styles.chipText, { color: theme.text }]}>{term}</Text>
                     <TouchableOpacity
                       onPress={() => removeRecentSearch(term)}
-                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Ionicons name="close" size={14} color={isDark ? '#6B7280' : '#9CA3AF'} />
+                      <Ionicons name="close" size={13} color={theme.subText} />
                     </TouchableOpacity>
                   </TouchableOpacity>
                 ))}
@@ -376,43 +337,57 @@ export default function SearchScreen() {
             </View>
           )}
 
-          {/* 추천 검색어 */}
-          <Text style={[styles.suggestionsTitle, isDark && styles.textLight]}>
-            {t('search.suggestions')}
-          </Text>
-          <View style={styles.suggestionsList}>
-            {DEFAULT_SUGGESTIONS.map((suggestion) => (
-              <TouchableOpacity
-                key={suggestion}
-                style={[styles.suggestionChip, isDark && styles.chipDark]}
-                onPress={() => handleSuggestionPress(suggestion)}
-              >
-                <Ionicons name="search-outline" size={14} color={colors.brand.primary} />
-                <Text style={styles.suggestionText}>{suggestion}</Text>
-              </TouchableOpacity>
-            ))}
+          {/* 카테고리 탐색 */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>카테고리로 탐색</Text>
+            <View style={styles.categoryGrid}>
+              {CATEGORY_CHIPS.map(chip => (
+                <TouchableOpacity
+                  key={chip.label}
+                  style={[styles.categoryChip, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                  onPress={() => handleCategoryPress(chip)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.categoryIcon}>{chip.icon}</Text>
+                  <Text style={[styles.categoryLabel, { color: theme.text }]}>{chip.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
-          {/* AI 검색 안내 */}
-          <View style={[styles.aiFeatureCard, isDark && styles.cardDark]}>
-            <View style={styles.aiIconContainer}>
-              <Ionicons name="sparkles" size={24} color={colors.brand.primary} />
+          {/* 검색 팁 */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>이렇게 검색해보세요</Text>
+            <View style={[styles.tipsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              {SEARCH_TIPS.map((tip, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={[
+                    styles.tipRow,
+                    i < SEARCH_TIPS.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border },
+                  ]}
+                  onPress={() => { setQuery(tip.example.replace(/"/g, '')); handleSearch(tip.example.replace(/"/g, '')); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.tipIcon}>{tip.icon}</Text>
+                  <View style={styles.tipTextBox}>
+                    <Text style={[styles.tipExample, { color: colors.brand.primary }]}>{tip.example}</Text>
+                    <Text style={[styles.tipDesc, { color: theme.subText }]}>{tip.desc}</Text>
+                  </View>
+                  <Ionicons name="arrow-forward" size={14} color={theme.subText} />
+                </TouchableOpacity>
+              ))}
             </View>
-            <View style={styles.aiTextContainer}>
-              <Text style={[styles.aiTitle, isDark && styles.textLight]}>
-                {t('search.aiSearch')}
-              </Text>
-              <Text style={[styles.aiDescription, isDark && { color: '#9CA3AF' }]}>
-                {t('search.aiSearchDesc')}
-              </Text>
-            </View>
+            <Text style={[styles.tipFootnote, { color: theme.subText }]}>
+              ✨ 자연어로 기억을 설명하면 AI가 찾아드려요
+            </Text>
           </View>
-        </View>
+        </ScrollView>
       ) : results.length > 0 ? (
         <View style={{ flex: 1 }}>
-          <View style={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 }}>
-            <Text style={[styles.loadingText, isDark && styles.textLight]}>
-              {t('search.resultCount', { count: results.length })}
+          <View style={styles.resultHeader}>
+            <Text style={[styles.resultCount, { color: theme.subText }]}>
+              {results.length}개의 사진을 찾았어요
             </Text>
             <AiNotice text={t('ai.searchNotice')} isDark={isDark} />
           </View>
@@ -424,18 +399,23 @@ export default function SearchScreen() {
             contentContainerStyle={styles.resultsContainer}
             columnWrapperStyle={styles.resultsRow}
             showsVerticalScrollIndicator={false}
-            extraData={query}
           />
         </View>
       ) : (
-        <View style={styles.noResultsContainer}>
-          <Ionicons name="search-outline" size={64} color="#D1D5DB" />
-          <Text style={[styles.noResultsText, isDark && styles.textLight]}>
+        <View style={styles.centerContainer}>
+          <Text style={{ fontSize: 48 }}>🔍</Text>
+          <Text style={[styles.centerText, { color: theme.text, marginTop: 16 }]}>
             {t('search.noResults')}
           </Text>
-          <Text style={styles.noResultsSubtext}>
-            {t('search.noResultsHint')}
+          <Text style={[{ fontSize: 14, color: theme.subText, marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }]}>
+            다른 키워드로 검색하거나{'\n'}자연어로 설명해보세요
           </Text>
+          <TouchableOpacity
+            style={[styles.retryBtn, { borderColor: colors.brand.primary }]}
+            onPress={() => { setHasSearched(false); setQuery(''); inputRef.current?.focus(); }}
+          >
+            <Text style={{ color: colors.brand.primary, fontSize: 14, fontWeight: '500' }}>다시 검색</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -443,196 +423,59 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
+  container: { flex: 1 },
   header: {
-    height: 64,
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
   },
-  headerLeft: {
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerTitle: { fontSize: 18, fontWeight: '300' },
+
+  // Search bar
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '300',
-    color: '#1F2937',
-  },
-  containerDark: {
-    backgroundColor: '#111827',
-  },
-  searchContainer: {
-    padding: 16,
-  },
-  searchInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 48,
+    marginHorizontal: 16,
+    marginBottom: 4,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 50,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    gap: 10,
   },
-  inputDark: {
-    backgroundColor: '#1F2937',
-    borderColor: '#374151',
-  },
-  searchIcon: {
-    marginRight: 12,
+  searchInputContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    height: '100%',
   },
   searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1F2937',
+    fontSize: 15,
+    height: '100%',
+    padding: 0,
   },
-  textLight: {
-    color: '#F9FAFB',
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  suggestionsContainer: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  recentSection: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  clearText: {
-    fontSize: 14,
-    color: colors.brand.primary,
-  },
-  recentChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-  },
-  recentChipDark: {
-    backgroundColor: '#374151',
-  },
-  recentText: {
-    fontSize: 14,
-    color: '#374151',
-  },
-  suggestionsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
-  },
-  suggestionsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  suggestionChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary[50],
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
-  },
-  chipDark: {
-    backgroundColor: colors.primary[900],
-  },
-  suggestionText: {
-    fontSize: 14,
-    color: colors.brand.primary,
-  },
-  aiFeatureCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginTop: 24,
-  },
-  cardDark: {
-    backgroundColor: '#1F2937',
-  },
-  aiIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: colors.primary[50],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  aiTextContainer: {
-    flex: 1,
-  },
-  aiTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  aiDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-  },
-  resultsContainer: {
-    padding: 16,
-  },
-  resultsRow: {
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  resultCardWrapper: {
-    width: ITEM_SIZE,
-  },
-  noResultsContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noResultsText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#374151',
-    marginTop: 16,
-  },
-  noResultsSubtext: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    marginTop: 8,
-  },
-  // 자동완성 드롭다운
-  suggestionsDropdown: {
+  rotatePlaceholder: {
     position: 'absolute',
-    top: 60,
-    left: 16,
-    right: 16,
-    backgroundColor: '#FFFFFF',
+    fontSize: 15,
+    left: 0,
+    right: 0,
+  },
+  aiBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 3,
+  },
+  aiBadgeText: { fontSize: 11, fontWeight: '600' },
+
+  // Dropdown
+  dropdown: {
+    marginHorizontal: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     zIndex: 1000,
     elevation: 5,
     shadowColor: '#000',
@@ -640,56 +483,87 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  dropdownDark: {
-    backgroundColor: '#1F2937',
-    borderColor: '#374151',
-  },
-  suggestionItem: {
+  dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    gap: 12,
+    gap: 10,
   },
-  suggestionItemDark: {
-    borderBottomColor: '#374151',
-  },
-  suggestionItemText: {
-    fontSize: 15,
-    color: '#374151',
-  },
-  // 검색 모드
-  modeContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-  },
-  modeChip: {
+  dropdownText: { fontSize: 15 },
+
+  // Empty state
+  emptyScroll: { flex: 1 },
+  emptyContent: { padding: 16, paddingBottom: 120 },
+  section: { marginBottom: 28 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitle: { fontSize: 15, fontWeight: '600', marginBottom: 12 },
+
+  // Recent chips
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  recentChip: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    paddingVertical: 7,
+    borderRadius: 20,
+    gap: 5,
+  },
+  chipText: { fontSize: 13 },
+
+  // Category grid
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  categoryChip: {
+    width: (width - 32 - 30) / 4,
+    aspectRatio: 1,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
     gap: 4,
   },
-  modeChipDark: {
-    backgroundColor: '#374151',
+  categoryIcon: { fontSize: 24 },
+  categoryLabel: { fontSize: 12, fontWeight: '500' },
+
+  // Tips
+  tipsCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
-  modeChipActive: {
-    backgroundColor: colors.brand.primary,
+  tipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 12,
   },
-  modeChipActiveDark: {
-    backgroundColor: colors.brand.primary,
-  },
-  modeText: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  modeTextActive: {
-    color: '#FFFFFF',
+  tipIcon: { fontSize: 20 },
+  tipTextBox: { flex: 1 },
+  tipExample: { fontSize: 14, fontWeight: '600', marginBottom: 2 },
+  tipDesc: { fontSize: 12 },
+  tipFootnote: { fontSize: 12, textAlign: 'center', marginTop: 12 },
+
+  // Results
+  resultHeader: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  resultCount: { fontSize: 13, marginBottom: 6 },
+  resultsContainer: { padding: 16 },
+  resultsRow: { justifyContent: 'space-between', marginBottom: 12 },
+  resultCardWrapper: { width: ITEM_SIZE },
+
+  // No results / loading
+  centerContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  centerText: { fontSize: 17, fontWeight: '600' },
+  retryBtn: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1.5,
   },
 });

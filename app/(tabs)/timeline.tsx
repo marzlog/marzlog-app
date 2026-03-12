@@ -606,13 +606,6 @@ export default function TimelineScreen() {
           <TouchableOpacity style={styles.iconButton} onPress={handleSearchPress}>
             <SearchIcon color={theme.icon.primary} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton} onPress={handleAddPress} disabled={isUploading}>
-            {isUploading ? (
-              <ActivityIndicator size="small" color={theme.icon.primary} />
-            ) : (
-              <PlusIcon color={theme.icon.primary} />
-            )}
-          </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={handleNotificationPress}>
             <BellIcon color={theme.icon.primary} />
             {(unreadAnnCount + unreadNotifCount) > 0 && (
@@ -754,23 +747,6 @@ export default function TimelineScreen() {
           </View>
         }
       />
-      {/* FAB 버튼 - 탭바 위에 위치 */}
-      <TouchableOpacity
-        style={[
-          styles.fab,
-          { backgroundColor: palette.primary[500], shadowColor: palette.primary[500] },
-          isUploading && { backgroundColor: theme.text.disabled }
-        ]}
-        activeOpacity={0.8}
-        onPress={handleFabPress}
-        disabled={isUploading}
-      >
-        {isUploading ? (
-          <ActivityIndicator size="small" color={palette.neutral[0]} />
-        ) : (
-          <PlusIcon color={palette.neutral[0]} />
-        )}
-      </TouchableOpacity>
 
       {/* 업로드 진행 상태 */}
       {isUploading && uploadItems.length > 0 && (

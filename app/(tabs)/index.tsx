@@ -759,7 +759,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    height: 64,
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -814,7 +814,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   dateSelectorContainer: {
-    paddingTop: 4,
+    paddingTop: 0,
   },
   schedulesContainer: {
     flex: 1,
