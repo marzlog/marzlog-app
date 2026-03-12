@@ -13,9 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Constants from 'expo-constants';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import * as WebBrowser from 'expo-web-browser';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore, type ThemeMode, type AIMode } from '@/src/store/settingsStore';
 import { useAppLockStore } from '@/src/store/appLockStore';
@@ -27,7 +25,6 @@ import { PinSetup } from '@/src/components/auth/PinSetup';
 import { PinInput } from '@/src/components/auth/PinInput';
 
 const ICON_COLOR = '#8B5CF6';
-const appVersion = Constants.expoConfig?.version || '1.0.0';
 
 export default function SettingsScreen() {
   const systemColorScheme = useColorScheme();
@@ -291,39 +288,7 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        {/* ── Section 2: Privacy ── */}
-        <Text style={[styles.sectionTitle, { color: sectionColor }]}>
-          {t('settings.privacySection')}
-        </Text>
-        <View style={[styles.card, { backgroundColor: cardBg }]}>
-          {/* Privacy Policy */}
-          <TouchableOpacity
-            style={[styles.menuItem, { borderBottomColor: divider }]}
-            onPress={() => WebBrowser.openBrowserAsync('https://marzlog.com/privacy')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="shield-checkmark-outline" size={24} color={ICON_COLOR} />
-              <Text style={[styles.menuLabel, { color: labelColor }]}>{t('support.privacy')}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={chevronColor} />
-          </TouchableOpacity>
-
-          {/* Terms of Service */}
-          <TouchableOpacity
-            style={[styles.menuItem, styles.menuItemLast, { borderBottomColor: divider }]}
-            onPress={() => WebBrowser.openBrowserAsync('https://marzlog.com/terms')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="document-text-outline" size={24} color={ICON_COLOR} />
-              <Text style={[styles.menuLabel, { color: labelColor }]}>{t('support.terms')}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={chevronColor} />
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Section 3: App Info ── */}
+        {/* ── Section 2: App Info ── */}
         <Text style={[styles.sectionTitle, { color: sectionColor }]}>
           {t('settings.appInfoSection')}
         </Text>
@@ -367,7 +332,7 @@ export default function SettingsScreen() {
 
           {/* App Info */}
           <TouchableOpacity
-            style={[styles.menuItem, { borderBottomColor: divider }]}
+            style={[styles.menuItem, styles.menuItemLast, { borderBottomColor: divider }]}
             onPress={() => router.push('/app-info')}
             activeOpacity={0.7}
           >
@@ -377,15 +342,6 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={chevronColor} />
           </TouchableOpacity>
-
-          {/* Version */}
-          <View style={[styles.menuItem, styles.menuItemLast]}>
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="code-slash-outline" size={24} color={ICON_COLOR} />
-              <Text style={[styles.menuLabel, { color: labelColor }]}>{t('settings.version')}</Text>
-            </View>
-            <Text style={[styles.settingValue, { color: subColor }]}>v{appVersion}</Text>
-          </View>
         </View>
 
         {/* ── Logout ── */}
