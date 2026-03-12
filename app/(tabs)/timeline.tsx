@@ -5,6 +5,7 @@ import {
   View,
   Text,
   FlatList,
+  ScrollView,
   TouchableOpacity,
   Dimensions,
   RefreshControl,
@@ -242,7 +243,7 @@ export default function TimelineScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [activeTab, setActiveTab] = useState<TabFilter>('image');
-  const [timeFilter, setTimeFilter] = useState<'week' | 'month'>('month');
+  const [timeFilter, setTimeFilter] = useState<'week' | 'month' | '3month' | 'all'>('month');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [unreadAnnCount, setUnreadAnnCount] = useState(0);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
@@ -356,9 +357,10 @@ export default function TimelineScreen() {
   // 시간 필터 적용 cutoff 날짜
   const cutoffDate = React.useMemo(() => {
     const now = new Date();
-    return timeFilter === 'week'
-      ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-      : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    if (timeFilter === 'week') return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    if (timeFilter === 'month') return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    if (timeFilter === '3month') return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    return new Date(0); // all
   }, [timeFilter]);
 
   // 필터링된 날짜 그룹 (탭 + 시간 필터 적용)
@@ -525,21 +527,24 @@ export default function TimelineScreen() {
   };
 
   // 그리드 뷰 카드
-  const renderGridCard = (photo: TimelineItem) => (
-    <View key={photo.id} style={styles.gridCardWrapper}>
-      <ScheduleCard
-        id={photo.id}
-        title={getDisplayTitle(photo)}
-        time={formatTime(photo.media?.taken_at || photo.created_at)}
-        imageUrl={getImageUrl(photo)}
-        emotion={photo.media?.emotion}
-        groupCount={photo.media?.group_count || undefined}
-        onPress={() => handlePhotoPress(photo.media_id)}
-        theme={theme}
-        size="compact"
-      />
-    </View>
-  );
+  const renderGridCard = (photo: TimelineItem & { _featured?: boolean }) => {
+    const isFeatured = photo._featured;
+    return (
+      <View key={photo.id} style={isFeatured ? styles.featuredCardInner : styles.gridCardWrapper}>
+        <ScheduleCard
+          id={photo.id}
+          title={getDisplayTitle(photo)}
+          time={formatTime(photo.media?.taken_at || photo.created_at)}
+          imageUrl={getImageUrl(photo)}
+          emotion={photo.media?.emotion}
+          groupCount={photo.media?.group_count || undefined}
+          onPress={() => handlePhotoPress(photo.media_id)}
+          theme={theme}
+          size={isFeatured ? 'large' : 'compact'}
+        />
+      </View>
+    );
+  };
 
   // 리스트 뷰 카드 (텍스트 탭용 - OCR 텍스트 표시)
   const renderListCard = (photo: TimelineItem) => (
@@ -577,20 +582,92 @@ export default function TimelineScreen() {
   // 뷰 모드 (사용자 선택에 따름)
   const currentViewMode = viewMode;
 
-  const renderDateSection = ({ item }: { item: DateGroup }) => (
-    <View style={styles.dateSection}>
-      <Text style={[styles.dateHeader, { color: theme.text.primary }]}>{formatDate(item.date)}</Text>
-      {currentViewMode === 'grid' ? (
-        <View style={styles.gridContainer}>
-          {item.items.map(renderGridCard)}
+  const renderDateSection = ({ item }: { item: DateGroup }) => {
+    const dateObj = new Date(item.date);
+    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const dayName = dayNames[dateObj.getDay()];
+    const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
+    const dayColor = isWeekend ? '#FA5252' : (isDark ? '#9CA3AF' : '#6B7280');
+    const featured = item.items[0];
+    const rest = item.items.slice(1);
+
+    return (
+      <View style={[styles.dateSection, { backgroundColor: isDark ? '#1A2332' : '#FFFFFF' }]}>
+        {/* 날짜 헤더 */}
+        <View style={styles.dateSectionHeader}>
+          <View style={[styles.dateAccentLine, { backgroundColor: '#FA5252' }]} />
+          <View style={styles.dateHeaderContent}>
+            <Text style={[styles.dateHeaderMain, { color: theme.text.primary }]}>
+              {formatDate(item.date)}
+            </Text>
+            <Text style={[styles.dateHeaderDay, { color: dayColor }]}>
+              {dayName}요일 · {item.items.length}장
+            </Text>
+          </View>
         </View>
-      ) : (
-        <View style={styles.listContainer}>
-          {item.items.map(renderListCard)}
-        </View>
-      )}
-    </View>
-  );
+
+        {currentViewMode === 'grid' ? (
+          <View style={styles.featuredGrid}>
+            {/* Featured 대표 사진 */}
+            {featured && (
+              <TouchableOpacity
+                style={styles.featuredPhoto}
+                onPress={() => handlePhotoPress(featured.media_id)}
+                activeOpacity={0.9}
+              >
+                <Image
+                  source={featured.media?.thumbnail_url ? { uri: featured.media.thumbnail_url } : undefined}
+                  style={styles.featuredImage}
+                  contentFit="cover"
+                  transition={200}
+                  cachePolicy="memory-disk"
+                />
+                <View style={styles.featuredOverlay}>
+                  <Text style={styles.featuredCaption} numberOfLines={2}>
+                    {getDisplayTitle(featured)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            {/* 나머지 가로 스크롤 strip */}
+            {rest.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.stripContainer}
+              >
+                {rest.map((photo) => (
+                  <TouchableOpacity
+                    key={photo.id}
+                    style={styles.stripItem}
+                    onPress={() => handlePhotoPress(photo.media_id)}
+                    activeOpacity={0.85}
+                  >
+                    <Image
+                      source={photo.media?.thumbnail_url ? { uri: photo.media.thumbnail_url } : undefined}
+                      style={styles.stripImage}
+                      contentFit="cover"
+                      transition={200}
+                      cachePolicy="memory-disk"
+                    />
+                    {photo.media?.group_count && photo.media.group_count > 1 && (
+                      <View style={styles.stripBadge}>
+                        <Text style={styles.stripBadgeText}>+{photo.media.group_count - 1}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        ) : (
+          <View style={styles.listContainer}>
+            {item.items.map(renderListCard)}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background.primary, paddingTop: insets.top }]}>
@@ -664,36 +741,29 @@ export default function TimelineScreen() {
         </Text>
 
         <View style={styles.filterActions}>
-          {/* 시간 필터 (주/월) */}
+          {/* 시간 필터 (주/월/3개월/전체) */}
           <View style={styles.timeFilterContainer}>
-            <TouchableOpacity
-              style={[
-                styles.timeFilterButton,
-                { backgroundColor: timeFilter === 'week' ? '#2D3A35' : (isDark ? palette.neutral[700] : '#F5F5F5') },
-              ]}
-              onPress={() => setTimeFilter('week')}
-            >
-              <Text style={[
-                styles.timeFilterText,
-                { color: timeFilter === 'week' ? '#FFFFFF' : (isDark ? palette.neutral[200] : '#252525') },
-              ]}>
-                주
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.timeFilterButton,
-                { backgroundColor: timeFilter === 'month' ? '#2D3A35' : (isDark ? palette.neutral[700] : '#F5F5F5') },
-              ]}
-              onPress={() => setTimeFilter('month')}
-            >
-              <Text style={[
-                styles.timeFilterText,
-                { color: timeFilter === 'month' ? '#FFFFFF' : (isDark ? palette.neutral[200] : '#252525') },
-              ]}>
-                월
-              </Text>
-            </TouchableOpacity>
+            {(['week', 'month', '3month', 'all'] as const).map((f) => {
+              const label = f === 'week' ? '주' : f === 'month' ? '월' : f === '3month' ? '3개월' : '전체';
+              const isActive = timeFilter === f;
+              return (
+                <TouchableOpacity
+                  key={f}
+                  style={[
+                    styles.timeFilterButton,
+                    { backgroundColor: isActive ? '#2D3A35' : (isDark ? palette.neutral[700] : '#F5F5F5') },
+                  ]}
+                  onPress={() => setTimeFilter(f)}
+                >
+                  <Text style={[
+                    styles.timeFilterText,
+                    { color: isActive ? '#FFFFFF' : (isDark ? palette.neutral[200] : '#252525') },
+                  ]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {/* 뷰 모드 토글 */}
@@ -934,22 +1004,109 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   dateSection: {
-    marginBottom: 24,
-    paddingHorizontal: 16,
-  },
-  dateHeader: {
-    fontSize: 16,
-    fontWeight: '600',
     marginBottom: 12,
+    marginHorizontal: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+    paddingBottom: 12,
+  },
+  dateSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 14,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    gap: 10,
+  },
+  dateAccentLine: {
+    width: 3,
+    height: 36,
+    borderRadius: 2,
+  },
+  dateHeaderContent: {
+    flex: 1,
+  },
+  dateHeaderMain: {
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 20,
+  },
+  dateHeaderDay: {
+    fontSize: 12,
+    marginTop: 1,
+  },
+  featuredGrid: {
+    gap: 10,
+    paddingBottom: 12,
+  },
+  featuredPhoto: {
+    marginHorizontal: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    height: 220,
+  },
+  featuredImage: {
+    width: '100%',
+    height: '100%',
+  },
+  featuredOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(0,0,0,0.38)',
+  },
+  featuredCaption: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  stripContainer: {
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  stripItem: {
+    width: 100,
+    height: 100,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  stripImage: {
+    width: '100%',
+    height: '100%',
+  },
+  stripBadge: {
+    position: 'absolute',
+    top: 5,
+    right: 5,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  stripBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  featuredCardWrapper: {
+    marginBottom: 4,
+  },
+  featuredCardInner: {
+    width: '100%',
   },
   // Grid View (2열)
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    paddingHorizontal: 10,
   },
   gridCardWrapper: {
-    width: ITEM_SIZE,
+    width: ITEM_SIZE - 10,
   },
   // List View
   listContainer: {
