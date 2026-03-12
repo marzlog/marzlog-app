@@ -196,9 +196,9 @@ const formatTime = (dateStr: string) => {
   const date = new Date(dateStr);
   const hours = date.getHours();
   const minutes = date.getMinutes();
-  const period = hours >= 12 ? '오후' : '오전';
+  const period = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-  return `${displayHours}시 ${minutes.toString().padStart(2, '0')}분 (${period})`;
+  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
 };
 
 // 날짜 비교 함수 (시간 무시, 날짜만 비교)

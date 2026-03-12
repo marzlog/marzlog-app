@@ -11,58 +11,32 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
+import { useTranslation } from '@/src/hooks/useTranslation';
 
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 48) / 2;
 
-// Mock albums data
-const MOCK_ALBUMS = [
-  {
-    id: '1',
-    name: '여행',
-    count: 128,
-    coverUri: 'https://picsum.photos/400/400?random=20',
-  },
-  {
-    id: '2',
-    name: '가족',
-    count: 64,
-    coverUri: 'https://picsum.photos/400/400?random=21',
-  },
-  {
-    id: '3',
-    name: '음식',
-    count: 89,
-    coverUri: 'https://picsum.photos/400/400?random=22',
-  },
-  {
-    id: '4',
-    name: '일상',
-    count: 234,
-    coverUri: 'https://picsum.photos/400/400?random=23',
-  },
-  {
-    id: '5',
-    name: '친구들',
-    count: 45,
-    coverUri: 'https://picsum.photos/400/400?random=24',
-  },
-  {
-    id: '6',
-    name: '반려동물',
-    count: 78,
-    coverUri: 'https://picsum.photos/400/400?random=25',
-  },
-];
+// Mock album keys (mapped to i18n)
+const MOCK_ALBUM_KEYS = ['travel', 'family', 'food', 'daily', 'friends', 'pets'] as const;
+const MOCK_ALBUM_COUNTS = [128, 64, 89, 234, 45, 78];
+const MOCK_ALBUM_RANDOMS = [20, 21, 22, 23, 24, 25];
 
 export default function AlbumsScreen() {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
+  const { t } = useTranslation();
 
   // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
+
+  const MOCK_ALBUMS = MOCK_ALBUM_KEYS.map((key, i) => ({
+    id: String(i + 1),
+    name: t(`albums.${key}` as any),
+    count: MOCK_ALBUM_COUNTS[i],
+    coverUri: `https://picsum.photos/400/400?random=${MOCK_ALBUM_RANDOMS[i]}`,
+  }));
 
   const renderAlbumItem = ({ item }: { item: typeof MOCK_ALBUMS[0] }) => (
     <TouchableOpacity style={styles.albumItem} activeOpacity={0.8}>
@@ -86,11 +60,11 @@ export default function AlbumsScreen() {
         <View style={styles.sectionTitleRow}>
           <Ionicons name="sparkles" size={18} color="#6366F1" />
           <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
-            AI 자동 분류
+            {t('albums.aiAutoClassify')}
           </Text>
         </View>
         <TouchableOpacity>
-          <Text style={styles.seeAllText}>모두 보기</Text>
+          <Text style={styles.seeAllText}>{t('albums.seeAll')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -111,17 +85,17 @@ export default function AlbumsScreen() {
               color={isDark ? '#6B7280' : '#D1D5DB'}
             />
             <Text style={[styles.emptyText, isDark && styles.textLight]}>
-              앨범이 없습니다
+              {t('albums.empty')}
             </Text>
             <Text style={styles.emptySubtext}>
-              사진을 업로드하면 AI가 자동으로 분류합니다
+              {t('albums.emptyDesc')}
             </Text>
           </View>
         }
         ListFooterComponent={
           <TouchableOpacity style={styles.createAlbumButton}>
             <Ionicons name="add-circle-outline" size={24} color="#6366F1" />
-            <Text style={styles.createAlbumText}>새 앨범 만들기</Text>
+            <Text style={styles.createAlbumText}>{t('albums.createNew')}</Text>
           </TouchableOpacity>
         }
       />

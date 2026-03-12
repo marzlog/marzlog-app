@@ -23,12 +23,14 @@ import { ImageSelector, EmotionPicker, IntensitySlider } from '@/src/components/
 import { getMediaDetail, updateMedia, setPrimaryImage } from '@/src/api/media';
 import { timelineApi } from '@/src/api/timeline';
 import { useDialog } from '@/src/components/ui/Dialog';
+import { useTranslation } from '@/src/hooks/useTranslation';
 
 export default function UploadScreen() {
   const insets = useSafeAreaInsets();
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
   const { alert: showAlert, confirm } = useDialog();
+  const { t } = useTranslation();
   const params = useLocalSearchParams<{
     images?: string;
     editMode?: string;
@@ -65,9 +67,9 @@ export default function UploadScreen() {
     const now = new Date();
     const hours = now.getHours();
     const minutes = now.getMinutes();
-    const period = hours >= 12 ? '오후' : '오전';
+    const period = hours >= 12 ? 'PM' : 'AM';
     const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-    return `${displayHours}시 ${minutes.toString().padStart(2, '0')}분 (${period})`;
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
   // 편집 모드일 때 기존 데이터 로드
@@ -148,7 +150,7 @@ export default function UploadScreen() {
 
     } catch (error) {
       console.error('[Upload] Failed to load existing data:', error);
-      showAlert('데이터를 불러오는데 실패했습니다.');
+      showAlert(t('upload.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -180,10 +182,10 @@ export default function UploadScreen() {
   // 확인 다이얼로그 (취소 확인용)
   const showConfirm = async (message: string, onConfirm: () => void) => {
     const confirmed = await confirm({
-      title: '취소하시겠습니까?',
+      title: t('upload.cancelConfirmTitle'),
       description: message,
-      confirmText: '확인',
-      cancelText: '취소',
+      confirmText: t('common.confirm'),
+      cancelText: t('common.cancel'),
       variant: 'confirm',
     });
     if (confirmed) {
@@ -202,7 +204,7 @@ export default function UploadScreen() {
   const handleAddMoreImages = () => {
     const remainingSlots = 5 - images.length;
     if (remainingSlots <= 0) {
-      showAlert('최대 5장까지 추가할 수 있습니다. (대표 1장 + 서브 4장)');
+      showAlert(t('upload.maxImagesAlert'));
       return;
     }
 
@@ -227,12 +229,12 @@ export default function UploadScreen() {
     }
 
     Alert.alert(
-      '사진 추가',
-      '사진을 추가할 방법을 선택하세요.',
+      t('upload.addPhoto'),
+      t('upload.addPhotoDesc'),
       [
-        { text: '카메라로 촬영', onPress: addFromCamera },
-        { text: '갤러리에서 선택', onPress: addFromGallery },
-        { text: '취소', style: 'cancel' },
+        { text: t('upload.takePhoto'), onPress: addFromCamera },
+        { text: t('upload.fromGallery'), onPress: addFromGallery },
+        { text: t('common.cancel'), style: 'cancel' },
       ],
     );
   };
@@ -255,7 +257,7 @@ export default function UploadScreen() {
   const handleCancel = () => {
     console.log('[Upload] handleCancel');
     if (images.length > 0 || title || content || memo) {
-      showConfirm('작성 중인 내용이 삭제됩니다. 취소하시겠습니까?', goBack);
+      showConfirm(t('upload.cancelConfirmDesc'), goBack);
     } else {
       goBack();
     }
@@ -281,7 +283,7 @@ export default function UploadScreen() {
         console.log('[Upload] Adding', newImages.length, 'new images to group:', groupId);
         const addResult = await addToExistingGroup(groupId, newImages);
         if (!addResult) {
-          showAlert('새 이미지 추가 중 오류가 발생했습니다.');
+          showAlert(t('upload.addImageError'));
           setIsSubmitting(false);
           return;
         }
@@ -299,7 +301,7 @@ export default function UploadScreen() {
             console.log('[Upload] Primary image updated');
           } catch (primaryError) {
             console.error('[Upload] Failed to set primary image:', primaryError);
-            showAlert('대표 이미지 변경에 실패했습니다.');
+            showAlert(t('upload.primaryImageError'));
             setIsSubmitting(false);
             return;
           }
@@ -319,12 +321,12 @@ export default function UploadScreen() {
       const result = await updateMedia(mediaId, updateData);
       console.log('[Upload] Update result:', result);
 
-      showAlert('수정되었습니다.');
+      showAlert(t('upload.updateSuccess'));
       // 캐시 문제 방지: 홈으로 이동하여 타임라인 새로고침
       router.replace('/(tabs)');
     } catch (error) {
       console.error('[Upload] Update error:', error);
-      showAlert('수정 중 오류가 발생했습니다.');
+      showAlert(t('upload.updateError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -347,7 +349,7 @@ export default function UploadScreen() {
     // 새 등록 모드
     if (images.length === 0) {
       console.log('[Upload] No images - showing alert');
-      showAlert('사진을 추가해주세요.');
+      showAlert(t('upload.noPhotos'));
       return;
     }
 
@@ -394,7 +396,7 @@ export default function UploadScreen() {
       router.push('/(tabs)');
     } catch (error) {
       console.error('[Upload] Upload error:', error);
-      showAlert('업로드 중 오류가 발생했습니다.');
+      showAlert(t('upload.uploadError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -444,7 +446,7 @@ export default function UploadScreen() {
         {/* Title and Time */}
         <View style={styles.titleSection}>
           <Text style={[styles.mainTitle, isDark && styles.textLight]}>
-            {isEditMode ? '일상 수정하기' : '오늘의 일상을 등록하세요!'}
+            {isEditMode ? t('upload.editTitle') : t('upload.newTitle')}
           </Text>
           {!isEditMode && <Text style={[styles.timeText, isDark && styles.textSecondaryDark]}>{getCurrentTime()}</Text>}
         </View>
@@ -475,10 +477,10 @@ export default function UploadScreen() {
 
         {/* Title Input */}
         <View style={styles.inputSection}>
-          <Text style={[styles.inputLabel, isDark && styles.textLight]}>제목</Text>
+          <Text style={[styles.inputLabel, isDark && styles.textLight]}>{t('upload.titleLabel')}</Text>
           <TextInput
             style={[styles.titleInput, isDark && styles.inputDark]}
-            placeholder="제목을 입력하세요 (선택)"
+            placeholder={t('upload.titlePlaceholder')}
             placeholderTextColor={isDark ? '#6B7280' : colors.neutral[5]}
             value={title}
             onChangeText={setTitle}
@@ -488,10 +490,10 @@ export default function UploadScreen() {
 
         {/* Content Input */}
         <View style={styles.inputSection}>
-          <Text style={[styles.inputLabel, isDark && styles.textLight]}>내용</Text>
+          <Text style={[styles.inputLabel, isDark && styles.textLight]}>{t('upload.contentLabel')}</Text>
           <TextInput
             style={[styles.contentInput, isDark && styles.inputDark]}
-            placeholder="오늘의 일상을 기록해보세요 (선택)"
+            placeholder={t('upload.contentPlaceholder')}
             placeholderTextColor={isDark ? '#6B7280' : colors.neutral[5]}
             value={content}
             onChangeText={setContent}
@@ -503,7 +505,7 @@ export default function UploadScreen() {
 
         {/* Memo Toggle */}
         <View style={[styles.memoToggleContainer, isDark && styles.memoToggleContainerDark]}>
-          <Text style={[styles.memoToggleText, isDark && styles.textLight]}>메모 작성하기</Text>
+          <Text style={[styles.memoToggleText, isDark && styles.textLight]}>{t('upload.memoToggle')}</Text>
           <Switch
             value={showMemo}
             onValueChange={setShowMemo}
@@ -517,7 +519,7 @@ export default function UploadScreen() {
           <View style={styles.memoContainer}>
             <TextInput
               style={[styles.memoInput, isDark && styles.inputDark]}
-              placeholder="추가 메모를 작성하세요..."
+              placeholder={t('upload.memoPlaceholder')}
               placeholderTextColor={isDark ? '#6B7280' : colors.neutral[5]}
               value={memo}
               onChangeText={setMemo}
@@ -563,7 +565,7 @@ export default function UploadScreen() {
           {isSubmitting ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>{isEditMode ? '수정' : '등록'}</Text>
+            <Text style={styles.submitButtonText}>{isEditMode ? t('upload.edit') : t('upload.submit')}</Text>
           )}
         </Pressable>
       </View>
