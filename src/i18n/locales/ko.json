@@ -179,7 +179,11 @@
     "appInfo": "앱정보",
     "languageSelect": "언어 선택",
     "displaySection": "화면 및 AI",
-    "infoSection": "정보"
+    "infoSection": "정보",
+    "appSettingsSection": "앱 설정",
+    "privacySection": "개인정보",
+    "appInfoSection": "앱 정보",
+    "version": "버전"
   },
   "support": {
     "title": "지원",

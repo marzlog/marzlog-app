@@ -179,6 +179,10 @@
     "languageSelect": "Language",
     "displaySection": "Display & AI",
     "infoSection": "Information",
+    "appSettingsSection": "App Settings",
+    "privacySection": "Privacy",
+    "appInfoSection": "App Info",
+    "version": "Version",
     "pushNotification": "Push Notifications"
   },
   "support": {
