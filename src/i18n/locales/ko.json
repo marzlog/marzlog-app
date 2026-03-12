@@ -156,7 +156,12 @@
     "withdrawOtherPlaceholder": "탈퇴 사유를 입력해 주세요",
     "withdrawCompleteTitle": "탈퇴가 완료되었습니다",
     "withdrawCompleteDesc": "그동안 MarZlog를 이용해 주셔서 감사합니다.\n언제든 다시 돌아와 주세요.",
-    "startService": "서비스 시작하기"
+    "startService": "서비스 시작하기",
+    "reason_not_using": "잘 사용하지 않아요",
+    "reason_difficult": "사용하는 것이 어려워요",
+    "reason_other_service": "이용 중인 다른 서비스가 있어요",
+    "reason_privacy": "개인정보가 걱정돼요",
+    "reason_other": "기타"
   },
   "settings": {
     "title": "설정",

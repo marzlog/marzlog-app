@@ -156,7 +156,12 @@
     "withdrawOtherPlaceholder": "Please enter your reason",
     "withdrawCompleteTitle": "Account Deleted",
     "withdrawCompleteDesc": "Thank you for using MarZlog.\nWe hope to see you again.",
-    "startService": "Get Started"
+    "startService": "Get Started",
+    "reason_not_using": "I don't use it often",
+    "reason_difficult": "It's too difficult to use",
+    "reason_other_service": "I'm using another service",
+    "reason_privacy": "I'm concerned about privacy",
+    "reason_other": "Other"
   },
   "settings": {
     "title": "Settings",
