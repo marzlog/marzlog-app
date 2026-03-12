@@ -10,6 +10,7 @@ import React, { createContext, useContext, useState, useCallback, ReactNode } fr
 import { Dialog, DialogVariant } from './Dialog';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
+import { useTranslation } from '@/src/hooks/useTranslation';
 
 interface DialogOptions {
   title: string;
@@ -56,23 +57,25 @@ interface DialogState {
   resolve: ((value: any) => void) | null;
 }
 
-const initialState: DialogState = {
-  visible: false,
-  title: '',
-  description: undefined,
-  confirmText: '확인',
-  cancelText: '취소',
-  destructiveText: undefined,
-  variant: 'confirm',
-  hasCancel: true,
-  hasDestructive: false,
-  resolve: null,
-};
-
 export function DialogProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<DialogState>(initialState);
+  const { t } = useTranslation();
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
+
+  const initialState: DialogState = {
+    visible: false,
+    title: '',
+    description: undefined,
+    confirmText: t('common.confirm'),
+    cancelText: t('common.cancel'),
+    destructiveText: undefined,
+    variant: 'confirm',
+    hasCancel: true,
+    hasDestructive: false,
+    resolve: null,
+  };
+
+  const [state, setState] = useState<DialogState>(initialState);
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
@@ -91,15 +94,15 @@ export function DialogProvider({ children }: { children: ReactNode }) {
         visible: true,
         title: options.title,
         description: options.description,
-        confirmText: options.confirmText || '확인',
-        cancelText: options.cancelText || '취소',
+        confirmText: options.confirmText || t('common.confirm'),
+        cancelText: options.cancelText || t('common.cancel'),
         variant: options.variant || 'confirm',
         hasCancel: options.hasCancel !== false,
         hasDestructive: false,
         resolve,
       });
     });
-  }, []);
+  }, [t]);
 
   const handleConfirm = useCallback(() => {
     state.resolve?.(state.hasDestructive ? 'confirm' : true);
@@ -137,16 +140,16 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   // confirmDelete: 삭제 확인
   const confirmDelete = useCallback(async (itemName?: string): Promise<boolean> => {
     return showDialog({
-      title: '삭제하시겠습니까?',
+      title: t('dialog.deleteConfirmTitle'),
       description: itemName
-        ? `"${itemName}"을(를) 삭제합니다.\n삭제된 항목은 복구할 수 없습니다.`
-        : '삭제된 항목은 복구할 수 없습니다.',
-      confirmText: '삭제',
-      cancelText: '취소',
+        ? t('dialog.deleteConfirmDescWithName', { name: itemName })
+        : t('dialog.deleteConfirmDesc'),
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
       variant: 'danger',
       hasCancel: true,
     });
-  }, [showDialog]);
+  }, [showDialog, t]);
 
   // choose: 3버튼 선택 (confirm / destructive / cancel)
   const choose = useCallback(async (options: ChooseOptions): Promise<ChooseResult> => {
@@ -156,7 +159,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
         title: options.title,
         description: options.description,
         confirmText: options.confirmText,
-        cancelText: options.cancelText || '취소',
+        cancelText: options.cancelText || t('common.cancel'),
         destructiveText: options.destructiveText,
         variant: 'confirm',
         hasCancel: true,

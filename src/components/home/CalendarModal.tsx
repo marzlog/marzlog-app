@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme';
+import i18n from '@/src/i18n';
 
 const { width } = Dimensions.get('window');
 const DAY_SIZE = (width - 80) / 7;
@@ -20,8 +21,8 @@ interface CalendarModalProps {
   onDateSelect: (date: Date) => void;
 }
 
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
-const MONTHS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+const getWeekdays = () => (i18n.t('calendar.weekdays') as string).split(',');
+const getMonths = () => (i18n.t('calendar.months') as string).split(',');
 
 export function CalendarModal({
   visible,
@@ -103,7 +104,7 @@ export function CalendarModal({
             </TouchableOpacity>
 
             <Text style={styles.monthText}>
-              {currentMonth.getFullYear()}년 {MONTHS[currentMonth.getMonth()]}
+              {i18n.t('calendar.monthFormat', { year: currentMonth.getFullYear(), month: getMonths()[currentMonth.getMonth()] })}
             </Text>
 
             <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
@@ -113,7 +114,7 @@ export function CalendarModal({
 
           {/* Weekday Labels */}
           <View style={styles.weekdayRow}>
-            {WEEKDAYS.map((day, index) => (
+            {getWeekdays().map((day, index) => (
               <View key={index} style={styles.weekdayCell}>
                 <Text style={[
                   styles.weekdayText,
@@ -159,7 +160,7 @@ export function CalendarModal({
             style={styles.todayButton}
             onPress={() => handleDatePress(today)}
           >
-            <Text style={styles.todayButtonText}>오늘</Text>
+            <Text style={styles.todayButtonText}>{i18n.t('calendar.today')}</Text>
           </TouchableOpacity>
         </TouchableOpacity>
       </TouchableOpacity>

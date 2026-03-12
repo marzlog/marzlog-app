@@ -199,9 +199,9 @@ const formatTime = (dateStr: string) => {
   const date = new Date(dateStr);
   const hours = date.getHours();
   const minutes = date.getMinutes();
-  const period = hours >= 12 ? '오후' : '오전';
+  const period = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-  return `${displayHours}시 ${minutes.toString().padStart(2, '0')}분 (${period})`;
+  return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
 };
 
 type TabFilter = 'image' | 'text';
@@ -584,7 +584,7 @@ export default function TimelineScreen() {
 
   const renderDateSection = ({ item }: { item: DateGroup }) => {
     const dateObj = new Date(item.date);
-    const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const dayNames = (t('calendar.weekdays') as string).split(',');
     const dayName = dayNames[dateObj.getDay()];
     const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6;
     const dayColor = isWeekend ? '#FA5252' : (isDark ? '#9CA3AF' : '#6B7280');
@@ -737,14 +737,14 @@ export default function TimelineScreen() {
       {/* 필터 컨트롤 바: 건수 + 시간필터 + 뷰모드 */}
       <View style={styles.filterControlBar}>
         <Text style={[styles.totalCount, { color: theme.text.secondary }]}>
-          총 {filteredCount}건
+          {t('timeline.totalCount', { count: filteredCount })}
         </Text>
 
         <View style={styles.filterActions}>
           {/* 시간 필터 (주/월/3개월/전체) */}
           <View style={styles.timeFilterContainer}>
             {(['week', 'month', '3month', 'all'] as const).map((f) => {
-              const label = f === 'week' ? '주' : f === 'month' ? '월' : f === '3month' ? '3개월' : '전체';
+              const label = t(`timeline.filter_${f}` as any);
               const isActive = timeFilter === f;
               return (
                 <TouchableOpacity

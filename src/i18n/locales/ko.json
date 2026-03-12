@@ -29,6 +29,7 @@
     "logoutConfirm": "정말 로그아웃하시겠습니까?",
     "continueWithGoogle": "Google로 계속",
     "continueWithApple": "Apple로 계속",
+    "appleNotSupported": "Apple 로그인은 현재 지원되지 않습니다. Google 계정을 이용해주세요.",
     "register": "회원가입",
     "forgotPassword": "비밀번호 찾기",
     "email": "이메일",
@@ -227,7 +228,12 @@
     "filterImage": "이미지",
     "filterText": "텍스트",
     "gridView": "그리드",
-    "listView": "리스트"
+    "listView": "리스트",
+    "filter_week": "주",
+    "filter_month": "월",
+    "filter_3month": "3개월",
+    "filter_all": "전체",
+    "totalCount": "총 {{count}}건"
   },
   "search": {
     "title": "AI검색",
@@ -246,7 +252,28 @@
     "resultCount": "{{count}}개 결과",
     "englishOnly": "현재 영어 검색만 지원됩니다",
     "recentSearches": "최근 검색어",
-    "clearAll": "전체 삭제"
+    "clearAll": "전체 삭제",
+    "placeholder1": "작년 여름 바다에서 찍은 사진",
+    "placeholder2": "가족과 함께한 저녁 식사",
+    "placeholder3": "생일 케이크가 있는 순간",
+    "placeholder4": "친구들과 여행 갔을 때",
+    "placeholder5": "새로 산 물건 기록",
+    "placeholder6": "눈 오던 날",
+    "catFood": "음식",
+    "catFamily": "가족",
+    "catSpecial": "특별한 날",
+    "catSpecialQuery": "생일 파티 기념일",
+    "catScenery": "풍경",
+    "catSceneryQuery": "sunset 풍경 자연",
+    "catFriends": "친구",
+    "catTravel": "여행",
+    "catText": "텍스트",
+    "tipExample1": "\"작년 여름 바다\"",
+    "tipDesc1": "기억나는 상황을 그대로 입력",
+    "tipExample2": "\"가족과 저녁 식사\"",
+    "tipDesc2": "사람 + 행동 조합으로 검색",
+    "tipExample3": "\"3월에 찍은 꽃\"",
+    "tipDesc3": "날짜나 계절도 이해해요"
   },
   "upload": {
     "title": "사진 추가",
@@ -436,5 +463,16 @@
     "flashFired": "발광",
     "flashNotFired": "발광 안 함",
     "location": "위치"
+  },
+  "calendar": {
+    "weekdays": "일,월,화,수,목,금,토",
+    "months": "1월,2월,3월,4월,5월,6월,7월,8월,9월,10월,11월,12월",
+    "monthFormat": "{{year}}년 {{month}}",
+    "today": "오늘"
+  },
+  "dialog": {
+    "deleteConfirmTitle": "삭제하시겠습니까?",
+    "deleteConfirmDesc": "삭제된 항목은 복구할 수 없습니다.",
+    "deleteConfirmDescWithName": "\"{{name}}\"을(를) 삭제합니다.\n삭제된 항목은 복구할 수 없습니다."
   }
 }

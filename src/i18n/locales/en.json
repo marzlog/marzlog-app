@@ -29,6 +29,7 @@
     "logoutConfirm": "Are you sure you want to logout?",
     "continueWithGoogle": "Continue with Google",
     "continueWithApple": "Continue with Apple",
+    "appleNotSupported": "Apple Sign-In is not available yet. Please use your Google account.",
     "register": "Sign Up",
     "forgotPassword": "Forgot Password",
     "email": "Email",
@@ -227,7 +228,12 @@
     "filterImage": "Image",
     "filterText": "Text",
     "gridView": "Grid",
-    "listView": "List"
+    "listView": "List",
+    "filter_week": "Week",
+    "filter_month": "Month",
+    "filter_3month": "3M",
+    "filter_all": "All",
+    "totalCount": "{{count}} items"
   },
   "search": {
     "title": "AI Search",
@@ -246,7 +252,28 @@
     "resultCount": "{{count}} results",
     "englishOnly": "Currently supports English search only",
     "recentSearches": "Recent Searches",
-    "clearAll": "Clear All"
+    "clearAll": "Clear All",
+    "placeholder1": "Photos from last summer at the beach",
+    "placeholder2": "Dinner with family",
+    "placeholder3": "Moments with birthday cake",
+    "placeholder4": "Traveling with friends",
+    "placeholder5": "New purchase records",
+    "placeholder6": "A snowy day",
+    "catFood": "Food",
+    "catFamily": "Family",
+    "catSpecial": "Special Day",
+    "catSpecialQuery": "birthday party anniversary",
+    "catScenery": "Scenery",
+    "catSceneryQuery": "sunset scenery nature",
+    "catFriends": "Friends",
+    "catTravel": "Travel",
+    "catText": "Text",
+    "tipExample1": "\"Last summer at the beach\"",
+    "tipDesc1": "Describe the situation as you remember it",
+    "tipExample2": "\"Dinner with family\"",
+    "tipDesc2": "Combine people + actions for better results",
+    "tipExample3": "\"Flowers in March\"",
+    "tipDesc3": "Dates and seasons work too"
   },
   "upload": {
     "title": "Add Photo",
@@ -436,5 +463,16 @@
     "flashFired": "Fired",
     "flashNotFired": "Not fired",
     "location": "Location"
+  },
+  "calendar": {
+    "weekdays": "Sun,Mon,Tue,Wed,Thu,Fri,Sat",
+    "months": "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
+    "monthFormat": "{{month}} {{year}}",
+    "today": "Today"
+  },
+  "dialog": {
+    "deleteConfirmTitle": "Delete this item?",
+    "deleteConfirmDesc": "Deleted items cannot be recovered.",
+    "deleteConfirmDescWithName": "\"{{name}}\" will be deleted.\nDeleted items cannot be recovered."
   }
 }

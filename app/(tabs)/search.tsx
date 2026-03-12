@@ -32,31 +32,8 @@ const RECENT_SEARCHES_KEY = 'marzlog_recent_searches';
 const MAX_RECENT_SEARCHES = 10;
 const DEBOUNCE_DELAY = 300;
 
-const ROTATING_PLACEHOLDERS = [
-  '작년 여름 바다에서 찍은 사진',
-  '가족과 함께한 저녁 식사',
-  '생일 케이크가 있는 순간',
-  '친구들과 여행 갔을 때',
-  '새로 산 물건 기록',
-  'beach sunset',
-  '눈 오던 날',
-];
-
-const CATEGORY_CHIPS = [
-  { label: '음식', icon: '🍽️', query: '음식' },
-  { label: '가족', icon: '👨‍👩‍👧', query: '가족' },
-  { label: '특별한 날', icon: '🎉', query: '생일 파티 기념일' },
-  { label: '풍경', icon: '🌅', query: 'sunset 풍경 자연' },
-  { label: '친구', icon: '👥', query: '친구' },
-  { label: '여행', icon: '✈️', query: '여행' },
-  { label: '텍스트', icon: '📝', query: '' },
-];
-
-const SEARCH_TIPS = [
-  { icon: '💬', example: '"작년 여름 바다"', desc: '기억나는 상황을 그대로 입력' },
-  { icon: '🎯', example: '"가족과 저녁 식사"', desc: '사람 + 행동 조합으로 검색' },
-  { icon: '📅', example: '"3월에 찍은 꽃"', desc: '날짜나 계절도 이해해요' },
-];
+const CATEGORY_ICONS = ['🍽️', '👨‍👩‍👧', '🎉', '🌅', '👥', '✈️', '📝'];
+const TIP_ICONS = ['💬', '🎯', '📅'];
 
 export default function SearchScreen() {
   const systemColorScheme = useColorScheme();
@@ -64,6 +41,25 @@ export default function SearchScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+
+  const ROTATING_PLACEHOLDERS = [
+    t('search.placeholder1'), t('search.placeholder2'), t('search.placeholder3'),
+    t('search.placeholder4'), t('search.placeholder5'), t('search.placeholder6'),
+  ];
+  const CATEGORY_CHIPS = [
+    { label: t('search.catFood'), icon: '🍽️', query: t('search.catFood') },
+    { label: t('search.catFamily'), icon: '👨‍👩‍👧', query: t('search.catFamily') },
+    { label: t('search.catSpecial'), icon: '🎉', query: t('search.catSpecialQuery') },
+    { label: t('search.catScenery'), icon: '🌅', query: t('search.catSceneryQuery') },
+    { label: t('search.catFriends'), icon: '👥', query: t('search.catFriends') },
+    { label: t('search.catTravel'), icon: '✈️', query: t('search.catTravel') },
+    { label: t('search.catText'), icon: '📝', query: '' },
+  ];
+  const SEARCH_TIPS = [
+    { icon: '💬', example: t('search.tipExample1'), desc: t('search.tipDesc1') },
+    { icon: '🎯', example: t('search.tipExample2'), desc: t('search.tipDesc2') },
+    { icon: '📅', example: t('search.tipExample3'), desc: t('search.tipDesc3') },
+  ];
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'

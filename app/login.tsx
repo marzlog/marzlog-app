@@ -214,11 +214,11 @@ export default function LoginScreen() {
           <GoogleLoginButton onSuccess={handleSuccess} onError={handleError} style={{ marginHorizontal: 16 }} />
           <TouchableOpacity
             style={[styles.appleButton, isDark && styles.appleButtonDark, { marginHorizontal: 16 }]}
-            onPress={() => Alert.alert('Apple 로그인', 'Apple 로그인은 현재 지원되지 않습니다. Google 계정을 이용해주세요.')}
+            onPress={() => Alert.alert(t('auth.continueWithApple'), t('auth.appleNotSupported'))}
             activeOpacity={0.8}
           >
             <Ionicons name="logo-apple" size={20} color={isDark ? '#fff' : '#fff'} />
-            <Text style={styles.appleButtonText}>Apple로 계속하기</Text>
+            <Text style={styles.appleButtonText}>{t('auth.continueWithApple')}</Text>
           </TouchableOpacity>
         </View>
 
