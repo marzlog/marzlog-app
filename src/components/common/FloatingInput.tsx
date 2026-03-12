@@ -13,7 +13,7 @@ interface FloatingInputProps {
   returnKeyType?: TextInputProps['returnKeyType'];
   onSubmitEditing?: () => void;
   blurOnSubmit?: boolean;
-  inputRef?: React.RefObject<TextInput>;
+  inputRef?: React.RefObject<TextInput | null>;
   rightIcon?: React.ReactNode;
   editable?: boolean;
 }

@@ -62,6 +62,7 @@
     "invalidEmail": "Invalid email format",
     "loginFailed": "Login failed",
     "registerFailed": "Registration failed",
+    "alreadyHaveAccount": "Already have an account?",
     "emailCheckFailed": "Failed to check email",
     "registerCompleteTitle": "MarZlog",
     "registerCompleteWelcome": "Welcome! You are now a member.",
