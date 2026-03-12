@@ -53,6 +53,7 @@ export default function MoreScreen() {
               key={item.route}
               style={[
                 styles.menuItem,
+                { borderBottomColor: isDark ? '#374151' : '#F3F4F6' },
                 index === MENU_ITEMS.length - 1 && styles.menuItemLast,
               ]}
               onPress={() => router.push(item.route as any)}
@@ -80,7 +81,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#111827',
   },
   header: {
-    height: 64,
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -116,7 +117,7 @@ const styles = StyleSheet.create({
     height: 56,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: '#F3F4F6',
   },
   menuItemLast: {
     borderBottomWidth: 0,

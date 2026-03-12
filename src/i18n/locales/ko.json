@@ -177,7 +177,9 @@
     "languageEn": "English",
     "labs": "실험실",
     "appInfo": "앱정보",
-    "languageSelect": "언어 선택"
+    "languageSelect": "언어 선택",
+    "displaySection": "화면 및 AI",
+    "infoSection": "정보"
   },
   "support": {
     "title": "지원",
