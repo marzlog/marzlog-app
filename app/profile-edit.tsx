@@ -95,7 +95,7 @@ export default function ProfileEditScreen() {
       showToast('프로필 사진이 변경되었습니다');
     } catch (error: any) {
       const detail = error?.response?.data?.detail || error?.message || '알 수 없는 오류';
-      console.error('[Avatar] Upload failed:', detail, error);
+      // error shown via toast
       setAvatarStatus('');
       showToast('업로드 실패: ' + String(detail));
     } finally {

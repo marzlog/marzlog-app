@@ -30,6 +30,7 @@ import { useDialog } from '@/src/components/ui/Dialog';
 import notificationsApi from '@/src/api/notifications';
 import announcementsApi from '@/src/api/announcements';
 import { getErrorMessage } from '@/src/utils/errorMessages';
+import { captureError } from '@/src/utils/sentry';
 import ErrorView from '@/src/components/common/ErrorView';
 
 const { width } = Dimensions.get('window');
@@ -299,19 +300,14 @@ export default function HomeScreen() {
 
   // 전체 타임라인 로드 (초기 20개 + 자동 추가 로드)
   const loadAllItems = useCallback(async () => {
-    console.log('[Home] loadAllItems called, accessToken:', accessToken ? 'EXISTS' : 'MISSING');
-
     if (!accessToken) {
-      console.log('[Home] No accessToken, skipping API call');
       setLoading(false);
       return;
     }
 
     try {
-      console.log('[Home] Calling timelineApi.getTimeline with limit=', PAGE_SIZE);
       setError(null);
       const response = await timelineApi.getTimeline(PAGE_SIZE, 0, false);
-      console.log('[Home] API Response - total:', response.total, 'items:', response.items.length);
       setAllItems(response.items);
       setHasMore(response.has_more);
 
@@ -320,7 +316,7 @@ export default function HomeScreen() {
         loadRemainingItems(response.items.length, response.total);
       }
     } catch (err) {
-      console.error('[Home] Failed to load all items:', err);
+      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'Home.loadAllItems' });
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
@@ -331,24 +327,15 @@ export default function HomeScreen() {
   const loadRemainingItems = useCallback(async (loaded: number, total: number) => {
     try {
       const remaining = await timelineApi.getTimeline(total - loaded, loaded, false);
-      console.log('[Home] Background loaded', remaining.items.length, 'more items');
       setAllItems(prev => [...prev, ...remaining.items]);
       setHasMore(false);
     } catch (err) {
-      console.error('[Home] Failed to load remaining items:', err);
+      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'Home.loadRemainingItems' });
     }
   }, []);
 
-  // accessToken 변경 감지
-  useEffect(() => {
-    console.log('[Home] accessToken changed:', accessToken ? 'EXISTS' : 'MISSING');
-  }, [accessToken]);
-
   // 선택된 날짜의 타임라인 필터링 (group_dates 기준 - 그룹 내 아무 이미지라도 해당 날짜면 표시)
   useEffect(() => {
-    console.log('[Home] Filtering - selectedDate:', formatDateKey(selectedDate));
-    console.log('[Home] Filtering - allItems count:', allItems.length);
-
     const selectedDateStr = formatDateKey(selectedDate);
 
     const filtered = allItems.filter((item) => {
@@ -366,8 +353,6 @@ export default function HomeScreen() {
       const takenAt = new Date(item.media?.taken_at || item.created_at);
       return isSameDay(takenAt, selectedDate);
     });
-
-    console.log('[Home] Filtered count:', filtered.length);
 
     const mapped: ScheduleItem[] = filtered.map((item) => {
       // analysis_status 기반 제목 분기
@@ -401,7 +386,6 @@ export default function HomeScreen() {
 
   // 초기 로드
   useEffect(() => {
-    console.log('[Home] Initial load useEffect triggered');
     loadAllItems();
   }, [loadAllItems]);
 
@@ -420,12 +404,10 @@ export default function HomeScreen() {
         isFirstFocus.current = false;
         return;
       }
-      console.log('[Home] Screen focused - refreshing data');
 
       // 상세보기에서 돌아올 때 lastViewedDate로 복원
       const restoredDate = restoreFromLastViewed();
       if (restoredDate) {
-        console.log('[Home] Restored date from lastViewed:', restoredDate);
         setSelectedDateLocal(restoredDate);
       }
 
@@ -498,9 +480,7 @@ export default function HomeScreen() {
   const handlePickFromGallery = async () => {
     setShowUploadModal(false);
     try {
-      console.log('[Gallery] Starting picker...');
       const pickedItems = await pickFromGallery(true);
-      console.log('[Gallery] Picked items:', pickedItems);
 
       if (pickedItems && pickedItems.length > 0) {
         // 지원하는 형식만 필터링
@@ -523,10 +503,6 @@ export default function HomeScreen() {
         // 유효한 이미지가 있으면 업로드 화면으로 이동
         if (validItems.length > 0) {
           const dateIso = selectedDate.toISOString();
-          console.log('=== Home → Upload Navigation ===');
-          console.log('selectedDate:', selectedDate);
-          console.log('selectedDate.toISOString():', dateIso);
-          console.log('[Gallery] Navigating to /upload with', validItems.length, 'valid images');
           router.push({
             pathname: '/upload',
             params: {
@@ -534,14 +510,10 @@ export default function HomeScreen() {
               selectedDate: dateIso,  // 캘린더 선택 날짜 전달
             },
           });
-        } else if (invalidFiles.length > 0) {
-          console.log('[Gallery] No valid images after filtering');
         }
-      } else {
-        console.log('[Gallery] No items selected or picker cancelled');
       }
     } catch (error) {
-      console.error('[Gallery] Error:', error);
+      captureError(error instanceof Error ? error : new Error(String(error)), { context: 'Gallery.pickFromGallery' });
       showAlert('이미지를 선택하는 중 오류가 발생했습니다.');
     }
   };

@@ -67,27 +67,18 @@ export default function AppInfoScreen() {
     if (Platform.OS !== 'web') {
       try {
         const mod = require('expo-alternate-app-icons');
-        console.log('=== APP ICON DEBUG ===');
-        console.log('Platform.OS:', Platform.OS);
-        console.log('supportsAlternateIcons:', mod.supportsAlternateIcons);
-        console.log('getAppIconName:', mod.getAppIconName?.());
-        console.log('typeof setAlternateAppIcon:', typeof mod.setAlternateAppIcon);
-        console.log('module keys:', Object.keys(mod));
 
         if (nativeGetAppIconName) {
           setCurrentIcon(nativeGetAppIconName());
         }
         setIsSupported(nativeSupportsAlternateIcons);
       } catch (e) {
-        console.log('expo-alternate-app-icons error:', e);
+        // silently fail
       }
     }
   }, []);
 
   const handleChangeIcon = async (iconKey: string | null) => {
-    console.log('=== CHANGE ICON ===');
-    console.log('iconKey:', iconKey, 'Platform.OS:', Platform.OS, 'isSupported:', isSupported);
-
     if (Platform.OS === 'web') {
       window.alert(`${t('appInfo.iconNotSupported')}\n${t('appInfo.iconNotSupportedDesc')}`);
       return;
@@ -102,11 +93,8 @@ export default function AppInfoScreen() {
     }
 
     try {
-      console.log('Calling setAlternateAppIcon...');
       await nativeSetAlternateAppIcon(iconKey);
-      console.log('Icon changed successfully!');
     } catch (e: any) {
-      console.log('setAlternateAppIcon error:', e);
       if (!isSupported) {
         Alert.alert(t('appInfo.iconNotSupported'), t('appInfo.iconNotSupportedDesc'));
       }

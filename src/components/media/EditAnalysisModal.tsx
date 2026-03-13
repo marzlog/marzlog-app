@@ -67,7 +67,7 @@ export function EditAnalysisModal({
       await onSave({ caption, tags, emotion, intensity });
       onClose();
     } catch (error) {
-      console.error('Save failed:', error);
+      // silently fail
     } finally {
       setSaving(false);
     }

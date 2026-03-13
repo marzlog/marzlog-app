@@ -27,6 +27,7 @@ import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
+import { captureError } from '@/src/utils/sentry';
 import { ScheduleCard } from '@/src/components/home';
 import notificationsApi from '@/src/api/notifications';
 import announcementsApi from '@/src/api/announcements';
@@ -269,7 +270,6 @@ export default function TimelineScreen() {
   const loadTimeline = useCallback(async (showLoading = true) => {
     // 토큰이 없으면 API 호출하지 않음
     if (!accessToken) {
-      console.log('[Timeline] No token, skipping API call');
       setLoading(false);
       return;
     }
@@ -286,12 +286,6 @@ export default function TimelineScreen() {
       hasMoreRef.current = true;
 
       const response = await timelineApi.getTimeline(PAGE_SIZE, 0);
-      console.log('[Timeline] API Response - total:', response.total, 'items:', response.items.length);
-      console.log('[Timeline] First 3 items:', response.items.slice(0, 3).map(item => ({
-        id: item.id,
-        created_at: item.created_at,
-        taken_at: item.media?.taken_at,
-      })));
       setTotal(response.total);
       allItemsRef.current = response.items;
       offsetRef.current = response.items.length;
@@ -302,7 +296,7 @@ export default function TimelineScreen() {
       const groups = groupByDate(response.items);
       setDateGroups(groups);
     } catch (err: any) {
-      console.error('Timeline load error:', err);
+      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'Timeline.load' });
       setError(getErrorMessage(err));
     } finally {
       loadingRef.current = false;
@@ -333,7 +327,7 @@ export default function TimelineScreen() {
         setHasMore(false);
       }
     } catch (err: any) {
-      console.error('Load more error:', err);
+      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'Timeline.loadMore' });
     } finally {
       loadingMoreRef.current = false;
       setLoadingMore(false);

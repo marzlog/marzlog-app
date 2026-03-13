@@ -122,7 +122,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
         set({ isLoaded: true });
       }
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      // silently fail
       set({ isLoaded: true });
     }
   },
@@ -147,7 +147,7 @@ async function saveSettings(state: SettingsStore) {
   try {
     await storage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   } catch (error) {
-    console.error('Failed to save settings:', error);
+    // silently fail
   }
 }
 

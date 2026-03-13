@@ -24,6 +24,7 @@ import { getMediaDetail, updateMedia, setPrimaryImage } from '@/src/api/media';
 import { timelineApi } from '@/src/api/timeline';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { captureError } from '@/src/utils/sentry';
 
 export default function UploadScreen() {
   const insets = useSafeAreaInsets();
@@ -84,11 +85,8 @@ export default function UploadScreen() {
 
     setIsLoading(true);
     try {
-      console.log('[Upload] Loading existing data for mediaId:', mediaId);
-
       // 미디어 상세 조회
       const mediaDetail = await getMediaDetail(mediaId);
-      console.log('[Upload] Loaded media detail:', mediaDetail);
 
       // 폼에 데이터 설정
       setTitle(mediaDetail.title || '');
@@ -125,7 +123,6 @@ export default function UploadScreen() {
             if (primaryIdx >= 0) setPrimaryImageIndex(primaryIdx);
           }
         } catch (e) {
-          console.log('[Upload] No group images or error:', e);
         }
       }
 
@@ -146,10 +143,9 @@ export default function UploadScreen() {
       }
 
       setImages(loadedImages);
-      console.log('[Upload] Loaded images:', loadedImages.length);
 
     } catch (error) {
-      console.error('[Upload] Failed to load existing data:', error);
+      captureError(error instanceof Error ? error : new Error(String(error)), { context: 'Upload.loadExistingData' });
       showAlert(t('upload.loadFailed'));
     } finally {
       setIsLoading(false);
@@ -160,20 +156,13 @@ export default function UploadScreen() {
   useEffect(() => {
     if (isEditMode) return; // 편집 모드에서는 건너뛰기
 
-    console.log('[Upload] useEffect - params:', params);
-    console.log('[Upload] useEffect - params.images:', params.images);
-
     if (params.images) {
       try {
         const parsedImages = JSON.parse(params.images as string);
-        console.log('[Upload] Parsed images:', parsedImages);
-        console.log('[Upload] Parsed images count:', parsedImages.length);
         setImages(parsedImages);
       } catch (e) {
-        console.error('[Upload] Failed to parse images:', e);
+        captureError(e instanceof Error ? e : new Error(String(e)), { context: 'Upload.parseImages' });
       }
-    } else {
-      console.log('[Upload] No images in params');
     }
   }, [params.images, isEditMode]);
 
@@ -195,7 +184,6 @@ export default function UploadScreen() {
 
   // 뒤로가기
   const goBack = () => {
-    console.log('[Upload] goBack - Platform:', Platform.OS);
     router.push('/(tabs)');
   };
 
@@ -255,7 +243,6 @@ export default function UploadScreen() {
 
   // 취소 버튼 핸들러
   const handleCancel = () => {
-    console.log('[Upload] handleCancel');
     if (images.length > 0 || title || content || memo) {
       showConfirm(t('upload.cancelConfirmDesc'), goBack);
     } else {
@@ -267,27 +254,20 @@ export default function UploadScreen() {
   const handleUpdate = async () => {
     if (!mediaId) return;
 
-    console.log('[Upload] ===== handleUpdate START =====');
-    console.log('[Upload] images:', images.map(img => ({ id: img.id, isExisting: (img as any).isExisting })));
-    console.log('[Upload] groupId:', groupId);
-    console.log('[Upload] primaryImageIndex:', primaryImageIndex);
     setIsSubmitting(true);
 
     try {
       // 1. 새 이미지가 있으면 그룹에 추가
       // isExisting이 명시적으로 true가 아닌 이미지만 새 이미지로 간주
       const newImages = images.filter((img: any) => img.isExisting !== true);
-      console.log('[Upload] newImages count:', newImages.length);
 
       if (newImages.length > 0 && groupId) {
-        console.log('[Upload] Adding', newImages.length, 'new images to group:', groupId);
         const addResult = await addToExistingGroup(groupId, newImages);
         if (!addResult) {
           showAlert(t('upload.addImageError'));
           setIsSubmitting(false);
           return;
         }
-        console.log('[Upload] New images added successfully');
       }
 
       // 2. 대표 이미지 변경 (기존 이미지 중에서 선택된 경우)
@@ -295,12 +275,10 @@ export default function UploadScreen() {
         const primaryImage = images[primaryImageIndex];
         // 기존 이미지이고 id가 있는 경우에만 대표 이미지 변경 API 호출
         if ((primaryImage as any)?.isExisting && primaryImage?.id) {
-          console.log('[Upload] Setting primary image:', primaryImage.id);
           try {
             await setPrimaryImage(groupId, primaryImage.id);
-            console.log('[Upload] Primary image updated');
           } catch (primaryError) {
-            console.error('[Upload] Failed to set primary image:', primaryError);
+            captureError(primaryError instanceof Error ? primaryError : new Error(String(primaryError)), { context: 'Upload.setPrimaryImage' });
             showAlert(t('upload.primaryImageError'));
             setIsSubmitting(false);
             return;
@@ -317,15 +295,13 @@ export default function UploadScreen() {
         intensity: intensity,
       };
 
-      console.log('[Upload] Update data:', updateData);
       const result = await updateMedia(mediaId, updateData);
-      console.log('[Upload] Update result:', result);
 
       showAlert(t('upload.updateSuccess'));
       // 캐시 문제 방지: 홈으로 이동하여 타임라인 새로고침
       router.replace('/(tabs)');
     } catch (error) {
-      console.error('[Upload] Update error:', error);
+      captureError(error instanceof Error ? error : new Error(String(error)), { context: 'Upload.handleUpdate' });
       showAlert(t('upload.updateError'));
     } finally {
       setIsSubmitting(false);
@@ -334,12 +310,6 @@ export default function UploadScreen() {
 
   // 등록 버튼 핸들러
   const handleSubmit = async () => {
-    console.log('[Upload] ===== handleSubmit START =====');
-    console.log('[Upload] isEditMode:', isEditMode);
-    console.log('[Upload] images:', images);
-    console.log('[Upload] images.length:', images.length);
-    console.log('[Upload] primaryImageIndex:', primaryImageIndex);
-
     // 편집 모드일 때는 수정 처리
     if (isEditMode) {
       await handleUpdate();
@@ -348,7 +318,6 @@ export default function UploadScreen() {
 
     // 새 등록 모드
     if (images.length === 0) {
-      console.log('[Upload] No images - showing alert');
       showAlert(t('upload.noPhotos'));
       return;
     }
@@ -356,17 +325,7 @@ export default function UploadScreen() {
     setIsSubmitting(true);
     try {
       // 선택한 날짜 (캘린더에서 전달받은 날짜)
-      console.log('=== Upload Submit Debug ===');
-      console.log('params:', JSON.stringify(params));
-      console.log('params.selectedDate:', params.selectedDate);
-      console.log('params.selectedDate type:', typeof params.selectedDate);
-
       const takenAt = params.selectedDate || undefined;
-      console.log('[Upload] Using takenAt:', takenAt);
-
-      if (takenAt) {
-        console.log('[Upload] takenAt parsed as Date:', new Date(takenAt));
-      }
 
       const metadata = {
         title: title || undefined,
@@ -378,9 +337,7 @@ export default function UploadScreen() {
 
       if (images.length === 1) {
         // 단일 이미지: 업로드 후 메타데이터 업데이트
-        console.log('[Upload] Single image upload');
         const results = await startUpload(images, takenAt);
-        console.log('[Upload] Upload completed, results:', results.length);
 
         // 메타데이터 저장 (title, emotion 등)
         if (results.length > 0 && results[0].media_id) {
@@ -388,14 +345,12 @@ export default function UploadScreen() {
         }
       } else {
         // 여러 이미지: 그룹 업로드 (메타데이터 포함)
-        console.log('[Upload] Group upload with', images.length, 'images, primary:', primaryImageIndex);
         const result = await startGroupUpload(images, primaryImageIndex, takenAt, metadata);
-        console.log('[Upload] Group upload completed:', result?.group_id);
       }
 
       router.push('/(tabs)');
     } catch (error) {
-      console.error('[Upload] Upload error:', error);
+      captureError(error instanceof Error ? error : new Error(String(error)), { context: 'Upload.handleSubmit' });
       showAlert(t('upload.uploadError'));
     } finally {
       setIsSubmitting(false);
@@ -410,7 +365,6 @@ export default function UploadScreen() {
       <View style={[styles.header, isDark && styles.headerDark]}>
         <Pressable
           onPress={() => {
-            console.log('[Upload] Back button pressed!');
             handleCancel();
           }}
           style={({ pressed }) => [
@@ -536,7 +490,6 @@ export default function UploadScreen() {
         {/* 취소 버튼 */}
         <Pressable
           onPress={() => {
-            console.log('[Upload] Cancel button pressed!');
             handleCancel();
           }}
           disabled={isSubmitting}
@@ -552,7 +505,6 @@ export default function UploadScreen() {
         {/* 등록/수정 버튼 */}
         <Pressable
           onPress={() => {
-            console.log('[Upload] Submit button pressed!');
             handleSubmit();
           }}
           disabled={isSubmitting || (!isEditMode && images.length === 0)}

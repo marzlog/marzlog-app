@@ -21,6 +21,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
 import { getErrorMessage } from '@/src/utils/errorMessages';
+import { captureError } from '@/src/utils/sentry';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -51,7 +52,7 @@ export default function ProfileScreen() {
           const freshUser = await authApi.getCurrentUser();
           setUser(freshUser);
         } catch (err) {
-          console.warn('[Profile] Failed to refresh user:', err);
+          // silently fail on refresh
         }
       };
       refreshUser();
@@ -66,7 +67,7 @@ export default function ProfileScreen() {
       const userStats = await authApi.getUserStats();
       setStats(userStats);
     } catch (error) {
-      console.error('Failed to load stats:', error);
+      captureError(error instanceof Error ? error : new Error(String(error)), { context: 'Profile.loadStats' });
       setStatsError(getErrorMessage(error));
     } finally {
       setStatsLoading(false);

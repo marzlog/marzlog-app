@@ -142,7 +142,6 @@ function NativeGoogleButton({ onSuccess, onError, style }: Props) {
       return;
     }
     setIsLoading(true);
-    console.log('[NativeGoogleLogin] Starting Google OAuth...');
     await promptAsync();
   };
 

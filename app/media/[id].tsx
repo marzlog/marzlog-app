@@ -34,6 +34,7 @@ import { useTimelineStore } from '@/src/store/timelineStore';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { t } from '@/src/i18n';
 import { getErrorMessage } from '@/src/utils/errorMessages';
+import { captureError } from '@/src/utils/sentry';
 import ErrorView from '@/src/components/common/ErrorView';
 import { AiNotice } from '@/src/components/common/AiNotice';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
@@ -119,7 +120,6 @@ export default function MediaDetailScreen() {
       const [mediaData, analysisData] = await Promise.all([
         getMediaDetail(id!),
         getMediaAnalysis(id!).catch((err) => {
-          console.log('[MediaDetail] Analysis API error:', err);
           return null;
         }),
       ]);
@@ -161,11 +161,10 @@ export default function MediaDetailScreen() {
             }, 50);
           }
         } catch (groupErr) {
-          console.log('[MediaDetail] Failed to load group images:', groupErr);
         }
       }
     } catch (err: any) {
-      console.error('Load error:', err);
+      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.load' });
       // 404: media가 삭제된 경우 → 홈으로 돌아가기
       if (err?.response?.status === 404) {
         alert(t('media.deleted'), t('media.deletedDesc'));
@@ -205,7 +204,7 @@ export default function MediaDetailScreen() {
       }
       return null;
     } catch (error) {
-      console.error('Reverse geocoding error:', error);
+      captureError(error instanceof Error ? error : new Error(String(error)), { context: 'MediaDetail.reverseGeocode' });
       return null;
     }
   };
@@ -402,7 +401,7 @@ export default function MediaDetailScreen() {
       await deleteMedia(id!);
       router.back(); // 이전 화면(해당 날짜 그룹)으로 돌아감
     } catch (err) {
-      console.error('[MediaDetail] Delete error:', err);
+      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.delete' });
       await alert(t('common.error'), t('error.deleteFailed'));
     } finally {
       setIsDeleting(false);
@@ -433,13 +432,12 @@ export default function MediaDetailScreen() {
           ]);
           setMedia(mediaData);
           setAnalysis(analysisData);
-          console.log('[MediaDetail] Auto-refreshed after diary generation');
         } catch (err) {
-          console.error('[MediaDetail] Auto-refresh failed:', err);
+          captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.autoRefresh' });
         }
       }, 10000);
     } catch (err: any) {
-      console.error('[MediaDetail] Diary generation error:', err);
+      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.diaryGeneration' });
       await alert(t('common.error'), getErrorMessage(err));
     } finally {
       setIsGeneratingDiary(false);
