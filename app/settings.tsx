@@ -290,7 +290,7 @@ export default function SettingsScreen() {
 
         {/* ── Section 2: App Info ── */}
         <Text style={[styles.sectionTitle, { color: sectionColor }]}>
-          {t('settings.appInfoSection')}
+          {t('more.title')}
         </Text>
         <View style={[styles.card, { backgroundColor: cardBg }]}>
           {/* AI Mode */}
