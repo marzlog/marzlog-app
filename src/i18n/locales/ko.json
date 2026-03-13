@@ -139,10 +139,37 @@
   },
   "storage": {
     "title": "저장 공간",
+    "used": "사용 중",
+    "limit": "전체",
+    "usagePercent": "{{percent}}% 사용 중",
+    "upgrade": "업그레이드",
+    "currentPlan": "현재 플랜",
+    "quotaExceeded": "저장 공간이 부족합니다",
+    "quotaExceededDesc": "플랜을 업그레이드하여 더 많은 사진을 저장하세요",
     "cacheSize": "캐시 크기",
     "clearCache": "캐시 삭제",
     "clearCacheConfirm": "캐시를 삭제하시겠습니까? 앱 성능에 일시적인 영향이 있을 수 있습니다.",
-    "cacheCleared": "캐시가 삭제되었습니다"
+    "cacheCleared": "캐시가 삭제되었습니다",
+    "planFree": "Free",
+    "planBasic": "Basic",
+    "planPro": "Pro",
+    "planUnlimited": "Unlimited"
+  },
+  "plans": {
+    "title": "저장 공간 플랜",
+    "current": "현재 플랜",
+    "upgrade": "업그레이드",
+    "currentPlanBadge": "사용 중",
+    "monthly": "월",
+    "features": "포함 혜택",
+    "featureStorage": "{{gb}} 저장 공간",
+    "featureAI": "AI 분석 무제한",
+    "featureSearch": "시맨틱 검색",
+    "featureOCR": "OCR 텍스트 인식",
+    "featurePriority": "우선 처리",
+    "featureSupport": "프리미엄 지원",
+    "comingSoon": "결제 기능은 곧 지원될 예정입니다",
+    "usageSummary": "현재 사용량"
   },
   "account": {
     "title": "계정",

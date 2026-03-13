@@ -72,4 +72,8 @@ export interface UserStats {
   total_groups: number;
   storage_used_bytes: number;
   storage_used_formatted: string;
+  storage_plan: string;
+  storage_limit_bytes: number;
+  storage_limit_formatted: string;
+  storage_usage_percent: number;
 }

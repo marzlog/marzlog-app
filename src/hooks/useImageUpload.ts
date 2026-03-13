@@ -7,12 +7,21 @@
 import { useState, useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Alert, Platform } from 'react-native';
+import { AxiosError } from 'axios';
 import { uploadImage, prepareUpload, uploadToS3, calculateSHA256, completeGroupUpload, addImagesToGroup } from '../api/upload';
 import type { SelectedImage, UploadItem, UploadCompleteResponse, UploadStatus, GroupUploadCompleteResponse, GroupUploadItem } from '../types/upload';
 import { getErrorMessage } from '../utils/errorMessages';
 import { captureError } from '../utils/sentry';
 import { t } from '../i18n';
 import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
+
+function isQuotaExceededError(err: unknown): boolean {
+  if (err instanceof AxiosError) {
+    return err.response?.status === 413 &&
+      err.response?.data?.error_code === 'STORAGE_QUOTA_EXCEEDED';
+  }
+  return false;
+}
 
 const MAX_SELECTION = 5; // 대표 1개 + 서브 4개
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
@@ -21,6 +30,7 @@ export function useImageUpload() {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
 
   // 갤러리 권한 요청
   const requestPermission = useCallback(async () => {
@@ -177,6 +187,12 @@ export function useImageUpload() {
         });
         results.push(result);
       } catch (err) {
+        if (isQuotaExceededError(err)) {
+          setQuotaExceeded(true);
+          setError(t('storage.quotaExceeded'));
+          updateItem(item.id, { status: 'error', error: t('storage.quotaExceeded') });
+          break;
+        }
         const errorMsg = getErrorMessage(err);
         updateItem(item.id, {
           status: 'error',
@@ -217,6 +233,7 @@ export function useImageUpload() {
   const reset = useCallback(() => {
     setItems([]);
     setError(null);
+    setQuotaExceeded(false);
   }, []);
 
   // 그룹 업로드 시작 (여러 이미지를 하나의 그룹으로)
@@ -352,6 +369,12 @@ export function useImageUpload() {
       return result;
 
     } catch (err) {
+      if (isQuotaExceededError(err)) {
+        setQuotaExceeded(true);
+        setError(t('storage.quotaExceeded'));
+        setIsUploading(false);
+        return null;
+      }
       const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       captureError(err instanceof Error ? err : new Error(String(err)), { context: 'useImageUpload.startGroupUpload' });
@@ -465,6 +488,12 @@ export function useImageUpload() {
       return true;
 
     } catch (err) {
+      if (isQuotaExceededError(err)) {
+        setQuotaExceeded(true);
+        setError(t('storage.quotaExceeded'));
+        setIsUploading(false);
+        return false;
+      }
       const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       captureError(err instanceof Error ? err : new Error(String(err)), { context: 'useImageUpload.addToExistingGroup' });
@@ -486,6 +515,7 @@ export function useImageUpload() {
     items,
     isUploading,
     error,
+    quotaExceeded,
     stats,
     pickFromGallery,
     takePhoto,

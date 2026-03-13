@@ -61,7 +61,7 @@ export default function UploadScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { startUpload, startGroupUpload, addToExistingGroup, pickFromGallery, takePhoto } = useImageUpload();
+  const { startUpload, startGroupUpload, addToExistingGroup, pickFromGallery, takePhoto, quotaExceeded, error: uploadError } = useImageUpload();
 
   // 현재 시간
   const getCurrentTime = () => {
@@ -351,7 +351,10 @@ export default function UploadScreen() {
       router.push('/(tabs)');
     } catch (error) {
       captureError(error instanceof Error ? error : new Error(String(error)), { context: 'Upload.handleSubmit' });
-      showAlert(t('upload.uploadError'));
+      // quota exceeded is handled via quotaExceeded state below
+      if (!quotaExceeded) {
+        showAlert(t('upload.uploadError'));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -484,6 +487,24 @@ export default function UploadScreen() {
           </View>
         )}
       </KeyboardAwareScrollView>
+
+      {/* Quota Exceeded Banner */}
+      {quotaExceeded && (
+        <View style={[styles.quotaBanner, isDark && styles.quotaBannerDark]}>
+          <View style={styles.quotaBannerContent}>
+            <Ionicons name="cloud-offline-outline" size={20} color="#EF4444" />
+            <Text style={[styles.quotaBannerText, isDark && { color: '#F9FAFB' }]}>
+              {t('storage.quotaExceeded')}
+            </Text>
+          </View>
+          <Pressable
+            style={styles.quotaUpgradeBtn}
+            onPress={() => router.push('/plans')}
+          >
+            <Text style={styles.quotaUpgradeBtnText}>{t('storage.upgrade')}</Text>
+          </Pressable>
+        </View>
+      )}
 
       {/* Bottom Buttons - ScrollView 밖에 배치 (position: absolute 제거) */}
       <View style={[styles.bottomButtons, isDark && styles.bottomButtonsDark, { paddingBottom: Math.max(insets.bottom, 16) }]}>
@@ -718,5 +739,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.text.secondary,
+  },
+  quotaBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#FECACA',
+  },
+  quotaBannerDark: {
+    backgroundColor: '#1C1917',
+    borderTopColor: '#7F1D1D',
+  },
+  quotaBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  quotaBannerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#991B1B',
+  },
+  quotaUpgradeBtn: {
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  quotaUpgradeBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

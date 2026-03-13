@@ -163,12 +163,21 @@ export default function ProfileScreen() {
               </Text>
             </TouchableOpacity>
           ) : (
-            <View style={styles.statsGrid}>
-              <StatItem icon="images-outline" label={t('stats.photos')} value={stats?.total_photos?.toString() || '0'} isDark={isDark} />
-              <StatItem icon="albums-outline" label={t('stats.albums')} value={stats?.total_albums?.toString() || '0'} isDark={isDark} />
-              <StatItem icon="layers-outline" label={t('stats.groups')} value={stats?.total_groups?.toString() || '0'} isDark={isDark} />
-              <StatItem icon="cloud-outline" label={t('stats.storage')} value={stats?.storage_used_formatted || '0 B'} isDark={isDark} />
-            </View>
+            <>
+              <View style={styles.statsGrid}>
+                <StatItem icon="images-outline" label={t('stats.photos')} value={stats?.total_photos?.toString() || '0'} isDark={isDark} />
+                <StatItem icon="albums-outline" label={t('stats.albums')} value={stats?.total_albums?.toString() || '0'} isDark={isDark} />
+                <StatItem icon="layers-outline" label={t('stats.groups')} value={stats?.total_groups?.toString() || '0'} isDark={isDark} />
+              </View>
+              <StorageGauge
+                usedFormatted={stats?.storage_used_formatted || '0 B'}
+                limitFormatted={stats?.storage_limit_formatted || '5.0 GB'}
+                usagePercent={stats?.storage_usage_percent || 0}
+                plan={stats?.storage_plan || 'free'}
+                isDark={isDark}
+                onUpgrade={() => router.push('/plans')}
+              />
+            </>
           )}
         </View>
 
@@ -204,6 +213,50 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+    </View>
+  );
+}
+
+function StorageGauge({ usedFormatted, limitFormatted, usagePercent, plan, isDark, onUpgrade }: {
+  usedFormatted: string;
+  limitFormatted: string;
+  usagePercent: number;
+  plan: string;
+  isDark: boolean;
+  onUpgrade: () => void;
+}) {
+  const { t } = useTranslation();
+  const barColor = usagePercent >= 95 ? '#EF4444' : usagePercent >= 80 ? '#F59E0B' : '#8B5CF6';
+  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+
+  return (
+    <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <Text style={{ fontSize: 13, color: isDark ? '#9CA3AF' : '#6B7280' }}>
+          {t('storage.title')}
+        </Text>
+        <Text style={{ fontSize: 13, color: isDark ? '#D1D5DB' : '#374151', fontWeight: '500' }}>
+          {usedFormatted} / {limitFormatted}
+        </Text>
+      </View>
+      <View style={{ height: 8, borderRadius: 4, backgroundColor: isDark ? '#2D3748' : '#E5E7EB' }}>
+        <View style={{ height: 8, borderRadius: 4, backgroundColor: barColor, width: `${Math.min(usagePercent, 100)}%` }} />
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+        <Text style={{ fontSize: 12, color: barColor, fontWeight: '500' }}>
+          {t('storage.usagePercent', { percent: usagePercent })}
+        </Text>
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+          onPress={onUpgrade}
+          activeOpacity={0.7}
+        >
+          <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
+            {t('storage.currentPlan')}: {planLabel}
+          </Text>
+          <Ionicons name="chevron-forward" size={14} color="#8B5CF6" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
