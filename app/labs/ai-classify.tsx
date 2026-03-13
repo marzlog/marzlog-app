@@ -90,7 +90,7 @@ export default function AiClassifyScreen() {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={isDark ? '#9CA3AF' : '#6B7280'} />
+          <ActivityIndicator size="large" color="#8B5CF6" />
         </View>
       ) : (
         <View style={styles.content}>

@@ -112,7 +112,7 @@ export default function ScenePhotosScreen() {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={isDark ? '#9CA3AF' : '#6B7280'} />
+          <ActivityIndicator size="large" color="#8B5CF6" />
         </View>
       ) : photos.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -131,7 +131,7 @@ export default function ScenePhotosScreen() {
           ListFooterComponent={
             loadingMore ? (
               <View style={styles.footer}>
-                <ActivityIndicator size="small" color="#9CA3AF" />
+                <ActivityIndicator size="small" color="#8B5CF6" />
               </View>
             ) : null
           }

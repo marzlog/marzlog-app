@@ -150,7 +150,7 @@ export default function ProfileScreen() {
           </Text>
           {statsLoading ? (
             <View style={styles.statsLoading}>
-              <ActivityIndicator size="small" color="#6366F1" />
+              <ActivityIndicator size="small" color="#8B5CF6" />
             </View>
           ) : statsError ? (
             <TouchableOpacity style={styles.statsLoading} onPress={loadStats} activeOpacity={0.7}>

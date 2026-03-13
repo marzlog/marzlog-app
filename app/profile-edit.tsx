@@ -264,7 +264,7 @@ export default function ProfileEditScreen() {
             activeOpacity={0.7}
           >
             {saving ? (
-              <ActivityIndicator size="small" color="#6366F1" />
+              <ActivityIndicator size="small" color="#8B5CF6" />
             ) : (
               <Text style={[styles.saveButtonText, (!hasNicknameChanged) && styles.saveButtonTextDisabled]}>{t('common.save')}</Text>
             )}
@@ -310,7 +310,7 @@ export default function ProfileEditScreen() {
                 activeOpacity={0.7}
               >
                 {changingPassword ? (
-                  <ActivityIndicator size="small" color="#6366F1" />
+                  <ActivityIndicator size="small" color="#8B5CF6" />
                 ) : (
                   <Text style={styles.changePasswordText}>{t('profileEdit.changePassword')}</Text>
                 )}
