@@ -273,7 +273,13 @@
     "tipExample2": "\"Dinner with family\"",
     "tipDesc2": "Combine people + actions for better results",
     "tipExample3": "\"Flowers in March\"",
-    "tipDesc3": "Dates and seasons work too"
+    "tipDesc3": "Dates and seasons work too",
+    "browseByCategory": "Browse by Category",
+    "trySearching": "Try Searching Like This",
+    "aiHint": "✨ Describe your memory naturally and AI will find it",
+    "foundPhotos": "Found {{count}} photos",
+    "noResultsDesc": "Try different keywords or\ndescribe in natural language",
+    "retrySearch": "Search Again"
   },
   "upload": {
     "title": "Add Photo",

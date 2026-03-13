@@ -307,9 +307,9 @@ export default function SearchScreen() {
           {recentSearches.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: theme.text }]}>최근 검색</Text>
+                <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('search.recentSearches')}</Text>
                 <TouchableOpacity onPress={clearRecentSearches}>
-                  <Text style={{ fontSize: 13, color: colors.brand.primary }}>전체 삭제</Text>
+                  <Text style={{ fontSize: 13, color: colors.brand.primary }}>{t('search.clearAll')}</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.chipRow}>
@@ -335,7 +335,7 @@ export default function SearchScreen() {
 
           {/* 카테고리 탐색 */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>카테고리로 탐색</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('search.browseByCategory')}</Text>
             <View style={styles.categoryGrid}>
               {CATEGORY_CHIPS.map(chip => (
                 <TouchableOpacity
@@ -353,7 +353,7 @@ export default function SearchScreen() {
 
           {/* 검색 팁 */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>이렇게 검색해보세요</Text>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>{t('search.trySearching')}</Text>
             <View style={[styles.tipsCard, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               {SEARCH_TIPS.map((tip, i) => (
                 <TouchableOpacity
@@ -375,7 +375,7 @@ export default function SearchScreen() {
               ))}
             </View>
             <Text style={[styles.tipFootnote, { color: theme.subText }]}>
-              ✨ 자연어로 기억을 설명하면 AI가 찾아드려요
+              {t('search.aiHint')}
             </Text>
           </View>
         </ScrollView>
@@ -383,7 +383,7 @@ export default function SearchScreen() {
         <View style={{ flex: 1 }}>
           <View style={styles.resultHeader}>
             <Text style={[styles.resultCount, { color: theme.subText }]}>
-              {results.length}개의 사진을 찾았어요
+              {t('search.foundPhotos', { count: results.length })}
             </Text>
             <AiNotice text={t('ai.searchNotice')} isDark={isDark} />
           </View>
@@ -404,13 +404,13 @@ export default function SearchScreen() {
             {t('search.noResults')}
           </Text>
           <Text style={[{ fontSize: 14, color: theme.subText, marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }]}>
-            다른 키워드로 검색하거나{'\n'}자연어로 설명해보세요
+            {t('search.noResultsDesc')}
           </Text>
           <TouchableOpacity
             style={[styles.retryBtn, { borderColor: colors.brand.primary }]}
             onPress={() => { setHasSearched(false); setQuery(''); inputRef.current?.focus(); }}
           >
-            <Text style={{ color: colors.brand.primary, fontSize: 14, fontWeight: '500' }}>다시 검색</Text>
+            <Text style={{ color: colors.brand.primary, fontSize: 14, fontWeight: '500' }}>{t('search.retrySearch')}</Text>
           </TouchableOpacity>
         </View>
       )}

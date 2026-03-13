@@ -273,7 +273,13 @@
     "tipExample2": "\"가족과 저녁 식사\"",
     "tipDesc2": "사람 + 행동 조합으로 검색",
     "tipExample3": "\"3월에 찍은 꽃\"",
-    "tipDesc3": "날짜나 계절도 이해해요"
+    "tipDesc3": "날짜나 계절도 이해해요",
+    "browseByCategory": "카테고리로 탐색",
+    "trySearching": "이렇게 검색해보세요",
+    "aiHint": "✨ 자연어로 기억을 설명하면 AI가 찾아드려요",
+    "foundPhotos": "{{count}}개의 사진을 찾았어요",
+    "noResultsDesc": "다른 키워드로 검색하거나\n자연어로 설명해보세요",
+    "retrySearch": "다시 검색"
   },
   "upload": {
     "title": "사진 추가",
