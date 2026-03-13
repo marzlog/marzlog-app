@@ -22,7 +22,7 @@ interface MenuItem {
 
 const MENU_ITEMS: MenuItem[] = [
   { icon: 'home-outline', labelKey: 'more.home', route: '/(tabs)/' },
-  { icon: 'albums-outline', labelKey: 'more.album', route: '/(tabs)/timeline' },
+  { icon: 'images-outline', labelKey: 'more.album', route: '/(tabs)/timeline' },
   { icon: 'person-outline', labelKey: 'more.profile', route: '/(tabs)/profile' },
   { icon: 'settings-outline', labelKey: 'more.settings', route: '/settings' },
 ];
