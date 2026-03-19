@@ -5,6 +5,7 @@ import type { User, AuthState } from '../types/auth';
 import { extractErrorMessage } from '../utils/errorMessages';
 import { secureStorage as storage, SECURE_KEYS } from '../utils/secureStorage';
 import { useSettingsStore, backendToAiMode } from './settingsStore';
+import { registerPushToken, unregisterPushToken } from '../services/pushTokenService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AuthStore extends AuthState {
@@ -56,6 +57,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
       });
+
+      registerPushToken().catch(console.error);
     } catch (error: any) {
       const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });
@@ -79,6 +82,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
       });
+
+      registerPushToken().catch(console.error);
     } catch (error: any) {
       const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });
@@ -102,6 +107,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
       });
+
+      registerPushToken().catch(console.error);
     } catch (error: any) {
       const message = extractErrorMessage(error, 'Registration failed');
       set({ error: message, isLoading: false });
@@ -113,6 +120,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   logout: async () => {
     set({ isLoading: true });
     try {
+      await unregisterPushToken();
       await authApi.logout();
     } catch {
       // Ignore logout errors
@@ -195,6 +203,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
       });
+
+      // 앱 재시작 시 푸시 토큰 재등록
+      registerPushToken().catch(console.error);
 
       // Sync server analysis_mode to local settings (without triggering API call back)
       if (user.analysis_mode) {
