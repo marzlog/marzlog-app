@@ -2,7 +2,7 @@
   "expo": {
     "name": "MarZlog",
     "slug": "marzlog-app",
-    "owner": "marzlogs-organization",
+    "owner": "marzlog",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
