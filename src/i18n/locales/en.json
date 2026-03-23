@@ -127,6 +127,7 @@
     "account": "Account",
     "googleAccount": "Google Account",
     "appleAccount": "Apple Account",
+    "kakaoAccount": "Kakao Account",
     "editProfile": "Edit Profile",
     "notifications": "Notifications"
   },
@@ -420,7 +421,8 @@
     "currentPasswordPlaceholder": "Enter current password",
     "currentPasswordRequired": "Please enter current password",
     "passwordChanged": "Password changed successfully",
-    "passwordChangeFailed": "Failed to change password"
+    "passwordChangeFailed": "Failed to change password",
+    "socialLoginNoPassword": "Password cannot be changed for social accounts (Google, Kakao, Apple)"
   },
   "onboarding": {
     "skip": "Skip",

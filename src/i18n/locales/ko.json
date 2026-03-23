@@ -127,6 +127,7 @@
     "account": "계정",
     "googleAccount": "Google 계정",
     "appleAccount": "Apple 계정",
+    "kakaoAccount": "카카오 계정",
     "editProfile": "프로필 수정",
     "notifications": "알림"
   },
@@ -420,7 +421,8 @@
     "currentPasswordPlaceholder": "현재 비밀번호를 입력해주세요",
     "currentPasswordRequired": "현재 비밀번호를 입력해주세요",
     "passwordChanged": "비밀번호가 변경되었습니다",
-    "passwordChangeFailed": "비밀번호 변경에 실패했습니다"
+    "passwordChangeFailed": "비밀번호 변경에 실패했습니다",
+    "socialLoginNoPassword": "소셜 계정(Google, 카카오, Apple)으로 로그인한 경우 비밀번호를 변경할 수 없습니다"
   },
   "onboarding": {
     "skip": "건너뛰기",

@@ -134,12 +134,12 @@ export default function ProfileScreen() {
           </Text>
           <View style={[styles.providerBadge, isDark && { backgroundColor: '#374151' }]}>
             <Ionicons
-              name={user?.oauth_provider === 'apple' ? 'logo-apple' : 'logo-google'}
+              name={user?.auth_provider === 'apple' ? 'logo-apple' : user?.auth_provider === 'kakao' ? 'chatbubble-ellipses' : 'logo-google'}
               size={14}
               color={isDark ? '#9CA3AF' : '#6B7280'}
             />
             <Text style={[styles.providerText, isDark && { color: '#9CA3AF' }]}>
-              {user?.oauth_provider === 'apple' ? t('profile.appleAccount') : t('profile.googleAccount')}
+              {user?.auth_provider === 'apple' ? t('profile.appleAccount') : user?.auth_provider === 'kakao' ? t('profile.kakaoAccount') : t('profile.googleAccount')}
             </Text>
           </View>
         </View>

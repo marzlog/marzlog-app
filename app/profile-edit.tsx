@@ -42,7 +42,7 @@ export default function ProfileEditScreen() {
     : themeMode === 'dark';
   const theme = getTheme(isDark);
 
-  const isOAuth = !!user?.oauth_provider;
+  const isOAuth = !user?.has_password || (!!user?.auth_provider && user.auth_provider !== 'email');
 
   // Nickname state
   const [nickname, setNickname] = useState(user?.nickname || '');
@@ -274,8 +274,8 @@ export default function ProfileEditScreen() {
             )}
           </TouchableOpacity>
 
-          {/* Password Change Section - only for non-OAuth users */}
-          {!isOAuth && (
+          {/* Password Change Section */}
+          {!isOAuth ? (
             <View style={styles.passwordSection}>
               <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
                 {t('profileEdit.changePassword')}
@@ -319,6 +319,13 @@ export default function ProfileEditScreen() {
                   <Text style={styles.changePasswordText}>{t('profileEdit.changePassword')}</Text>
                 )}
               </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={[styles.socialNotice, isDark && styles.socialNoticeDark]}>
+              <Ionicons name="information-circle-outline" size={16} color="#9CA3AF" />
+              <Text style={styles.socialNoticeText}>
+                {t('profileEdit.socialLoginNoPassword')}
+              </Text>
             </View>
           )}
       </KeyboardAwareScrollView>
@@ -609,6 +616,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#6366F1',
+  },
+  // Social notice
+  socialNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 24,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  socialNoticeDark: {
+    backgroundColor: '#1A2332',
+  },
+  socialNoticeText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#9CA3AF',
+    lineHeight: 18,
   },
   // Toast
   toastContainer: {

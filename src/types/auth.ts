@@ -5,8 +5,8 @@ export interface User {
   nickname?: string | null;
   avatar_url?: string | null;
   profile_image?: string | null;  // legacy alias
-  oauth_provider?: 'google' | 'apple' | null;
-  oauth_sub?: string | null;
+  auth_provider?: 'email' | 'google' | 'apple' | 'kakao' | null;
+  has_password?: boolean;
   role: 'user' | 'admin';
   analysis_mode?: 'light' | 'precision';
   created_at: string;
