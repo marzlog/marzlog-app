@@ -26,6 +26,7 @@
     },
     "android": {
       "package": "com.marzlog.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-foreground.png",
         "backgroundColor": "#FFFFFF"
