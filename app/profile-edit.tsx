@@ -335,7 +335,7 @@ export default function ProfileEditScreen() {
             style={[styles.sheetOverlay, { backgroundColor: theme.overlay }]}
             onPress={() => setShowAvatarMenu(false)}
           >
-            <View style={[styles.sheetContent, { backgroundColor: theme.surface.primary }]}>
+            <View style={[styles.sheetContent, { backgroundColor: theme.surface.primary, paddingBottom: Math.max(40, insets.bottom + 16) }]}>
               <Text style={[styles.sheetTitle, { color: theme.text.primary }]}>프로필 사진</Text>
 
               <Pressable
