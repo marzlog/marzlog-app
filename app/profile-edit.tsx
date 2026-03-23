@@ -7,7 +7,7 @@ import { authApi } from '@src/api/auth';
 import { palette, getTheme } from '@src/theme/colors';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -59,6 +59,8 @@ export default function ProfileEditScreen() {
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
+  const scrollRef = useRef<KeyboardAwareScrollView>(null);
+
   const displayInitial = (user?.nickname || user?.email || 'U').charAt(0).toUpperCase();
   const avatarUrl = user?.avatar_url;
 
@@ -93,6 +95,7 @@ export default function ProfileEditScreen() {
 
       setAvatarStatus('');
       showToast('프로필 사진이 변경되었습니다');
+      setTimeout(() => scrollRef.current?.scrollToPosition(0, 0, true), 300);
     } catch (error: any) {
       const detail = error?.response?.data?.detail || error?.message || '알 수 없는 오류';
       // error shown via toast
@@ -189,11 +192,12 @@ export default function ProfileEditScreen() {
       </View>
 
       <KeyboardAwareScrollView
+        ref={scrollRef}
         style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(120, insets.bottom + 80) }]}
         keyboardShouldPersistTaps="handled"
         enableOnAndroid={true}
-        extraScrollHeight={20}
+        extraScrollHeight={Platform.OS === 'ios' ? 20 : 40}
       >
           {/* Avatar */}
           <View style={styles.avatarSection}>
