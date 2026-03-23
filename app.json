@@ -34,7 +34,10 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "CAMERA",
-        "READ_MEDIA_IMAGES"
+        "READ_MEDIA_IMAGES",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
       ]
     },
     "web": {
@@ -66,7 +69,12 @@
           "red": "./assets/images/app-icons/red.png"
         }
       }],
-      "expo-notifications",
+      ["expo-notifications", {
+        "icon": "./assets/images/notification-icon.png",
+        "color": "#8B5CF6",
+        "androidMode": "default",
+        "androidCollapsedTitle": "MarZlog 알림"
+      }],
       ["@sentry/react-native/expo", {
         "organization": "jjsim-inc",
         "project": "react-native"
