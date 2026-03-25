@@ -8,6 +8,7 @@ import {
   ViewToken,
   ImageSourcePropType,
   useWindowDimensions,
+  Dimensions,
   Platform,
   Image as RNImage,
   Animated,
@@ -137,12 +138,19 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
     );
   }
 
+  // Use screen dimensions for full coverage on Android (Samsung edge-to-edge)
+  const { width: fullW, height: fullH } = Dimensions.get('screen');
+  const vidW = Math.max(screenWidth, fullW);
+  const vidH = Math.max(screenHeight, fullH);
+  const offsetX = (screenWidth - vidW) / 2;
+  const offsetY = (screenHeight - vidH) / 2;
+
   return (
-    <View style={{ width: screenWidth, height: screenHeight, backgroundColor: '#000' }}>
+    <View style={{ width: screenWidth, height: screenHeight, backgroundColor: '#000', overflow: 'hidden' }}>
       {showVideo ? (
         <Video
           source={videoSrc}
-          style={{ position: 'absolute', top: 0, left: 0, width: screenWidth, height: screenHeight }}
+          style={{ position: 'absolute', top: offsetY, left: offsetX, width: vidW, height: vidH }}
           resizeMode={ResizeMode.STRETCH}
           shouldPlay
           isLooping
@@ -153,7 +161,7 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
       ) : (
         <Image
           source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
-          style={{ position: 'absolute', top: 0, left: 0, width: screenWidth, height: screenHeight }}
+          style={{ position: 'absolute', top: offsetY, left: offsetX, width: vidW, height: vidH }}
           contentFit="cover"
         />
       )}
