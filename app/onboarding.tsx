@@ -117,7 +117,7 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
         <Video
           source={VIDEO_SOURCES[getLanguage()]}
           style={[styles.splashImage, { width: screenWidth, height: screenHeight }]}
-          resizeMode={ResizeMode.COVER}
+          resizeMode={ResizeMode.STRETCH}
           shouldPlay
           isLooping
           isMuted
