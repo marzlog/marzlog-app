@@ -115,7 +115,7 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
 
   if (Platform.OS === 'web' && showVideo) {
     return (
-      <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
+      <View style={{ width: screenWidth, height: screenHeight }}>
         <video
           src={typeof videoSrc === 'number' ? undefined : (videoSrc as any)}
           autoPlay
@@ -124,12 +124,13 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
           playsInline
           onError={() => setVideoError(true)}
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
+            display: 'block',
+            width: screenWidth,
+            height: screenHeight,
             objectFit: 'cover',
+            margin: 0,
+            padding: 0,
+            border: 'none',
           }}
         />
       </View>
@@ -137,11 +138,11 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
   }
 
   return (
-    <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
+    <View style={{ width: screenWidth, height: screenHeight, backgroundColor: '#000' }}>
       {showVideo ? (
         <Video
           source={videoSrc}
-          style={[styles.splashImage, { width: screenWidth, height: screenHeight }]}
+          style={{ position: 'absolute', top: 0, left: 0, width: screenWidth, height: screenHeight }}
           resizeMode={ResizeMode.STRETCH}
           shouldPlay
           isLooping
@@ -152,7 +153,7 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
       ) : (
         <Image
           source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
-          style={[styles.splashImage, { width: screenWidth, height: screenHeight }]}
+          style={{ position: 'absolute', top: 0, left: 0, width: screenWidth, height: screenHeight }}
           contentFit="cover"
         />
       )}
