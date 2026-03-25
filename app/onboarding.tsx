@@ -19,7 +19,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '@src/hooks/useTranslation';
-import { Video, ResizeMode } from 'expo-av';
+import { useVideoPlayer, VideoView } from 'expo-video';
+import { useEvent } from 'expo';
 
 const ONBOARDING_KEY = '@marzlog_onboarding_completed';
 
@@ -90,6 +91,78 @@ const FRAMES: FrameConfig[] = [
     type: 'final',
   },
 ];
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const onboardingVideoSource = require('@/assets/videos/onboarding_bg.mp4');
+
+function FinalPage({
+  screenWidth,
+  screenHeight,
+  insets,
+  t,
+  onComplete,
+}: {
+  screenWidth: number;
+  screenHeight: number;
+  insets: { bottom: number };
+  t: (key: string) => string;
+  onComplete: () => void;
+}) {
+  const [videoError, setVideoError] = useState(false);
+
+  const player = useVideoPlayer(onboardingVideoSource, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+
+  useEvent(player, 'statusChange', { status: player.status });
+
+  useEffect(() => {
+    const sub = player.addListener('statusChange', ({ status, error }) => {
+      if (status === 'error' || error) {
+        setVideoError(true);
+      }
+    });
+    return () => sub.remove();
+  }, [player]);
+
+  return (
+    <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
+      {/* Background: video or image fallback */}
+      {!videoError ? (
+        <VideoView
+          player={player}
+          style={StyleSheet.absoluteFillObject}
+          contentFit="cover"
+          nativeControls={false}
+        />
+      ) : (
+        <Image
+          source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
+          style={StyleSheet.absoluteFillObject}
+          contentFit="cover"
+        />
+      )}
+
+      {/* Dark overlay for text readability */}
+      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.35)' }]} />
+
+      {/* Bottom content: text + button */}
+      <View style={[styles.finalBottomWrap, { paddingBottom: insets.bottom + 40 }]}>
+        <Text style={styles.finalTitle}>{t('onboarding.final.title')}</Text>
+        <Text style={styles.finalSubtitle}>{t('onboarding.final.subtitle')}</Text>
+        <TouchableOpacity
+          style={styles.finalStartButton}
+          onPress={onComplete}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.finalStartButtonText}>{t('onboarding.start')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
 
 export default function OnboardingScreen() {
   const { t } = useTranslation();
@@ -393,41 +466,7 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const renderFinal = () => (
-    <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
-      <Video
-        source={require('@/assets/videos/onboarding_bg.mp4')}
-        style={StyleSheet.absoluteFillObject}
-        resizeMode={ResizeMode.COVER}
-        shouldPlay
-        isLooping
-        isMuted
-      />
-      <LinearGradient
-        colors={['transparent', 'rgba(255,255,255,0.7)', 'rgba(255,255,255,0.9)']}
-        locations={[0.5, 0.7, 1.0]}
-        style={StyleSheet.absoluteFillObject}
-      />
-      <View style={styles.finalLogoWrap}>
-        <RNImage
-          source={require('@/assets/images/onboarding/logo_text.png')}
-          style={{ width: 180, height: 45 }}
-          resizeMode="contain"
-        />
-      </View>
-      <View style={styles.finalTextWrap}>
-        <Text style={styles.finalTitle}>{t('onboarding.final.title')}</Text>
-        <Text style={styles.finalSubtitle}>{t('onboarding.final.subtitle')}</Text>
-      </View>
-      <TouchableOpacity
-        style={[styles.finalStartButton, { bottom: insets.bottom + 40 }]}
-        onPress={completeOnboarding}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.finalStartButtonText}>{t('onboarding.start')}</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const renderFinal = () => <FinalPage screenWidth={screenWidth} screenHeight={screenHeight} insets={insets} t={t} onComplete={completeOnboarding} />;
 
   const renderFrame = ({ item }: { item: FrameConfig }) => {
     switch (item.type) {
@@ -571,46 +610,40 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
 
-  // Final page (8) - video overlay
-  finalLogoWrap: {
+  // Final page (8) - video/image overlay
+  finalBottomWrap: {
     position: 'absolute',
-    top: '30%',
-    width: '100%',
+    bottom: 0,
+    left: 24,
+    right: 24,
     alignItems: 'center',
-  },
-  finalTextWrap: {
-    position: 'absolute',
-    bottom: 170,
-    width: '100%',
-    alignItems: 'center',
-    paddingHorizontal: 24,
   },
   finalTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#FFFFFF',
     marginBottom: 12,
     textAlign: 'center',
   },
   finalSubtitle: {
-    fontSize: 15,
-    color: '#555',
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.85)',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
+    marginBottom: 40,
   },
   finalStartButton: {
-    position: 'absolute',
-    left: 24,
-    right: 24,
-    backgroundColor: '#FA5252',
+    backgroundColor: '#8B5CF6',
     paddingVertical: 16,
-    borderRadius: 12,
+    paddingHorizontal: 48,
+    borderRadius: 30,
+    width: '100%',
     alignItems: 'center',
   },
   finalStartButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
 
   // Bottom section

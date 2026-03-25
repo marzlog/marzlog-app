@@ -21,7 +21,8 @@
         "NSCameraUsageDescription": "사진 촬영을 위해 카메라 접근 권한이 필요합니다.",
         "NSPhotoLibraryUsageDescription": "사진을 업로드하고 추억을 기록하기 위해 사진 라이브러리 접근 권한이 필요합니다.",
         "NSPhotoLibraryAddUsageDescription": "촬영한 사진을 저장하기 위해 사진 라이브러리 쓰기 권한이 필요합니다.",
-        "NSFaceIDUsageDescription": "사진과 일기를 안전하게 보호하기 위해 Face ID를 사용합니다."
+        "NSFaceIDUsageDescription": "사진과 일기를 안전하게 보호하기 위해 Face ID를 사용합니다.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -76,10 +77,25 @@
         "androidMode": "default",
         "androidCollapsedTitle": "MarZlog 알림"
       }],
+      ["@react-native-kakao/core", {
+        "nativeAppKey": "2ef2adfdcd23585a092e8bebba21d60c",
+        "android": {
+          "authCodeHandlerActivity": true
+        },
+        "ios": {
+          "handleKakaoOpenUrl": true
+        }
+      }],
+      ["expo-build-properties", {
+        "android": {
+          "extraMavenRepos": ["https://devrepo.kakao.com/nexus/content/groups/public/"]
+        }
+      }],
       ["@sentry/react-native/expo", {
         "organization": "jjsim-inc",
         "project": "react-native"
-      }]
+      }],
+      "expo-video"
     ],
     "updates": {
       "enabled": true,
