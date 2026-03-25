@@ -112,11 +112,11 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
   const showVideo = !videoError;
 
   return (
-    <View style={{ width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }}>
+    <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
       {showVideo ? (
         <Video
           source={VIDEO_SOURCES[getLanguage()]}
-          style={{ flex: 1 }}
+          style={[styles.splashImage, { width: screenWidth, height: screenHeight }]}
           resizeMode={ResizeMode.COVER}
           shouldPlay
           isLooping
@@ -127,7 +127,7 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
       ) : (
         <Image
           source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
-          style={{ flex: 1 }}
+          style={[styles.splashImage, { width: screenWidth, height: screenHeight }]}
           contentFit="cover"
         />
       )}
