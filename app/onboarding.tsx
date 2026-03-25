@@ -111,28 +111,51 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
   const [videoError, setVideoError] = useState(false);
   const showVideo = !videoError;
 
+  const videoSrc = VIDEO_SOURCES[getLanguage()];
+
+  if (Platform.OS === 'web' && showVideo) {
+    return (
+      <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
+        <video
+          src={typeof videoSrc === 'number' ? undefined : (videoSrc as any)}
+          autoPlay
+          loop
+          muted
+          playsInline
+          onError={() => setVideoError(true)}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          }}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
-      <View style={StyleSheet.absoluteFillObject}>
-        {showVideo ? (
-          <Video
-            source={VIDEO_SOURCES[getLanguage()]}
-            style={{ width: '100%', height: '100%' }}
-            resizeMode={ResizeMode.STRETCH}
-            shouldPlay
-            isLooping
-            isMuted
-            pointerEvents="none"
-            onError={() => setVideoError(true)}
-          />
-        ) : (
-          <Image
-            source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
-            style={{ width: '100%', height: '100%' }}
-            contentFit="cover"
-          />
-        )}
-      </View>
+      {showVideo ? (
+        <Video
+          source={videoSrc}
+          style={[styles.splashImage, { width: screenWidth, height: screenHeight }]}
+          resizeMode={ResizeMode.STRETCH}
+          shouldPlay
+          isLooping
+          isMuted
+          pointerEvents="none"
+          onError={() => setVideoError(true)}
+        />
+      ) : (
+        <Image
+          source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
+          style={[styles.splashImage, { width: screenWidth, height: screenHeight }]}
+          contentFit="cover"
+        />
+      )}
     </View>
   );
 }
