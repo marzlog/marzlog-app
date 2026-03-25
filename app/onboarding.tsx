@@ -500,8 +500,8 @@ export default function OnboardingScreen() {
     }
   };
 
-  // Hide dots/skip/next on video (page 8) and final (page 9)
-  const hideBottomNav = currentIndex >= FRAMES.length - 2;
+  // Hide dots/skip/next only on final page (page 9)
+  const isLastPage = currentIndex === FRAMES.length - 1;
 
   return (
     <View style={styles.container}>
@@ -522,8 +522,8 @@ export default function OnboardingScreen() {
         bounces={false}
       />
 
-      {/* Bottom section — hidden on video & final pages */}
-      {!hideBottomNav && (
+      {/* Bottom section — hidden on final page only */}
+      {!isLastPage && (
         <View
           style={[styles.bottomSection, { paddingBottom: insets.bottom + 24 }]}
           pointerEvents="box-none"
