@@ -2,16 +2,18 @@ import * as Notifications from 'expo-notifications';
 import { Platform, Alert, Linking } from 'react-native';
 import { getLanguage, t } from '../i18n';
 
-// Foreground notification display
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: Platform.OS === 'ios',
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Foreground notification display (native only)
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: Platform.OS === 'ios',
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 // Android notification channel (required for Android 8+)
 export const setupNotificationChannels = async (): Promise<void> => {
@@ -30,6 +32,8 @@ export const setupNotificationChannels = async (): Promise<void> => {
 };
 
 export const requestNotificationPermission = async (): Promise<boolean> => {
+  if (Platform.OS === 'web') return false;
+
   const { status: existing } = await Notifications.getPermissionsAsync();
   if (existing === 'granted') return true;
 
@@ -60,6 +64,8 @@ export const scheduleDailyReminder = async (
   hour: number,
   minute: number,
 ): Promise<string | null> => {
+  if (Platform.OS === 'web') return null;
+
   await cancelDailyReminder();
 
   const id = await Notifications.scheduleNotificationAsync({
@@ -82,6 +88,8 @@ export const scheduleDailyReminder = async (
 };
 
 export const cancelDailyReminder = async (): Promise<void> => {
+  if (Platform.OS === 'web') return;
+
   await Notifications.cancelAllScheduledNotificationsAsync();
   if (Platform.OS === 'ios') {
     await Notifications.setBadgeCountAsync(0);

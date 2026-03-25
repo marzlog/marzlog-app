@@ -27,7 +27,7 @@ export {
 initSentry();
 
 const kakaoKey = process.env.EXPO_PUBLIC_KAKAO_APP_KEY;
-if (kakaoKey) {
+if (kakaoKey && Platform.OS !== 'web') {
   try {
     initializeKakaoSDK(kakaoKey);
   } catch (e) {
@@ -111,9 +111,9 @@ export default function RootLayout() {
 
   // Notification initialization + deep link handling (native only)
   useEffect(() => {
-    useReminderStore.getState().initialize();
-
     if (Platform.OS === 'web') return;
+
+    useReminderStore.getState().initialize();
 
     const responseSubscription =
       Notifications.addNotificationResponseReceivedListener((response) => {
