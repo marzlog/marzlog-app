@@ -633,17 +633,17 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   finalStartButton: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: '#FA5252',
     paddingVertical: 16,
     paddingHorizontal: 48,
-    borderRadius: 30,
+    borderRadius: 12,
     width: '100%',
     alignItems: 'center',
   },
   finalStartButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
 
   // Bottom section
