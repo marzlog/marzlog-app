@@ -8,6 +8,7 @@ import { AppState, Platform } from 'react-native';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import * as Updates from 'expo-updates';
 
 import { initializeKakaoSDK } from '@react-native-kakao/core';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -69,6 +70,22 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
+
+  // Check for OTA updates on app start
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    (async () => {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch {
+        // silently fail
+      }
+    })();
+  }, []);
 
   // Check auth status, load settings, app lock, and onboarding state on app start
   useEffect(() => {
