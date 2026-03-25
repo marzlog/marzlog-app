@@ -43,13 +43,12 @@ export default function IntroScreen() {
   };
 
   const handleAllow = async () => {
-    try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status === 'granted') {
-        // Notifications enabled
+    if (Platform.OS !== 'web') {
+      try {
+        await Notifications.requestPermissionsAsync();
+      } catch {
+        // Notification request failed
       }
-    } catch {
-      // Notification request failed
     }
     await markSeen();
     router.replace('/login');

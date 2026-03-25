@@ -95,19 +95,13 @@ const FRAMES: FrameConfig[] = [
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const onboardingVideoSource = require('@/assets/videos/onboarding_bg.mp4');
 
-function FinalPage({
+function FinalPageNative({
   screenWidth,
   screenHeight,
   insets,
   t,
   onComplete,
-}: {
-  screenWidth: number;
-  screenHeight: number;
-  insets: { bottom: number };
-  t: (key: string) => string;
-  onComplete: () => void;
-}) {
+}: FinalPageProps) {
   const [videoError, setVideoError] = useState(false);
 
   const player = useVideoPlayer(onboardingVideoSource, (p) => {
@@ -129,7 +123,6 @@ function FinalPage({
 
   return (
     <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
-      {/* Background: video or image fallback */}
       {!videoError ? (
         <VideoView
           player={player}
@@ -144,24 +137,54 @@ function FinalPage({
           contentFit="cover"
         />
       )}
-
-      {/* Dark overlay for text readability */}
       <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.35)' }]} />
-
-      {/* Bottom content: text + button */}
-      <View style={[styles.finalBottomWrap, { paddingBottom: insets.bottom + 40 }]}>
-        <Text style={styles.finalTitle}>{t('onboarding.final.title')}</Text>
-        <Text style={styles.finalSubtitle}>{t('onboarding.final.subtitle')}</Text>
-        <TouchableOpacity
-          style={styles.finalStartButton}
-          onPress={onComplete}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.finalStartButtonText}>{t('onboarding.start')}</Text>
-        </TouchableOpacity>
-      </View>
+      <FinalPageOverlay insets={insets} t={t} onComplete={onComplete} />
     </View>
   );
+}
+
+interface FinalPageProps {
+  screenWidth: number;
+  screenHeight: number;
+  insets: { bottom: number };
+  t: (key: string) => string;
+  onComplete: () => void;
+}
+
+function FinalPageOverlay({ insets, t, onComplete }: Pick<FinalPageProps, 'insets' | 't' | 'onComplete'>) {
+  return (
+    <View style={[styles.finalBottomWrap, { paddingBottom: insets.bottom + 40 }]}>
+      <Text style={styles.finalTitle}>{t('onboarding.final.title')}</Text>
+      <Text style={styles.finalSubtitle}>{t('onboarding.final.subtitle')}</Text>
+      <TouchableOpacity
+        style={styles.finalStartButton}
+        onPress={onComplete}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.finalStartButtonText}>{t('onboarding.start')}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function FinalPage(props: FinalPageProps) {
+  const { screenWidth, screenHeight } = props;
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
+        <Image
+          source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
+          style={StyleSheet.absoluteFillObject}
+          contentFit="cover"
+        />
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.35)' }]} />
+        <FinalPageOverlay insets={props.insets} t={props.t} onComplete={props.onComplete} />
+      </View>
+    );
+  }
+
+  return <FinalPageNative {...props} />;
 }
 
 export default function OnboardingScreen() {
@@ -341,32 +364,38 @@ export default function OnboardingScreen() {
   };
 
   const renderStars = () =>
-    stars.map((star, i) => (
-      <Animated.View
-        key={i}
-        style={[
-          {
-            position: 'absolute' as const,
-            width: star.size,
-            height: star.size,
-            borderRadius: star.size / 2,
-            backgroundColor: '#FFFFFF',
-            top: star.top as any,
-            left: star.left as any,
-            ...(star.glow
-              ? {
-                  shadowColor: '#FFFFFF',
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 1,
-                  shadowRadius: star.size > 8 ? 15 : star.size > 5 ? 10 : 4,
-                  elevation: star.size > 8 ? 15 : star.size > 5 ? 10 : 4,
-                }
-              : {}),
-          },
-          { opacity: starOpacities[i] },
-        ]}
-      />
-    ));
+    stars.map((star, i) => {
+      const glowRadius = star.size > 8 ? 15 : star.size > 5 ? 10 : 4;
+      const glowStyle = star.glow
+        ? Platform.OS === 'web'
+          ? { boxShadow: `0 0 ${glowRadius}px #FFFFFF` }
+          : {
+              shadowColor: '#FFFFFF',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 1,
+              shadowRadius: glowRadius,
+              elevation: glowRadius,
+            }
+        : {};
+      return (
+        <Animated.View
+          key={i}
+          style={[
+            {
+              position: 'absolute' as const,
+              width: star.size,
+              height: star.size,
+              borderRadius: star.size / 2,
+              backgroundColor: '#FFFFFF',
+              top: star.top as any,
+              left: star.left as any,
+              ...glowStyle,
+            },
+            { opacity: starOpacities[i] },
+          ]}
+        />
+      );
+    });
 
   const renderMeteor = () => (
     <Animated.View
@@ -380,11 +409,15 @@ export default function OnboardingScreen() {
         backgroundColor: '#FFFFFF',
         opacity: meteorOpacity,
         transform: [{ translateX: meteorTranslateX }, { translateY: meteorTranslateY }],
-        shadowColor: '#FFFFFF',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 6,
-        elevation: 6,
+        ...(Platform.OS === 'web'
+          ? { boxShadow: '0 0 6px #FFFFFF' }
+          : {
+              shadowColor: '#FFFFFF',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 1,
+              shadowRadius: 6,
+              elevation: 6,
+            }),
       }}
     />
   );

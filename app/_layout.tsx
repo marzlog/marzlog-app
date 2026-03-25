@@ -9,6 +9,7 @@ import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 
+import { initializeKakaoSDK } from '@react-native-kakao/core';
 import { useColorScheme } from '@/components/useColorScheme';
 import { initSentry } from '../src/utils/sentry';
 import { useAuthStore } from '@src/store/authStore';
@@ -24,6 +25,15 @@ export {
 } from 'expo-router';
 
 initSentry();
+
+const kakaoKey = process.env.EXPO_PUBLIC_KAKAO_APP_KEY;
+if (kakaoKey) {
+  try {
+    initializeKakaoSDK(kakaoKey);
+  } catch (e) {
+    console.error('Kakao SDK init failed:', e);
+  }
+}
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
@@ -99,9 +109,11 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, []);
 
-  // Notification initialization + deep link handling
+  // Notification initialization + deep link handling (native only)
   useEffect(() => {
     useReminderStore.getState().initialize();
+
+    if (Platform.OS === 'web') return;
 
     const responseSubscription =
       Notifications.addNotificationResponseReceivedListener((response) => {

@@ -32,6 +32,8 @@ async function setupAndroidNotificationChannel(): Promise<void> {
  * 실제 기기에서만 동작, 시뮬레이터는 건너뜀
  */
 export async function registerPushToken(): Promise<void> {
+  if (Platform.OS === 'web') return;
+
   try {
     // Android 채널 먼저 설정
     await setupAndroidNotificationChannel();
