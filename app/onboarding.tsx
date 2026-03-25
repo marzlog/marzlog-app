@@ -30,7 +30,7 @@ const PARAGRAPH_COLOR = '#334155';
 const DOT_ACTIVE = ACCENT;
 const DOT_INACTIVE = '#D9D9D9';
 
-type PageType = 'splash' | 'illustration' | 'final';
+type PageType = 'splash' | 'illustration' | 'video' | 'final';
 
 interface FrameConfig {
   key: string;
@@ -87,17 +87,18 @@ const FRAMES: FrameConfig[] = [
     type: 'splash',
   },
   {
+    key: 'video',
+    type: 'video',
+  },
+  {
     key: 'final',
     type: 'final',
   },
 ];
 
-interface FinalPageProps {
+interface PageSizeProps {
   screenWidth: number;
   screenHeight: number;
-  insets: { bottom: number };
-  t: (key: string) => string;
-  onComplete: () => void;
 }
 
 const VIDEO_SOURCES = {
@@ -105,13 +106,13 @@ const VIDEO_SOURCES = {
   en: require('@/assets/videos/onboarding_en.mp4'),
 };
 
-function FinalPage({ screenWidth, screenHeight, insets, t, onComplete }: FinalPageProps) {
+/** Page 8: full-screen video (no buttons, swipe to next) */
+function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
   const [videoError, setVideoError] = useState(false);
   const showVideo = Platform.OS !== 'web' && !videoError;
 
   return (
     <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
-      {/* Background: video (native) or astronaut image (web/error fallback) */}
       {showVideo ? (
         <Video
           source={VIDEO_SOURCES[getLanguage()]}
@@ -129,13 +130,30 @@ function FinalPage({ screenWidth, screenHeight, insets, t, onComplete }: FinalPa
           contentFit="cover"
         />
       )}
-      {/* Gradient overlay for text readability */}
+    </View>
+  );
+}
+
+interface FinalPageProps extends PageSizeProps {
+  insets: { bottom: number };
+  t: (key: string) => string;
+  onComplete: () => void;
+}
+
+/** Page 9: astronaut image + gradient overlay + start button */
+function FinalPage({ screenWidth, screenHeight, insets, t, onComplete }: FinalPageProps) {
+  return (
+    <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
+      <Image
+        source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
+        style={StyleSheet.absoluteFillObject}
+        contentFit="cover"
+      />
       <LinearGradient
         colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.7)']}
         locations={[0.3, 0.6, 1.0]}
         style={StyleSheet.absoluteFillObject}
       />
-      {/* Bottom content */}
       <View style={[styles.finalBottomWrap, { paddingBottom: insets.bottom + 40 }]}>
         <Text style={styles.finalTitle}>{t('onboarding.final.title')}</Text>
         <Text style={styles.finalSubtitle}>{t('onboarding.final.subtitle')}</Text>
@@ -463,6 +481,8 @@ export default function OnboardingScreen() {
     </View>
   );
 
+  const renderVideo = () => <VideoPage screenWidth={screenWidth} screenHeight={screenHeight} />;
+
   const renderFinal = () => <FinalPage screenWidth={screenWidth} screenHeight={screenHeight} insets={insets} t={t} onComplete={completeOnboarding} />;
 
   const renderFrame = ({ item }: { item: FrameConfig }) => {
@@ -471,12 +491,15 @@ export default function OnboardingScreen() {
         return renderSplash(item);
       case 'illustration':
         return renderIllustration(item);
+      case 'video':
+        return renderVideo();
       case 'final':
         return renderFinal();
     }
   };
 
-  const isLastPage = currentIndex === FRAMES.length - 1;
+  // Hide dots/skip/next on video (page 8) and final (page 9)
+  const hideBottomNav = currentIndex >= FRAMES.length - 2;
 
   return (
     <View style={styles.container}>
@@ -497,8 +520,8 @@ export default function OnboardingScreen() {
         bounces={false}
       />
 
-      {/* Bottom section — hidden on final page */}
-      {!isLastPage && (
+      {/* Bottom section — hidden on video & final pages */}
+      {!hideBottomNav && (
         <View
           style={[styles.bottomSection, { paddingBottom: insets.bottom + 24 }]}
           pointerEvents="box-none"
