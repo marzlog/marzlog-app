@@ -109,7 +109,7 @@ const VIDEO_SOURCES = {
 /** Page 8: full-screen video (no buttons, swipe to next) */
 function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
   const [videoError, setVideoError] = useState(false);
-  const showVideo = Platform.OS !== 'web' && !videoError;
+  const showVideo = !videoError;
 
   return (
     <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
