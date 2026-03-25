@@ -19,8 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '@src/hooks/useTranslation';
-import { useVideoPlayer, VideoView } from 'expo-video';
-import { useEvent } from 'expo';
+import { Video, ResizeMode } from 'expo-av';
 
 const ONBOARDING_KEY = '@marzlog_onboarding_completed';
 
@@ -92,57 +91,6 @@ const FRAMES: FrameConfig[] = [
   },
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const onboardingVideoSource = require('@/assets/videos/onboarding_bg.mp4');
-
-function FinalPageNative({
-  screenWidth,
-  screenHeight,
-  insets,
-  t,
-  onComplete,
-}: FinalPageProps) {
-  const [videoError, setVideoError] = useState(false);
-
-  const player = useVideoPlayer(onboardingVideoSource, (p) => {
-    p.loop = true;
-    p.muted = true;
-    p.play();
-  });
-
-  useEvent(player, 'statusChange', { status: player.status });
-
-  useEffect(() => {
-    const sub = player.addListener('statusChange', ({ status, error }) => {
-      if (status === 'error' || error) {
-        setVideoError(true);
-      }
-    });
-    return () => sub.remove();
-  }, [player]);
-
-  return (
-    <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
-      {!videoError ? (
-        <VideoView
-          player={player}
-          style={StyleSheet.absoluteFillObject}
-          contentFit="cover"
-          nativeControls={false}
-        />
-      ) : (
-        <Image
-          source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
-          style={StyleSheet.absoluteFillObject}
-          contentFit="cover"
-        />
-      )}
-      <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.35)' }]} />
-      <FinalPageOverlay insets={insets} t={t} onComplete={onComplete} />
-    </View>
-  );
-}
-
 interface FinalPageProps {
   screenWidth: number;
   screenHeight: number;
@@ -151,40 +99,50 @@ interface FinalPageProps {
   onComplete: () => void;
 }
 
-function FinalPageOverlay({ insets, t, onComplete }: Pick<FinalPageProps, 'insets' | 't' | 'onComplete'>) {
+function FinalPage({ screenWidth, screenHeight, insets, t, onComplete }: FinalPageProps) {
+  const [videoError, setVideoError] = useState(false);
+  const useVideo = Platform.OS !== 'web' && !videoError;
+
   return (
-    <View style={[styles.finalBottomWrap, { paddingBottom: insets.bottom + 40 }]}>
-      <Text style={styles.finalTitle}>{t('onboarding.final.title')}</Text>
-      <Text style={styles.finalSubtitle}>{t('onboarding.final.subtitle')}</Text>
-      <TouchableOpacity
-        style={styles.finalStartButton}
-        onPress={onComplete}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.finalStartButtonText}>{t('onboarding.start')}</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-function FinalPage(props: FinalPageProps) {
-  const { screenWidth, screenHeight } = props;
-
-  if (Platform.OS === 'web') {
-    return (
-      <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
+    <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
+      {/* Background: video (native) or astronaut image (web/error fallback) */}
+      {useVideo ? (
+        <Video
+          source={require('@/assets/videos/onboarding_bg.mp4')}
+          style={StyleSheet.absoluteFillObject}
+          resizeMode={ResizeMode.COVER}
+          shouldPlay
+          isLooping
+          isMuted
+          onError={() => setVideoError(true)}
+        />
+      ) : (
         <Image
           source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
           style={StyleSheet.absoluteFillObject}
           contentFit="cover"
         />
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(0,0,0,0.35)' }]} />
-        <FinalPageOverlay insets={props.insets} t={props.t} onComplete={props.onComplete} />
+      )}
+      {/* Gradient overlay for text readability */}
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.7)']}
+        locations={[0.3, 0.6, 1.0]}
+        style={StyleSheet.absoluteFillObject}
+      />
+      {/* Bottom content */}
+      <View style={[styles.finalBottomWrap, { paddingBottom: insets.bottom + 40 }]}>
+        <Text style={styles.finalTitle}>{t('onboarding.final.title')}</Text>
+        <Text style={styles.finalSubtitle}>{t('onboarding.final.subtitle')}</Text>
+        <TouchableOpacity
+          style={styles.finalStartButton}
+          onPress={onComplete}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.finalStartButtonText}>{t('onboarding.start')}</Text>
+        </TouchableOpacity>
       </View>
-    );
-  }
-
-  return <FinalPageNative {...props} />;
+    </View>
+  );
 }
 
 export default function OnboardingScreen() {
