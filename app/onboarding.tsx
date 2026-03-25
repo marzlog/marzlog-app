@@ -112,24 +112,26 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
   const showVideo = Platform.OS !== 'web' && !videoError;
 
   return (
-    <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
-      {showVideo ? (
-        <Video
-          source={VIDEO_SOURCES[getLanguage()]}
-          style={StyleSheet.absoluteFillObject}
-          resizeMode={ResizeMode.COVER}
-          shouldPlay
-          isLooping
-          isMuted
-          onError={() => setVideoError(true)}
-        />
-      ) : (
-        <Image
-          source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
-          style={StyleSheet.absoluteFillObject}
-          contentFit="cover"
-        />
-      )}
+    <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]} pointerEvents="box-none">
+      <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+        {showVideo ? (
+          <Video
+            source={VIDEO_SOURCES[getLanguage()]}
+            style={StyleSheet.absoluteFillObject}
+            resizeMode={ResizeMode.COVER}
+            shouldPlay
+            isLooping
+            isMuted
+            onError={() => setVideoError(true)}
+          />
+        ) : (
+          <Image
+            source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
+            style={StyleSheet.absoluteFillObject}
+            contentFit="cover"
+          />
+        )}
+      </View>
     </View>
   );
 }
