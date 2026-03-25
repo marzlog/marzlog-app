@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '@src/hooks/useTranslation';
+import { getLanguage } from '@src/i18n';
 import { Video, ResizeMode } from 'expo-av';
 
 const ONBOARDING_KEY = '@marzlog_onboarding_completed';
@@ -99,16 +100,21 @@ interface FinalPageProps {
   onComplete: () => void;
 }
 
+const VIDEO_SOURCES = {
+  ko: require('@/assets/videos/onboarding_ko.mp4'),
+  en: require('@/assets/videos/onboarding_en.mp4'),
+};
+
 function FinalPage({ screenWidth, screenHeight, insets, t, onComplete }: FinalPageProps) {
   const [videoError, setVideoError] = useState(false);
-  const useVideo = Platform.OS !== 'web' && !videoError;
+  const showVideo = Platform.OS !== 'web' && !videoError;
 
   return (
     <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
       {/* Background: video (native) or astronaut image (web/error fallback) */}
-      {useVideo ? (
+      {showVideo ? (
         <Video
-          source={require('@/assets/videos/onboarding_bg.mp4')}
+          source={VIDEO_SOURCES[getLanguage()]}
           style={StyleSheet.absoluteFillObject}
           resizeMode={ResizeMode.COVER}
           shouldPlay
