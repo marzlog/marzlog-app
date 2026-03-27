@@ -977,6 +977,24 @@ export default function MediaDetailScreen() {
                     </View>
                   </TouchableOpacity>
                 )}
+
+                {/* 지도에서 보기 버튼 */}
+                {analysis.exif.gps && (
+                  <TouchableOpacity
+                    style={[styles.openMapButton, isDark && styles.openMapButtonDark]}
+                    onPress={() => {
+                      const { latitude, longitude } = analysis.exif!.gps!;
+                      const url = Platform.select({
+                        ios: `maps://app?ll=${latitude},${longitude}`,
+                        android: `geo:${latitude},${longitude}?q=${latitude},${longitude}`,
+                        default: `https://maps.google.com/?q=${latitude},${longitude}`,
+                      })!;
+                      Linking.openURL(url);
+                    }}
+                  >
+                    <Text style={styles.openMapButtonText}>{'\uD83D\uDCCD'} 지도에서 보기</Text>
+                  </TouchableOpacity>
+                )}
               </>
             ) : (
               /* EXIF 카메라 정보 없는 경우 - 안내 메시지 */
@@ -1632,6 +1650,23 @@ const styles = StyleSheet.create({
   coordsText: {
     fontSize: 11,
     color: colors.neutral[4],
+  },
+  openMapButton: {
+    marginTop: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.brand.primary,
+    alignSelf: 'flex-start',
+  },
+  openMapButtonDark: {
+    borderColor: '#FF8A82',
+  },
+  openMapButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.brand.primary,
   },
   detailValueLink: {
     fontSize: 14,

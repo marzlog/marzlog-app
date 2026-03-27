@@ -32,6 +32,9 @@ import announcementsApi from '@/src/api/announcements';
 import { getErrorMessage } from '@/src/utils/errorMessages';
 import { captureError } from '@/src/utils/sentry';
 import ErrorView from '@/src/components/common/ErrorView';
+import { cardsApi } from '@/src/api/cards';
+import { getActivityIcon, formatTime as formatTimeHHMM } from '@/src/utils/cardUtils';
+import type { TimelineListItem } from '@/src/types/card';
 
 const { width } = Dimensions.get('window');
 
@@ -263,6 +266,8 @@ export default function HomeScreen() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [unreadAnnCount, setUnreadAnnCount] = useState(0);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [dayItems, setDayItems] = useState<TimelineListItem[] | null>(null);
+  const [dayLoading, setDayLoading] = useState(false);
 
   // Upload hook
   const {
@@ -423,6 +428,13 @@ export default function HomeScreen() {
 
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
+    // 새 날짜 선택 시 /timeline/day 호출
+    const dateKey = formatDateKey(date);
+    setDayLoading(true);
+    cardsApi.getTimelineDay(dateKey)
+      .then((res) => setDayItems(res.items))
+      .catch(() => setDayItems(null))
+      .finally(() => setDayLoading(false));
   };
 
   // 검색 화면으로 이동
@@ -538,6 +550,13 @@ export default function HomeScreen() {
     router.push(`/media/${mediaId}`);
   };
 
+  // dayItem 탭 → 기존 미디어 상세 화면
+  const handleDayItemPress = (item: TimelineListItem) => {
+    if (item.media_id) {
+      router.push(`/media/${item.media_id}`);
+    }
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background.primary, paddingTop: insets.top }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.background.primary} />
@@ -623,52 +642,89 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Schedule Cards */}
-        <View style={viewMode === 'grid' ? styles.schedulesContainerGrid : styles.schedulesContainer}>
-          {loading ? (
-            <View style={styles.emptyState}>
-              <ActivityIndicator size="large" color={palette.primary[500]} />
-              <Text style={[styles.loadingText, { color: theme.text.secondary }]}>{t('common.loading')}</Text>
-            </View>
-          ) : error ? (
-            <ErrorView
-              message={error}
-              onRetry={loadAllItems}
-              textColor={theme.text.primary}
-              subTextColor={theme.text.secondary}
-              buttonColor={palette.primary[500]}
-            />
-          ) : schedules.length === 0 ? (
-            <View style={styles.emptyState}>
-              <ImageIcon color={theme.icon.secondary} />
-              <Text style={[styles.emptyText, { color: theme.text.secondary }]}>{t('home.noPhotosToday')}</Text>
-              <TouchableOpacity
-                style={[styles.uploadButton, { backgroundColor: palette.primary[500] }]}
-                onPress={handleAddPress}
-              >
-                <PlusIcon color={palette.neutral[0]} />
-                <Text style={[styles.uploadButtonText, { color: palette.neutral[0] }]}>{t('home.addPhotos')}</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            schedules.map((schedule) => (
-              <View key={schedule.id} style={viewMode === 'grid' ? styles.gridCardWrapper : undefined}>
-                <ScheduleCard
-                  id={schedule.id}
-                  title={schedule.title}
-                  location={schedule.location}
-                  time={schedule.time}
-                  imageUrl={schedule.imageUrl}
-                  groupCount={schedule.groupCount}
-                  emotion={schedule.emotion}
-                  onPress={() => handlePhotoPress(schedule.mediaId)}
-                  theme={theme}
-                  size={viewMode === 'grid' ? 'compact' : 'large'}
-                />
+        {/* Schedule Cards / Day Items */}
+        {dayLoading || dayItems !== null ? (
+          /* 날짜 선택 시: /timeline/day 결과를 시간순 리스트로 표시 */
+          <View style={styles.schedulesContainer}>
+            {dayLoading ? (
+              <View style={styles.emptyState}>
+                <ActivityIndicator size="large" color={palette.primary[500]} />
               </View>
-            ))
-          )}
-        </View>
+            ) : dayItems && dayItems.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={[styles.emptyText, { color: theme.text.secondary }]}>이 날은 기록이 없어요</Text>
+              </View>
+            ) : (
+              (dayItems ?? []).map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[styles.dayItemRow, { borderBottomColor: theme.border.light }]}
+                  activeOpacity={0.7}
+                  onPress={() => handleDayItemPress(item)}
+                >
+                  <Text style={styles.dayItemIcon}>{getActivityIcon(item.activity_category)}</Text>
+                  <Text
+                    style={[styles.dayItemTitle, { color: theme.text.primary }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.dayItemTime, { color: theme.text.tertiary }]}>
+                    {formatTimeHHMM(item.taken_at)}
+                  </Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        ) : (
+          /* 기본: 기존 카드 그리드/리스트 */
+          <View style={viewMode === 'grid' ? styles.schedulesContainerGrid : styles.schedulesContainer}>
+            {loading ? (
+              <View style={styles.emptyState}>
+                <ActivityIndicator size="large" color={palette.primary[500]} />
+                <Text style={[styles.loadingText, { color: theme.text.secondary }]}>{t('common.loading')}</Text>
+              </View>
+            ) : error ? (
+              <ErrorView
+                message={error}
+                onRetry={loadAllItems}
+                textColor={theme.text.primary}
+                subTextColor={theme.text.secondary}
+                buttonColor={palette.primary[500]}
+              />
+            ) : schedules.length === 0 ? (
+              <View style={styles.emptyState}>
+                <ImageIcon color={theme.icon.secondary} />
+                <Text style={[styles.emptyText, { color: theme.text.secondary }]}>{t('home.noPhotosToday')}</Text>
+                <TouchableOpacity
+                  style={[styles.uploadButton, { backgroundColor: palette.primary[500] }]}
+                  onPress={handleAddPress}
+                >
+                  <PlusIcon color={palette.neutral[0]} />
+                  <Text style={[styles.uploadButtonText, { color: palette.neutral[0] }]}>{t('home.addPhotos')}</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              schedules.map((schedule) => (
+                <View key={schedule.id} style={viewMode === 'grid' ? styles.gridCardWrapper : undefined}>
+                  <ScheduleCard
+                    id={schedule.id}
+                    title={schedule.title}
+                    location={schedule.location}
+                    time={schedule.time}
+                    imageUrl={schedule.imageUrl}
+                    groupCount={schedule.groupCount}
+                    emotion={schedule.emotion}
+                    onPress={() => handlePhotoPress(schedule.mediaId)}
+                    theme={theme}
+                    size={viewMode === 'grid' ? 'compact' : 'large'}
+                  />
+                </View>
+              ))
+            )}
+          </View>
+        )}
       </ScrollView>
 
       {/* Upload Modal */}
@@ -884,5 +940,27 @@ const styles = StyleSheet.create({
   modalCancelText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  dayItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  dayItemIcon: {
+    fontSize: 20,
+    width: 32,
+    textAlign: 'center',
+  },
+  dayItemTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  dayItemTime: {
+    fontSize: 12,
+    marginLeft: 8,
   },
 });
