@@ -15,6 +15,13 @@ export interface StorageInfo {
   plan_expires_at: string | null;
 }
 
+export interface StorageUsage {
+  used_bytes: number;
+  limit_bytes: number;
+  used_percentage: number;
+  plan: 'free' | 'basic' | 'pro' | 'unlimited';
+}
+
 export interface PlanInfo {
   plan: string;
   name: string;
@@ -28,6 +35,11 @@ export interface PlanInfo {
 export const storageApi = {
   async getStorageInfo(): Promise<StorageInfo> {
     const response = await apiClient.get<StorageInfo>('/auth/me/storage');
+    return response.data;
+  },
+
+  async getStorageUsage(): Promise<StorageUsage> {
+    const response = await apiClient.get<StorageUsage>('/users/storage');
     return response.data;
   },
 

@@ -71,7 +71,6 @@ export const useReminderStore = create<ReminderState>((set, get) => ({
       set({ isEnabled: true, isLoading: false });
       return true;
     } catch (error) {
-      // silently fail
       set({ isLoading: false });
       return false;
     }
@@ -88,7 +87,6 @@ export const useReminderStore = create<ReminderState>((set, get) => ({
 
       set({ isEnabled: false, isLoading: false });
     } catch (error) {
-      // silently fail
       set({ isLoading: false });
     }
   },

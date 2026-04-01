@@ -11,6 +11,10 @@ export interface TimelineListItem {
   activity_category: string | null;
   thumbnail_url: string | null;
   tags: string[];
+  created_at?: string | null;
+  group_id?: string | null;
+  media_count?: number;
+  card_ids?: string[];
 }
 
 // TimelineDayResponse — /timeline/day 전체 응답

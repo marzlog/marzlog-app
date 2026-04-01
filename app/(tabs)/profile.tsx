@@ -12,7 +12,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +21,7 @@ import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
 import { getErrorMessage } from '@/src/utils/errorMessages';
 import { captureError } from '@/src/utils/sentry';
+import { AppTouchable } from '@/src/components/common/AppTouchable';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -154,14 +154,14 @@ export default function ProfileScreen() {
               <ActivityIndicator size="small" color="#8B5CF6" />
             </View>
           ) : statsError ? (
-            <TouchableOpacity style={styles.statsLoading} onPress={loadStats} activeOpacity={0.7}>
+            <AppTouchable style={styles.statsLoading} onPress={loadStats} activeOpacity={0.7}>
               <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280', fontSize: 13, textAlign: 'center' }}>
                 {statsError}
               </Text>
               <Text style={{ color: '#6366F1', fontSize: 13, fontWeight: '500', marginTop: 4 }}>
                 {t('error.tapToRetry')}
               </Text>
-            </TouchableOpacity>
+            </AppTouchable>
           ) : (
             <>
               <View style={styles.statsGrid}>
@@ -200,7 +200,7 @@ export default function ProfileScreen() {
 
         {/* Logout */}
         <View style={[styles.card, isDark && styles.cardDark]}>
-          <TouchableOpacity
+          <AppTouchable
             style={[styles.menuItem, styles.menuItemLast]}
             onPress={handleLogout}
             activeOpacity={0.7}
@@ -210,7 +210,7 @@ export default function ProfileScreen() {
               <Text style={styles.dangerText}>{t('auth.logout')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#FF4444" />
-          </TouchableOpacity>
+          </AppTouchable>
         </View>
       </ScrollView>
     </View>
@@ -246,7 +246,7 @@ function StorageGauge({ usedFormatted, limitFormatted, usagePercent, plan, isDar
         <Text style={{ fontSize: 12, color: barColor, fontWeight: '500' }}>
           {t('storage.usagePercent', { percent: usagePercent })}
         </Text>
-        <TouchableOpacity
+        <AppTouchable
           style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
           onPress={onUpgrade}
           activeOpacity={0.7}
@@ -255,7 +255,7 @@ function StorageGauge({ usedFormatted, limitFormatted, usagePercent, plan, isDar
             {t('storage.currentPlan')}: {planLabel}
           </Text>
           <Ionicons name="chevron-forward" size={14} color="#8B5CF6" />
-        </TouchableOpacity>
+        </AppTouchable>
       </View>
     </View>
   );
@@ -284,7 +284,7 @@ function MenuItem({ icon, label, isDark, onPress, isLast }: {
   isLast?: boolean;
 }) {
   return (
-    <TouchableOpacity
+    <AppTouchable
       style={[styles.menuItem, isLast && styles.menuItemLast]}
       onPress={onPress}
       activeOpacity={0.7}
@@ -294,7 +294,7 @@ function MenuItem({ icon, label, isDark, onPress, isLast }: {
         <Text style={[styles.menuLabel, isDark && styles.textLight]}>{label}</Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-    </TouchableOpacity>
+    </AppTouchable>
   );
 }
 

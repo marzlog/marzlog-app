@@ -515,7 +515,8 @@
     "timeTitle": "Reminder Time",
     "permissionTitle": "Notification Permission Required",
     "permissionMessage": "Please allow notifications in Settings to receive daily reminders.",
-    "openSettings": "Open Settings"
+    "openSettings": "Open Settings",
+    "webNotice": "Notifications are only available on mobile"
   },
   "share": {
     "title": "Share",

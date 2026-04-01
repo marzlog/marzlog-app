@@ -7,7 +7,6 @@ import {
   StatusBar,
   Platform,
   Image,
-  TouchableOpacity,
   TextInput,
   ActivityIndicator,
   Alert,
@@ -18,9 +17,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
 import GoogleLoginButton from '@src/components/auth/GoogleLoginButton';
+import KakaoLoginButton from '@src/components/auth/KakaoLoginButton';
 import { router } from 'expo-router';
 import { useAuthStore } from '@src/store/authStore';
 import { useTranslation } from '@src/hooks/useTranslation';
+import { AppTouchable } from '@/src/components/common/AppTouchable';
 
 // Floating Label 입력 컴포넌트
 interface FloatingInputProps {
@@ -211,15 +212,16 @@ export default function LoginScreen() {
 
         {/* 소셜 로그인 - 상단 */}
         <View style={styles.socialArea}>
+          <KakaoLoginButton onSuccess={handleSuccess} onError={handleError} style={{ marginHorizontal: 16 }} />
           <GoogleLoginButton onSuccess={handleSuccess} onError={handleError} style={{ marginHorizontal: 16 }} />
-          <TouchableOpacity
+          <AppTouchable
             style={[styles.appleButton, isDark && styles.appleButtonDark, { marginHorizontal: 16 }]}
             onPress={() => Alert.alert(t('auth.continueWithApple'), t('auth.appleNotSupported'))}
             activeOpacity={0.8}
           >
             <Ionicons name="logo-apple" size={20} color={isDark ? '#fff' : '#fff'} />
             <Text style={styles.appleButtonText}>{t('auth.continueWithApple')}</Text>
-          </TouchableOpacity>
+          </AppTouchable>
         </View>
 
         {/* 구분선 */}
@@ -256,13 +258,13 @@ export default function LoginScreen() {
             onSubmitEditing={handleEmailLogin}
             inputRef={passwordRef}
             rightIcon={
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <AppTouchable onPress={() => setShowPassword(!showPassword)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons
                   name={showPassword ? 'eye-outline' : 'eye-off-outline'}
                   size={18}
                   color={isDark ? '#6B7280' : '#9CA3AF'}
                 />
-              </TouchableOpacity>
+              </AppTouchable>
             }
           />
         </View>
@@ -276,7 +278,7 @@ export default function LoginScreen() {
         )}
 
         {/* 로그인 버튼 */}
-        <TouchableOpacity
+        <AppTouchable
           style={[styles.loginButton, isSubmitting && styles.loginButtonDisabled]}
           onPress={handleEmailLogin}
           disabled={isSubmitting}
@@ -287,21 +289,21 @@ export default function LoginScreen() {
           ) : (
             <Text style={styles.loginButtonText}>{t('auth.login')}</Text>
           )}
-        </TouchableOpacity>
+        </AppTouchable>
 
         {/* 하단 링크 */}
         <View style={styles.linkRow}>
-          <TouchableOpacity onPress={() => router.push('/terms-agreement')}>
+          <AppTouchable onPress={() => router.push('/terms-agreement')}>
             <Text style={[styles.linkText, isDark && { color: '#9CA3AF' }]}>{t('auth.register')}</Text>
-          </TouchableOpacity>
+          </AppTouchable>
           <View style={[styles.linkDivider, { backgroundColor: isDark ? '#4B5563' : '#D1D5DB' }]} />
-          <TouchableOpacity onPress={() => router.push({ pathname: '/forgot-password', params: { tab: 'findId' } })}>
+          <AppTouchable onPress={() => router.push({ pathname: '/forgot-password', params: { tab: 'findId' } })}>
             <Text style={[styles.linkText, isDark && { color: '#9CA3AF' }]}>{t('auth.findId')}</Text>
-          </TouchableOpacity>
+          </AppTouchable>
           <View style={[styles.linkDivider, { backgroundColor: isDark ? '#4B5563' : '#D1D5DB' }]} />
-          <TouchableOpacity onPress={() => router.push({ pathname: '/forgot-password', params: { tab: 'findPassword' } })}>
+          <AppTouchable onPress={() => router.push({ pathname: '/forgot-password', params: { tab: 'findPassword' } })}>
             <Text style={[styles.linkText, isDark && { color: '#9CA3AF' }]}>{t('auth.findPassword')}</Text>
-          </TouchableOpacity>
+          </AppTouchable>
         </View>
 
         {/* 이용약관 */}
@@ -310,13 +312,13 @@ export default function LoginScreen() {
             {t('login.termsAgreement')}
           </Text>
           <View style={styles.termsLinks}>
-            <TouchableOpacity onPress={() => router.push('/policy/terms')}>
+            <AppTouchable onPress={() => router.push('/policy/terms')}>
               <Text style={styles.termsLink}>{t('support.terms')}</Text>
-            </TouchableOpacity>
+            </AppTouchable>
             <Text style={[styles.termsDivider, isDark && { color: '#6B7280' }]}>|</Text>
-            <TouchableOpacity onPress={() => router.push('/policy/privacy')}>
+            <AppTouchable onPress={() => router.push('/policy/privacy')}>
               <Text style={styles.termsLink}>{t('support.privacy')}</Text>
-            </TouchableOpacity>
+            </AppTouchable>
           </View>
         </View>
       </KeyboardAwareScrollView>

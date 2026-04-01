@@ -33,7 +33,7 @@ import { getErrorMessage } from '@/src/utils/errorMessages';
 import { captureError } from '@/src/utils/sentry';
 import ErrorView from '@/src/components/common/ErrorView';
 import { cardsApi } from '@/src/api/cards';
-import { getActivityIcon, formatTime as formatTimeHHMM } from '@/src/utils/cardUtils';
+import { getActivityIcon } from '@/src/utils/cardUtils';
 import type { TimelineListItem } from '@/src/types/card';
 
 const { width } = Dimensions.get('window');
@@ -119,7 +119,7 @@ function ImageIcon({ color = palette.neutral[500] }: { color?: string }) {
 // Grid2X2 아이콘 (Lucide)
 function GridIcon({ color = palette.neutral[500] }: { color?: string }) {
   return (
-    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
       <Path
         d="M10 3H3V10H10V3Z"
         stroke={color}
@@ -155,7 +155,7 @@ function GridIcon({ color = palette.neutral[500] }: { color?: string }) {
 // LayoutList 아이콘 (Lucide)
 function ListIcon({ color = palette.neutral[500] }: { color?: string }) {
   return (
-    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
       <Path
         d="M21 8H10"
         stroke={color}
@@ -205,6 +205,15 @@ const formatTime = (dateStr: string) => {
   return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
 };
 
+// 시간 포맷 (null → "--:--")
+const formatListTime = (takenAt: string | null): string => {
+  if (!takenAt) return '--:--';
+  const d = new Date(takenAt);
+  const h = String(d.getHours()).padStart(2, '0');
+  const m = String(d.getMinutes()).padStart(2, '0');
+  return `${h}:${m}`;
+};
+
 // 날짜 비교 함수 (시간 무시, 날짜만 비교)
 const isSameDay = (date1: Date, date2: Date): boolean => {
   return (
@@ -229,6 +238,7 @@ interface ScheduleItem {
   groupId?: string;
   groupCount?: number;
   emotion?: string | null;
+  takenAt?: string | null;
 }
 
 export default function HomeScreen() {
@@ -382,9 +392,15 @@ export default function HomeScreen() {
       groupId: item.media?.group_id || undefined,
       groupCount: item.media?.group_count || undefined,
       emotion: item.media?.emotion || null,
+      takenAt: item.created_at || item.media?.taken_at,
     };
     });
 
+    mapped.sort((a, b) => {
+      const ta = a.takenAt ? new Date(a.takenAt).getTime() : 0;
+      const tb = b.takenAt ? new Date(b.takenAt).getTime() : 0;
+      return tb - ta;
+    });
     setSchedules(mapped);
     setLoading(false);
   }, [selectedDate, allItems]);
@@ -432,7 +448,14 @@ export default function HomeScreen() {
     const dateKey = formatDateKey(date);
     setDayLoading(true);
     cardsApi.getTimelineDay(dateKey)
-      .then((res) => setDayItems(res.items))
+      .then((res) => {
+        const sorted = [...res.items].sort((a, b) => {
+          const ta = a.created_at ? new Date(a.created_at).getTime() : a.taken_at ? new Date(a.taken_at).getTime() : 0;
+          const tb = b.created_at ? new Date(b.created_at).getTime() : b.taken_at ? new Date(b.taken_at).getTime() : 0;
+          return tb - ta;
+        });
+        setDayItems(sorted);
+      })
       .catch(() => setDayItems(null))
       .finally(() => setDayLoading(false));
   };
@@ -553,7 +576,14 @@ export default function HomeScreen() {
   // dayItem 탭 → 기존 미디어 상세 화면
   const handleDayItemPress = (item: TimelineListItem) => {
     if (item.media_id) {
-      router.push(`/media/${item.media_id}`);
+      if (item.card_ids && item.card_ids.length > 1) {
+        router.push({
+          pathname: '/media/[id]',
+          params: { id: item.media_id, card_ids: JSON.stringify(item.card_ids) },
+        });
+      } else {
+        router.push(`/media/${item.media_id}`);
+      }
     }
   };
 
@@ -626,15 +656,15 @@ export default function HomeScreen() {
           </Text>
 
           {/* 뷰 모드 토글 */}
-          <View style={styles.viewModeContainer}>
+          <View style={[styles.tabContainer, { backgroundColor: isDark ? palette.neutral[800] : '#EFEFEF' }]}>
             <TouchableOpacity
-              style={styles.viewModeButton}
+              style={[styles.tabButton, viewMode === 'grid' && [styles.tabButtonActive, { backgroundColor: isDark ? palette.neutral[700] : '#FFFFFF' }]]}
               onPress={() => setViewMode('grid')}
             >
               <GridIcon color={viewMode === 'grid' ? (isDark ? palette.neutral[0] : '#252525') : (isDark ? palette.neutral[500] : '#A3A3A3')} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.viewModeButton}
+              style={[styles.tabButton, viewMode === 'list' && [styles.tabButtonActive, { backgroundColor: isDark ? palette.neutral[700] : '#FFFFFF' }]]}
               onPress={() => setViewMode('list')}
             >
               <ListIcon color={viewMode === 'list' ? (isDark ? palette.neutral[0] : '#252525') : (isDark ? palette.neutral[500] : '#A3A3A3')} />
@@ -644,8 +674,8 @@ export default function HomeScreen() {
 
         {/* Schedule Cards / Day Items */}
         {dayLoading || dayItems !== null ? (
-          /* 날짜 선택 시: /timeline/day 결과를 시간순 리스트로 표시 */
-          <View style={styles.schedulesContainer}>
+          /* 날짜 선택 시: viewMode에 따라 썸네일 그리드 또는 텍스트 리스트 */
+          <View style={viewMode === 'grid' ? styles.schedulesContainerGrid : styles.schedulesContainer}>
             {dayLoading ? (
               <View style={styles.emptyState}>
                 <ActivityIndicator size="large" color={palette.primary[500]} />
@@ -654,25 +684,48 @@ export default function HomeScreen() {
               <View style={styles.emptyState}>
                 <Text style={[styles.emptyText, { color: theme.text.secondary }]}>이 날은 기록이 없어요</Text>
               </View>
+            ) : viewMode === 'grid' ? (
+              (dayItems ?? []).map((item) => (
+                <View key={item.id} style={styles.gridCardWrapper}>
+                  <ScheduleCard
+                    id={item.id}
+                    title={item.title}
+                    location={undefined}
+                    time={formatListTime(item.created_at ?? item.taken_at)}
+                    imageUrl={item.thumbnail_url || ''}
+                    groupCount={item.media_count}
+                    emotion={null}
+                    onPress={() => handleDayItemPress(item)}
+                    theme={theme}
+                    size="compact"
+                  />
+                </View>
+              ))
             ) : (
               (dayItems ?? []).map((item) => (
                 <TouchableOpacity
                   key={item.id}
-                  style={[styles.dayItemRow, { borderBottomColor: theme.border.light }]}
+                  style={[styles.textListItem, { borderBottomColor: theme.border.light }]}
                   activeOpacity={0.7}
                   onPress={() => handleDayItemPress(item)}
                 >
-                  <Text style={styles.dayItemIcon}>{getActivityIcon(item.activity_category)}</Text>
+                  <Text style={[styles.textListTime, { color: theme.text.tertiary }]}>
+                    {formatListTime(item.created_at ?? item.taken_at)}
+                  </Text>
                   <Text
-                    style={[styles.dayItemTitle, { color: theme.text.primary }]}
+                    style={[styles.textListTitle, { color: theme.text.primary }]}
                     numberOfLines={1}
                     ellipsizeMode="tail"
                   >
                     {item.title}
                   </Text>
-                  <Text style={[styles.dayItemTime, { color: theme.text.tertiary }]}>
-                    {formatTimeHHMM(item.taken_at)}
-                  </Text>
+                  {item.media_count != null && item.media_count > 1 && (
+                    <View style={[styles.textListBadge, { backgroundColor: theme.background.secondary || '#F0F0F0' }]}>
+                      <Text style={[styles.textListBadgeText, { color: theme.text.secondary }]}>
+                        +{item.media_count - 1}
+                      </Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               ))
             )}
@@ -706,8 +759,9 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
+              viewMode === 'grid' ? (
               schedules.map((schedule) => (
-                <View key={schedule.id} style={viewMode === 'grid' ? styles.gridCardWrapper : undefined}>
+                <View key={schedule.id} style={styles.gridCardWrapper}>
                   <ScheduleCard
                     id={schedule.id}
                     title={schedule.title}
@@ -718,10 +772,38 @@ export default function HomeScreen() {
                     emotion={schedule.emotion}
                     onPress={() => handlePhotoPress(schedule.mediaId)}
                     theme={theme}
-                    size={viewMode === 'grid' ? 'compact' : 'large'}
+                    size="compact"
                   />
                 </View>
               ))
+            ) : (
+              schedules.map((schedule) => (
+                <TouchableOpacity
+                  key={schedule.id}
+                  style={[styles.textListItem, { borderBottomColor: theme.border.light }]}
+                  activeOpacity={0.7}
+                  onPress={() => handlePhotoPress(schedule.mediaId)}
+                >
+                  <Text style={[styles.textListTime, { color: theme.text.tertiary }]}>
+                    {formatListTime(schedule.takenAt ?? null)}
+                  </Text>
+                  <Text
+                    style={[styles.textListTitle, { color: theme.text.primary }]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {schedule.title}
+                  </Text>
+                  {schedule.groupCount != null && schedule.groupCount > 1 && (
+                    <View style={[styles.textListBadge, { backgroundColor: theme.background.secondary || '#F0F0F0' }]}>
+                      <Text style={[styles.textListBadgeText, { color: theme.text.secondary }]}>
+                        +{schedule.groupCount - 1}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))
+            )
             )}
           </View>
         )}
@@ -867,13 +949,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  viewModeContainer: {
+  tabContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    borderRadius: 8,
+    padding: 2,
   },
-  viewModeButton: {
-    padding: 6,
+  tabButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabButtonActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   emptyState: {
     flex: 1,
@@ -940,6 +1034,35 @@ const styles = StyleSheet.create({
   modalCancelText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  textListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 44,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  textListTime: {
+    width: 45,
+    fontSize: 13,
+    fontWeight: '400',
+    fontVariant: ['tabular-nums'],
+  },
+  textListTitle: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  textListBadge: {
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  textListBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   dayItemRow: {
     flexDirection: 'row',

@@ -41,9 +41,12 @@ docker exec recall_api printenv CORS_ALLOW_ORIGINS
 docker exec recall_api python3 -c "from app.config import Settings; print(Settings().CORS_ALLOW_ORIGINS)"
 ```
 
+
 ## 자주 사용하는 명령어
 
-### 서버 상태 확인
+#
+
+## 서버 상태 확인
 ```bash
 docker compose ps
 docker compose logs api --tail 50

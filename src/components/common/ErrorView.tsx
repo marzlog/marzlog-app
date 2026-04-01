@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { t } from '@/src/i18n';
+import { AppButton } from './AppButton';
 
 interface ErrorViewProps {
   message: string;
@@ -39,13 +40,11 @@ export default function ErrorView({
       <WarningIcon color={subTextColor} />
       <Text style={[styles.message, { color: textColor }]}>{message}</Text>
       {onRetry && (
-        <TouchableOpacity
-          style={[styles.retryButton, { backgroundColor: buttonColor }]}
+        <AppButton
+          label={retryText || t('common.retry')}
           onPress={onRetry}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.retryText}>{retryText || t('common.retry')}</Text>
-        </TouchableOpacity>
+          style={[styles.retryButton, { backgroundColor: buttonColor }]}
+        />
       )}
     </View>
   );

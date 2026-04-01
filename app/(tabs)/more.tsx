@@ -1,18 +1,21 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
+import { useStorageStore } from '@/src/store/storageStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { Logo } from '@/src/components/common/Logo';
+import { StorageUsageBar } from '@/src/components/common/StorageUsageBar';
+import { AppTouchable } from '@/src/components/common/AppTouchable';
 
 interface MenuItem {
   icon: keyof typeof Ionicons.glyphMap;
@@ -40,6 +43,14 @@ export default function MoreScreen() {
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
 
+  const { fetchStorageUsage } = useStorageStore();
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchStorageUsage();
+    }, [])
+  );
+
   return (
     <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -50,9 +61,10 @@ export default function MoreScreen() {
       </View>
 
       <View style={styles.content}>
+        <StorageUsageBar isDark={isDark} onUpgrade={() => router.push('/plans' as any)} />
         <View style={[styles.card, isDark && styles.cardDark]}>
           {MENU_ITEMS.map((item, index) => (
-            <TouchableOpacity
+            <AppTouchable
               key={item.route}
               style={[
                 styles.menuItem,
@@ -67,7 +79,7 @@ export default function MoreScreen() {
                 <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t(item.labelKey as any)}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={isDark ? '#4B5563' : '#9CA3AF'} />
-            </TouchableOpacity>
+            </AppTouchable>
           ))}
         </View>
       </View>

@@ -22,6 +22,16 @@ export const authApi = {
   },
 
   /**
+   * Kakao OAuth 로그인
+   */
+  async kakaoLogin(accessToken: string): Promise<AuthResponse> {
+    const response = await apiClient.post<AuthResponse>('/auth/kakao', {
+      access_token: accessToken,
+    });
+    return response.data;
+  },
+
+  /**
    * Apple OAuth 로그인
    */
   async appleLogin(idToken: string): Promise<AuthResponse> {
