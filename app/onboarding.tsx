@@ -21,7 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { getLanguage } from '@src/i18n';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 
 const ONBOARDING_KEY = '@marzlog_onboarding_completed';
 
@@ -111,23 +111,25 @@ const VIDEO_SOURCES = {
 function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
   const videoSrc = VIDEO_SOURCES[getLanguage()];
 
+  const player = useVideoPlayer(videoSrc, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+
   if (Platform.OS === 'web') {
     return (
       <View style={{ width: screenWidth, height: screenHeight }}>
         <video
           src={typeof videoSrc === 'number' ? undefined : (videoSrc as any)}
           autoPlay
-          loop
           muted
+          loop
           playsInline
           style={{
-            display: 'block',
             width: screenWidth,
             height: screenHeight,
-            objectFit: 'cover',
-            margin: 0,
-            padding: 0,
-            border: 'none',
+            objectFit: 'cover' as any,
           }}
         />
       </View>
@@ -136,14 +138,11 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
 
   return (
     <View style={{ width: screenWidth, height: screenHeight, backgroundColor: '#000' }}>
-      <Video
-        source={videoSrc}
+      <VideoView
+        player={player}
         style={{ width: screenWidth, height: screenHeight }}
-        resizeMode={ResizeMode.COVER}
-        shouldPlay
-        isLooping
-        isMuted
-        pointerEvents="none"
+        contentFit="cover"
+        nativeControls={false}
       />
     </View>
   );
