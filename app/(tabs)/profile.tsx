@@ -9,19 +9,22 @@ import { Image } from 'expo-image';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
 import { getErrorMessage } from '@/src/utils/errorMessages';
 import { captureError } from '@/src/utils/sentry';
 import { AppTouchable } from '@/src/components/common/AppTouchable';
+import { useDialog } from '@/src/components/ui/Dialog';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -29,7 +32,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout, setUser } = useAuthStore();
   const { t } = useTranslation();
-  const { confirm } = useDialog();
+  const { confirm: dialogConfirm } = useDialog();
   const { themeMode } = useSettingsStore();
 
   const isDark = themeMode === 'system'
@@ -75,15 +78,26 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
-    const confirmed = await confirm({
-      title: t('auth.logout'),
-      description: t('auth.logoutConfirm'),
-      confirmText: t('auth.logout'),
-      cancelText: t('common.cancel'),
-      variant: 'danger',
-    });
-    if (confirmed) {
-      logout();
+    if (Platform.OS === 'web') {
+      const confirmed = await dialogConfirm({
+        title: t('auth.logout'),
+        description: t('auth.logoutConfirm'),
+        confirmText: t('auth.logout'),
+        cancelText: t('common.cancel'),
+        variant: 'danger',
+      });
+      if (confirmed) {
+        await logout();
+      }
+    } else {
+      Alert.alert(
+        t('auth.logout'),
+        t('auth.logoutConfirm'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('auth.logout'), style: 'destructive', onPress: () => logout() },
+        ],
+      );
     }
   };
 
@@ -200,7 +214,7 @@ export default function ProfileScreen() {
 
         {/* Logout */}
         <View style={[styles.card, isDark && styles.cardDark]}>
-          <AppTouchable
+          <TouchableOpacity
             style={[styles.menuItem, styles.menuItemLast]}
             onPress={handleLogout}
             activeOpacity={0.7}
@@ -210,7 +224,7 @@ export default function ProfileScreen() {
               <Text style={styles.dangerText}>{t('auth.logout')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#FF4444" />
-          </AppTouchable>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </View>

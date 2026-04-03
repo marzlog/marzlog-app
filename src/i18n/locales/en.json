@@ -422,7 +422,12 @@
     "currentPasswordRequired": "Please enter current password",
     "passwordChanged": "Password changed successfully",
     "passwordChangeFailed": "Failed to change password",
-    "socialLoginNoPassword": "Password cannot be changed for social accounts (Google, Kakao, Apple)"
+    "socialLoginNoPassword": "Password cannot be changed for social accounts (Google, Kakao, Apple)",
+    "takePhoto": "Take Photo",
+    "chooseFromGallery": "Choose from Gallery",
+    "deletePhoto": "Delete Photo",
+    "profilePhoto": "Profile Photo",
+    "cameraPermissionRequired": "Camera permission is required"
   },
   "onboarding": {
     "skip": "Skip",

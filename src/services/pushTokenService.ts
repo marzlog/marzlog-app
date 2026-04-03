@@ -38,10 +38,7 @@ export async function registerPushToken(): Promise<void> {
     // Android 채널 먼저 설정
     await setupAndroidNotificationChannel();
 
-    if (!Device.isDevice) {
-      console.log('[Push] 실제 기기에서만 동작합니다');
-      return;
-    }
+    if (!Device.isDevice) return;
 
     // 권한 확인
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -50,10 +47,7 @@ export async function registerPushToken(): Promise<void> {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
-    if (finalStatus !== 'granted') {
-      console.log('[Push] 알림 권한 거부됨');
-      return;
-    }
+    if (finalStatus !== 'granted') return;
 
     // Expo Push Token 발급 (projectId 명시)
     const tokenData = await Notifications.getExpoPushTokenAsync({
@@ -66,9 +60,8 @@ export async function registerPushToken(): Promise<void> {
 
     // 백엔드에 등록
     await apiClient.post('/push/register', { token, platform });
-    console.log('[Push] 토큰 등록 완료:', token.substring(0, 30) + '...');
-  } catch (error) {
-    console.error('[Push] 등록 실패:', error);
+  } catch {
+    // Push token registration failed — silently ignore
   }
 }
 
@@ -82,7 +75,6 @@ export async function unregisterPushToken(): Promise<void> {
     await apiClient.delete('/push/token', {
       data: { token: _currentPushToken },
     });
-    console.log('[Push] 토큰 비활성화 완료');
   } catch {
     // 로그아웃 시 실패해도 무시
   }

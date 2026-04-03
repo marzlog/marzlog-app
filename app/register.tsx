@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Platform,
   TouchableOpacity,
@@ -22,6 +21,7 @@ import { useTranslation } from '@src/hooks/useTranslation';
 import { authApi } from '@src/api/auth';
 import { FloatingInput } from '@/src/components/common/FloatingInput';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function RegisterScreen() {
   const systemColorScheme = useColorScheme();
@@ -45,6 +45,8 @@ export default function RegisterScreen() {
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
   const passwordConfirmRef = useRef<TextInput>(null);
+
+  const insets = useSafeAreaInsets();
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
@@ -121,7 +123,7 @@ export default function RegisterScreen() {
   // Registration complete screen
   if (showComplete) {
     return (
-      <SafeAreaView style={[styles.completeScreen, isDark && styles.completeScreenDark]}>
+      <View style={[styles.completeScreen, isDark && styles.completeScreenDark, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={styles.completeContainer}>
           <Image
@@ -151,12 +153,12 @@ export default function RegisterScreen() {
             <Text style={styles.startButtonText}>{t('auth.startUsing')}</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
+    <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
@@ -331,12 +333,12 @@ export default function RegisterScreen() {
           <Text style={[styles.linkLabel, isDark && { color: '#9CA3AF' }]}>
             {t('auth.alreadyHaveAccount')}
           </Text>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => router.replace('/login')}>
             <Text style={styles.linkText}>{t('auth.login')}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAwareScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -363,7 +365,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 28,
-    paddingBottom: 40,
+    paddingBottom: 60,
   },
   title: {
     fontSize: 20,

@@ -109,12 +109,9 @@ const VIDEO_SOURCES = {
 
 /** Page 8: full-screen video (no buttons, swipe to next) */
 function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
-  const [videoError, setVideoError] = useState(false);
-  const showVideo = !videoError;
-
   const videoSrc = VIDEO_SOURCES[getLanguage()];
 
-  if (Platform.OS === 'web' && showVideo) {
+  if (Platform.OS === 'web') {
     return (
       <View style={{ width: screenWidth, height: screenHeight }}>
         <video
@@ -123,7 +120,6 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
           loop
           muted
           playsInline
-          onError={() => setVideoError(true)}
           style={{
             display: 'block',
             width: screenWidth,
@@ -138,33 +134,17 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
     );
   }
 
-  // Use screen dimensions for full coverage on Android (Samsung edge-to-edge)
-  const { width: fullW, height: fullH } = Dimensions.get('screen');
-  const vidW = Math.max(screenWidth, fullW);
-  const vidH = Math.max(screenHeight, fullH);
-  const offsetX = (screenWidth - vidW) / 2;
-  const offsetY = (screenHeight - vidH) / 2;
-
   return (
-    <View style={{ width: screenWidth, height: screenHeight, backgroundColor: '#000', overflow: 'hidden' }}>
-      {showVideo ? (
-        <Video
-          source={videoSrc}
-          style={{ position: 'absolute', top: offsetY, left: offsetX, width: vidW, height: vidH }}
-          resizeMode={ResizeMode.STRETCH}
-          shouldPlay
-          isLooping
-          isMuted
-          pointerEvents="none"
-          onError={() => setVideoError(true)}
-        />
-      ) : (
-        <Image
-          source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
-          style={{ position: 'absolute', top: offsetY, left: offsetX, width: vidW, height: vidH }}
-          contentFit="cover"
-        />
-      )}
+    <View style={{ width: screenWidth, height: screenHeight, backgroundColor: '#000' }}>
+      <Video
+        source={videoSrc}
+        style={{ width: screenWidth, height: screenHeight }}
+        resizeMode={ResizeMode.COVER}
+        shouldPlay
+        isLooping
+        isMuted
+        pointerEvents="none"
+      />
     </View>
   );
 }

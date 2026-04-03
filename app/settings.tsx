@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,7 @@ import { Logo } from '@/src/components/common/Logo';
 import { PinSetup } from '@/src/components/auth/PinSetup';
 import { PinInput } from '@/src/components/auth/PinInput';
 import { AppTouchable } from '@/src/components/common/AppTouchable';
+import { useDialog } from '@/src/components/ui/Dialog';
 
 const ICON_COLOR = '#8B5CF6';
 
@@ -49,6 +51,7 @@ export default function SettingsScreen() {
     setTime: setReminderTime,
   } = useReminderStore();
   const { logout } = useAuthStore();
+  const { confirm: dialogConfirm } = useDialog();
 
   const [pinModal, setPinModal] = useState<'setup' | 'disable' | 'change-verify' | 'change-new' | null>(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -126,23 +129,37 @@ export default function SettingsScreen() {
     }
   }, [setReminderTime]);
 
-  const handleLogout = useCallback(() => {
-    Alert.alert(
-      t('auth.logout'),
-      t('auth.logoutConfirm'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('auth.logout'),
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            router.replace('/login');
+  const handleLogout = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      const confirmed = await dialogConfirm({
+        title: t('auth.logout'),
+        description: t('auth.logoutConfirm'),
+        confirmText: t('auth.logout'),
+        cancelText: t('common.cancel'),
+        variant: 'danger',
+      });
+      if (confirmed) {
+        await logout();
+        router.replace('/login');
+      }
+    } else {
+      Alert.alert(
+        t('auth.logout'),
+        t('auth.logoutConfirm'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('auth.logout'),
+            style: 'destructive',
+            onPress: async () => {
+              await logout();
+              router.replace('/login');
+            },
           },
-        },
-      ],
-    );
-  }, [logout, router, t]);
+        ],
+      );
+    }
+  }, [logout, router, t, dialogConfirm]);
 
   const timeValue = new Date();
   timeValue.setHours(reminderHour, reminderMinute, 0, 0);
@@ -348,14 +365,14 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── Logout ── */}
-        <AppTouchable
+        <TouchableOpacity
           style={[styles.logoutButton, { backgroundColor: cardBg }]}
           onPress={handleLogout}
           activeOpacity={0.7}
         >
           <Ionicons name="log-out-outline" size={24} color="#EF4444" />
           <Text style={styles.logoutText}>{t('auth.logout')}</Text>
-        </AppTouchable>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* PIN Modals */}

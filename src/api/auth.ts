@@ -1,5 +1,4 @@
 
-import { Platform } from 'react-native';
 import apiClient from './client';
 import type {
   AuthResponse,
@@ -174,31 +173,27 @@ export const authApi = {
   },
 
   /**
-   * 아바타 직접 업로드 (multipart/form-data)
+   * 아바타 업로드 (Presigned URL 방식)
    */
-  async uploadAvatar(fileUri: string, mimeType: string = 'image/jpeg'): Promise<{ avatar_url: string; storage_key: string; user: User }> {
-    const formData = new FormData();
+  async uploadAvatar(fileUri: string, mimeType: string = 'image/jpeg'): Promise<{ avatar_url: string; user: User }> {
+    // 1. Presigned URL 발급
+    const prepareRes = await apiClient.post<{
+      presigned_put_url: string;
+      upload_id: string;
+      storage_key: string;
+    }>('/auth/me/avatar/prepare', { content_type: mimeType });
+    const { presigned_put_url, storage_key } = prepareRes.data;
 
-    if (Platform.OS === 'web') {
-      // Web: fetch URI as blob, then create File object
-      const res = await fetch(fileUri);
-      const blob = await res.blob();
-      const file = new File([blob], 'avatar.jpg', { type: mimeType });
-      formData.append('file', file);
-    } else {
-      // Native (Android/iOS): React Native FormData pattern
-      formData.append('file', {
-        uri: fileUri,
-        type: mimeType,
-        name: 'avatar.jpg',
-      } as any);
-    }
+    // 2. S3 PUT 업로드
+    const { uploadToS3 } = require('./upload');
+    await uploadToS3(presigned_put_url, fileUri, mimeType);
 
-    const response = await apiClient.post('/auth/me/avatar/upload', formData, {
-      headers: { 'Content-Type': undefined },
-      timeout: 60000,
-    });
-    return response.data;
+    // 3. 완료 콜백
+    const completeRes = await apiClient.post<{ avatar_url: string; user: User }>(
+      '/auth/me/avatar/complete',
+      { storage_key },
+    );
+    return completeRes.data;
   },
 
   /**

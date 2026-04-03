@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Platform,
   TouchableOpacity,
@@ -18,6 +17,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { authApi } from '@src/api/auth';
 import { extractErrorMessage } from '@src/utils/errorMessages';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Tab = 'findId' | 'findPassword';
 type Step = 'email' | 'verify' | 'reset' | 'complete';
@@ -44,6 +44,8 @@ export default function ForgotPasswordScreen() {
   const [timeLeft, setTimeLeft] = useState(300);
   const [timerActive, setTimerActive] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const insets = useSafeAreaInsets();
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
@@ -190,7 +192,7 @@ export default function ForgotPasswordScreen() {
   // Complete screen
   if (step === 'complete') {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
+      <View style={[styles.container, { backgroundColor: bgColor, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={styles.completeContainer}>
           <View style={styles.completeIconWrap}>
@@ -207,12 +209,12 @@ export default function ForgotPasswordScreen() {
             <Text style={styles.completeButtonText}>{t('auth.goToLogin')}</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
+    <View style={[styles.container, { backgroundColor: bgColor, paddingTop: insets.top }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
@@ -532,7 +534,7 @@ export default function ForgotPasswordScreen() {
             </>
           )}
       </KeyboardAwareScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

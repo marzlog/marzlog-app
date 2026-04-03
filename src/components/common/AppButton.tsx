@@ -1,7 +1,9 @@
 import React from 'react';
 import {
+  Platform,
   TouchableOpacity,
   Text,
+  View,
   ActivityIndicator,
   StyleSheet,
   StyleProp,
@@ -22,15 +24,11 @@ interface AppButtonProps {
 }
 
 const HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 };
+const isWeb = Platform.OS === 'web';
 
 const BG: Record<Variant, string> = {
   primary: '#6366F1',
   secondary: '#E5E7EB',
-  ghost: 'transparent',
-};
-const BG_DARK: Record<Variant, string> = {
-  primary: '#4F46E5',
-  secondary: '#374151',
   ghost: 'transparent',
 };
 const TEXT_COLOR: Record<Variant, string> = {
@@ -50,27 +48,44 @@ export function AppButton({
 }: AppButtonProps) {
   const isDisabled = disabled || loading;
 
+  const content = loading ? (
+    <ActivityIndicator size="small" color={TEXT_COLOR[variant]} />
+  ) : (
+    <Text style={[styles.label, { color: TEXT_COLOR[variant] }, textStyle]}>
+      {label}
+    </Text>
+  );
+
+  const buttonStyle = [
+    styles.base,
+    { backgroundColor: BG[variant] },
+    variant === 'ghost' && styles.ghost,
+    isDisabled && styles.disabled,
+    isWeb && styles.web,
+    style,
+  ];
+
+  if (isWeb) {
+    return (
+      <View
+        style={buttonStyle}
+        // @ts-ignore — web-only onClick binding
+        onClick={isDisabled ? undefined : onPress}
+      >
+        {content}
+      </View>
+    );
+  }
+
   return (
     <TouchableOpacity
-      style={[
-        styles.base,
-        { backgroundColor: BG[variant] },
-        variant === 'ghost' && styles.ghost,
-        isDisabled && styles.disabled,
-        style,
-      ]}
+      style={buttonStyle}
       onPress={onPress}
       disabled={isDisabled}
       activeOpacity={0.7}
       hitSlop={HIT_SLOP}
     >
-      {loading ? (
-        <ActivityIndicator size="small" color={TEXT_COLOR[variant]} />
-      ) : (
-        <Text style={[styles.label, { color: TEXT_COLOR[variant] }, textStyle]}>
-          {label}
-        </Text>
-      )}
+      {content}
     </TouchableOpacity>
   );
 }
@@ -90,6 +105,9 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.5,
   },
+  web: {
+    cursor: 'pointer',
+  } as any,
   label: {
     fontSize: 15,
     fontWeight: '600',

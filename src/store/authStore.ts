@@ -59,7 +59,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isLoading: false,
       });
 
-      registerPushToken().catch(console.error);
+      registerPushToken().catch(() => {});
     } catch (error: any) {
       const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });
@@ -84,7 +84,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isLoading: false,
       });
 
-      registerPushToken().catch(console.error);
+      registerPushToken().catch(() => {});
     } catch (error: any) {
       const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });
@@ -109,7 +109,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isLoading: false,
       });
 
-      registerPushToken().catch(console.error);
+      registerPushToken().catch(() => {});
     } catch (error: any) {
       const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });
@@ -134,7 +134,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isLoading: false,
       });
 
-      registerPushToken().catch(console.error);
+      registerPushToken().catch(() => {});
     } catch (error: any) {
       const message = extractErrorMessage(error, 'Registration failed');
       set({ error: message, isLoading: false });
@@ -231,7 +231,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
 
       // 앱 재시작 시 푸시 토큰 재등록
-      registerPushToken().catch(console.error);
+      registerPushToken().catch(() => {});
 
       // Sync server analysis_mode to local settings (without triggering API call back)
       if (user.analysis_mode) {

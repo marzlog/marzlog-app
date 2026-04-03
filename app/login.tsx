@@ -212,10 +212,10 @@ export default function LoginScreen() {
 
         {/* 소셜 로그인 - 상단 */}
         <View style={styles.socialArea}>
-          <KakaoLoginButton onSuccess={handleSuccess} onError={handleError} style={{ marginHorizontal: 16 }} />
-          <GoogleLoginButton onSuccess={handleSuccess} onError={handleError} style={{ marginHorizontal: 16 }} />
+          <KakaoLoginButton onSuccess={handleSuccess} onError={handleError} />
+          <GoogleLoginButton onSuccess={handleSuccess} onError={handleError} />
           <AppTouchable
-            style={[styles.appleButton, isDark && styles.appleButtonDark, { marginHorizontal: 16 }]}
+            style={[styles.appleButton, isDark && styles.appleButtonDark]}
             onPress={() => Alert.alert(t('auth.continueWithApple'), t('auth.appleNotSupported'))}
             activeOpacity={0.8}
           >

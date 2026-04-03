@@ -32,7 +32,7 @@ if (kakaoKey && Platform.OS !== 'web') {
   try {
     initializeKakaoSDK(kakaoKey);
   } catch (e) {
-    console.error('Kakao SDK init failed:', e);
+    // Kakao SDK init failed — silently ignore
   }
 }
 

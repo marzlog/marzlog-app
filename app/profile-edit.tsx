@@ -78,10 +78,8 @@ export default function ProfileEditScreen() {
         mediaTypes: ['images'],
         quality: 0.8,
       };
-      if (Platform.OS !== 'web') {
-        pickerOptions.allowsEditing = true;
-        pickerOptions.aspect = [1, 1];
-      }
+      // Samsung Android에서 allowsEditing 크롭 UI가 완료 버튼을 렌더링하지 못하는 버그 회피
+      // 프로필 사진은 원형으로 표시되므로 크롭 없이 원본 사용
 
       const result = await ImagePicker.launchImageLibraryAsync(pickerOptions);
       if (result.canceled || !result.assets?.length) return;
@@ -97,10 +95,42 @@ export default function ProfileEditScreen() {
       showToast('프로필 사진이 변경되었습니다');
       setTimeout(() => scrollRef.current?.scrollToPosition(0, 0, true), 300);
     } catch (error: any) {
-      const detail = error?.response?.data?.detail || error?.message || '알 수 없는 오류';
-      // error shown via toast
       setAvatarStatus('');
-      showToast('업로드 실패: ' + String(detail));
+      showToast('프로필 사진 업로드에 실패했습니다');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    if (Platform.OS === 'web') return;
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      showToast(t('profileEdit.cameraPermissionRequired'));
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.9,
+      });
+      if (result.canceled || !result.assets?.length) return;
+
+      const asset = result.assets[0];
+      setAvatarUploading(true);
+      setAvatarStatus('업로드 중...');
+
+      const response = await authApi.uploadAvatar(asset.uri, asset.mimeType || 'image/jpeg');
+      setUser(response.user);
+
+      setAvatarStatus('');
+      showToast('프로필 사진이 변경되었습니다');
+      setTimeout(() => scrollRef.current?.scrollToPosition(0, 0, true), 300);
+    } catch (error: any) {
+      setAvatarStatus('');
+      showToast('프로필 사진 업로드에 실패했습니다');
     } finally {
       setAvatarUploading(false);
     }
@@ -347,14 +377,24 @@ export default function ProfileEditScreen() {
             onPress={() => setShowAvatarMenu(false)}
           >
             <View style={[styles.sheetContent, { backgroundColor: theme.surface.primary, paddingBottom: Math.max(40, insets.bottom + 16) }]}>
-              <Text style={[styles.sheetTitle, { color: theme.text.primary }]}>프로필 사진</Text>
+              <Text style={[styles.sheetTitle, { color: theme.text.primary }]}>{t('profileEdit.profilePhoto')}</Text>
+
+              {Platform.OS !== 'web' && (
+                <Pressable
+                  style={({ pressed }) => [styles.sheetOption, { borderBottomColor: theme.border.light }, pressed && { opacity: 0.6 }]}
+                  onPress={() => { setShowAvatarMenu(false); handleTakePhoto(); }}
+                >
+                  <Ionicons name="camera-outline" size={24} color={palette.primary[500]} />
+                  <Text style={[styles.sheetOptionText, { color: theme.text.primary }]}>{t('profileEdit.takePhoto')}</Text>
+                </Pressable>
+              )}
 
               <Pressable
                 style={({ pressed }) => [styles.sheetOption, { borderBottomColor: theme.border.light }, pressed && { opacity: 0.6 }]}
                 onPress={() => { setShowAvatarMenu(false); handlePickAvatar(); }}
               >
                 <Ionicons name="image-outline" size={24} color={palette.primary[500]} />
-                <Text style={[styles.sheetOptionText, { color: theme.text.primary }]}>새 사진 선택</Text>
+                <Text style={[styles.sheetOptionText, { color: theme.text.primary }]}>{t('profileEdit.chooseFromGallery')}</Text>
               </Pressable>
 
               <Pressable
@@ -362,14 +402,14 @@ export default function ProfileEditScreen() {
                 onPress={() => { setShowAvatarMenu(false); handleDeleteAvatar(); }}
               >
                 <Ionicons name="trash-outline" size={24} color={palette.error[500]} />
-                <Text style={[styles.sheetOptionText, { color: palette.error[500] }]}>사진 삭제</Text>
+                <Text style={[styles.sheetOptionText, { color: palette.error[500] }]}>{t('profileEdit.deletePhoto')}</Text>
               </Pressable>
 
               <Pressable
                 style={({ pressed }) => [styles.sheetCancel, pressed && { opacity: 0.6 }]}
                 onPress={() => setShowAvatarMenu(false)}
               >
-                <Text style={[styles.sheetCancelText, { color: theme.text.secondary }]}>취소</Text>
+                <Text style={[styles.sheetCancelText, { color: theme.text.secondary }]}>{t('common.cancel')}</Text>
               </Pressable>
             </View>
           </Pressable>
