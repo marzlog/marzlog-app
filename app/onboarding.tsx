@@ -168,7 +168,7 @@ function FinalPage({ screenWidth, screenHeight, insets, t, onComplete }: FinalPa
         locations={[0.3, 0.6, 1.0]}
         style={StyleSheet.absoluteFillObject}
       />
-      <View style={[styles.finalBottomWrap, { paddingBottom: insets.bottom + 40 }]}>
+      <View style={[styles.finalBottomWrap, { paddingBottom: insets.bottom + 56 }]}>
         <Text style={styles.finalTitle}>{t('onboarding.final.title')}</Text>
         <Text style={styles.finalSubtitle}>{t('onboarding.final.subtitle')}</Text>
         <TouchableOpacity
@@ -537,7 +537,7 @@ export default function OnboardingScreen() {
       {/* Bottom section — hidden on final page only */}
       {!isLastPage && (
         <View
-          style={[styles.bottomSection, { paddingBottom: insets.bottom + 24 }]}
+          style={[styles.bottomSection, { paddingBottom: insets.bottom + 60 }]}
           pointerEvents="box-none"
         >
           <View style={styles.dotContainer}>
