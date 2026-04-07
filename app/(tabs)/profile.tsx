@@ -9,6 +9,8 @@ import { Image } from 'expo-image';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,9 +20,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
 import { getErrorMessage } from '@/src/utils/errorMessages';
+import { captureError } from '@/src/utils/sentry';
+import { AppTouchable } from '@/src/components/common/AppTouchable';
+import { useDialog } from '@/src/components/ui/Dialog';
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -28,7 +32,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { user, logout, setUser } = useAuthStore();
   const { t } = useTranslation();
-  const { confirm } = useDialog();
+  const { confirm: dialogConfirm } = useDialog();
   const { themeMode } = useSettingsStore();
 
   const isDark = themeMode === 'system'
@@ -51,7 +55,7 @@ export default function ProfileScreen() {
           const freshUser = await authApi.getCurrentUser();
           setUser(freshUser);
         } catch (err) {
-          console.warn('[Profile] Failed to refresh user:', err);
+          // silently fail on refresh
         }
       };
       refreshUser();
@@ -66,7 +70,7 @@ export default function ProfileScreen() {
       const userStats = await authApi.getUserStats();
       setStats(userStats);
     } catch (error) {
-      console.error('Failed to load stats:', error);
+      captureError(error instanceof Error ? error : new Error(String(error)), { context: 'Profile.loadStats' });
       setStatsError(getErrorMessage(error));
     } finally {
       setStatsLoading(false);
@@ -74,15 +78,26 @@ export default function ProfileScreen() {
   };
 
   const handleLogout = async () => {
-    const confirmed = await confirm({
-      title: t('auth.logout'),
-      description: t('auth.logoutConfirm'),
-      confirmText: t('auth.logout'),
-      cancelText: t('common.cancel'),
-      variant: 'danger',
-    });
-    if (confirmed) {
-      logout();
+    if (Platform.OS === 'web') {
+      const confirmed = await dialogConfirm({
+        title: t('auth.logout'),
+        description: t('auth.logoutConfirm'),
+        confirmText: t('auth.logout'),
+        cancelText: t('common.cancel'),
+        variant: 'danger',
+      });
+      if (confirmed) {
+        await logout();
+      }
+    } else {
+      Alert.alert(
+        t('auth.logout'),
+        t('auth.logoutConfirm'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('auth.logout'), style: 'destructive', onPress: () => logout() },
+        ],
+      );
     }
   };
 
@@ -133,12 +148,12 @@ export default function ProfileScreen() {
           </Text>
           <View style={[styles.providerBadge, isDark && { backgroundColor: '#374151' }]}>
             <Ionicons
-              name={user?.oauth_provider === 'apple' ? 'logo-apple' : 'logo-google'}
+              name={user?.auth_provider === 'apple' ? 'logo-apple' : user?.auth_provider === 'kakao' ? 'chatbubble-ellipses' : 'logo-google'}
               size={14}
               color={isDark ? '#9CA3AF' : '#6B7280'}
             />
             <Text style={[styles.providerText, isDark && { color: '#9CA3AF' }]}>
-              {user?.oauth_provider === 'apple' ? t('profile.appleAccount') : t('profile.googleAccount')}
+              {user?.auth_provider === 'apple' ? t('profile.appleAccount') : user?.auth_provider === 'kakao' ? t('profile.kakaoAccount') : t('profile.googleAccount')}
             </Text>
           </View>
         </View>
@@ -150,24 +165,33 @@ export default function ProfileScreen() {
           </Text>
           {statsLoading ? (
             <View style={styles.statsLoading}>
-              <ActivityIndicator size="small" color="#6366F1" />
+              <ActivityIndicator size="small" color="#8B5CF6" />
             </View>
           ) : statsError ? (
-            <TouchableOpacity style={styles.statsLoading} onPress={loadStats} activeOpacity={0.7}>
+            <AppTouchable style={styles.statsLoading} onPress={loadStats} activeOpacity={0.7}>
               <Text style={{ color: isDark ? '#9CA3AF' : '#6B7280', fontSize: 13, textAlign: 'center' }}>
                 {statsError}
               </Text>
               <Text style={{ color: '#6366F1', fontSize: 13, fontWeight: '500', marginTop: 4 }}>
                 {t('error.tapToRetry')}
               </Text>
-            </TouchableOpacity>
+            </AppTouchable>
           ) : (
-            <View style={styles.statsGrid}>
-              <StatItem icon="images-outline" label={t('stats.photos')} value={stats?.total_photos?.toString() || '0'} isDark={isDark} />
-              <StatItem icon="albums-outline" label={t('stats.albums')} value={stats?.total_albums?.toString() || '0'} isDark={isDark} />
-              <StatItem icon="layers-outline" label={t('stats.groups')} value={stats?.total_groups?.toString() || '0'} isDark={isDark} />
-              <StatItem icon="cloud-outline" label={t('stats.storage')} value={stats?.storage_used_formatted || '0 B'} isDark={isDark} />
-            </View>
+            <>
+              <View style={styles.statsGrid}>
+                <StatItem icon="images-outline" label={t('stats.photos')} value={stats?.total_photos?.toString() || '0'} isDark={isDark} />
+                <StatItem icon="albums-outline" label={t('stats.albums')} value={stats?.total_albums?.toString() || '0'} isDark={isDark} />
+                <StatItem icon="layers-outline" label={t('stats.groups')} value={stats?.total_groups?.toString() || '0'} isDark={isDark} />
+              </View>
+              <StorageGauge
+                usedFormatted={stats?.storage_used_formatted || '0 B'}
+                limitFormatted={stats?.storage_limit_formatted || '5.0 GB'}
+                usagePercent={stats?.storage_usage_percent || 0}
+                plan={stats?.storage_plan || 'free'}
+                isDark={isDark}
+                onUpgrade={() => router.push('/plans')}
+              />
+            </>
           )}
         </View>
 
@@ -207,6 +231,50 @@ export default function ProfileScreen() {
   );
 }
 
+function StorageGauge({ usedFormatted, limitFormatted, usagePercent, plan, isDark, onUpgrade }: {
+  usedFormatted: string;
+  limitFormatted: string;
+  usagePercent: number;
+  plan: string;
+  isDark: boolean;
+  onUpgrade: () => void;
+}) {
+  const { t } = useTranslation();
+  const barColor = usagePercent >= 95 ? '#EF4444' : usagePercent >= 80 ? '#F59E0B' : '#8B5CF6';
+  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
+
+  return (
+    <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <Text style={{ fontSize: 13, color: isDark ? '#9CA3AF' : '#6B7280' }}>
+          {t('storage.title')}
+        </Text>
+        <Text style={{ fontSize: 13, color: isDark ? '#D1D5DB' : '#374151', fontWeight: '500' }}>
+          {usedFormatted} / {limitFormatted}
+        </Text>
+      </View>
+      <View style={{ height: 8, borderRadius: 4, backgroundColor: isDark ? '#2D3748' : '#E5E7EB' }}>
+        <View style={{ height: 8, borderRadius: 4, backgroundColor: barColor, width: `${Math.min(usagePercent, 100)}%` }} />
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+        <Text style={{ fontSize: 12, color: barColor, fontWeight: '500' }}>
+          {t('storage.usagePercent', { percent: usagePercent })}
+        </Text>
+        <AppTouchable
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+          onPress={onUpgrade}
+          activeOpacity={0.7}
+        >
+          <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
+            {t('storage.currentPlan')}: {planLabel}
+          </Text>
+          <Ionicons name="chevron-forward" size={14} color="#8B5CF6" />
+        </AppTouchable>
+      </View>
+    </View>
+  );
+}
+
 function StatItem({ icon, label, value, isDark }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
@@ -230,7 +298,7 @@ function MenuItem({ icon, label, isDark, onPress, isLast }: {
   isLast?: boolean;
 }) {
   return (
-    <TouchableOpacity
+    <AppTouchable
       style={[styles.menuItem, isLast && styles.menuItemLast]}
       onPress={onPress}
       activeOpacity={0.7}
@@ -240,7 +308,7 @@ function MenuItem({ icon, label, isDark, onPress, isLast }: {
         <Text style={[styles.menuLabel, isDark && styles.textLight]}>{label}</Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-    </TouchableOpacity>
+    </AppTouchable>
   );
 }
 

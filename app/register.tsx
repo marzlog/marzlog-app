@@ -1,26 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Platform,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
-  Alert,
   Image,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
+import GoogleLoginButton from '@src/components/auth/GoogleLoginButton';
 import { router } from 'expo-router';
 import { useAuthStore } from '@src/store/authStore';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { authApi } from '@src/api/auth';
+import { FloatingInput } from '@/src/components/common/FloatingInput';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function RegisterScreen() {
   const systemColorScheme = useColorScheme();
@@ -41,17 +42,15 @@ export default function RegisterScreen() {
   const [showComplete, setShowComplete] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const passwordConfirmRef = useRef<TextInput>(null);
+
+  const insets = useSafeAreaInsets();
+
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
-
-  const inputBg = isDark ? '#1F2937' : '#F3F4F6';
-  const inputText = isDark ? '#F9FAFB' : '#111827';
-  const inputBorder = isDark ? '#374151' : '#E5E7EB';
-  const placeholderColor = isDark ? '#6B7280' : '#9CA3AF';
-  const bgColor = isDark ? '#111827' : '#FFFFFF';
-  const textColor = isDark ? '#F9FAFB' : '#111827';
-  const subtextColor = isDark ? '#9CA3AF' : '#6B7280';
 
   const validateEmail = (emailValue: string) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -80,7 +79,7 @@ export default function RegisterScreen() {
         setErrors(rest);
       }
     } catch {
-      Alert.alert(t('common.error'), t('auth.emailCheckFailed'));
+      setErrors({ ...errors, email: t('auth.emailCheckFailed') });
     } finally {
       setEmailCheckLoading(false);
     }
@@ -116,11 +115,16 @@ export default function RegisterScreen() {
     }
   };
 
-  // Registration complete screen (Figma MO_JOI_0301)
+  const handleGoogleSuccess = () => router.replace('/(tabs)');
+  const handleGoogleError = (errorMessage: string) => {
+    setErrors({ form: errorMessage });
+  };
+
+  // Registration complete screen
   if (showComplete) {
     return (
-      <SafeAreaView style={styles.completeScreen}>
-        <StatusBar barStyle="dark-content" />
+      <View style={[styles.completeScreen, isDark && styles.completeScreenDark, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
         <View style={styles.completeContainer}>
           <Image
             source={require('@/assets/images/mascot.png')}
@@ -129,11 +133,15 @@ export default function RegisterScreen() {
           />
           <Image
             source={require('@/assets/images/marzlog-text-logo.png')}
-            style={styles.completeTextLogo}
+            style={[styles.completeTextLogo, isDark && { tintColor: '#FFFFFF' }]}
             resizeMode="contain"
           />
-          <Text style={styles.completeWelcome}>{t('auth.registerCompleteWelcome')}</Text>
-          <Text style={styles.completeBody}>{t('auth.registerCompleteBody')}</Text>
+          <Text style={[styles.completeWelcome, isDark && { color: '#F9FAFB' }]}>
+            {t('auth.registerCompleteWelcome')}
+          </Text>
+          <Text style={[styles.completeBody, isDark && { color: '#9CA3AF' }]}>
+            {t('auth.registerCompleteBody')}
+          </Text>
           <TouchableOpacity
             style={styles.startButton}
             onPress={async () => {
@@ -145,29 +153,19 @@ export default function RegisterScreen() {
             <Text style={styles.startButtonText}>{t('auth.startUsing')}</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
+    <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={textColor} />
+          <Ionicons name="chevron-back" size={24} color={isDark ? '#F9FAFB' : '#1F2937'} />
         </TouchableOpacity>
-      </View>
-
-      {/* Step Tabs */}
-      <View style={styles.tabRow}>
-        <View style={[styles.tabInactive, { borderBottomColor: isDark ? '#374151' : '#E5E7EB' }]}>
-          <Text style={[styles.tabInactiveText, { color: subtextColor }]}>{t('auth.tabTerms')}</Text>
-        </View>
-        <View style={styles.tabActive}>
-          <Text style={styles.tabActiveText}>{t('auth.tabRegister')}</Text>
-        </View>
       </View>
 
       <KeyboardAwareScrollView
@@ -175,230 +173,268 @@ export default function RegisterScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         bounces={false}
-        enableOnAndroid={true}
+        enableOnAndroid
         extraScrollHeight={20}
+        keyboardDismissMode="on-drag"
       >
-          <Text style={[styles.title, { color: textColor }]}>
-            {t('auth.registerTitle')}
+        {/* Title */}
+        <Text style={[styles.title, isDark && { color: '#F9FAFB' }]}>
+          {t('auth.registerTitle')}
+        </Text>
+
+        {/* Social Login */}
+        <View style={styles.socialArea}>
+          <GoogleLoginButton
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            style={{ marginHorizontal: 16 }}
+          />
+        </View>
+
+        {/* Divider */}
+        <View style={styles.dividerRow}>
+          <View style={[styles.dividerLine, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+          <Text style={[styles.dividerText, isDark && { color: '#6B7280' }]}>
+            {t('common.or')}
           </Text>
+          <View style={[styles.dividerLine, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
+        </View>
 
-          {/* Name Input */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: textColor }]}>
-              {t('auth.name')} <Text style={styles.required}>*</Text>
-            </Text>
-            <View style={[styles.inputWrapper, { backgroundColor: inputBg, borderColor: errors.name ? '#EF4444' : inputBorder }]}>
-              <TextInput
-                style={[styles.input, { color: inputText }]}
-                placeholder={t('auth.namePlaceholder')}
-                placeholderTextColor={placeholderColor}
-                value={name}
-                onChangeText={(text) => { setName(text); setErrors({ ...errors, name: '' }); }}
-                autoCapitalize="words"
-              />
-            </View>
-            {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
-          </View>
+        {/* Input Fields */}
+        <View style={styles.inputArea}>
+          {/* Name */}
+          <FloatingInput
+            label={t('auth.namePlaceholder')}
+            value={name}
+            onChangeText={(text) => { setName(text); setErrors({ ...errors, name: '' }); }}
+            isDark={isDark}
+            autoCapitalize="words"
+            returnKeyType="next"
+            onSubmitEditing={() => emailRef.current?.focus()}
+            blurOnSubmit={false}
+          />
+          {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
 
-          {/* Email Input */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: textColor }]}>
-              {t('auth.email')} <Text style={styles.required}>*</Text>
-            </Text>
-            <View style={styles.emailRow}>
-              <View style={[styles.inputWrapper, styles.emailInput, { backgroundColor: inputBg, borderColor: errors.email ? '#EF4444' : inputBorder }]}>
-                <TextInput
-                  style={[styles.input, { color: inputText }]}
-                  placeholder={t('auth.emailPlaceholder')}
-                  placeholderTextColor={placeholderColor}
-                  value={email}
-                  onChangeText={(text) => {
-                    setEmail(text);
-                    setEmailChecked(false);
-                    setEmailStatus(null);
-                    setErrors({ ...errors, email: '' });
-                  }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoComplete="email"
-                />
-              </View>
-              <TouchableOpacity
-                style={[styles.checkButton, emailCheckLoading && { opacity: 0.6 }]}
-                onPress={handleCheckEmail}
-                disabled={emailCheckLoading}
-                activeOpacity={0.8}
-              >
-                {emailCheckLoading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text style={styles.checkButtonText}>{t('auth.checkDuplicate')}</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-            {errors.email ? (
-              <Text style={styles.errorText}>{errors.email}</Text>
-            ) : emailStatus === 'available' ? (
-              <Text style={styles.successText}>{t('auth.emailAvailable')}</Text>
-            ) : null}
-          </View>
-
-          {/* Password Input */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: textColor }]}>
-              {t('auth.password')} <Text style={styles.required}>*</Text>
-            </Text>
-            <View style={[styles.inputWrapper, { backgroundColor: inputBg, borderColor: errors.password ? '#EF4444' : inputBorder }]}>
-              <TextInput
-                style={[styles.input, { color: inputText, flex: 1 }]}
-                placeholder={t('auth.passwordPlaceholder')}
-                placeholderTextColor={placeholderColor}
-                value={password}
-                onChangeText={(text) => { setPassword(text); setErrors({ ...errors, password: '' }); }}
-                secureTextEntry={!showPassword}
+          {/* Email + Check */}
+          <View style={styles.emailRow}>
+            <View style={styles.emailInput}>
+              <FloatingInput
+                label={t('auth.emailPlaceholder')}
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  setEmailChecked(false);
+                  setEmailStatus(null);
+                  setErrors({ ...errors, email: '' });
+                }}
+                isDark={isDark}
+                keyboardType="email-address"
                 autoCapitalize="none"
+                autoComplete="email"
+                returnKeyType="next"
+                inputRef={emailRef}
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                blurOnSubmit={false}
               />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                <Ionicons
-                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
-                  size={20}
-                  color={placeholderColor}
-                />
-              </TouchableOpacity>
             </View>
-            {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+            <TouchableOpacity
+              style={[styles.checkButton, isDark && styles.checkButtonDark, emailCheckLoading && { opacity: 0.5 }]}
+              onPress={handleCheckEmail}
+              disabled={emailCheckLoading}
+              activeOpacity={0.7}
+            >
+              {emailCheckLoading ? (
+                <ActivityIndicator color={isDark ? '#F9FAFB' : '#374151'} size="small" />
+              ) : (
+                <Text style={[styles.checkButtonText, isDark && styles.checkButtonTextDark]}>
+                  {t('auth.checkDuplicate')}
+                </Text>
+              )}
+            </TouchableOpacity>
           </View>
-
-          {/* Password Confirm Input */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: textColor }]}>
-              {t('auth.passwordConfirm')} <Text style={styles.required}>*</Text>
-            </Text>
-            <View style={[styles.inputWrapper, { backgroundColor: inputBg, borderColor: errors.passwordConfirm ? '#EF4444' : inputBorder }]}>
-              <TextInput
-                style={[styles.input, { color: inputText, flex: 1 }]}
-                placeholder={t('auth.passwordConfirmPlaceholder')}
-                placeholderTextColor={placeholderColor}
-                value={passwordConfirm}
-                onChangeText={(text) => { setPasswordConfirm(text); setErrors({ ...errors, passwordConfirm: '' }); }}
-                secureTextEntry={!showPasswordConfirm}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity onPress={() => setShowPasswordConfirm(!showPasswordConfirm)} style={styles.eyeIcon}>
-                <Ionicons
-                  name={showPasswordConfirm ? 'eye-outline' : 'eye-off-outline'}
-                  size={20}
-                  color={placeholderColor}
-                />
-              </TouchableOpacity>
-            </View>
-            {errors.passwordConfirm ? <Text style={styles.errorText}>{errors.passwordConfirm}</Text> : null}
-          </View>
-
-          {/* Form Error */}
-          {errors.form ? (
-            <View style={styles.formError}>
-              <Ionicons name="alert-circle" size={16} color="#EF4444" />
-              <Text style={styles.formErrorText}>{errors.form}</Text>
-            </View>
+          {errors.email ? (
+            <Text style={styles.errorText}>{errors.email}</Text>
+          ) : emailStatus === 'available' ? (
+            <Text style={styles.successText}>{t('auth.emailAvailable')}</Text>
           ) : null}
 
-          {/* Register Button */}
-          <TouchableOpacity
-            style={[styles.registerButton, isSubmitting && { opacity: 0.6 }]}
-            onPress={handleRegister}
-            disabled={isSubmitting}
-            activeOpacity={0.8}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <Text style={styles.registerButtonText}>{t('auth.register')}</Text>
-            )}
+          {/* Password */}
+          <FloatingInput
+            label={t('auth.passwordPlaceholder')}
+            value={password}
+            onChangeText={(text) => { setPassword(text); setErrors({ ...errors, password: '' }); }}
+            isDark={isDark}
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            returnKeyType="next"
+            inputRef={passwordRef}
+            onSubmitEditing={() => passwordConfirmRef.current?.focus()}
+            blurOnSubmit={false}
+            rightIcon={
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons
+                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={18}
+                  color={isDark ? '#6B7280' : '#9CA3AF'}
+                />
+              </TouchableOpacity>
+            }
+          />
+          {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
+
+          {/* Password Confirm */}
+          <FloatingInput
+            label={t('auth.passwordConfirmPlaceholder')}
+            value={passwordConfirm}
+            onChangeText={(text) => { setPasswordConfirm(text); setErrors({ ...errors, passwordConfirm: '' }); }}
+            isDark={isDark}
+            secureTextEntry={!showPasswordConfirm}
+            autoCapitalize="none"
+            returnKeyType="done"
+            inputRef={passwordConfirmRef}
+            onSubmitEditing={handleRegister}
+            rightIcon={
+              <TouchableOpacity onPress={() => setShowPasswordConfirm(!showPasswordConfirm)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Ionicons
+                  name={showPasswordConfirm ? 'eye-outline' : 'eye-off-outline'}
+                  size={18}
+                  color={isDark ? '#6B7280' : '#9CA3AF'}
+                />
+              </TouchableOpacity>
+            }
+          />
+          {errors.passwordConfirm ? <Text style={styles.errorText}>{errors.passwordConfirm}</Text> : null}
+        </View>
+
+        {/* Form Error */}
+        {errors.form ? (
+          <View style={[styles.formError, isDark && styles.formErrorDark]}>
+            <Ionicons name="alert-circle" size={14} color="#EF4444" />
+            <Text style={styles.formErrorText}>{errors.form}</Text>
+          </View>
+        ) : null}
+
+        {/* Register Button */}
+        <TouchableOpacity
+          style={[styles.registerButton, isSubmitting && { opacity: 0.6 }]}
+          onPress={handleRegister}
+          disabled={isSubmitting}
+          activeOpacity={0.8}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color="#FFFFFF" size="small" />
+          ) : (
+            <Text style={styles.registerButtonText}>{t('auth.register')}</Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Login link */}
+        <View style={styles.linkRow}>
+          <Text style={[styles.linkLabel, isDark && { color: '#9CA3AF' }]}>
+            {t('auth.alreadyHaveAccount')}
+          </Text>
+          <TouchableOpacity onPress={() => router.replace('/login')}>
+            <Text style={styles.linkText}>{t('auth.login')}</Text>
           </TouchableOpacity>
+        </View>
       </KeyboardAwareScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  containerDark: {
+    backgroundColor: '#111827',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 8,
+    height: 48,
   },
   backButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
+    flexGrow: 1,
+    paddingHorizontal: 28,
+    paddingBottom: 60,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 28,
+    fontSize: 20,
+    fontWeight: '300',
+    color: '#1F2937',
+    marginBottom: 20,
   },
-  fieldGroup: {
-    marginBottom: 18,
+  socialArea: {
+    alignItems: 'stretch',
+    marginBottom: 20,
+    paddingHorizontal: 16,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  required: {
-    color: '#EF4444',
-  },
-  inputWrapper: {
+  dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    minHeight: 50,
+    marginBottom: 4,
+    gap: 10,
   },
-  input: {
+  dividerLine: {
     flex: 1,
-    fontSize: 15,
-    paddingVertical: 14,
+    height: 1,
   },
-  eyeIcon: {
-    padding: 4,
+  dividerText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  inputArea: {
+    marginBottom: 4,
   },
   emailRow: {
     flexDirection: 'row',
+    alignItems: 'flex-end',
     gap: 8,
   },
   emailInput: {
     flex: 1,
   },
   checkButton: {
-    backgroundColor: '#6B7280',
-    borderRadius: 12,
-    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    height: 36,
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 50,
+    marginBottom: 12,
+  },
+  checkButtonDark: {
+    borderColor: '#4B5563',
   },
   checkButtonText: {
-    color: '#252525',
-    fontSize: 14,
-    fontWeight: '600',
+    color: '#374151',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  checkButtonTextDark: {
+    color: '#D1D5DB',
   },
   errorText: {
     color: '#EF4444',
     fontSize: 12,
-    marginTop: 4,
+    marginTop: -4,
+    marginBottom: 4,
   },
   successText: {
     color: '#10B981',
     fontSize: 12,
-    marginTop: 4,
+    marginTop: -4,
+    marginBottom: 4,
   },
   formError: {
     flexDirection: 'row',
@@ -406,8 +442,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
     padding: 10,
     borderRadius: 10,
-    marginBottom: 16,
+    marginBottom: 12,
     gap: 8,
+  },
+  formErrorDark: {
+    backgroundColor: '#1C1917',
   },
   formErrorText: {
     color: '#EF4444',
@@ -416,49 +455,40 @@ const styles = StyleSheet.create({
   },
   registerButton: {
     backgroundColor: '#FF6A5F',
-    borderRadius: 25,
-    paddingVertical: 15,
+    borderRadius: 10,
+    paddingVertical: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
-    minHeight: 50,
+    marginHorizontal: 16,
+    marginBottom: 16,
   },
   registerButtonText: {
-    color: '#252525',
-    fontSize: 16,
+    color: '#fff',
+    fontSize: 15,
     fontWeight: '600',
   },
-  // Tab UI
-  tabRow: {
+  linkRow: {
     flexDirection: 'row',
-    paddingHorizontal: 24,
-  },
-  tabActive: {
-    flex: 1,
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: '#FF6A5F',
+    justifyContent: 'center',
     alignItems: 'center',
+    gap: 6,
   },
-  tabActiveText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FF6A5F',
+  linkLabel: {
+    fontSize: 13,
+    color: '#6B7280',
   },
-  tabInactive: {
-    flex: 1,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    alignItems: 'center',
-  },
-  tabInactiveText: {
-    fontSize: 15,
+  linkText: {
+    fontSize: 13,
+    color: '#6366F1',
     fontWeight: '500',
   },
-  // Complete screen (Figma MO_JOI_0301)
+  // Complete screen
   completeScreen: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  completeScreenDark: {
+    backgroundColor: '#111827',
   },
   completeContainer: {
     flex: 1,
@@ -493,15 +523,13 @@ const styles = StyleSheet.create({
   },
   startButton: {
     backgroundColor: '#FF6A5F',
-    borderRadius: 25,
-    paddingVertical: 15,
-    paddingHorizontal: 48,
+    borderRadius: 10,
+    paddingVertical: 13,
     alignItems: 'center',
-    minHeight: 50,
     width: '100%',
   },
   startButtonText: {
-    color: '#252525',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },

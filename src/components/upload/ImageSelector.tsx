@@ -50,8 +50,7 @@ export function ImageSelector({
             setImageAspectRatio(width / height);
           }
         },
-        (error) => {
-          console.log('[ImageSelector] Failed to get image size:', error);
+        () => {
           setImageAspectRatio(DEFAULT_ASPECT_RATIO);
         }
       );

@@ -144,7 +144,6 @@ async function getFileSize(uri: string, providedSize: number): Promise<number> {
       const blob = await response.blob();
       return blob.size;
     } catch (err) {
-      console.warn('[Upload] Failed to get file size:', err);
       return 1024 * 1024; // fallback 1MB
     }
   }
@@ -167,7 +166,6 @@ export async function uploadImage(
 ): Promise<UploadCompleteResponse> {
   // 0. 파일 크기 확인
   const fileSize = await getFileSize(image.uri, image.fileSize);
-  console.log('[Upload] File size:', fileSize, 'bytes');
 
   // 1. SHA256 해시 계산 (0-10%)
   onStatusChange?.('해시 계산 중...');
@@ -176,10 +174,8 @@ export async function uploadImage(
   let sha256: string;
   try {
     sha256 = await calculateSHA256(image.uri);
-    console.log('[Upload] SHA256:', sha256.substring(0, 16) + '...');
   } catch (err) {
     // 해시 실패 시 랜덤 값 사용 (중복 체크 안됨)
-    console.warn('[Upload] SHA256 calculation failed, using random hash');
     sha256 = Array.from(crypto.getRandomValues(new Uint8Array(32)))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
@@ -202,7 +198,6 @@ export async function uploadImage(
 
   // 중복 파일 체크 - skip_upload이면 S3 건너뛰고 새 레코드 생성
   if (prepareResponse.duplicate && prepareResponse.skip_upload && prepareResponse.upload_id) {
-    console.log('[Upload] Duplicate reuse: skip S3, create new record with existing storage_key');
     onStatusChange?.('분석 요청 중...');
     onProgress?.(90);
 
@@ -212,9 +207,6 @@ export async function uploadImage(
       analysis_mode: getCurrentAnalysisMode(),
       taken_at: takenAt,
     };
-
-    console.log('=== completeUpload (duplicate reuse) ===');
-    console.log('request body:', JSON.stringify(requestBody, null, 2));
 
     const result = await completeUpload(requestBody);
     onProgress?.(100);
@@ -249,16 +241,11 @@ export async function uploadImage(
     taken_at: takenAt,  // 캘린더에서 선택한 날짜
   };
 
-  console.log('=== completeUpload Request ===');
-  console.log('takenAt param:', takenAt);
-  console.log('request body:', JSON.stringify(requestBody, null, 2));
-
   const result = await completeUpload(requestBody);
 
   onProgress?.(100);
   onStatusChange?.('완료!');
 
-  console.log('[Upload] Complete:', result.media_id, 'Job:', result.job_id);
   return result;
 }
 

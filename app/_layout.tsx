@@ -8,8 +8,11 @@ import { AppState, Platform } from 'react-native';
 import 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
+import * as Updates from 'expo-updates';
 
+import { initializeKakaoSDK } from '@react-native-kakao/core';
 import { useColorScheme } from '@/components/useColorScheme';
+import { initSentry } from '../src/utils/sentry';
 import { useAuthStore } from '@src/store/authStore';
 import { useSettingsStore } from '@src/store/settingsStore';
 import { useAppLockStore } from '@src/store/appLockStore';
@@ -21,6 +24,17 @@ export {
   // Catch any errors thrown by the Layout component.
   ErrorBoundary,
 } from 'expo-router';
+
+initSentry();
+
+const kakaoKey = process.env.EXPO_PUBLIC_KAKAO_APP_KEY;
+if (kakaoKey && Platform.OS !== 'web') {
+  try {
+    initializeKakaoSDK(kakaoKey);
+  } catch (e) {
+    // Kakao SDK init failed — silently ignore
+  }
+}
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
@@ -56,6 +70,22 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
+
+  // Check for OTA updates on app start
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    (async () => {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch {
+        // silently fail
+      }
+    })();
+  }, []);
 
   // Check auth status, load settings, app lock, and onboarding state on app start
   useEffect(() => {
@@ -96,8 +126,10 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, []);
 
-  // Notification initialization + deep link handling
+  // Notification initialization + deep link handling (native only)
   useEffect(() => {
+    if (Platform.OS === 'web') return;
+
     useReminderStore.getState().initialize();
 
     const responseSubscription =

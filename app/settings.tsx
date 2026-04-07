@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
+  Alert,
   Modal,
   Platform,
   ScrollView,
@@ -8,7 +9,6 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,10 +18,15 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore, type ThemeMode, type AIMode } from '@/src/store/settingsStore';
 import { useAppLockStore } from '@/src/store/appLockStore';
 import { useReminderStore } from '@/src/store/reminderStore';
+import { useAuthStore } from '@/src/store/authStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { Logo } from '@/src/components/common/Logo';
 import { PinSetup } from '@/src/components/auth/PinSetup';
 import { PinInput } from '@/src/components/auth/PinInput';
+import { AppTouchable } from '@/src/components/common/AppTouchable';
+import { useDialog } from '@/src/components/ui/Dialog';
+
+const ICON_COLOR = '#8B5CF6';
 
 export default function SettingsScreen() {
   const systemColorScheme = useColorScheme();
@@ -45,6 +50,8 @@ export default function SettingsScreen() {
     disableReminder,
     setTime: setReminderTime,
   } = useReminderStore();
+  const { logout } = useAuthStore();
+  const { confirm: dialogConfirm } = useDialog();
 
   const [pinModal, setPinModal] = useState<'setup' | 'disable' | 'change-verify' | 'change-new' | null>(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -55,6 +62,14 @@ export default function SettingsScreen() {
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
+
+  const bg = isDark ? '#0F1923' : '#F9FAFB';
+  const cardBg = isDark ? '#1A2332' : '#FFFFFF';
+  const divider = isDark ? '#2D3748' : '#E5E7EB';
+  const labelColor = isDark ? '#F9FAFB' : '#111827';
+  const subColor = isDark ? '#9CA3AF' : '#6B7280';
+  const sectionColor = isDark ? '#6B7280' : '#9CA3AF';
+  const chevronColor = isDark ? '#4B5563' : '#9CA3AF';
 
   const handleAppLockToggle = useCallback(() => {
     if (appLockEnabled) {
@@ -97,11 +112,11 @@ export default function SettingsScreen() {
     }
   }, [changePin, changePinCurrent, t]);
 
-  const handleReminderToggle = useCallback(async () => {
+  const handleReminderToggle = useCallback(() => {
     if (reminderEnabled) {
-      await disableReminder();
+      disableReminder();
     } else {
-      await enableReminder();
+      enableReminder();
     }
   }, [reminderEnabled, enableReminder, disableReminder]);
 
@@ -114,64 +129,169 @@ export default function SettingsScreen() {
     }
   }, [setReminderTime]);
 
+  const handleLogout = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      const confirmed = await dialogConfirm({
+        title: t('auth.logout'),
+        description: t('auth.logoutConfirm'),
+        confirmText: t('auth.logout'),
+        cancelText: t('common.cancel'),
+        variant: 'danger',
+      });
+      if (confirmed) {
+        await logout();
+        router.replace('/login');
+      }
+    } else {
+      Alert.alert(
+        t('auth.logout'),
+        t('auth.logoutConfirm'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('auth.logout'),
+            style: 'destructive',
+            onPress: async () => {
+              await logout();
+              router.replace('/login');
+            },
+          },
+        ],
+      );
+    }
+  }, [logout, router, t, dialogConfirm]);
+
   const timeValue = new Date();
   timeValue.setHours(reminderHour, reminderMinute, 0, 0);
 
-  const formatTime = (h: number, m: number) => {
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-  };
+  const formatTime = (h: number, m: number) =>
+    `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
+    <View style={[styles.container, { backgroundColor: bg, paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={isDark ? '#F9FAFB' : '#1F2937'} />
-        </TouchableOpacity>
+        <AppTouchable style={styles.backButton} onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={24} color={labelColor} />
+        </AppTouchable>
         <View style={styles.headerCenter}>
-          <Logo size={28} showText={false} color={isDark ? '#F9FAFB' : '#1F2937'} />
-          <Text style={[styles.headerTitle, isDark && styles.textLight]}>{t('settings.title')}</Text>
+          <Logo size={28} showText={false} color={labelColor} />
+          <Text style={[styles.headerTitle, { color: labelColor }]}>{t('settings.title')}</Text>
         </View>
         <View style={styles.backButton} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={[styles.card, isDark && styles.cardDark]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]} showsVerticalScrollIndicator={false}>
+
+        {/* ── Section 1: App Settings ── */}
+        <Text style={[styles.sectionTitle, { color: sectionColor }]}>
+          {t('settings.appSettingsSection')}
+        </Text>
+        <View style={[styles.card, { backgroundColor: cardBg }]}>
           {/* Push Notifications */}
-          <View style={styles.menuItem}>
+          <View style={[styles.menuItem, { borderBottomColor: divider }]}>
             <View style={styles.menuItemLeft}>
-              <Ionicons name="notifications-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('settings.pushNotification')}</Text>
+              <Ionicons name="notifications-outline" size={24} color={ICON_COLOR} />
+              <Text style={[styles.menuLabel, { color: labelColor }]}>{t('settings.pushNotification')}</Text>
             </View>
             <Switch
               value={notificationsEnabled}
               onValueChange={setNotificationsEnabled}
-              trackColor={{ false: '#D1D5DB', true: '#6366F1' }}
+              trackColor={{ false: isDark ? '#374151' : '#D1D5DB', true: '#8B5CF6' }}
               thumbColor="#FFFFFF"
             />
           </View>
 
-          {/* App Lock */}
-          <View style={styles.menuItem}>
+          {/* Daily Reminder */}
+          <View style={[styles.menuItem, { borderBottomColor: divider }]}>
             <View style={{ flex: 1 }}>
               <View style={styles.menuItemLeft}>
-                <Ionicons name="lock-closed-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('appLock.title')}</Text>
+                <Ionicons name="alarm-outline" size={24} color={ICON_COLOR} />
+                <Text style={[styles.menuLabel, { color: labelColor }]}>{t('reminder.title')}</Text>
               </View>
-              <Text style={styles.aiModeDesc}>{t('appLock.description')}</Text>
+              <Text style={[styles.subDesc, { color: subColor }]}>
+                {Platform.OS === 'web' ? t('reminder.webNotice') : t('reminder.description')}
+              </Text>
+            </View>
+            <Switch
+              value={reminderEnabled}
+              onValueChange={handleReminderToggle}
+              disabled={Platform.OS === 'web'}
+              trackColor={{ false: isDark ? '#374151' : '#D1D5DB', true: '#8B5CF6' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          {/* Reminder Time */}
+          {reminderEnabled && (
+            <AppTouchable
+              style={[styles.menuItem, { borderBottomColor: divider }]}
+              onPress={() => setShowTimePicker(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.menuItemLeft}>
+                <Ionicons name="time-outline" size={24} color={ICON_COLOR} />
+                <Text style={[styles.menuLabel, { color: labelColor }]}>{t('reminder.timeTitle')}</Text>
+              </View>
+              <Text style={[styles.settingValue, { color: subColor }]}>
+                {formatTime(reminderHour, reminderMinute)}
+              </Text>
+            </AppTouchable>
+          )}
+
+          {/* Language */}
+          <AppTouchable
+            style={[styles.menuItem, { borderBottomColor: divider }]}
+            onPress={() => router.push('/language-select')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="language-outline" size={24} color={ICON_COLOR} />
+              <Text style={[styles.menuLabel, { color: labelColor }]}>{t('settings.languageSelect')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={chevronColor} />
+          </AppTouchable>
+
+          {/* Dark Mode */}
+          <AppTouchable
+            style={[styles.menuItem, { borderBottomColor: divider }]}
+            onPress={() => {
+              const modes: ThemeMode[] = ['system', 'light', 'dark'];
+              const currentIndex = modes.indexOf(themeMode);
+              setThemeMode(modes[(currentIndex + 1) % modes.length]);
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="moon-outline" size={24} color={ICON_COLOR} />
+              <Text style={[styles.menuLabel, { color: labelColor }]}>{t('settings.darkMode')}</Text>
+            </View>
+            <Text style={[styles.settingValue, { color: subColor }]}>
+              {themeMode === 'system' ? t('settings.darkModeSystem') : themeMode === 'dark' ? t('settings.darkModeDark') : t('settings.darkModeLight')}
+            </Text>
+          </AppTouchable>
+
+          {/* App Lock */}
+          <View style={[styles.menuItem, { borderBottomColor: divider }, !appLockEnabled && styles.menuItemLast]}>
+            <View style={{ flex: 1 }}>
+              <View style={styles.menuItemLeft}>
+                <Ionicons name="lock-closed-outline" size={24} color={ICON_COLOR} />
+                <Text style={[styles.menuLabel, { color: labelColor }]}>{t('appLock.title')}</Text>
+              </View>
+              <Text style={[styles.subDesc, { color: subColor }]}>{t('appLock.description')}</Text>
             </View>
             <Switch
               value={appLockEnabled}
               onValueChange={handleAppLockToggle}
-              trackColor={{ false: '#D1D5DB', true: '#6366F1' }}
+              trackColor={{ false: isDark ? '#374151' : '#D1D5DB', true: '#8B5CF6' }}
               thumbColor="#FFFFFF"
             />
           </View>
 
-          {/* Change PIN (only visible when app lock is enabled) */}
+          {/* Change PIN */}
           {appLockEnabled && (
-            <TouchableOpacity
-              style={styles.menuItem}
+            <AppTouchable
+              style={[styles.menuItem, styles.menuItemLast, { borderBottomColor: divider }]}
               onPress={() => {
                 setChangePinError(null);
                 setChangePinCurrent('');
@@ -180,129 +300,79 @@ export default function SettingsScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.menuItemLeft}>
-                <Ionicons name="key-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('appLock.changePin')}</Text>
+                <Ionicons name="key-outline" size={24} color={ICON_COLOR} />
+                <Text style={[styles.menuLabel, { color: labelColor }]}>{t('appLock.changePin')}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
+              <Ionicons name="chevron-forward" size={18} color={chevronColor} />
+            </AppTouchable>
           )}
+        </View>
 
-          {/* Daily Reminder */}
-          <View style={styles.menuItem}>
-            <View style={{ flex: 1 }}>
-              <View style={styles.menuItemLeft}>
-                <Ionicons name="alarm-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('reminder.title')}</Text>
-              </View>
-              <Text style={styles.aiModeDesc}>{t('reminder.description')}</Text>
-            </View>
-            <Switch
-              value={reminderEnabled}
-              onValueChange={handleReminderToggle}
-              trackColor={{ false: '#D1D5DB', true: '#6366F1' }}
-              thumbColor="#FFFFFF"
-            />
-          </View>
-
-          {/* Reminder Time (only visible when reminder is enabled) */}
-          {reminderEnabled && (
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => setShowTimePicker(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.menuItemLeft}>
-                <Ionicons name="time-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('reminder.timeTitle')}</Text>
-              </View>
-              <Text style={styles.settingValue}>{formatTime(reminderHour, reminderMinute)}</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Dark Mode */}
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => {
-              const modes: ThemeMode[] = ['system', 'light', 'dark'];
-              const currentIndex = modes.indexOf(themeMode);
-              const nextMode = modes[(currentIndex + 1) % modes.length];
-              setThemeMode(nextMode);
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="moon-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('settings.darkMode')}</Text>
-            </View>
-            <Text style={styles.settingValue}>
-              {themeMode === 'system' ? t('settings.darkModeSystem') : themeMode === 'dark' ? t('settings.darkModeDark') : t('settings.darkModeLight')}
-            </Text>
-          </TouchableOpacity>
-
-          {/* AI Analysis Mode */}
-          <TouchableOpacity
-            style={styles.menuItem}
+        {/* ── Section 2: App Info ── */}
+        <Text style={[styles.sectionTitle, { color: sectionColor }]}>
+          {t('more.title')}
+        </Text>
+        <View style={[styles.card, { backgroundColor: cardBg }]}>
+          {/* AI Mode */}
+          <AppTouchable
+            style={[styles.menuItem, { borderBottomColor: divider }]}
             onPress={() => {
               const modes: AIMode[] = ['fast', 'precise'];
               const currentIndex = modes.indexOf(aiMode);
-              const nextMode = modes[(currentIndex + 1) % modes.length];
-              setAIMode(nextMode);
+              setAIMode(modes[(currentIndex + 1) % modes.length]);
             }}
             activeOpacity={0.7}
           >
             <View style={{ flex: 1 }}>
               <View style={styles.menuItemLeft}>
-                <Ionicons name="sparkles-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-                <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('settings.aiMode')}</Text>
+                <Ionicons name="sparkles-outline" size={24} color={ICON_COLOR} />
+                <Text style={[styles.menuLabel, { color: labelColor }]}>{t('settings.aiMode')}</Text>
               </View>
-              <Text style={styles.aiModeDesc}>
+              <Text style={[styles.subDesc, { color: subColor }]}>
                 {aiMode === 'fast' ? t('settings.aiModeFastDesc') : t('settings.aiModePreciseDesc')}
               </Text>
             </View>
-            <Text style={styles.settingValue}>
+            <Text style={[styles.settingValue, { color: subColor }]}>
               {aiMode === 'fast' ? t('settings.aiModeFast') : t('settings.aiModePrecise')}
             </Text>
-          </TouchableOpacity>
+          </AppTouchable>
 
           {/* Labs */}
-          <TouchableOpacity
-            style={styles.menuItem}
+          <AppTouchable
+            style={[styles.menuItem, { borderBottomColor: divider }]}
             onPress={() => router.push('/labs')}
             activeOpacity={0.7}
           >
             <View style={styles.menuItemLeft}>
-              <Ionicons name="flask-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('settings.labs')}</Text>
+              <Ionicons name="flask-outline" size={24} color={ICON_COLOR} />
+              <Text style={[styles.menuLabel, { color: labelColor }]}>{t('settings.labs')}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
+            <Ionicons name="chevron-forward" size={18} color={chevronColor} />
+          </AppTouchable>
 
           {/* App Info */}
-          <TouchableOpacity
-            style={styles.menuItem}
+          <AppTouchable
+            style={[styles.menuItem, styles.menuItemLast, { borderBottomColor: divider }]}
             onPress={() => router.push('/app-info')}
             activeOpacity={0.7}
           >
             <View style={styles.menuItemLeft}>
-              <Ionicons name="information-circle-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('settings.appInfo')}</Text>
+              <Ionicons name="information-circle-outline" size={24} color={ICON_COLOR} />
+              <Text style={[styles.menuLabel, { color: labelColor }]}>{t('settings.appInfo')}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-
-          {/* Language */}
-          <TouchableOpacity
-            style={[styles.menuItem, styles.menuItemLast]}
-            onPress={() => router.push('/language-select')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.menuItemLeft}>
-              <Ionicons name="language-outline" size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
-              <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('settings.languageSelect')}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
+            <Ionicons name="chevron-forward" size={18} color={chevronColor} />
+          </AppTouchable>
         </View>
+
+        {/* ── Logout ── */}
+        <TouchableOpacity
+          style={[styles.logoutButton, { backgroundColor: cardBg }]}
+          onPress={handleLogout}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="log-out-outline" size={24} color="#EF4444" />
+          <Text style={styles.logoutText}>{t('auth.logout')}</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* PIN Modals */}
@@ -315,11 +385,11 @@ export default function SettingsScreen() {
       </Modal>
 
       <Modal visible={pinModal === 'disable'} animationType="slide" presentationStyle="fullScreen">
-        <View style={[styles.modalContainer, isDark && styles.containerDark, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <View style={[styles.modalContainer, { backgroundColor: bg }, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setPinModal(null)} style={styles.backButton}>
-              <Ionicons name="close" size={24} color={isDark ? '#F9FAFB' : '#1F2937'} />
-            </TouchableOpacity>
+            <AppTouchable onPress={() => setPinModal(null)} style={styles.backButton}>
+              <Ionicons name="close" size={24} color={labelColor} />
+            </AppTouchable>
           </View>
           <PinInput
             onComplete={handleDisablePin}
@@ -330,11 +400,11 @@ export default function SettingsScreen() {
       </Modal>
 
       <Modal visible={pinModal === 'change-verify'} animationType="slide" presentationStyle="fullScreen">
-        <View style={[styles.modalContainer, isDark && styles.containerDark, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <View style={[styles.modalContainer, { backgroundColor: bg }, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
           <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setPinModal(null)} style={styles.backButton}>
-              <Ionicons name="close" size={24} color={isDark ? '#F9FAFB' : '#1F2937'} />
-            </TouchableOpacity>
+            <AppTouchable onPress={() => setPinModal(null)} style={styles.backButton}>
+              <Ionicons name="close" size={24} color={labelColor} />
+            </AppTouchable>
           </View>
           <PinInput
             onComplete={handleChangePinVerify}
@@ -368,19 +438,19 @@ export default function SettingsScreen() {
 
       {showTimePicker && Platform.OS === 'ios' && (
         <Modal transparent animationType="slide" onRequestClose={() => setShowTimePicker(false)}>
-          <TouchableOpacity
+          <AppTouchable
             style={styles.timePickerOverlay}
             activeOpacity={1}
             onPress={() => setShowTimePicker(false)}
           >
             <View
-              style={[styles.timePickerSheet, isDark && styles.sheetDark]}
+              style={[styles.timePickerSheet, { backgroundColor: cardBg }]}
               onStartShouldSetResponder={() => true}
             >
               <View style={styles.timePickerHeader}>
-                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                <AppTouchable onPress={() => setShowTimePicker(false)}>
                   <Text style={styles.timePickerDone}>{t('common.done')}</Text>
-                </TouchableOpacity>
+                </AppTouchable>
               </View>
               <DateTimePicker
                 value={timeValue}
@@ -388,10 +458,10 @@ export default function SettingsScreen() {
                 is24Hour={true}
                 display="spinner"
                 onChange={handleTimeChange}
-                textColor={isDark ? '#F9FAFB' : '#1F2937'}
+                textColor={labelColor}
               />
             </View>
-          </TouchableOpacity>
+          </AppTouchable>
         </Modal>
       )}
     </View>
@@ -401,13 +471,9 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  containerDark: {
-    backgroundColor: '#111827',
   },
   header: {
-    height: 56,
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -427,32 +493,29 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '300',
-    color: '#1F2937',
-  },
-  textLight: {
-    color: '#F9FAFB',
   },
   content: {
-    padding: 16,
-    paddingBottom: 40,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
+    marginTop: 4,
+    marginLeft: 4,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginBottom: 16,
-  },
-  cardDark: {
-    backgroundColor: '#1F2937',
+    borderRadius: 14,
+    marginBottom: 20,
   },
   menuItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    minHeight: 56,
+    minHeight: 52,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   menuItemLast: {
     borderBottomWidth: 0,
@@ -463,25 +526,35 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   menuLabel: {
-    fontSize: 16,
-    color: '#374151',
+    fontSize: 15,
   },
-  aiModeDesc: {
+  subDesc: {
     fontSize: 12,
-    color: '#9CA3AF',
-    marginLeft: 34,
+    marginLeft: 36,
     marginTop: 2,
   },
   settingValue: {
     fontSize: 14,
-    color: '#9CA3AF',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 14,
+    height: 52,
+    marginBottom: 12,
+  },
+  logoutText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#EF4444',
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
   },
   modalHeader: {
-    height: 56,
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
@@ -492,13 +565,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   timePickerSheet: {
-    backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 20,
-  },
-  sheetDark: {
-    backgroundColor: '#1F2937',
   },
   timePickerHeader: {
     flexDirection: 'row',
@@ -509,6 +578,6 @@ const styles = StyleSheet.create({
   timePickerDone: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FA5252',
+    color: '#8B5CF6',
   },
 });

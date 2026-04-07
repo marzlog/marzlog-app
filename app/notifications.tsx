@@ -156,7 +156,7 @@ export default function NotificationsScreen() {
           );
         }
       } catch (err) {
-        console.warn('[Notifications] Failed to mark as read:', err);
+        // silently fail on mark as read
       }
     }
   };

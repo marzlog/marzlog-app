@@ -7,11 +7,21 @@
 import { useState, useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Alert, Platform } from 'react-native';
+import { AxiosError } from 'axios';
 import { uploadImage, prepareUpload, uploadToS3, calculateSHA256, completeGroupUpload, addImagesToGroup } from '../api/upload';
 import type { SelectedImage, UploadItem, UploadCompleteResponse, UploadStatus, GroupUploadCompleteResponse, GroupUploadItem } from '../types/upload';
 import { getErrorMessage } from '../utils/errorMessages';
+import { captureError } from '../utils/sentry';
 import { t } from '../i18n';
 import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
+
+function isQuotaExceededError(err: unknown): boolean {
+  if (err instanceof AxiosError) {
+    return err.response?.status === 413 &&
+      err.response?.data?.error_code === 'STORAGE_QUOTA_EXCEEDED';
+  }
+  return false;
+}
 
 const MAX_SELECTION = 5; // 대표 1개 + 서브 4개
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
@@ -20,6 +30,7 @@ export function useImageUpload() {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
 
   // 갤러리 권한 요청
   const requestPermission = useCallback(async () => {
@@ -118,9 +129,6 @@ export function useImageUpload() {
 
   // 업로드 시작 (직접 아이템을 전달받거나 상태에서 가져옴)
   const startUpload = useCallback(async (directItems?: UploadItem[], takenAt?: string): Promise<UploadCompleteResponse[]> => {
-    console.log('=== useImageUpload.startUpload ===');
-    console.log('takenAt received:', takenAt);
-
     const pendingItems = directItems
       ? directItems.filter((i) => i.status === 'idle' || i.status === 'error')
       : items.filter((i) => i.status === 'idle' || i.status === 'error');
@@ -178,15 +186,19 @@ export function useImageUpload() {
           mediaId: result.media_id,
         });
         results.push(result);
-
-        console.log(`✅ 업로드 완료: ${item.filename}, media_id: ${result.media_id}`);
       } catch (err) {
+        if (isQuotaExceededError(err)) {
+          setQuotaExceeded(true);
+          setError(t('storage.quotaExceeded'));
+          updateItem(item.id, { status: 'error', error: t('storage.quotaExceeded') });
+          break;
+        }
         const errorMsg = getErrorMessage(err);
         updateItem(item.id, {
           status: 'error',
           error: errorMsg,
         });
-        console.error(`❌ 업로드 실패: ${item.filename}`, err);
+        captureError(err instanceof Error ? err : new Error(String(err)), { context: 'useImageUpload.startUpload', filename: item.filename });
       }
     }
 
@@ -221,6 +233,7 @@ export function useImageUpload() {
   const reset = useCallback(() => {
     setItems([]);
     setError(null);
+    setQuotaExceeded(false);
   }, []);
 
   // 그룹 업로드 시작 (여러 이미지를 하나의 그룹으로)
@@ -230,10 +243,6 @@ export function useImageUpload() {
     takenAt?: string,  // 캘린더에서 선택한 날짜
     metadata?: { title?: string; content?: string; memo?: string; emotion?: string; intensity?: number }
   ): Promise<GroupUploadCompleteResponse | null> => {
-    console.log('=== useImageUpload.startGroupUpload ===');
-    console.log('takenAt received:', takenAt);
-    console.log('directItems count:', directItems.length);
-    console.log('primaryIndex:', primaryIndex);
     if (directItems.length === 0) {
       Alert.alert('알림', '업로드할 사진이 없습니다.');
       return null;
@@ -283,7 +292,6 @@ export function useImageUpload() {
 
         // 중복 체크 - skip_upload이면 S3 업로드 건너뛰고 그룹에 포함
         if (prepareResponse.duplicate && prepareResponse.skip_upload) {
-          console.log(`[GroupUpload] Duplicate reuse: ${item.filename} (skip S3, reuse storage_key)`);
           duplicateCount++;
 
           // S3 업로드 건너뛰고 바로 그룹에 포함
@@ -342,18 +350,12 @@ export function useImageUpload() {
         ...metadata,
       };
 
-      console.log('=== completeGroupUpload Request ===');
-      console.log('takenAt param:', takenAt);
-      console.log('request body:', JSON.stringify(groupRequestBody, null, 2));
-
       const result = await completeGroupUpload(groupRequestBody);
 
       // 모든 아이템 완료 처리
       directItems.forEach(item => {
         updateItem(item.id, { status: 'done', progress: 100 });
       });
-
-      console.log(`✅ 그룹 업로드 완료: ${result.total_images}장, group_id: ${result.group_id}, 중복: ${duplicateCount}장`);
 
       let alertMessage = `${result.total_images}장이 업로드되었습니다.`;
       if (duplicateCount > 0) {
@@ -367,9 +369,15 @@ export function useImageUpload() {
       return result;
 
     } catch (err) {
+      if (isQuotaExceededError(err)) {
+        setQuotaExceeded(true);
+        setError(t('storage.quotaExceeded'));
+        setIsUploading(false);
+        return null;
+      }
       const errorMsg = getErrorMessage(err);
       setError(errorMsg);
-      console.error('❌ 그룹 업로드 실패:', err);
+      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'useImageUpload.startGroupUpload' });
       Alert.alert(t('common.error'), errorMsg);
       setIsUploading(false);
       return null;
@@ -385,7 +393,6 @@ export function useImageUpload() {
     const itemsToUpload = newItems.filter((item: any) => !item.isExisting);
 
     if (itemsToUpload.length === 0) {
-      console.log('[GroupUpload] No new images to add');
       return true;
     }
 
@@ -431,7 +438,6 @@ export function useImageUpload() {
 
         // 중복 체크 - skip_upload이면 S3 업로드 건너뛰고 그룹에 포함
         if (prepareResponse.duplicate && prepareResponse.skip_upload) {
-          console.log(`[GroupUpload] Duplicate reuse: ${item.filename} (skip S3, reuse storage_key)`);
           if (prepareResponse.upload_id && prepareResponse.storage_key) {
             uploadedItems.push({
               upload_id: prepareResponse.upload_id,
@@ -470,8 +476,7 @@ export function useImageUpload() {
 
       // 그룹에 이미지 추가 API 호출
       if (uploadedItems.length > 0) {
-        const result = await addImagesToGroup(groupId, { items: uploadedItems });
-        console.log(`✅ 그룹에 ${result.added_images}장 추가됨, total: ${result.total_images}`);
+        await addImagesToGroup(groupId, { items: uploadedItems });
       }
 
       // 모든 아이템 완료 처리
@@ -483,9 +488,15 @@ export function useImageUpload() {
       return true;
 
     } catch (err) {
+      if (isQuotaExceededError(err)) {
+        setQuotaExceeded(true);
+        setError(t('storage.quotaExceeded'));
+        setIsUploading(false);
+        return false;
+      }
       const errorMsg = getErrorMessage(err);
       setError(errorMsg);
-      console.error('❌ 그룹 이미지 추가 실패:', err);
+      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'useImageUpload.addToExistingGroup' });
       setIsUploading(false);
       return false;
     }
@@ -504,6 +515,7 @@ export function useImageUpload() {
     items,
     isUploading,
     error,
+    quotaExceeded,
     stats,
     pickFromGallery,
     takePhoto,

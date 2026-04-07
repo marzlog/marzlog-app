@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,34 +24,6 @@ function HomeIcon({ color }: { color: string }) {
       />
       <Path
         d="M9 22V12H15V22"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
-function ImagesIcon({ color }: { color: string }) {
-  return (
-    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-      <Path
-        d="M18 3H6C4.34315 3 3 4.34315 3 6V14C3 15.6569 4.34315 17 6 17H18C19.6569 17 21 15.6569 21 14V6C21 4.34315 19.6569 3 18 3Z"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M5 21H19C20.1046 21 21 20.1046 21 19V18"
-        stroke={color}
-        strokeWidth={2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M3 13L7.29289 8.70711C7.68342 8.31658 8.31658 8.31658 8.70711 8.70711L12 12L14.2929 9.70711C14.6834 9.31658 15.3166 9.31658 15.7071 9.70711L21 15"
         stroke={color}
         strokeWidth={2}
         strokeLinecap="round"
@@ -132,7 +105,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
       case 'index':
         return <HomeIcon color={color} />;
       case 'timeline':
-        return <ImagesIcon color={color} />;
+        return <Ionicons name="images-outline" size={24} color={color} />;
       case 'search':
         return <SearchIcon color={color} />;
       case 'profile':

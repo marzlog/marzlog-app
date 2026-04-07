@@ -8,6 +8,7 @@ import {
   ViewToken,
   ImageSourcePropType,
   useWindowDimensions,
+  Dimensions,
   Platform,
   Image as RNImage,
   Animated,
@@ -19,7 +20,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '@src/hooks/useTranslation';
-import { Video, ResizeMode } from 'expo-av';
+import { getLanguage } from '@src/i18n';
+import { VideoView, useVideoPlayer } from 'expo-video';
 
 const ONBOARDING_KEY = '@marzlog_onboarding_completed';
 
@@ -29,7 +31,7 @@ const PARAGRAPH_COLOR = '#334155';
 const DOT_ACTIVE = ACCENT;
 const DOT_INACTIVE = '#D9D9D9';
 
-type PageType = 'splash' | 'illustration' | 'final';
+type PageType = 'splash' | 'illustration' | 'video' | 'final';
 
 interface FrameConfig {
   key: string;
@@ -86,10 +88,100 @@ const FRAMES: FrameConfig[] = [
     type: 'splash',
   },
   {
+    key: 'video',
+    type: 'video',
+  },
+  {
     key: 'final',
     type: 'final',
   },
 ];
+
+interface PageSizeProps {
+  screenWidth: number;
+  screenHeight: number;
+}
+
+const VIDEO_SOURCES = {
+  ko: require('@/assets/videos/onboarding_ko.mp4'),
+  en: require('@/assets/videos/onboarding_en.mp4'),
+};
+
+/** Page 8: full-screen video (no buttons, swipe to next) */
+function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
+  const videoSrc = VIDEO_SOURCES[getLanguage()];
+
+  const player = useVideoPlayer(videoSrc, (p) => {
+    p.loop = true;
+    p.muted = true;
+    p.play();
+  });
+
+  if (Platform.OS === 'web') {
+    return (
+      <View style={{ width: screenWidth, height: screenHeight }}>
+        <video
+          src={typeof videoSrc === 'number' ? undefined : (videoSrc as any)}
+          autoPlay
+          muted
+          loop
+          playsInline
+          style={{
+            width: screenWidth,
+            height: screenHeight,
+            objectFit: 'cover' as any,
+          }}
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ width: screenWidth, height: screenHeight, backgroundColor: '#000' }}>
+      <VideoView
+        player={player}
+        style={{ width: screenWidth, height: screenHeight }}
+        contentFit="cover"
+        nativeControls={false}
+      />
+    </View>
+  );
+}
+
+interface FinalPageProps extends PageSizeProps {
+  insets: { bottom: number };
+  t: (key: string) => string;
+  onComplete: () => void;
+}
+
+/** Page 9: astronaut image + gradient overlay + start button */
+function FinalPage({ screenWidth, screenHeight, insets, t, onComplete }: FinalPageProps) {
+  return (
+    <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
+      <Image
+        source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
+        style={StyleSheet.absoluteFillObject}
+        contentFit="cover"
+      />
+      <LinearGradient
+        colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.7)']}
+        locations={[0.3, 0.6, 1.0]}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <View style={[styles.finalBottomWrap, { paddingBottom: insets.bottom + 56 }]}>
+        <Text style={styles.finalTitle}>{t('onboarding.final.title')}</Text>
+        <Text style={styles.finalSubtitle}>{t('onboarding.final.subtitle')}</Text>
+        <TouchableOpacity
+          style={styles.finalStartButton}
+          onPress={onComplete}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.finalStartButtonText}>{t('onboarding.start')}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
 
 export default function OnboardingScreen() {
   const { t } = useTranslation();
@@ -268,32 +360,38 @@ export default function OnboardingScreen() {
   };
 
   const renderStars = () =>
-    stars.map((star, i) => (
-      <Animated.View
-        key={i}
-        style={[
-          {
-            position: 'absolute' as const,
-            width: star.size,
-            height: star.size,
-            borderRadius: star.size / 2,
-            backgroundColor: '#FFFFFF',
-            top: star.top as any,
-            left: star.left as any,
-            ...(star.glow
-              ? {
-                  shadowColor: '#FFFFFF',
-                  shadowOffset: { width: 0, height: 0 },
-                  shadowOpacity: 1,
-                  shadowRadius: star.size > 8 ? 15 : star.size > 5 ? 10 : 4,
-                  elevation: star.size > 8 ? 15 : star.size > 5 ? 10 : 4,
-                }
-              : {}),
-          },
-          { opacity: starOpacities[i] },
-        ]}
-      />
-    ));
+    stars.map((star, i) => {
+      const glowRadius = star.size > 8 ? 15 : star.size > 5 ? 10 : 4;
+      const glowStyle = star.glow
+        ? Platform.OS === 'web'
+          ? { boxShadow: `0 0 ${glowRadius}px #FFFFFF` }
+          : {
+              shadowColor: '#FFFFFF',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 1,
+              shadowRadius: glowRadius,
+              elevation: glowRadius,
+            }
+        : {};
+      return (
+        <Animated.View
+          key={i}
+          style={[
+            {
+              position: 'absolute' as const,
+              width: star.size,
+              height: star.size,
+              borderRadius: star.size / 2,
+              backgroundColor: '#FFFFFF',
+              top: star.top as any,
+              left: star.left as any,
+              ...glowStyle,
+            },
+            { opacity: starOpacities[i] },
+          ]}
+        />
+      );
+    });
 
   const renderMeteor = () => (
     <Animated.View
@@ -307,11 +405,15 @@ export default function OnboardingScreen() {
         backgroundColor: '#FFFFFF',
         opacity: meteorOpacity,
         transform: [{ translateX: meteorTranslateX }, { translateY: meteorTranslateY }],
-        shadowColor: '#FFFFFF',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 6,
-        elevation: 6,
+        ...(Platform.OS === 'web'
+          ? { boxShadow: '0 0 6px #FFFFFF' }
+          : {
+              shadowColor: '#FFFFFF',
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 1,
+              shadowRadius: 6,
+              elevation: 6,
+            }),
       }}
     />
   );
@@ -393,41 +495,9 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const renderFinal = () => (
-    <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
-      <Video
-        source={require('@/assets/videos/onboarding_bg.mp4')}
-        style={StyleSheet.absoluteFillObject}
-        resizeMode={ResizeMode.COVER}
-        shouldPlay
-        isLooping
-        isMuted
-      />
-      <LinearGradient
-        colors={['transparent', 'rgba(255,255,255,0.7)', 'rgba(255,255,255,0.9)']}
-        locations={[0.5, 0.7, 1.0]}
-        style={StyleSheet.absoluteFillObject}
-      />
-      <View style={styles.finalLogoWrap}>
-        <RNImage
-          source={require('@/assets/images/onboarding/logo_text.png')}
-          style={{ width: 180, height: 45 }}
-          resizeMode="contain"
-        />
-      </View>
-      <View style={styles.finalTextWrap}>
-        <Text style={styles.finalTitle}>{t('onboarding.final.title')}</Text>
-        <Text style={styles.finalSubtitle}>{t('onboarding.final.subtitle')}</Text>
-      </View>
-      <TouchableOpacity
-        style={[styles.finalStartButton, { bottom: insets.bottom + 40 }]}
-        onPress={completeOnboarding}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.finalStartButtonText}>{t('onboarding.start')}</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const renderVideo = () => <VideoPage screenWidth={screenWidth} screenHeight={screenHeight} />;
+
+  const renderFinal = () => <FinalPage screenWidth={screenWidth} screenHeight={screenHeight} insets={insets} t={t} onComplete={completeOnboarding} />;
 
   const renderFrame = ({ item }: { item: FrameConfig }) => {
     switch (item.type) {
@@ -435,11 +505,14 @@ export default function OnboardingScreen() {
         return renderSplash(item);
       case 'illustration':
         return renderIllustration(item);
+      case 'video':
+        return renderVideo();
       case 'final':
         return renderFinal();
     }
   };
 
+  // Hide dots/skip/next only on final page (page 9)
   const isLastPage = currentIndex === FRAMES.length - 1;
 
   return (
@@ -461,10 +534,10 @@ export default function OnboardingScreen() {
         bounces={false}
       />
 
-      {/* Bottom section — hidden on final page */}
+      {/* Bottom section — hidden on final page only */}
       {!isLastPage && (
         <View
-          style={[styles.bottomSection, { paddingBottom: insets.bottom + 24 }]}
+          style={[styles.bottomSection, { paddingBottom: insets.bottom + 60 }]}
           pointerEvents="box-none"
         >
           <View style={styles.dotContainer}>
@@ -571,40 +644,34 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
 
-  // Final page (8) - video overlay
-  finalLogoWrap: {
+  // Final page (8) - video/image overlay
+  finalBottomWrap: {
     position: 'absolute',
-    top: '30%',
-    width: '100%',
+    bottom: 0,
+    left: 24,
+    right: 24,
     alignItems: 'center',
-  },
-  finalTextWrap: {
-    position: 'absolute',
-    bottom: 170,
-    width: '100%',
-    alignItems: 'center',
-    paddingHorizontal: 24,
   },
   finalTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#FFFFFF',
     marginBottom: 12,
     textAlign: 'center',
   },
   finalSubtitle: {
-    fontSize: 15,
-    color: '#555',
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.85)',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
+    marginBottom: 40,
   },
   finalStartButton: {
-    position: 'absolute',
-    left: 24,
-    right: 24,
     backgroundColor: '#FA5252',
     paddingVertical: 16,
+    paddingHorizontal: 48,
     borderRadius: 12,
+    width: '100%',
     alignItems: 'center',
   },
   finalStartButtonText: {

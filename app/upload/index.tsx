@@ -23,12 +23,15 @@ import { ImageSelector, EmotionPicker, IntensitySlider } from '@/src/components/
 import { getMediaDetail, updateMedia, setPrimaryImage } from '@/src/api/media';
 import { timelineApi } from '@/src/api/timeline';
 import { useDialog } from '@/src/components/ui/Dialog';
+import { useTranslation } from '@/src/hooks/useTranslation';
+import { captureError } from '@/src/utils/sentry';
 
 export default function UploadScreen() {
   const insets = useSafeAreaInsets();
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
   const { alert: showAlert, confirm } = useDialog();
+  const { t } = useTranslation();
   const params = useLocalSearchParams<{
     images?: string;
     editMode?: string;
@@ -58,16 +61,16 @@ export default function UploadScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { startUpload, startGroupUpload, addToExistingGroup, pickFromGallery, takePhoto } = useImageUpload();
+  const { startUpload, startGroupUpload, addToExistingGroup, pickFromGallery, takePhoto, quotaExceeded, error: uploadError } = useImageUpload();
 
   // 현재 시간
   const getCurrentTime = () => {
     const now = new Date();
     const hours = now.getHours();
     const minutes = now.getMinutes();
-    const period = hours >= 12 ? '오후' : '오전';
+    const period = hours >= 12 ? 'PM' : 'AM';
     const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-    return `${displayHours}시 ${minutes.toString().padStart(2, '0')}분 (${period})`;
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
   // 편집 모드일 때 기존 데이터 로드
@@ -82,11 +85,8 @@ export default function UploadScreen() {
 
     setIsLoading(true);
     try {
-      console.log('[Upload] Loading existing data for mediaId:', mediaId);
-
       // 미디어 상세 조회
       const mediaDetail = await getMediaDetail(mediaId);
-      console.log('[Upload] Loaded media detail:', mediaDetail);
 
       // 폼에 데이터 설정
       setTitle(mediaDetail.title || '');
@@ -123,7 +123,6 @@ export default function UploadScreen() {
             if (primaryIdx >= 0) setPrimaryImageIndex(primaryIdx);
           }
         } catch (e) {
-          console.log('[Upload] No group images or error:', e);
         }
       }
 
@@ -144,11 +143,10 @@ export default function UploadScreen() {
       }
 
       setImages(loadedImages);
-      console.log('[Upload] Loaded images:', loadedImages.length);
 
     } catch (error) {
-      console.error('[Upload] Failed to load existing data:', error);
-      showAlert('데이터를 불러오는데 실패했습니다.');
+      captureError(error instanceof Error ? error : new Error(String(error)), { context: 'Upload.loadExistingData' });
+      showAlert(t('upload.loadFailed'));
     } finally {
       setIsLoading(false);
     }
@@ -158,20 +156,13 @@ export default function UploadScreen() {
   useEffect(() => {
     if (isEditMode) return; // 편집 모드에서는 건너뛰기
 
-    console.log('[Upload] useEffect - params:', params);
-    console.log('[Upload] useEffect - params.images:', params.images);
-
     if (params.images) {
       try {
         const parsedImages = JSON.parse(params.images as string);
-        console.log('[Upload] Parsed images:', parsedImages);
-        console.log('[Upload] Parsed images count:', parsedImages.length);
         setImages(parsedImages);
       } catch (e) {
-        console.error('[Upload] Failed to parse images:', e);
+        captureError(e instanceof Error ? e : new Error(String(e)), { context: 'Upload.parseImages' });
       }
-    } else {
-      console.log('[Upload] No images in params');
     }
   }, [params.images, isEditMode]);
 
@@ -180,10 +171,10 @@ export default function UploadScreen() {
   // 확인 다이얼로그 (취소 확인용)
   const showConfirm = async (message: string, onConfirm: () => void) => {
     const confirmed = await confirm({
-      title: '취소하시겠습니까?',
+      title: t('upload.cancelConfirmTitle'),
       description: message,
-      confirmText: '확인',
-      cancelText: '취소',
+      confirmText: t('common.confirm'),
+      cancelText: t('common.cancel'),
       variant: 'confirm',
     });
     if (confirmed) {
@@ -193,7 +184,6 @@ export default function UploadScreen() {
 
   // 뒤로가기
   const goBack = () => {
-    console.log('[Upload] goBack - Platform:', Platform.OS);
     router.push('/(tabs)');
   };
 
@@ -202,7 +192,7 @@ export default function UploadScreen() {
   const handleAddMoreImages = () => {
     const remainingSlots = 5 - images.length;
     if (remainingSlots <= 0) {
-      showAlert('최대 5장까지 추가할 수 있습니다. (대표 1장 + 서브 4장)');
+      showAlert(t('upload.maxImagesAlert'));
       return;
     }
 
@@ -227,12 +217,12 @@ export default function UploadScreen() {
     }
 
     Alert.alert(
-      '사진 추가',
-      '사진을 추가할 방법을 선택하세요.',
+      t('upload.addPhoto'),
+      t('upload.addPhotoDesc'),
       [
-        { text: '카메라로 촬영', onPress: addFromCamera },
-        { text: '갤러리에서 선택', onPress: addFromGallery },
-        { text: '취소', style: 'cancel' },
+        { text: t('upload.takePhoto'), onPress: addFromCamera },
+        { text: t('upload.fromGallery'), onPress: addFromGallery },
+        { text: t('common.cancel'), style: 'cancel' },
       ],
     );
   };
@@ -253,9 +243,8 @@ export default function UploadScreen() {
 
   // 취소 버튼 핸들러
   const handleCancel = () => {
-    console.log('[Upload] handleCancel');
     if (images.length > 0 || title || content || memo) {
-      showConfirm('작성 중인 내용이 삭제됩니다. 취소하시겠습니까?', goBack);
+      showConfirm(t('upload.cancelConfirmDesc'), goBack);
     } else {
       goBack();
     }
@@ -265,27 +254,20 @@ export default function UploadScreen() {
   const handleUpdate = async () => {
     if (!mediaId) return;
 
-    console.log('[Upload] ===== handleUpdate START =====');
-    console.log('[Upload] images:', images.map(img => ({ id: img.id, isExisting: (img as any).isExisting })));
-    console.log('[Upload] groupId:', groupId);
-    console.log('[Upload] primaryImageIndex:', primaryImageIndex);
     setIsSubmitting(true);
 
     try {
       // 1. 새 이미지가 있으면 그룹에 추가
       // isExisting이 명시적으로 true가 아닌 이미지만 새 이미지로 간주
       const newImages = images.filter((img: any) => img.isExisting !== true);
-      console.log('[Upload] newImages count:', newImages.length);
 
       if (newImages.length > 0 && groupId) {
-        console.log('[Upload] Adding', newImages.length, 'new images to group:', groupId);
         const addResult = await addToExistingGroup(groupId, newImages);
         if (!addResult) {
-          showAlert('새 이미지 추가 중 오류가 발생했습니다.');
+          showAlert(t('upload.addImageError'));
           setIsSubmitting(false);
           return;
         }
-        console.log('[Upload] New images added successfully');
       }
 
       // 2. 대표 이미지 변경 (기존 이미지 중에서 선택된 경우)
@@ -293,13 +275,11 @@ export default function UploadScreen() {
         const primaryImage = images[primaryImageIndex];
         // 기존 이미지이고 id가 있는 경우에만 대표 이미지 변경 API 호출
         if ((primaryImage as any)?.isExisting && primaryImage?.id) {
-          console.log('[Upload] Setting primary image:', primaryImage.id);
           try {
             await setPrimaryImage(groupId, primaryImage.id);
-            console.log('[Upload] Primary image updated');
           } catch (primaryError) {
-            console.error('[Upload] Failed to set primary image:', primaryError);
-            showAlert('대표 이미지 변경에 실패했습니다.');
+            captureError(primaryError instanceof Error ? primaryError : new Error(String(primaryError)), { context: 'Upload.setPrimaryImage' });
+            showAlert(t('upload.primaryImageError'));
             setIsSubmitting(false);
             return;
           }
@@ -315,16 +295,14 @@ export default function UploadScreen() {
         intensity: intensity,
       };
 
-      console.log('[Upload] Update data:', updateData);
       const result = await updateMedia(mediaId, updateData);
-      console.log('[Upload] Update result:', result);
 
-      showAlert('수정되었습니다.');
+      showAlert(t('upload.updateSuccess'));
       // 캐시 문제 방지: 홈으로 이동하여 타임라인 새로고침
       router.replace('/(tabs)');
     } catch (error) {
-      console.error('[Upload] Update error:', error);
-      showAlert('수정 중 오류가 발생했습니다.');
+      captureError(error instanceof Error ? error : new Error(String(error)), { context: 'Upload.handleUpdate' });
+      showAlert(t('upload.updateError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -332,12 +310,6 @@ export default function UploadScreen() {
 
   // 등록 버튼 핸들러
   const handleSubmit = async () => {
-    console.log('[Upload] ===== handleSubmit START =====');
-    console.log('[Upload] isEditMode:', isEditMode);
-    console.log('[Upload] images:', images);
-    console.log('[Upload] images.length:', images.length);
-    console.log('[Upload] primaryImageIndex:', primaryImageIndex);
-
     // 편집 모드일 때는 수정 처리
     if (isEditMode) {
       await handleUpdate();
@@ -346,25 +318,14 @@ export default function UploadScreen() {
 
     // 새 등록 모드
     if (images.length === 0) {
-      console.log('[Upload] No images - showing alert');
-      showAlert('사진을 추가해주세요.');
+      showAlert(t('upload.noPhotos'));
       return;
     }
 
     setIsSubmitting(true);
     try {
       // 선택한 날짜 (캘린더에서 전달받은 날짜)
-      console.log('=== Upload Submit Debug ===');
-      console.log('params:', JSON.stringify(params));
-      console.log('params.selectedDate:', params.selectedDate);
-      console.log('params.selectedDate type:', typeof params.selectedDate);
-
       const takenAt = params.selectedDate || undefined;
-      console.log('[Upload] Using takenAt:', takenAt);
-
-      if (takenAt) {
-        console.log('[Upload] takenAt parsed as Date:', new Date(takenAt));
-      }
 
       const metadata = {
         title: title || undefined,
@@ -376,9 +337,7 @@ export default function UploadScreen() {
 
       if (images.length === 1) {
         // 단일 이미지: 업로드 후 메타데이터 업데이트
-        console.log('[Upload] Single image upload');
         const results = await startUpload(images, takenAt);
-        console.log('[Upload] Upload completed, results:', results.length);
 
         // 메타데이터 저장 (title, emotion 등)
         if (results.length > 0 && results[0].media_id) {
@@ -386,15 +345,16 @@ export default function UploadScreen() {
         }
       } else {
         // 여러 이미지: 그룹 업로드 (메타데이터 포함)
-        console.log('[Upload] Group upload with', images.length, 'images, primary:', primaryImageIndex);
         const result = await startGroupUpload(images, primaryImageIndex, takenAt, metadata);
-        console.log('[Upload] Group upload completed:', result?.group_id);
       }
 
       router.push('/(tabs)');
     } catch (error) {
-      console.error('[Upload] Upload error:', error);
-      showAlert('업로드 중 오류가 발생했습니다.');
+      captureError(error instanceof Error ? error : new Error(String(error)), { context: 'Upload.handleSubmit' });
+      // quota exceeded is handled via quotaExceeded state below
+      if (!quotaExceeded) {
+        showAlert(t('upload.uploadError'));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -408,7 +368,6 @@ export default function UploadScreen() {
       <View style={[styles.header, isDark && styles.headerDark]}>
         <Pressable
           onPress={() => {
-            console.log('[Upload] Back button pressed!');
             handleCancel();
           }}
           style={({ pressed }) => [
@@ -444,7 +403,7 @@ export default function UploadScreen() {
         {/* Title and Time */}
         <View style={styles.titleSection}>
           <Text style={[styles.mainTitle, isDark && styles.textLight]}>
-            {isEditMode ? '일상 수정하기' : '오늘의 일상을 등록하세요!'}
+            {isEditMode ? t('upload.editTitle') : t('upload.newTitle')}
           </Text>
           {!isEditMode && <Text style={[styles.timeText, isDark && styles.textSecondaryDark]}>{getCurrentTime()}</Text>}
         </View>
@@ -475,10 +434,10 @@ export default function UploadScreen() {
 
         {/* Title Input */}
         <View style={styles.inputSection}>
-          <Text style={[styles.inputLabel, isDark && styles.textLight]}>제목</Text>
+          <Text style={[styles.inputLabel, isDark && styles.textLight]}>{t('upload.titleLabel')}</Text>
           <TextInput
             style={[styles.titleInput, isDark && styles.inputDark]}
-            placeholder="제목을 입력하세요 (선택)"
+            placeholder={t('upload.titlePlaceholder')}
             placeholderTextColor={isDark ? '#6B7280' : colors.neutral[5]}
             value={title}
             onChangeText={setTitle}
@@ -488,10 +447,10 @@ export default function UploadScreen() {
 
         {/* Content Input */}
         <View style={styles.inputSection}>
-          <Text style={[styles.inputLabel, isDark && styles.textLight]}>내용</Text>
+          <Text style={[styles.inputLabel, isDark && styles.textLight]}>{t('upload.contentLabel')}</Text>
           <TextInput
             style={[styles.contentInput, isDark && styles.inputDark]}
-            placeholder="오늘의 일상을 기록해보세요 (선택)"
+            placeholder={t('upload.contentPlaceholder')}
             placeholderTextColor={isDark ? '#6B7280' : colors.neutral[5]}
             value={content}
             onChangeText={setContent}
@@ -503,7 +462,7 @@ export default function UploadScreen() {
 
         {/* Memo Toggle */}
         <View style={[styles.memoToggleContainer, isDark && styles.memoToggleContainerDark]}>
-          <Text style={[styles.memoToggleText, isDark && styles.textLight]}>메모 작성하기</Text>
+          <Text style={[styles.memoToggleText, isDark && styles.textLight]}>{t('upload.memoToggle')}</Text>
           <Switch
             value={showMemo}
             onValueChange={setShowMemo}
@@ -517,7 +476,7 @@ export default function UploadScreen() {
           <View style={styles.memoContainer}>
             <TextInput
               style={[styles.memoInput, isDark && styles.inputDark]}
-              placeholder="추가 메모를 작성하세요..."
+              placeholder={t('upload.memoPlaceholder')}
               placeholderTextColor={isDark ? '#6B7280' : colors.neutral[5]}
               value={memo}
               onChangeText={setMemo}
@@ -529,12 +488,29 @@ export default function UploadScreen() {
         )}
       </KeyboardAwareScrollView>
 
+      {/* Quota Exceeded Banner */}
+      {quotaExceeded && (
+        <View style={[styles.quotaBanner, isDark && styles.quotaBannerDark]}>
+          <View style={styles.quotaBannerContent}>
+            <Ionicons name="cloud-offline-outline" size={20} color="#EF4444" />
+            <Text style={[styles.quotaBannerText, isDark && { color: '#F9FAFB' }]}>
+              {t('storage.quotaExceeded')}
+            </Text>
+          </View>
+          <Pressable
+            style={styles.quotaUpgradeBtn}
+            onPress={() => router.push('/plans')}
+          >
+            <Text style={styles.quotaUpgradeBtnText}>{t('storage.upgrade')}</Text>
+          </Pressable>
+        </View>
+      )}
+
       {/* Bottom Buttons - ScrollView 밖에 배치 (position: absolute 제거) */}
       <View style={[styles.bottomButtons, isDark && styles.bottomButtonsDark, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         {/* 취소 버튼 */}
         <Pressable
           onPress={() => {
-            console.log('[Upload] Cancel button pressed!');
             handleCancel();
           }}
           disabled={isSubmitting}
@@ -550,7 +526,6 @@ export default function UploadScreen() {
         {/* 등록/수정 버튼 */}
         <Pressable
           onPress={() => {
-            console.log('[Upload] Submit button pressed!');
             handleSubmit();
           }}
           disabled={isSubmitting || (!isEditMode && images.length === 0)}
@@ -563,7 +538,7 @@ export default function UploadScreen() {
           {isSubmitting ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>{isEditMode ? '수정' : '등록'}</Text>
+            <Text style={styles.submitButtonText}>{isEditMode ? t('upload.edit') : t('upload.submit')}</Text>
           )}
         </Pressable>
       </View>
@@ -764,5 +739,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.text.secondary,
+  },
+  quotaBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#FECACA',
+  },
+  quotaBannerDark: {
+    backgroundColor: '#1C1917',
+    borderTopColor: '#7F1D1D',
+  },
+  quotaBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  quotaBannerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#991B1B',
+  },
+  quotaUpgradeBtn: {
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  quotaUpgradeBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });

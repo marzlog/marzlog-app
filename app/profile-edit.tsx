@@ -7,7 +7,7 @@ import { authApi } from '@src/api/auth';
 import { palette, getTheme } from '@src/theme/colors';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -21,6 +21,7 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { FloatingInput } from '@/src/components/common/FloatingInput';
 
 export default function ProfileEditScreen() {
   const insets = useSafeAreaInsets();
@@ -41,7 +42,7 @@ export default function ProfileEditScreen() {
     : themeMode === 'dark';
   const theme = getTheme(isDark);
 
-  const isOAuth = !!user?.oauth_provider;
+  const isOAuth = !user?.has_password || (!!user?.auth_provider && user.auth_provider !== 'email');
 
   // Nickname state
   const [nickname, setNickname] = useState(user?.nickname || '');
@@ -57,6 +58,8 @@ export default function ProfileEditScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+
+  const scrollRef = useRef<KeyboardAwareScrollView>(null);
 
   const displayInitial = (user?.nickname || user?.email || 'U').charAt(0).toUpperCase();
   const avatarUrl = user?.avatar_url;
@@ -75,10 +78,8 @@ export default function ProfileEditScreen() {
         mediaTypes: ['images'],
         quality: 0.8,
       };
-      if (Platform.OS !== 'web') {
-        pickerOptions.allowsEditing = true;
-        pickerOptions.aspect = [1, 1];
-      }
+      // Samsung Android에서 allowsEditing 크롭 UI가 완료 버튼을 렌더링하지 못하는 버그 회피
+      // 프로필 사진은 원형으로 표시되므로 크롭 없이 원본 사용
 
       const result = await ImagePicker.launchImageLibraryAsync(pickerOptions);
       if (result.canceled || !result.assets?.length) return;
@@ -92,11 +93,44 @@ export default function ProfileEditScreen() {
 
       setAvatarStatus('');
       showToast('프로필 사진이 변경되었습니다');
+      setTimeout(() => scrollRef.current?.scrollToPosition(0, 0, true), 300);
     } catch (error: any) {
-      const detail = error?.response?.data?.detail || error?.message || '알 수 없는 오류';
-      console.error('[Avatar] Upload failed:', detail, error);
       setAvatarStatus('');
-      showToast('업로드 실패: ' + String(detail));
+      showToast('프로필 사진 업로드에 실패했습니다');
+    } finally {
+      setAvatarUploading(false);
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    if (Platform.OS === 'web') return;
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      showToast(t('profileEdit.cameraPermissionRequired'));
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: false,
+        quality: 0.9,
+      });
+      if (result.canceled || !result.assets?.length) return;
+
+      const asset = result.assets[0];
+      setAvatarUploading(true);
+      setAvatarStatus('업로드 중...');
+
+      const response = await authApi.uploadAvatar(asset.uri, asset.mimeType || 'image/jpeg');
+      setUser(response.user);
+
+      setAvatarStatus('');
+      showToast('프로필 사진이 변경되었습니다');
+      setTimeout(() => scrollRef.current?.scrollToPosition(0, 0, true), 300);
+    } catch (error: any) {
+      setAvatarStatus('');
+      showToast('프로필 사진 업로드에 실패했습니다');
     } finally {
       setAvatarUploading(false);
     }
@@ -188,11 +222,12 @@ export default function ProfileEditScreen() {
       </View>
 
       <KeyboardAwareScrollView
+        ref={scrollRef}
         style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(120, insets.bottom + 80) }]}
         keyboardShouldPersistTaps="handled"
         enableOnAndroid={true}
-        extraScrollHeight={20}
+        extraScrollHeight={Platform.OS === 'ios' ? 20 : 40}
       >
           {/* Avatar */}
           <View style={styles.avatarSection}>
@@ -236,37 +271,21 @@ export default function ProfileEditScreen() {
           </View>
 
           {/* Email (read-only) */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, isDark && styles.labelDark]}>{t('auth.email')}</Text>
-            <View style={[styles.readOnlyField, isDark && styles.readOnlyFieldDark]}>
-              <Text style={[styles.readOnlyText, isDark && styles.readOnlyTextDark]}>
-                {user?.email || ''}
-              </Text>
-              {isOAuth && (
-                <View style={styles.oauthBadge}>
-                  <Ionicons
-                    name={user?.oauth_provider === 'apple' ? 'logo-apple' : 'logo-google'}
-                    size={14}
-                    color="#6B7280"
-                  />
-                </View>
-              )}
-            </View>
-          </View>
+          <FloatingInput
+            label={t('auth.email')}
+            value={user?.email || ''}
+            isDark={isDark}
+            editable={false}
+          />
 
           {/* Nickname */}
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, isDark && styles.labelDark]}>{t('profileEdit.nickname')}</Text>
-            <TextInput
-              style={[styles.input, isDark && styles.inputDark]}
-              value={nickname}
-              onChangeText={setNickname}
-              placeholder={t('profileEdit.nicknamePlaceholder')}
-              placeholderTextColor="#9CA3AF"
-              maxLength={20}
-              autoCapitalize="none"
-            />
-          </View>
+          <FloatingInput
+            label={t('profileEdit.nickname')}
+            value={nickname}
+            onChangeText={setNickname}
+            isDark={isDark}
+            autoCapitalize="none"
+          />
 
           {/* Save Button */}
           <TouchableOpacity
@@ -279,60 +298,40 @@ export default function ProfileEditScreen() {
             activeOpacity={0.7}
           >
             {saving ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color="#8B5CF6" />
             ) : (
-              <Text style={styles.saveButtonText}>{t('common.save')}</Text>
+              <Text style={[styles.saveButtonText, (!hasNicknameChanged) && styles.saveButtonTextDisabled]}>{t('common.save')}</Text>
             )}
           </TouchableOpacity>
 
-          {/* Password Change Section - only for non-OAuth users */}
-          {!isOAuth && (
+          {/* Password Change Section */}
+          {!isOAuth ? (
             <View style={styles.passwordSection}>
               <Text style={[styles.sectionTitle, isDark && styles.textLight]}>
                 {t('profileEdit.changePassword')}
               </Text>
 
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.label, isDark && styles.labelDark]}>
-                  {t('profileEdit.currentPassword')}
-                </Text>
-                <TextInput
-                  style={[styles.input, isDark && styles.inputDark]}
-                  value={currentPassword}
-                  onChangeText={setCurrentPassword}
-                  placeholder={t('profileEdit.currentPasswordPlaceholder')}
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.label, isDark && styles.labelDark]}>
-                  {t('auth.newPassword')}
-                </Text>
-                <TextInput
-                  style={[styles.input, isDark && styles.inputDark]}
-                  value={newPassword}
-                  onChangeText={setNewPassword}
-                  placeholder={t('auth.newPasswordPlaceholder')}
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry
-                />
-              </View>
-
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.label, isDark && styles.labelDark]}>
-                  {t('auth.newPasswordConfirm')}
-                </Text>
-                <TextInput
-                  style={[styles.input, isDark && styles.inputDark]}
-                  value={newPasswordConfirm}
-                  onChangeText={setNewPasswordConfirm}
-                  placeholder={t('auth.newPasswordConfirmPlaceholder')}
-                  placeholderTextColor="#9CA3AF"
-                  secureTextEntry
-                />
-              </View>
+              <FloatingInput
+                label={t('profileEdit.currentPassword')}
+                value={currentPassword}
+                onChangeText={setCurrentPassword}
+                isDark={isDark}
+                secureTextEntry
+              />
+              <FloatingInput
+                label={t('auth.newPassword')}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                isDark={isDark}
+                secureTextEntry
+              />
+              <FloatingInput
+                label={t('auth.newPasswordConfirm')}
+                value={newPasswordConfirm}
+                onChangeText={setNewPasswordConfirm}
+                isDark={isDark}
+                secureTextEntry
+              />
 
               <TouchableOpacity
                 style={[
@@ -345,11 +344,18 @@ export default function ProfileEditScreen() {
                 activeOpacity={0.7}
               >
                 {changingPassword ? (
-                  <ActivityIndicator size="small" color="#6366F1" />
+                  <ActivityIndicator size="small" color="#8B5CF6" />
                 ) : (
                   <Text style={styles.changePasswordText}>{t('profileEdit.changePassword')}</Text>
                 )}
               </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={[styles.socialNotice, isDark && styles.socialNoticeDark]}>
+              <Ionicons name="information-circle-outline" size={16} color="#9CA3AF" />
+              <Text style={styles.socialNoticeText}>
+                {t('profileEdit.socialLoginNoPassword')}
+              </Text>
             </View>
           )}
       </KeyboardAwareScrollView>
@@ -370,15 +376,25 @@ export default function ProfileEditScreen() {
             style={[styles.sheetOverlay, { backgroundColor: theme.overlay }]}
             onPress={() => setShowAvatarMenu(false)}
           >
-            <View style={[styles.sheetContent, { backgroundColor: theme.surface.primary }]}>
-              <Text style={[styles.sheetTitle, { color: theme.text.primary }]}>프로필 사진</Text>
+            <View style={[styles.sheetContent, { backgroundColor: theme.surface.primary, paddingBottom: Math.max(40, insets.bottom + 16) }]}>
+              <Text style={[styles.sheetTitle, { color: theme.text.primary }]}>{t('profileEdit.profilePhoto')}</Text>
+
+              {Platform.OS !== 'web' && (
+                <Pressable
+                  style={({ pressed }) => [styles.sheetOption, { borderBottomColor: theme.border.light }, pressed && { opacity: 0.6 }]}
+                  onPress={() => { setShowAvatarMenu(false); handleTakePhoto(); }}
+                >
+                  <Ionicons name="camera-outline" size={24} color={palette.primary[500]} />
+                  <Text style={[styles.sheetOptionText, { color: theme.text.primary }]}>{t('profileEdit.takePhoto')}</Text>
+                </Pressable>
+              )}
 
               <Pressable
                 style={({ pressed }) => [styles.sheetOption, { borderBottomColor: theme.border.light }, pressed && { opacity: 0.6 }]}
                 onPress={() => { setShowAvatarMenu(false); handlePickAvatar(); }}
               >
                 <Ionicons name="image-outline" size={24} color={palette.primary[500]} />
-                <Text style={[styles.sheetOptionText, { color: theme.text.primary }]}>새 사진 선택</Text>
+                <Text style={[styles.sheetOptionText, { color: theme.text.primary }]}>{t('profileEdit.chooseFromGallery')}</Text>
               </Pressable>
 
               <Pressable
@@ -386,14 +402,14 @@ export default function ProfileEditScreen() {
                 onPress={() => { setShowAvatarMenu(false); handleDeleteAvatar(); }}
               >
                 <Ionicons name="trash-outline" size={24} color={palette.error[500]} />
-                <Text style={[styles.sheetOptionText, { color: palette.error[500] }]}>사진 삭제</Text>
+                <Text style={[styles.sheetOptionText, { color: palette.error[500] }]}>{t('profileEdit.deletePhoto')}</Text>
               </Pressable>
 
               <Pressable
                 style={({ pressed }) => [styles.sheetCancel, pressed && { opacity: 0.6 }]}
                 onPress={() => setShowAvatarMenu(false)}
               >
-                <Text style={[styles.sheetCancelText, { color: theme.text.secondary }]}>취소</Text>
+                <Text style={[styles.sheetCancelText, { color: theme.text.secondary }]}>{t('common.cancel')}</Text>
               </Pressable>
             </View>
           </Pressable>
@@ -417,8 +433,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
   },
   backButton: {
     width: 40,
@@ -599,19 +613,21 @@ const styles = StyleSheet.create({
   // Save Button
   saveButton: {
     height: 48,
-    backgroundColor: '#6366F1',
     borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#6366F1',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 32,
   },
   saveButtonDisabled: {
-    backgroundColor: '#9CA3AF',
+    opacity: 0.4,
   },
+  saveButtonTextDisabled: {},
   saveButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#6366F1',
   },
   // Password Section
   passwordSection: {
@@ -640,6 +656,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#6366F1',
+  },
+  // Social notice
+  socialNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 24,
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  socialNoticeDark: {
+    backgroundColor: '#1A2332',
+  },
+  socialNoticeText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#9CA3AF',
+    lineHeight: 18,
   },
   // Toast
   toastContainer: {

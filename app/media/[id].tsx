@@ -34,6 +34,7 @@ import { useTimelineStore } from '@/src/store/timelineStore';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { t } from '@/src/i18n';
 import { getErrorMessage } from '@/src/utils/errorMessages';
+import { captureError } from '@/src/utils/sentry';
 import ErrorView from '@/src/components/common/ErrorView';
 import { AiNotice } from '@/src/components/common/AiNotice';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
@@ -78,7 +79,11 @@ export default function MediaDetailScreen() {
   const [isSaving, setIsSaving] = useState(false);
 
   // 분위기 옵션
-  const MOOD_OPTIONS = ['행복', '평화', '설렘', '그리움', '감사', '활기', '편안'];
+  const MOOD_OPTIONS = [
+    t('mediaDetail.moodHappy'), t('mediaDetail.moodPeace'), t('mediaDetail.moodExcited'),
+    t('mediaDetail.moodNostalgia'), t('mediaDetail.moodGratitude'), t('mediaDetail.moodEnergy'),
+    t('mediaDetail.moodComfy'),
+  ];
 
   // 감정 편집 모달 상태
   const [emotionModalVisible, setEmotionModalVisible] = useState(false);
@@ -115,7 +120,6 @@ export default function MediaDetailScreen() {
       const [mediaData, analysisData] = await Promise.all([
         getMediaDetail(id!),
         getMediaAnalysis(id!).catch((err) => {
-          console.log('[MediaDetail] Analysis API error:', err);
           return null;
         }),
       ]);
@@ -157,11 +161,10 @@ export default function MediaDetailScreen() {
             }, 50);
           }
         } catch (groupErr) {
-          console.log('[MediaDetail] Failed to load group images:', groupErr);
         }
       }
     } catch (err: any) {
-      console.error('Load error:', err);
+      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.load' });
       // 404: media가 삭제된 경우 → 홈으로 돌아가기
       if (err?.response?.status === 404) {
         alert(t('media.deleted'), t('media.deletedDesc'));
@@ -201,7 +204,7 @@ export default function MediaDetailScreen() {
       }
       return null;
     } catch (error) {
-      console.error('Reverse geocoding error:', error);
+      captureError(error instanceof Error ? error : new Error(String(error)), { context: 'MediaDetail.reverseGeocode' });
       return null;
     }
   };
@@ -318,9 +321,9 @@ export default function MediaDetailScreen() {
     const day = date.getDate();
     const hours = date.getHours();
     const minutes = date.getMinutes();
-    const period = hours >= 12 ? '오후' : '오전';
+    const period = hours >= 12 ? 'PM' : 'AM';
     const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
-    return `${year}년 ${month}월 ${day}일 ${period} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
+    return `${year}. ${month}. ${day}. ${period} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
   };
 
   // 감정 이모지 헬퍼
@@ -398,7 +401,7 @@ export default function MediaDetailScreen() {
       await deleteMedia(id!);
       router.back(); // 이전 화면(해당 날짜 그룹)으로 돌아감
     } catch (err) {
-      console.error('[MediaDetail] Delete error:', err);
+      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.delete' });
       await alert(t('common.error'), t('error.deleteFailed'));
     } finally {
       setIsDeleting(false);
@@ -429,13 +432,12 @@ export default function MediaDetailScreen() {
           ]);
           setMedia(mediaData);
           setAnalysis(analysisData);
-          console.log('[MediaDetail] Auto-refreshed after diary generation');
         } catch (err) {
-          console.error('[MediaDetail] Auto-refresh failed:', err);
+          captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.autoRefresh' });
         }
       }, 10000);
     } catch (err: any) {
-      console.error('[MediaDetail] Diary generation error:', err);
+      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.diaryGeneration' });
       await alert(t('common.error'), getErrorMessage(err));
     } finally {
       setIsGeneratingDiary(false);
@@ -681,7 +683,7 @@ export default function MediaDetailScreen() {
                 )}
                 <Text style={[styles.emotionCardText, isDark && styles.emotionCardTextDark]}>
                   {currentIntensity
-                    ? `${currentIntensity <= 2 ? '약간' : currentIntensity === 3 ? '보통' : '매우'} ${currentEmotion}`
+                    ? `${currentIntensity <= 2 ? t('mediaDetail.intensitySlight') : currentIntensity === 3 ? t('mediaDetail.intensityNormal') : t('mediaDetail.intensityVery')} ${currentEmotion}`
                     : currentEmotion}
                 </Text>
               </View>
@@ -739,12 +741,12 @@ export default function MediaDetailScreen() {
               styles.regenerateButtonText,
               isGeneratingDiary && styles.regenerateButtonTextDisabled,
             ]}>
-              {isGeneratingDiary ? '생성 중...' : 'AI 일기 재생성'}
+              {isGeneratingDiary ? t('mediaDetail.generating') : t('mediaDetail.regenerateDiary')}
             </Text>
           </TouchableOpacity>
           {media.group_id && !isCurrentImagePrimary && (
             <Text style={[styles.hintText, isDark && styles.textTertiaryDark]}>
-              💡 그룹 일기는 대표 사진에서 재생성할 수 있습니다
+              💡 {t('mediaDetail.groupDiaryHint')}
             </Text>
           )}
         </View>
@@ -757,7 +759,7 @@ export default function MediaDetailScreen() {
             onPress={openCaptionEditModal}
           >
             <Ionicons name="chatbubble-outline" size={16} color={isDark ? '#F9FAFB' : colors.text.primary} />
-            <Text style={[styles.editActionButtonText, isDark && styles.textLight]}>사진 설명 편집</Text>
+            <Text style={[styles.editActionButtonText, isDark && styles.textLight]}>{t('mediaDetail.captionEdit')}</Text>
           </TouchableOpacity>
 
           {/* 일기 편집 - 메인 또는 개별 이미지만 */}
@@ -767,11 +769,11 @@ export default function MediaDetailScreen() {
               onPress={openDiaryEditModal}
             >
               <Ionicons name="create-outline" size={16} color={isDark ? '#F9FAFB' : colors.text.primary} />
-              <Text style={[styles.editActionButtonText, isDark && styles.textLight]}>일기 편집</Text>
+              <Text style={[styles.editActionButtonText, isDark && styles.textLight]}>{t('mediaDetail.diaryEdit')}</Text>
             </TouchableOpacity>
           ) : (
             <Text style={[styles.hintText, isDark && styles.textTertiaryDark]}>
-              💡 일기는 대표 사진에서 편집할 수 있습니다
+              💡 {t('mediaDetail.diaryEditHint')}
             </Text>
           )}
         </View>
@@ -779,7 +781,7 @@ export default function MediaDetailScreen() {
         {/* 내용 */}
         {media.content && (
           <View style={[styles.userSection, isDark && styles.sectionBorderDark]}>
-            <Text style={[styles.userSectionLabel, isDark && styles.textSecondaryDark]}>내용</Text>
+            <Text style={[styles.userSectionLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.content')}</Text>
             <Text style={[styles.contentText, isDark && styles.textLight]}>{media.content}</Text>
           </View>
         )}
@@ -975,6 +977,24 @@ export default function MediaDetailScreen() {
                     </View>
                   </TouchableOpacity>
                 )}
+
+                {/* 지도에서 보기 버튼 */}
+                {analysis.exif.gps && (
+                  <TouchableOpacity
+                    style={[styles.openMapButton, isDark && styles.openMapButtonDark]}
+                    onPress={() => {
+                      const { latitude, longitude } = analysis.exif!.gps!;
+                      const url = Platform.select({
+                        ios: `maps://app?ll=${latitude},${longitude}`,
+                        android: `geo:${latitude},${longitude}?q=${latitude},${longitude}`,
+                        default: `https://maps.google.com/?q=${latitude},${longitude}`,
+                      })!;
+                      Linking.openURL(url);
+                    }}
+                  >
+                    <Text style={styles.openMapButtonText}>{'\uD83D\uDCCD'} 지도에서 보기</Text>
+                  </TouchableOpacity>
+                )}
               </>
             ) : (
               /* EXIF 카메라 정보 없는 경우 - 안내 메시지 */
@@ -1023,13 +1043,13 @@ export default function MediaDetailScreen() {
         {isWeb ? (
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
-              <Text style={[styles.modalTitle, isDark && styles.textLight]}>일기 편집</Text>
+              <Text style={[styles.modalTitle, isDark && styles.textLight]}>{t('mediaDetail.diaryEdit')}</Text>
               <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>제목</Text>
               <TextInput
                 style={[styles.textInput, isDark && styles.textInputDark]}
                 value={editTitle}
                 onChangeText={setEditTitle}
-                placeholder="제목을 입력하세요"
+                placeholder={t('mediaDetail.titlePlaceholder')}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 maxLength={50}
               />
@@ -1038,13 +1058,13 @@ export default function MediaDetailScreen() {
                 style={[styles.textInput, styles.textArea, isDark && styles.textInputDark]}
                 value={editContent}
                 onChangeText={setEditContent}
-                placeholder="일기 내용을 입력하세요"
+                placeholder={t('mediaDetail.contentPlaceholder')}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 multiline
                 numberOfLines={4}
                 textAlignVertical="top"
               />
-              <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>분위기</Text>
+              <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.mood')}</Text>
               <View style={styles.moodSelector}>
                 {MOOD_OPTIONS.map((mood) => (
                   <TouchableOpacity
@@ -1064,10 +1084,10 @@ export default function MediaDetailScreen() {
               </View>
               <View style={styles.modalButtons}>
                 <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setDiaryEditModalVisible(false)}>
-                  <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
+                  <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSaveDiary} disabled={isSaving}>
-                  <Text style={styles.saveButtonText}>{isSaving ? '저장 중...' : '저장'}</Text>
+                  <Text style={styles.saveButtonText}>{isSaving ? t('mediaDetail.saving') : t('common.save')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1076,13 +1096,13 @@ export default function MediaDetailScreen() {
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
               <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
-                <Text style={[styles.modalTitle, isDark && styles.textLight]}>일기 편집</Text>
+                <Text style={[styles.modalTitle, isDark && styles.textLight]}>{t('mediaDetail.diaryEdit')}</Text>
                 <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>제목</Text>
                 <TextInput
                   style={[styles.textInput, isDark && styles.textInputDark]}
                   value={editTitle}
                   onChangeText={setEditTitle}
-                  placeholder="제목을 입력하세요"
+                  placeholder={t('mediaDetail.titlePlaceholder')}
                   placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   maxLength={50}
                 />
@@ -1091,13 +1111,13 @@ export default function MediaDetailScreen() {
                   style={[styles.textInput, styles.textArea, isDark && styles.textInputDark]}
                   value={editContent}
                   onChangeText={setEditContent}
-                  placeholder="일기 내용을 입력하세요"
+                  placeholder={t('mediaDetail.contentPlaceholder')}
                   placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   multiline
                   numberOfLines={4}
                   textAlignVertical="top"
                 />
-                <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>분위기</Text>
+                <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.mood')}</Text>
                 <View style={styles.moodSelector}>
                   {MOOD_OPTIONS.map((mood) => (
                     <TouchableOpacity
@@ -1113,10 +1133,10 @@ export default function MediaDetailScreen() {
                 </View>
                 <View style={styles.modalButtons}>
                   <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setDiaryEditModalVisible(false)}>
-                    <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
+                    <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSaveDiary} disabled={isSaving}>
-                    <Text style={styles.saveButtonText}>{isSaving ? '저장 중...' : '저장'}</Text>
+                    <Text style={styles.saveButtonText}>{isSaving ? t('mediaDetail.saving') : t('common.save')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1135,12 +1155,12 @@ export default function MediaDetailScreen() {
         {isWeb ? (
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
-              <Text style={[styles.modalTitle, isDark && styles.textLight]}>사진 설명 편집</Text>
+              <Text style={[styles.modalTitle, isDark && styles.textLight]}>{t('mediaDetail.captionEdit')}</Text>
               <TextInput
                 style={[styles.textInput, styles.textArea, isDark && styles.textInputDark]}
                 value={editCaption}
                 onChangeText={setEditCaption}
-                placeholder="이 사진에 대한 설명을 입력하세요"
+                placeholder={t('mediaDetail.captionPlaceholder')}
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 multiline
                 numberOfLines={3}
@@ -1148,10 +1168,10 @@ export default function MediaDetailScreen() {
               />
               <View style={styles.modalButtons}>
                 <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setCaptionEditModalVisible(false)}>
-                  <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
+                  <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSaveCaption} disabled={isSaving}>
-                  <Text style={styles.saveButtonText}>{isSaving ? '저장 중...' : '저장'}</Text>
+                  <Text style={styles.saveButtonText}>{isSaving ? t('mediaDetail.saving') : t('common.save')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1160,12 +1180,12 @@ export default function MediaDetailScreen() {
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
               <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
-                <Text style={[styles.modalTitle, isDark && styles.textLight]}>사진 설명 편집</Text>
+                <Text style={[styles.modalTitle, isDark && styles.textLight]}>{t('mediaDetail.captionEdit')}</Text>
                 <TextInput
                   style={[styles.textInput, styles.textArea, isDark && styles.textInputDark]}
                   value={editCaption}
                   onChangeText={setEditCaption}
-                  placeholder="이 사진에 대한 설명을 입력하세요"
+                  placeholder={t('mediaDetail.captionPlaceholder')}
                   placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   multiline
                   numberOfLines={3}
@@ -1173,10 +1193,10 @@ export default function MediaDetailScreen() {
                 />
                 <View style={styles.modalButtons}>
                   <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setCaptionEditModalVisible(false)}>
-                    <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
+                    <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSaveCaption} disabled={isSaving}>
-                    <Text style={styles.saveButtonText}>{isSaving ? '저장 중...' : '저장'}</Text>
+                    <Text style={styles.saveButtonText}>{isSaving ? t('mediaDetail.saving') : t('common.save')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1195,7 +1215,7 @@ export default function MediaDetailScreen() {
         {isWeb ? (
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, styles.emotionModalContent, isDark && styles.modalContentDark]}>
-              <Text style={[styles.modalTitle, isDark && styles.textLight]}>현재 기분은 어떤가요?</Text>
+              <Text style={[styles.modalTitle, isDark && styles.textLight]}>{t('mediaDetail.emotionQuestion')}</Text>
               <View style={styles.emotionGrid}>
                 {EMOTIONS.map((emotion) => {
                   const isSelected = editEmotion === emotion.nameKo;
@@ -1216,7 +1236,7 @@ export default function MediaDetailScreen() {
                   );
                 })}
               </View>
-              <Text style={[styles.intensityLabel, isDark && styles.textSecondaryDark]}>기분의 강도를 선택하세요</Text>
+              <Text style={[styles.intensityLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityLabel')}</Text>
               <Slider
                 style={styles.slider}
                 minimumValue={1}
@@ -1229,16 +1249,16 @@ export default function MediaDetailScreen() {
                 thumbTintColor={colors.brand.primary}
               />
               <View style={styles.sliderLabels}>
-                <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>약함 (1)</Text>
-                <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>보통 (3)</Text>
-                <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>강함 (5)</Text>
+                <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityLow')}</Text>
+                <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityMid')}</Text>
+                <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityHigh')}</Text>
               </View>
               <View style={styles.modalButtons}>
                 <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setEmotionModalVisible(false)}>
-                  <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
+                  <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSaveEmotion} disabled={isSaving}>
-                  <Text style={styles.saveButtonText}>{isSaving ? '저장 중...' : '저장'}</Text>
+                  <Text style={styles.saveButtonText}>{isSaving ? t('mediaDetail.saving') : t('common.save')}</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1247,7 +1267,7 @@ export default function MediaDetailScreen() {
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <View style={styles.modalOverlay}>
               <View style={[styles.modalContent, styles.emotionModalContent, isDark && styles.modalContentDark]}>
-                <Text style={[styles.modalTitle, isDark && styles.textLight]}>현재 기분은 어떤가요?</Text>
+                <Text style={[styles.modalTitle, isDark && styles.textLight]}>{t('mediaDetail.emotionQuestion')}</Text>
                 <View style={styles.emotionGrid}>
                   {EMOTIONS.map((emotion) => {
                     const isSelected = editEmotion === emotion.nameKo;
@@ -1268,7 +1288,7 @@ export default function MediaDetailScreen() {
                     );
                   })}
                 </View>
-                <Text style={[styles.intensityLabel, isDark && styles.textSecondaryDark]}>기분의 강도를 선택하세요</Text>
+                <Text style={[styles.intensityLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityLabel')}</Text>
                 <Slider
                   style={styles.slider}
                   minimumValue={1}
@@ -1281,16 +1301,16 @@ export default function MediaDetailScreen() {
                   thumbTintColor={colors.brand.primary}
                 />
                 <View style={styles.sliderLabels}>
-                  <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>약함 (1)</Text>
-                  <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>보통 (3)</Text>
-                  <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>강함 (5)</Text>
+                  <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityLow')}</Text>
+                  <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityMid')}</Text>
+                  <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityHigh')}</Text>
                 </View>
                 <View style={styles.modalButtons}>
                   <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setEmotionModalVisible(false)}>
-                    <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>취소</Text>
+                    <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSaveEmotion} disabled={isSaving}>
-                    <Text style={styles.saveButtonText}>{isSaving ? '저장 중...' : '저장'}</Text>
+                    <Text style={styles.saveButtonText}>{isSaving ? t('mediaDetail.saving') : t('common.save')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1630,6 +1650,23 @@ const styles = StyleSheet.create({
   coordsText: {
     fontSize: 11,
     color: colors.neutral[4],
+  },
+  openMapButton: {
+    marginTop: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.brand.primary,
+    alignSelf: 'flex-start',
+  },
+  openMapButtonDark: {
+    borderColor: '#FF8A82',
+  },
+  openMapButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.brand.primary,
   },
   detailValueLink: {
     fontSize: 14,

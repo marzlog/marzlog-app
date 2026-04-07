@@ -49,7 +49,7 @@ export const useReminderStore = create<ReminderState>((set, get) => ({
         });
       }
     } catch (error) {
-      console.error('[Reminder] initialize failed:', error);
+      // silently fail
     }
   },
 
@@ -71,7 +71,6 @@ export const useReminderStore = create<ReminderState>((set, get) => ({
       set({ isEnabled: true, isLoading: false });
       return true;
     } catch (error) {
-      console.error('[Reminder] enableReminder failed:', error);
       set({ isLoading: false });
       return false;
     }
@@ -88,7 +87,6 @@ export const useReminderStore = create<ReminderState>((set, get) => ({
 
       set({ isEnabled: false, isLoading: false });
     } catch (error) {
-      console.error('[Reminder] disableReminder failed:', error);
       set({ isLoading: false });
     }
   },

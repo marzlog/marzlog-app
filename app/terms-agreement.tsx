@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   TouchableOpacity,
 } from 'react-native';
@@ -12,6 +11,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
 import { router } from 'expo-router';
 import { useTranslation } from '@src/hooks/useTranslation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TermsAgreementScreen() {
   const systemColorScheme = useColorScheme();
@@ -21,6 +21,8 @@ export default function TermsAgreementScreen() {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [agreeMarketing, setAgreeMarketing] = useState(false);
+
+  const insets = useSafeAreaInsets();
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
@@ -51,7 +53,7 @@ export default function TermsAgreementScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
+    <View style={[styles.container, { backgroundColor: bgColor, paddingTop: insets.top }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
@@ -147,7 +149,7 @@ export default function TermsAgreementScreen() {
       </View>
 
       {/* Bottom Button */}
-      <View style={styles.bottomArea}>
+      <View style={[styles.bottomArea, { paddingBottom: Math.max(32, insets.bottom + 12) }]}>
         <TouchableOpacity
           style={[styles.nextButton, !allRequired && styles.nextButtonDisabled]}
           onPress={handleNext}
@@ -157,7 +159,7 @@ export default function TermsAgreementScreen() {
           <Text style={styles.nextButtonText}>{t('terms.agreeAndNext')}</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

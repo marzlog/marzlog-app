@@ -53,12 +53,12 @@ export default function LanguageSelectScreen() {
           style={[
             styles.langCard,
             selected === 'ko' && styles.langCardSelected,
-            isDark && !selected && styles.langCardDark,
+            isDark && selected !== 'ko' && styles.langCardDark,
           ]}
           onPress={() => setSelected('ko')}
           activeOpacity={0.7}
         >
-          <Text style={[styles.langText, selected === 'ko' && styles.langTextSelected]}>
+          <Text style={[styles.langText, isDark && selected !== 'ko' && styles.langTextDark, selected === 'ko' && styles.langTextSelected]}>
             {t('language.korean')}
           </Text>
           {selected === 'ko' && (
@@ -76,7 +76,7 @@ export default function LanguageSelectScreen() {
           onPress={() => setSelected('en')}
           activeOpacity={0.7}
         >
-          <Text style={[styles.langText, selected === 'en' && styles.langTextSelected]}>
+          <Text style={[styles.langText, isDark && selected !== 'en' && styles.langTextDark, selected === 'en' && styles.langTextSelected]}>
             {t('language.english')}
           </Text>
           {selected === 'en' && (
@@ -154,6 +154,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#374151',
+  },
+  langTextDark: {
+    color: '#9CA3AF',
   },
   langTextSelected: {
     color: '#FFFFFF',

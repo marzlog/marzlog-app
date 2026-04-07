@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -18,6 +17,7 @@ import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { Logo } from '@/src/components/common/Logo';
 import { AiNotice } from '@/src/components/common/AiNotice';
+import { AppTouchable } from '@/src/components/common/AppTouchable';
 
 // Native-only: expo-alternate-app-icons crashes on web
 let nativeGetAppIconName: (() => string | null) | undefined;
@@ -67,27 +67,18 @@ export default function AppInfoScreen() {
     if (Platform.OS !== 'web') {
       try {
         const mod = require('expo-alternate-app-icons');
-        console.log('=== APP ICON DEBUG ===');
-        console.log('Platform.OS:', Platform.OS);
-        console.log('supportsAlternateIcons:', mod.supportsAlternateIcons);
-        console.log('getAppIconName:', mod.getAppIconName?.());
-        console.log('typeof setAlternateAppIcon:', typeof mod.setAlternateAppIcon);
-        console.log('module keys:', Object.keys(mod));
 
         if (nativeGetAppIconName) {
           setCurrentIcon(nativeGetAppIconName());
         }
         setIsSupported(nativeSupportsAlternateIcons);
       } catch (e) {
-        console.log('expo-alternate-app-icons error:', e);
+        // silently fail
       }
     }
   }, []);
 
   const handleChangeIcon = async (iconKey: string | null) => {
-    console.log('=== CHANGE ICON ===');
-    console.log('iconKey:', iconKey, 'Platform.OS:', Platform.OS, 'isSupported:', isSupported);
-
     if (Platform.OS === 'web') {
       window.alert(`${t('appInfo.iconNotSupported')}\n${t('appInfo.iconNotSupportedDesc')}`);
       return;
@@ -102,11 +93,8 @@ export default function AppInfoScreen() {
     }
 
     try {
-      console.log('Calling setAlternateAppIcon...');
       await nativeSetAlternateAppIcon(iconKey);
-      console.log('Icon changed successfully!');
     } catch (e: any) {
-      console.log('setAlternateAppIcon error:', e);
       if (!isSupported) {
         Alert.alert(t('appInfo.iconNotSupported'), t('appInfo.iconNotSupportedDesc'));
       }
@@ -117,9 +105,9 @@ export default function AppInfoScreen() {
     <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <AppTouchable style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={24} color={isDark ? '#F9FAFB' : '#1F2937'} />
-        </TouchableOpacity>
+        </AppTouchable>
         <View style={styles.headerCenter}>
           <Logo size={28} showText={false} color={isDark ? '#F9FAFB' : '#1F2937'} />
           <Text style={[styles.headerTitle, isDark && styles.textLight]}>{t('appInfo.title')}</Text>
@@ -131,7 +119,7 @@ export default function AppInfoScreen() {
         {/* Terms & Policies Section */}
         <Text style={[styles.sectionTitle, isDark && { color: '#9CA3AF' }]}>{t('appInfo.termsSection')}</Text>
         <View style={[styles.card, isDark && styles.cardDark]}>
-          <TouchableOpacity
+          <AppTouchable
             style={styles.menuItem}
             onPress={() => WebBrowser.openBrowserAsync('https://marzlog.com/terms')}
             activeOpacity={0.7}
@@ -141,9 +129,9 @@ export default function AppInfoScreen() {
               <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('appInfo.terms')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
+          </AppTouchable>
 
-          <TouchableOpacity
+          <AppTouchable
             style={[styles.menuItem, styles.menuItemLast]}
             onPress={() => WebBrowser.openBrowserAsync('https://marzlog.com/privacy')}
             activeOpacity={0.7}
@@ -153,7 +141,7 @@ export default function AppInfoScreen() {
               <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('appInfo.privacy')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
+          </AppTouchable>
         </View>
 
         {/* App Icon Section — iOS only */}
@@ -165,7 +153,7 @@ export default function AppInfoScreen() {
                 {APP_ICONS.map((icon) => {
                   const isSelected = currentIcon === icon.key;
                   return (
-                    <TouchableOpacity
+                    <AppTouchable
                       key={icon.key ?? 'default'}
                       onPress={() => handleChangeIcon(icon.key)}
                       style={styles.iconOptionWrapper}
@@ -182,7 +170,7 @@ export default function AppInfoScreen() {
                         />
                       </View>
                       {isSelected && <View style={styles.selectedDot} />}
-                    </TouchableOpacity>
+                    </AppTouchable>
                   );
                 })}
               </View>
@@ -206,7 +194,7 @@ export default function AppInfoScreen() {
 
         {/* Delete Account */}
         <View style={[styles.card, isDark && styles.cardDark]}>
-          <TouchableOpacity
+          <AppTouchable
             style={[styles.menuItem, styles.menuItemLast]}
             onPress={() => router.push('/withdraw')}
             activeOpacity={0.7}
@@ -216,7 +204,7 @@ export default function AppInfoScreen() {
               <Text style={styles.dangerText}>{t('appInfo.deleteAccount')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color="#FF4444" />
-          </TouchableOpacity>
+          </AppTouchable>
         </View>
       </ScrollView>
     </View>

@@ -18,13 +18,7 @@ import { useTranslation } from '@/src/hooks/useTranslation';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
 
-const WITHDRAW_REASONS = [
-  { id: 'not_using', label: '잘 사용 하지 않아요' },
-  { id: 'difficult', label: '사용하는 것이 어려워요' },
-  { id: 'other_service', label: '이용 중인 다른 서비스가 있어요' },
-  { id: 'privacy', label: '개인정보가 걱정돼요' },
-  { id: 'other', label: '기타' },
-];
+const REASON_IDS = ['not_using', 'difficult', 'other_service', 'privacy', 'other'] as const;
 
 export default function WithdrawScreen() {
   const systemColorScheme = useColorScheme();
@@ -109,17 +103,17 @@ export default function WithdrawScreen() {
           </Text>
 
           <View style={styles.reasonList}>
-            {WITHDRAW_REASONS.map((reason) => {
-              const isSelected = selectedReasons.includes(reason.id);
+            {REASON_IDS.map((id) => {
+              const isSelected = selectedReasons.includes(id);
               return (
                 <TouchableOpacity
-                  key={reason.id}
+                  key={id}
                   style={[
                     styles.reasonButton,
                     isDark && styles.reasonButtonDark,
                     isSelected && styles.reasonButtonSelected,
                   ]}
-                  onPress={() => toggleReason(reason.id)}
+                  onPress={() => toggleReason(id)}
                   activeOpacity={0.7}
                 >
                   <Text style={[
@@ -127,7 +121,7 @@ export default function WithdrawScreen() {
                     isDark && !isSelected && styles.textLight,
                     isSelected && styles.reasonTextSelected,
                   ]}>
-                    {reason.label}
+                    {t(`account.reason_${id}` as any)}
                   </Text>
                 </TouchableOpacity>
               );

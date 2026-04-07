@@ -1,4 +1,5 @@
 import apiClient from './client';
+import { getLanguage } from '../i18n';
 
 export interface Announcement {
   id: string;
@@ -23,8 +24,10 @@ export interface UnreadCountResponse {
 
 export const announcementsApi = {
   async getAnnouncements(limit = 20, offset = 0): Promise<AnnouncementListResponse> {
+    const lang = getLanguage();
     const response = await apiClient.get<AnnouncementListResponse>('/announcements', {
       params: { limit, offset },
+      headers: { 'Accept-Language': lang },
     });
     return response.data;
   },

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme';
+import i18n from '@/src/i18n';
 
 const { width } = Dimensions.get('window');
 const DAY_SIZE = (width - 80) / 7;
@@ -20,8 +21,8 @@ interface CalendarModalProps {
   onDateSelect: (date: Date) => void;
 }
 
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
-const MONTHS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+const getWeekdays = () => (i18n.t('calendar.weekdays') as string).split(',');
+const getMonths = () => (i18n.t('calendar.months') as string).split(',');
 
 export function CalendarModal({
   visible,
@@ -103,7 +104,7 @@ export function CalendarModal({
             </TouchableOpacity>
 
             <Text style={styles.monthText}>
-              {currentMonth.getFullYear()}년 {MONTHS[currentMonth.getMonth()]}
+              {i18n.t('calendar.monthFormat', { year: currentMonth.getFullYear(), month: getMonths()[currentMonth.getMonth()] })}
             </Text>
 
             <TouchableOpacity onPress={goToNextMonth} style={styles.navButton}>
@@ -113,7 +114,7 @@ export function CalendarModal({
 
           {/* Weekday Labels */}
           <View style={styles.weekdayRow}>
-            {WEEKDAYS.map((day, index) => (
+            {getWeekdays().map((day, index) => (
               <View key={index} style={styles.weekdayCell}>
                 <Text style={[
                   styles.weekdayText,
@@ -159,7 +160,7 @@ export function CalendarModal({
             style={styles.todayButton}
             onPress={() => handleDatePress(today)}
           >
-            <Text style={styles.todayButtonText}>오늘</Text>
+            <Text style={styles.todayButtonText}>{i18n.t('calendar.today')}</Text>
           </TouchableOpacity>
         </TouchableOpacity>
       </TouchableOpacity>
@@ -176,40 +177,40 @@ const styles = StyleSheet.create({
   },
   container: {
     backgroundColor: colors.background,
-    borderRadius: 24,
-    padding: 20,
-    width: width - 40,
-    maxWidth: 400,
+    borderRadius: 16,
+    padding: 14,
+    width: width - 48,
+    maxWidth: 360,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   navButton: {
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 20,
+    borderRadius: 16,
   },
   monthText: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '600',
     color: colors.text.primary,
   },
   weekdayRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   weekdayCell: {
     width: DAY_SIZE,
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   weekdayText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500',
     color: colors.text.secondary,
   },
@@ -219,16 +220,16 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     width: DAY_SIZE,
-    height: DAY_SIZE,
+    height: Math.round(DAY_SIZE * 0.85),
     alignItems: 'center',
     justifyContent: 'center',
   },
   dayButton: {
-    width: 36,
-    height: 36,
+    width: 30,
+    height: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 18,
+    borderRadius: 15,
   },
   selectedDay: {
     backgroundColor: colors.brand.primary,
@@ -238,7 +239,7 @@ const styles = StyleSheet.create({
     borderColor: colors.brand.primary,
   },
   dayText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     color: colors.text.primary,
   },
@@ -255,14 +256,14 @@ const styles = StyleSheet.create({
     color: '#3B82F6',
   },
   todayButton: {
-    marginTop: 16,
-    paddingVertical: 12,
+    marginTop: 8,
+    paddingVertical: 8,
     backgroundColor: colors.neutral[2],
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
   },
   todayButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.text.primary,
   },

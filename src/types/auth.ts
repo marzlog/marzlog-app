@@ -5,8 +5,8 @@ export interface User {
   nickname?: string | null;
   avatar_url?: string | null;
   profile_image?: string | null;  // legacy alias
-  oauth_provider?: 'google' | 'apple' | null;
-  oauth_sub?: string | null;
+  auth_provider?: 'email' | 'google' | 'apple' | 'kakao' | null;
+  has_password?: boolean;
   role: 'user' | 'admin';
   analysis_mode?: 'light' | 'precision';
   created_at: string;
@@ -72,4 +72,8 @@ export interface UserStats {
   total_groups: number;
   storage_used_bytes: number;
   storage_used_formatted: string;
+  storage_plan: string;
+  storage_limit_bytes: number;
+  storage_limit_formatted: string;
+  storage_usage_percent: number;
 }

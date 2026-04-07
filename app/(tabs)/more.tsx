@@ -1,17 +1,21 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import Constants from 'expo-constants';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
+import { useStorageStore } from '@/src/store/storageStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { Logo } from '@/src/components/common/Logo';
+import { StorageUsageBar } from '@/src/components/common/StorageUsageBar';
+import { AppTouchable } from '@/src/components/common/AppTouchable';
 
 interface MenuItem {
   icon: keyof typeof Ionicons.glyphMap;
@@ -21,10 +25,12 @@ interface MenuItem {
 
 const MENU_ITEMS: MenuItem[] = [
   { icon: 'home-outline', labelKey: 'more.home', route: '/(tabs)/' },
-  { icon: 'albums-outline', labelKey: 'more.album', route: '/(tabs)/timeline' },
+  { icon: 'images-outline', labelKey: 'more.album', route: '/(tabs)/timeline' },
   { icon: 'person-outline', labelKey: 'more.profile', route: '/(tabs)/profile' },
   { icon: 'settings-outline', labelKey: 'more.settings', route: '/settings' },
 ];
+
+const appVersion = Constants.expoConfig?.version || '1.0.0';
 
 export default function MoreScreen() {
   const systemColorScheme = useColorScheme();
@@ -37,6 +43,14 @@ export default function MoreScreen() {
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
 
+  const { fetchStorageUsage } = useStorageStore();
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchStorageUsage();
+    }, [])
+  );
+
   return (
     <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       <View style={styles.header}>
@@ -47,12 +61,14 @@ export default function MoreScreen() {
       </View>
 
       <View style={styles.content}>
+        <StorageUsageBar isDark={isDark} onUpgrade={() => router.push('/plans' as any)} />
         <View style={[styles.card, isDark && styles.cardDark]}>
           {MENU_ITEMS.map((item, index) => (
-            <TouchableOpacity
+            <AppTouchable
               key={item.route}
               style={[
                 styles.menuItem,
+                { borderBottomColor: isDark ? '#2D3748' : '#E5E7EB' },
                 index === MENU_ITEMS.length - 1 && styles.menuItemLast,
               ]}
               onPress={() => router.push(item.route as any)}
@@ -62,10 +78,17 @@ export default function MoreScreen() {
                 <Ionicons name={item.icon} size={22} color={isDark ? '#9CA3AF' : '#6B7280'} />
                 <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t(item.labelKey as any)}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
+              <Ionicons name="chevron-forward" size={18} color={isDark ? '#4B5563' : '#9CA3AF'} />
+            </AppTouchable>
           ))}
         </View>
+      </View>
+
+      {/* Version at bottom */}
+      <View style={styles.versionArea}>
+        <Text style={[styles.versionText, isDark && styles.versionTextDark]}>
+          MarZlog v{appVersion}
+        </Text>
       </View>
     </View>
   );
@@ -80,7 +103,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#111827',
   },
   header: {
-    height: 64,
+    height: 52,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -104,19 +127,18 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 14,
   },
   cardDark: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#1A2332',
   },
   menuItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    height: 56,
+    height: 52,
     paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   menuItemLast: {
     borderBottomWidth: 0,
@@ -127,7 +149,21 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   menuLabel: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#374151',
+  },
+  versionArea: {
+    position: 'absolute',
+    bottom: 24,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  versionText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  versionTextDark: {
+    color: '#4B5563',
   },
 });
