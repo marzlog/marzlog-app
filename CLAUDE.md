@@ -25,7 +25,7 @@ cd /home/ubuntu/marzlog-backend
 3. **변경 후 컨테이너 재생성 필요**
    ```bash
    # restart는 환경 변수 변경 반영 안 됨
-   docker compose restart api  # ❌
+   docker compose restart api  # 
 
    # up -d로 컨테이너 재생성 필요
    docker compose up -d api    # ✅
@@ -67,6 +67,25 @@ s3 = boto3.client('s3', endpoint_url=settings.S3_ENDPOINT, ...)
 # ...
 EOF
 ```
+
+## 서버 역할 분리 원칙
+
+### API 서버 (43.202.146.68, t3.small 2GB) — 절대 금지 목록
+- `open_clip`, `torch`, `transformers` 등 AI 모델 import 금지
+- SigLIP, CLIP, BLIP 등 로컬 모델 로드 금지
+- `ai_models.py`는 Worker HTTP 클라이언트 코드만 포함
+
+### Worker 서버 (13.209.26.40, 3.7GB) — 모델 전담
+- SigLIP2 임베딩 생성 → `/embed` 엔드포인트 제공 (port 8001)
+- BLIP-2 캡셔닝, PaddleOCR 등 AI 처리 전담
+
+### 배포 규칙
+- API 서버 코드 변경: `docker cp` + `docker compose restart api`
+- `docker compose up --build --force-recreate` 직접 실행 금지
+- 배포는 반드시 `deploy_api.sh` 사용
+
+### 위반 시 결과
+- API 서버 OOM → SSH 불가 → 강제 stop/start 필요 (2026-04-06 실제 발생)
 
 ## 주의사항
 
