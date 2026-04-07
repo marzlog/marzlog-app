@@ -33,9 +33,17 @@ export const authApi = {
   /**
    * Apple OAuth 로그인
    */
-  async appleLogin(idToken: string): Promise<AuthResponse> {
+  async appleLogin(
+    identityToken: string,
+    nonce: string,
+    fullName?: { firstName?: string; lastName?: string },
+  ): Promise<AuthResponse> {
     const response = await apiClient.post<AuthResponse>('/auth/apple', {
-      id_token: idToken,
+      identity_token: identityToken,
+      nonce,
+      full_name: fullName
+        ? `${fullName.firstName || ''} ${fullName.lastName || ''}`.trim() || undefined
+        : undefined,
     });
     return response.data;
   },

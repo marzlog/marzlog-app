@@ -17,6 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.marzlog.app",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "사진 촬영을 위해 카메라 접근 권한이 필요합니다.",
         "NSPhotoLibraryUsageDescription": "사진을 업로드하고 추억을 기록하기 위해 사진 라이브러리 접근 권한이 필요합니다.",
@@ -95,6 +96,7 @@
         "organization": "jjsim-inc",
         "project": "react-native"
       }],
+      "expo-apple-authentication",
       "expo-video"
     ],
     "updates": {

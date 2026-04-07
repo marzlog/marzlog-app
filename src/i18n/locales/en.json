@@ -29,6 +29,7 @@
     "logoutConfirm": "Are you sure you want to logout?",
     "continueWithGoogle": "Continue with Google",
     "continueWithApple": "Continue with Apple",
+    "appleSignIn": "Continue with Apple",
     "appleNotSupported": "Apple Sign-In is not available yet. Please use your Google account.",
     "register": "Sign Up",
     "forgotPassword": "Forgot Password",

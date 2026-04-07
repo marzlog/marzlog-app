@@ -29,6 +29,7 @@
     "logoutConfirm": "정말 로그아웃하시겠습니까?",
     "continueWithGoogle": "Google로 계속",
     "continueWithApple": "Apple로 계속",
+    "appleSignIn": "Apple로 계속하기",
     "appleNotSupported": "Apple 로그인은 현재 지원되지 않습니다. Google 계정을 이용해주세요.",
     "register": "회원가입",
     "forgotPassword": "비밀번호 찾기",

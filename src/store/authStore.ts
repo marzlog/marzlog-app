@@ -18,6 +18,7 @@ interface AuthStore extends AuthState {
   // Auth methods
   loginWithGoogle: (idToken: string) => Promise<void>;
   loginWithKakao: (accessToken: string) => Promise<void>;
+  loginWithApple: (identityToken: string, nonce: string, fullName?: { firstName?: string; lastName?: string }) => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -89,6 +90,31 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });
       throw error;
+    }
+  },
+
+  // Apple Login
+  loginWithApple: async (identityToken: string, nonce: string, fullName?: { firstName?: string; lastName?: string }) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await authApi.appleLogin(identityToken, nonce, fullName);
+
+      await storage.setItem('access_token', response.tokens.access_token);
+      await storage.setItem('refresh_token', response.tokens.refresh_token);
+
+      set({
+        user: response.user,
+        accessToken: response.tokens.access_token,
+        refreshToken: response.tokens.refresh_token,
+        isAuthenticated: true,
+        isLoading: false,
+      });
+
+      registerPushToken().catch(() => {});
+    } catch (error: any) {
+      const message = extractErrorMessage(error, 'Login failed');
+      set({ error: message, isLoading: false });
+      throw new Error(message);
     }
   },
 

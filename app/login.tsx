@@ -9,7 +9,6 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
-  Alert,
   Animated,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
@@ -18,6 +17,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
 import GoogleLoginButton from '@src/components/auth/GoogleLoginButton';
 import KakaoLoginButton from '@src/components/auth/KakaoLoginButton';
+import AppleLoginButton from '@src/components/auth/AppleLoginButton';
 import { router } from 'expo-router';
 import { useAuthStore } from '@src/store/authStore';
 import { useTranslation } from '@src/hooks/useTranslation';
@@ -214,14 +214,7 @@ export default function LoginScreen() {
         <View style={styles.socialArea}>
           <KakaoLoginButton onSuccess={handleSuccess} onError={handleError} />
           <GoogleLoginButton onSuccess={handleSuccess} onError={handleError} />
-          <AppTouchable
-            style={[styles.appleButton, isDark && styles.appleButtonDark]}
-            onPress={() => Alert.alert(t('auth.continueWithApple'), t('auth.appleNotSupported'))}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="logo-apple" size={20} color={isDark ? '#fff' : '#fff'} />
-            <Text style={styles.appleButtonText}>{t('auth.continueWithApple')}</Text>
-          </AppTouchable>
+          <AppleLoginButton onSuccess={handleSuccess} onError={handleError} />
         </View>
 
         {/* 구분선 */}
@@ -367,26 +360,6 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 20,
     paddingHorizontal: 16,
-  },
-  appleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#000',
-    borderRadius: 8,
-    width: '100%',
-    height: 44,
-    gap: 8,
-  },
-  appleButtonDark: {
-    backgroundColor: '#1F2937',
-    borderWidth: 1,
-    borderColor: '#374151',
-  },
-  appleButtonText: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
   },
   dividerRow: {
     flexDirection: 'row',
