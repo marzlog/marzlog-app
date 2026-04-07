@@ -244,7 +244,7 @@ export default function TimelineScreen() {
   const [hasMore, setHasMore] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [activeTab, setActiveTab] = useState<TabFilter>('image');
-  const [timeFilter, setTimeFilter] = useState<'week' | 'month' | '3month' | 'all'>('month');
+  const [timeFilter, setTimeFilter] = useState<'week' | 'month' | '3month' | 'all'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [unreadAnnCount, setUnreadAnnCount] = useState(0);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
