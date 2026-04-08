@@ -15,9 +15,17 @@ interface EmotionUpdate {
   ts: number;  // 동일 mediaId 재변경 감지용
 }
 
+interface BookmarkUpdate {
+  mediaId: string;
+  isBookmarked: boolean;
+  ts: number;
+}
+
 interface MediaUpdatesStore {
   lastEmotionUpdate: EmotionUpdate | null;
   setEmotionUpdate: (mediaId: string, emotion: string, intensity: number) => void;
+  lastBookmarkUpdate: BookmarkUpdate | null;
+  setBookmarkUpdate: (mediaId: string, isBookmarked: boolean) => void;
 }
 
 export const useMediaUpdatesStore = create<MediaUpdatesStore>((set) => ({
@@ -25,6 +33,11 @@ export const useMediaUpdatesStore = create<MediaUpdatesStore>((set) => ({
   setEmotionUpdate: (mediaId, emotion, intensity) =>
     set({
       lastEmotionUpdate: { mediaId, emotion, intensity, ts: Date.now() },
+    }),
+  lastBookmarkUpdate: null,
+  setBookmarkUpdate: (mediaId, isBookmarked) =>
+    set({
+      lastBookmarkUpdate: { mediaId, isBookmarked, ts: Date.now() },
     }),
 }));
 

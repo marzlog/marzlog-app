@@ -30,6 +30,7 @@ export interface MediaInfo {
   group_dates?: string[] | null;  // 그룹 내 모든 이미지의 taken_at 목록
   emotion?: string | null;
   intensity?: number | null;
+  is_bookmarked?: boolean | null;
 }
 
 // 타임라인 아이템 (실제 API 구조)

@@ -24,7 +24,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, updateCaption, updateDiary, updateMediaEmotion } from '@/src/api/media';
+import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, updateCaption, updateDiary, updateMediaEmotion, patchBookmark } from '@/src/api/media';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import Slider from '@react-native-community/slider';
 import { timelineApi, GroupImageItem } from '@/src/api/timeline';
@@ -557,6 +557,25 @@ export default function MediaDetailScreen() {
     }
   };
 
+  // 북마크 토글
+  const handleBookmarkToggle = async () => {
+    const currentMediaId = groupImages.length > 0
+      ? String(groupImages[currentImageIndex]?.id)
+      : id!;
+    const currentValue = !!(media as any)?.is_bookmarked;
+    const next = !currentValue;
+    // 낙관적: 즉시 broadcast (다른 화면 + 로컬 reflect)
+    useMediaUpdatesStore.getState().setBookmarkUpdate(currentMediaId, next);
+    setMedia(prev => prev ? ({ ...prev, is_bookmarked: next } as any) : prev);
+    try {
+      await patchBookmark(currentMediaId, next);
+    } catch {
+      // 롤백
+      useMediaUpdatesStore.getState().setBookmarkUpdate(currentMediaId, currentValue);
+      setMedia(prev => prev ? ({ ...prev, is_bookmarked: currentValue } as any) : prev);
+    }
+  };
+
   return (
     <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       {/* Header */}
@@ -566,6 +585,16 @@ export default function MediaDetailScreen() {
         </TouchableOpacity>
         <Text style={[styles.headerTitle, isDark && styles.textLight]}>상세보기</Text>
         <View style={styles.headerRight}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={handleBookmarkToggle}
+          >
+            <Ionicons
+              name={(media as any)?.is_bookmarked ? 'bookmark' : 'bookmark-outline'}
+              size={20}
+              color={(media as any)?.is_bookmarked ? '#FF6A5F' : (isDark ? '#F9FAFB' : colors.text.primary)}
+            />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => setShowShareSheet(true)}
