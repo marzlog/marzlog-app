@@ -4,6 +4,8 @@
     "ocrCopied": "Text copied",
     "diaryCopied": "Diary copied",
     "imageSaving": "Saving image...",
+    "imageSaved": "Saved to gallery",
+    "imageSaveFailed": "Failed to save image",
     "permissionDenied": "Permission required"
   },
   "ai": {

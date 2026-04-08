@@ -4,6 +4,8 @@
     "ocrCopied": "텍스트가 복사됐습니다",
     "diaryCopied": "일기가 복사됐습니다",
     "imageSaving": "이미지 저장 중...",
+    "imageSaved": "갤러리에 저장됐습니다",
+    "imageSaveFailed": "저장에 실패했습니다",
     "permissionDenied": "권한이 필요합니다"
   },
   "ai": {

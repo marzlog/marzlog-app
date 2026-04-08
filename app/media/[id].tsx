@@ -26,7 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, updateCaption, updateDiary, updateMediaEmotion, patchBookmark } from '@/src/api/media';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
-import { copyText, shareImage } from '@/src/utils/copyUtils';
+import { copyText, saveImageToGallery } from '@/src/utils/copyUtils';
 import Slider from '@react-native-community/slider';
 import { timelineApi, GroupImageItem } from '@/src/api/timeline';
 import { colors } from '@/src/theme';
@@ -572,7 +572,7 @@ export default function MediaDetailScreen() {
     }
   };
 
-  // 이미지 갤러리 저장 (share sheet 경유)
+  // 이미지 갤러리 직접 저장 (expo-media-library)
   const handleSaveImage = async () => {
     const currentMediaId = groupImages.length > 0
       ? groupImages[currentImageIndex]
@@ -581,9 +581,14 @@ export default function MediaDetailScreen() {
     if (!imageUrl) return;
     setIsSavingImage(true);
     try {
-      await shareImage(imageUrl);
-    } catch (e) {
-      await alert(t('common.error'), t('copy.permissionDenied'));
+      const result = await saveImageToGallery(imageUrl);
+      if (result === 'success') {
+        await alert('', t('copy.imageSaved'));
+      } else if (result === 'denied') {
+        await alert(t('common.error'), t('copy.permissionDenied'));
+      } else {
+        await alert(t('common.error'), t('copy.imageSaveFailed'));
+      }
     } finally {
       setIsSavingImage(false);
     }
