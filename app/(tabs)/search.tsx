@@ -67,6 +67,7 @@ export default function SearchScreen() {
     : themeMode === 'dark';
 
   const [query, setQuery] = useState('');
+  const [isBookmarkFilter, setIsBookmarkFilter] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
@@ -166,7 +167,8 @@ export default function SearchScreen() {
 
   const handleSearch = async (searchQuery?: string) => {
     const term = (typeof searchQuery === 'string' ? searchQuery : query).trim();
-    if (!term) return;
+    // 북마크 필터 ON일 때는 빈 query도 허용 (전체 북마크 목록)
+    if (!term && !isBookmarkFilter) return;
 
     setShowSuggestions(false);
     setIsSearching(true);
@@ -175,17 +177,19 @@ export default function SearchScreen() {
     setResults([]);
     inputRef.current?.blur();
 
+    const bookmarkFlag = isBookmarkFilter ? true : undefined;
+
     try {
-      const response = await searchApi.search(term, 20, 'hybrid');
+      const response = await searchApi.search(term, 20, 'hybrid', bookmarkFlag);
       setResults(response.results || []);
-      if (response.results?.length > 0) saveRecentSearch(term);
+      if (term && response.results?.length > 0) saveRecentSearch(term);
     } catch (err: any) {
       const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
       if (isTimeout && !err._retried) {
         try {
-          const response = await searchApi.search(term, 20, 'hybrid');
+          const response = await searchApi.search(term, 20, 'hybrid', bookmarkFlag);
           setResults(response.results || []);
-          if (response.results?.length > 0) saveRecentSearch(term);
+          if (term && response.results?.length > 0) saveRecentSearch(term);
           return;
         } catch (retryErr: any) { retryErr._retried = true; }
       }
@@ -195,6 +199,14 @@ export default function SearchScreen() {
       setIsSearching(false);
     }
   };
+
+  // 북마크 필터 토글 시 자동 재검색
+  useEffect(() => {
+    if (hasSearched || isBookmarkFilter) {
+      handleSearch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isBookmarkFilter]);
 
   const handleCategoryPress = (chip: typeof CATEGORY_CHIPS[0]) => {
     const q = chip.query || chip.label;
@@ -276,6 +288,30 @@ export default function SearchScreen() {
           </View>
         )}
       </View>
+
+      {/* 북마크 필터 토글 */}
+      <TouchableOpacity
+        onPress={() => setIsBookmarkFilter(prev => !prev)}
+        style={[
+          styles.bookmarkFilter,
+          { borderColor: theme.border },
+          isBookmarkFilter && styles.bookmarkFilterActive,
+        ]}
+      >
+        <Ionicons
+          name={isBookmarkFilter ? 'bookmark' : 'bookmark-outline'}
+          size={14}
+          color={isBookmarkFilter ? '#fff' : theme.subText}
+        />
+        <Text
+          style={[
+            styles.bookmarkFilterText,
+            { color: isBookmarkFilter ? '#fff' : theme.subText },
+          ]}
+        >
+          {t('search.bookmarkFilter')}
+        </Text>
+      </TouchableOpacity>
 
       {/* 자동완성 드롭다운 */}
       {showSuggestions && suggestions.length > 0 && (
@@ -479,6 +515,26 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   aiBadgeText: { fontSize: 11, fontWeight: '600' },
+
+  // 북마크 필터 토글
+  bookmarkFilter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignSelf: 'flex-start',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  bookmarkFilterActive: {
+    backgroundColor: '#FF6A5F',
+    borderColor: '#FF6A5F',
+  },
+  bookmarkFilterText: { fontSize: 12, fontWeight: '500' },
 
   // Dropdown
   dropdown: {

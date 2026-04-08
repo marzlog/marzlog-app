@@ -274,6 +274,7 @@
     "totalCount": "{{count}} items"
   },
   "search": {
+    "bookmarkFilter": "Bookmarked",
     "title": "AI Search",
     "placeholder": "Search photos (e.g., beach sunset)",
     "searching": "Searching...",

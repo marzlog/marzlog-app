@@ -274,6 +274,7 @@
     "totalCount": "총 {{count}}건"
   },
   "search": {
+    "bookmarkFilter": "즐겨찾기만",
     "title": "AI검색",
     "placeholder": "Search in English (e.g., beach)",
     "searching": "검색 중...",

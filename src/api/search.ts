@@ -26,12 +26,17 @@ export type SearchMode = 'hybrid' | 'vector' | 'text';
 
 export const searchApi = {
     // 검색
-    async search(query: string, limit = 20, mode: SearchMode = 'hybrid'): Promise<SearchResponse> {
-        const response = await apiClient.post<SearchResponse>('/search/', {
-            query,
-            mode,
-            limit,
-        }, { timeout: 60000 });
+    async search(
+        query: string,
+        limit = 20,
+        mode: SearchMode = 'hybrid',
+        isBookmarked?: boolean,
+    ): Promise<SearchResponse> {
+        const body: Record<string, unknown> = { query, mode, limit };
+        if (isBookmarked !== undefined) body.is_bookmarked = isBookmarked;
+        const response = await apiClient.post<SearchResponse>('/search/', body, {
+            timeout: 60000,
+        });
         return response.data;
     },
 
