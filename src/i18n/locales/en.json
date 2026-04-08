@@ -1,4 +1,11 @@
 {
+  "copy": {
+    "captionCopied": "Caption copied",
+    "ocrCopied": "Text copied",
+    "diaryCopied": "Diary copied",
+    "imageSaving": "Saving image...",
+    "permissionDenied": "Permission required"
+  },
   "ai": {
     "draftNotice": "This is an AI-generated draft. Tap to edit freely.",
     "captionNotice": "AI-generated description. May not be fully accurate.",

@@ -26,6 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, updateCaption, updateDiary, updateMediaEmotion, patchBookmark } from '@/src/api/media';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
+import { copyText, shareImage } from '@/src/utils/copyUtils';
 import Slider from '@react-native-community/slider';
 import { timelineApi, GroupImageItem } from '@/src/api/timeline';
 import { colors } from '@/src/theme';
@@ -557,6 +558,35 @@ export default function MediaDetailScreen() {
     }
   };
 
+  // 텍스트 복사 핸들러 (캡션/일기/OCR 공통)
+  const [isSavingImage, setIsSavingImage] = useState(false);
+  const handleCopy = async (text: string | null | undefined, toastKey: string) => {
+    if (!text) return;
+    try {
+      await copyText(text);
+      await alert('', t(toastKey));
+    } catch {
+      // 무시
+    }
+  };
+
+  // 이미지 갤러리 저장 (share sheet 경유)
+  const handleSaveImage = async () => {
+    const currentMediaId = groupImages.length > 0
+      ? groupImages[currentImageIndex]
+      : null;
+    const imageUrl = currentMediaId?.download_url || media?.download_url;
+    if (!imageUrl) return;
+    setIsSavingImage(true);
+    try {
+      await shareImage(imageUrl);
+    } catch (e) {
+      await alert(t('common.error'), t('copy.permissionDenied'));
+    } finally {
+      setIsSavingImage(false);
+    }
+  };
+
   // 북마크 토글
   const handleBookmarkToggle = async () => {
     const currentMediaId = groupImages.length > 0
@@ -599,6 +629,17 @@ export default function MediaDetailScreen() {
               name={(media as any)?.is_bookmarked ? 'bookmark' : 'bookmark-outline'}
               size={20}
               color={(media as any)?.is_bookmarked ? '#FF6A5F' : (isDark ? '#F9FAFB' : colors.text.primary)}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={handleSaveImage}
+            disabled={isSavingImage}
+          >
+            <Ionicons
+              name="download-outline"
+              size={20}
+              color={isSavingImage ? colors.neutral[4] : (isDark ? '#F9FAFB' : colors.text.primary)}
             />
           </TouchableOpacity>
           <TouchableOpacity
@@ -823,7 +864,15 @@ export default function MediaDetailScreen() {
         {/* 내용 */}
         {media.content && (
           <View style={[styles.userSection, isDark && styles.sectionBorderDark]}>
-            <Text style={[styles.userSectionLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.content')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={[styles.userSectionLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.content')}</Text>
+              <TouchableOpacity
+                onPress={() => handleCopy(media.content, 'copy.diaryCopied')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="copy-outline" size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              </TouchableOpacity>
+            </View>
             <Text style={[styles.contentText, isDark && styles.textLight]}>{media.content}</Text>
           </View>
         )}
@@ -847,9 +896,17 @@ export default function MediaDetailScreen() {
         {/* AI Caption */}
         {analysis?.caption && (
           <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionIcon}>✨</Text>
-              <Text style={[styles.sectionTitle, isDark && styles.textLight]}>AI Caption</Text>
+            <View style={[styles.sectionHeader, { justifyContent: 'space-between' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.sectionIcon}>✨</Text>
+                <Text style={[styles.sectionTitle, isDark && styles.textLight]}>AI Caption</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => handleCopy(analysis.caption_ko || analysis.caption, 'copy.captionCopied')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="copy-outline" size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              </TouchableOpacity>
             </View>
             <Text style={[styles.captionText, isDark && styles.captionTextDark]}>{analysis.caption_ko || analysis.caption}</Text>
             <AiNotice text={t('ai.captionNotice')} isDark={isDark} />
@@ -893,9 +950,17 @@ export default function MediaDetailScreen() {
         {/* OCR Text */}
         {analysis?.ocr_text && (
           <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionIcon}>📝</Text>
-              <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Detected Text (OCR)</Text>
+            <View style={[styles.sectionHeader, { justifyContent: 'space-between' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={styles.sectionIcon}>📝</Text>
+                <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Detected Text (OCR)</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => handleCopy(analysis.ocr_text, 'copy.ocrCopied')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="copy-outline" size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
+              </TouchableOpacity>
             </View>
             <View style={[styles.ocrBox, isDark && styles.boxDark]}>
               <Text style={[styles.ocrText, isDark && styles.textLight]}>{analysis.ocr_text}</Text>
