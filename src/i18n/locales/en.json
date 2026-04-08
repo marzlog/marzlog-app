@@ -1,4 +1,13 @@
 {
+  "copy": {
+    "captionCopied": "Caption copied",
+    "ocrCopied": "Text copied",
+    "diaryCopied": "Diary copied",
+    "imageSaving": "Saving image...",
+    "imageSaved": "Saved to gallery",
+    "imageSaveFailed": "Failed to save image",
+    "permissionDenied": "Permission required"
+  },
   "ai": {
     "draftNotice": "This is an AI-generated draft. Tap to edit freely.",
     "captionNotice": "AI-generated description. May not be fully accurate.",
@@ -265,6 +274,7 @@
     "totalCount": "{{count}} items"
   },
   "search": {
+    "bookmarkFilter": "Bookmarked",
     "title": "AI Search",
     "placeholder": "Search photos (e.g., beach sunset)",
     "searching": "Searching...",
@@ -341,6 +351,7 @@
     "memoPlaceholder": "Write an additional memo..."
   },
   "mediaDetail": {
+    "pageTitle": "Photo Detail",
     "diaryEdit": "Edit Diary",
     "captionEdit": "Edit Caption",
     "titlePlaceholder": "Enter a title",

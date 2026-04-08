@@ -135,6 +135,57 @@ export async function updateMediaEmotion(
   return response.data;
 }
 
+/**
+ * 북마크/즐겨찾기 토글
+ */
+export async function patchBookmark(
+  mediaId: string,
+  isBookmarked: boolean
+): Promise<{ id: string; is_bookmarked: boolean }> {
+  const response = await apiClient.patch(`/media/${mediaId}/bookmark`, {
+    is_bookmarked: isBookmarked,
+  });
+  return response.data;
+}
+
+export interface BookmarkItem {
+  id: string;
+  storage_key: string;
+  taken_at: string | null;
+  created_at: string | null;
+  emotion: string | null;
+  intensity: number | null;
+  title: string | null;
+  is_bookmarked: boolean;
+  caption: string | null;
+  caption_ko: string | null;
+  tags: string[];
+  tags_ko: string[];
+  thumbnail_url: string | null;
+  download_url: string | null;
+}
+
+export interface BookmarkListResponse {
+  items: BookmarkItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  has_more: boolean;
+}
+
+/**
+ * 북마크 목록 조회
+ */
+export async function getBookmarks(
+  limit = 20,
+  offset = 0
+): Promise<BookmarkListResponse> {
+  const response = await apiClient.get<BookmarkListResponse>('/media/bookmarks', {
+    params: { limit, offset },
+  });
+  return response.data;
+}
+
 export default {
   getMediaDetail,
   getMediaAnalysis,
@@ -146,4 +197,6 @@ export default {
   updateCaption,
   updateDiary,
   updateMediaEmotion,
+  patchBookmark,
+  getBookmarks,
 };

@@ -20,11 +20,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
 import timelineApi, { TimelineItem } from '@/src/api/timeline';
+import { patchBookmark } from '@/src/api/media';
 import { palette, lightTheme, darkTheme, Theme } from '@/src/theme/colors';
 import { useAuthStore } from '@/src/store/authStore';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
 import { captureError } from '@/src/utils/sentry';
@@ -334,6 +336,59 @@ export default function TimelineScreen() {
     }
   }, []);
 
+  // 미디어 emotion 변경 broadcast 구독 → allItemsRef + dateGroups in-place patch
+  const lastEmotionUpdate = useMediaUpdatesStore(s => s.lastEmotionUpdate);
+  useEffect(() => {
+    if (!lastEmotionUpdate) return;
+    const patchItem = (item: TimelineItem): TimelineItem => {
+      if (item.media?.id === lastEmotionUpdate.mediaId) {
+        return {
+          ...item,
+          media: { ...item.media, emotion: lastEmotionUpdate.emotion },
+        };
+      }
+      return item;
+    };
+    allItemsRef.current = allItemsRef.current.map(patchItem);
+    setDateGroups(prev => prev.map(group => ({
+      ...group,
+      items: group.items.map(patchItem),
+    })));
+  }, [lastEmotionUpdate]);
+
+  // 북마크 변경 broadcast 구독 → in-place patch
+  const lastBookmarkUpdate = useMediaUpdatesStore(s => s.lastBookmarkUpdate);
+  useEffect(() => {
+    if (!lastBookmarkUpdate) return;
+    const patchItem = (item: TimelineItem): TimelineItem => {
+      if (item.media?.id === lastBookmarkUpdate.mediaId) {
+        return {
+          ...item,
+          media: { ...item.media, is_bookmarked: lastBookmarkUpdate.isBookmarked },
+        };
+      }
+      return item;
+    };
+    allItemsRef.current = allItemsRef.current.map(patchItem);
+    setDateGroups(prev => prev.map(group => ({
+      ...group,
+      items: group.items.map(patchItem),
+    })));
+  }, [lastBookmarkUpdate]);
+
+  // 북마크 토글 핸들러 (텍스트 카드의 북마크 아이콘 클릭)
+  const handleBookmarkToggle = useCallback(async (mediaId: string, currentValue: boolean) => {
+    const next = !currentValue;
+    // 즉시 UI 반영 (낙관적 업데이트)
+    useMediaUpdatesStore.getState().setBookmarkUpdate(mediaId, next);
+    try {
+      await patchBookmark(mediaId, next);
+    } catch {
+      // 실패 시 롤백
+      useMediaUpdatesStore.getState().setBookmarkUpdate(mediaId, currentValue);
+    }
+  }, []);
+
   const groupByDate = (items: TimelineItem[]): DateGroup[] => {
     const grouped: Record<string, TimelineItem[]> = {};
     items.forEach((item) => {
@@ -558,7 +613,20 @@ export default function TimelineScreen() {
       <View style={styles.listContent}>
         <View style={styles.listHeader}>
           <Text style={[styles.listTime, { color: theme.text.tertiary }]}>{formatTime(photo.media?.taken_at || photo.created_at)}</Text>
-          <BookmarkIcon color={theme.icon.secondary} />
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation?.();
+              if (photo.media?.id) {
+                handleBookmarkToggle(photo.media.id, !!photo.media.is_bookmarked);
+              }
+            }}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <BookmarkIcon
+              color={photo.media?.is_bookmarked ? palette.primary[500] : theme.icon.secondary}
+              filled={!!photo.media?.is_bookmarked}
+            />
+          </TouchableOpacity>
         </View>
         {/* OCR 텍스트 표시 (텍스트 탭에서) */}
         <Text style={[styles.listCaption, { color: theme.text.primary }]} numberOfLines={3}>

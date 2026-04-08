@@ -97,7 +97,15 @@
         "project": "react-native"
       }],
       "expo-apple-authentication",
-      "expo-video"
+      "expo-video",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "사진을 갤러리에 저장하기 위해 접근 권한이 필요합니다.",
+          "savePhotosPermission": "사진을 갤러리에 저장하기 위해 접근 권한이 필요합니다.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ]
     ],
     "updates": {
       "enabled": true,

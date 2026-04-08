@@ -23,6 +23,7 @@ import timelineApi, { TimelineItem } from '@/src/api/timeline';
 import { useAuthStore } from '@/src/store/authStore';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTimelineStore } from '@/src/store/timelineStore';
+import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -312,6 +313,21 @@ export default function HomeScreen() {
   }, [allItems]);
 
   const PAGE_SIZE = 20;
+
+  // 미디어 emotion 변경 broadcast 구독 → allItems in-place patch
+  const lastEmotionUpdate = useMediaUpdatesStore(s => s.lastEmotionUpdate);
+  useEffect(() => {
+    if (!lastEmotionUpdate) return;
+    setAllItems(prev => prev.map(item => {
+      if (item.media?.id === lastEmotionUpdate.mediaId) {
+        return {
+          ...item,
+          media: { ...item.media, emotion: lastEmotionUpdate.emotion },
+        };
+      }
+      return item;
+    }));
+  }, [lastEmotionUpdate]);
 
   // 전체 타임라인 로드 (초기 20개 + 자동 추가 로드)
   const loadAllItems = useCallback(async () => {

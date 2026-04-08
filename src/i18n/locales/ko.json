@@ -1,4 +1,13 @@
 {
+  "copy": {
+    "captionCopied": "캡션이 복사됐습니다",
+    "ocrCopied": "텍스트가 복사됐습니다",
+    "diaryCopied": "일기가 복사됐습니다",
+    "imageSaving": "이미지 저장 중...",
+    "imageSaved": "갤러리에 저장됐습니다",
+    "imageSaveFailed": "저장에 실패했습니다",
+    "permissionDenied": "권한이 필요합니다"
+  },
   "ai": {
     "draftNotice": "AI가 작성한 초안입니다. 탭하여 자유롭게 수정할 수 있습니다.",
     "captionNotice": "AI가 생성한 설명이며, 실제와 다를 수 있습니다.",
@@ -265,6 +274,7 @@
     "totalCount": "총 {{count}}건"
   },
   "search": {
+    "bookmarkFilter": "즐겨찾기만",
     "title": "AI검색",
     "placeholder": "Search in English (e.g., beach)",
     "searching": "검색 중...",
@@ -341,6 +351,7 @@
     "memoPlaceholder": "추가 메모를 작성하세요..."
   },
   "mediaDetail": {
+    "pageTitle": "상세보기",
     "diaryEdit": "일기 편집",
     "captionEdit": "사진 설명 편집",
     "titlePlaceholder": "제목을 입력하세요",
