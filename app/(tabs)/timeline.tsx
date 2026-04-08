@@ -25,6 +25,7 @@ import { useAuthStore } from '@/src/store/authStore';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
 import { captureError } from '@/src/utils/sentry';
@@ -333,6 +334,26 @@ export default function TimelineScreen() {
       setLoadingMore(false);
     }
   }, []);
+
+  // 미디어 emotion 변경 broadcast 구독 → allItemsRef + dateGroups in-place patch
+  const lastEmotionUpdate = useMediaUpdatesStore(s => s.lastEmotionUpdate);
+  useEffect(() => {
+    if (!lastEmotionUpdate) return;
+    const patchItem = (item: TimelineItem): TimelineItem => {
+      if (item.media?.id === lastEmotionUpdate.mediaId) {
+        return {
+          ...item,
+          media: { ...item.media, emotion: lastEmotionUpdate.emotion },
+        };
+      }
+      return item;
+    };
+    allItemsRef.current = allItemsRef.current.map(patchItem);
+    setDateGroups(prev => prev.map(group => ({
+      ...group,
+      items: group.items.map(patchItem),
+    })));
+  }, [lastEmotionUpdate]);
 
   const groupByDate = (items: TimelineItem[]): DateGroup[] => {
     const grouped: Record<string, TimelineItem[]> = {};
