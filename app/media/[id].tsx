@@ -588,7 +588,7 @@ export default function MediaDetailScreen() {
           numberOfLines={1}
           ellipsizeMode="tail"
         >
-          상세보기
+          {t('mediaDetail.pageTitle')}
         </Text>
         <View style={styles.headerRight}>
           <TouchableOpacity

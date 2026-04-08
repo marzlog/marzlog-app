@@ -341,6 +341,7 @@
     "memoPlaceholder": "추가 메모를 작성하세요..."
   },
   "mediaDetail": {
+    "pageTitle": "상세보기",
     "diaryEdit": "일기 편집",
     "captionEdit": "사진 설명 편집",
     "titlePlaceholder": "제목을 입력하세요",

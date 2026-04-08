@@ -341,6 +341,7 @@
     "memoPlaceholder": "Write an additional memo..."
   },
   "mediaDetail": {
+    "pageTitle": "Photo Detail",
     "diaryEdit": "Edit Diary",
     "captionEdit": "Edit Caption",
     "titlePlaceholder": "Enter a title",
