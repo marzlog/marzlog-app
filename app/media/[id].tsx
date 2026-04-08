@@ -96,6 +96,9 @@ export default function MediaDetailScreen() {
   const [showShareSheet, setShowShareSheet] = useState(false);
   const shareCardRef = useRef<View>(null);
 
+  // 이미지 갤러리 저장 상태 (early return 위에 위치 — hooks 순서 보장)
+  const [isSavingImage, setIsSavingImage] = useState(false);
+
   // 그룹 이미지 관련 상태
   const [groupImages, setGroupImages] = useState<GroupImageItem[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -558,8 +561,7 @@ export default function MediaDetailScreen() {
     }
   };
 
-  // 텍스트 복사 핸들러 (캡션/일기/OCR 공통)
-  const [isSavingImage, setIsSavingImage] = useState(false);
+  // 텍스트 복사 핸들러 (캡션/일기/OCR 공통) — useState는 위에서 이미 선언됨
   const handleCopy = async (text: string | null | undefined, toastKey: string) => {
     if (!text) return;
     try {
