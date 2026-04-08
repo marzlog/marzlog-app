@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import searchApi, { SearchResult } from '@/src/api/search';
+import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { colors } from '@/src/theme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
@@ -100,6 +101,18 @@ export default function SearchScreen() {
     }, 2500);
     return () => clearInterval(interval);
   }, []);
+
+  // 미디어 메타데이터(emotion) 변경 broadcast 구독 →
+  // results 배열에서 해당 항목만 in-place patch (스크롤 위치 유지, 전체 refetch X)
+  const lastEmotionUpdate = useMediaUpdatesStore(s => s.lastEmotionUpdate);
+  useEffect(() => {
+    if (!lastEmotionUpdate) return;
+    setResults(prev => prev.map(r =>
+      r.media_id === lastEmotionUpdate.mediaId
+        ? { ...r, emotion: lastEmotionUpdate.emotion }
+        : r
+    ));
+  }, [lastEmotionUpdate]);
 
   // 자동완성 debounce
   useEffect(() => {

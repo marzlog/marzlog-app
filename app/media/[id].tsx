@@ -25,6 +25,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, updateCaption, updateDiary, updateMediaEmotion } from '@/src/api/media';
+import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import Slider from '@react-native-community/slider';
 import { timelineApi, GroupImageItem } from '@/src/api/timeline';
 import { colors } from '@/src/theme';
@@ -530,6 +531,12 @@ export default function MediaDetailScreen() {
         emotion: editEmotion,
         intensity: editIntensity,
       });
+
+      // 다른 화면 (search/timeline/home)에 emotion 변경 broadcast
+      // → 각 화면이 results/items 배열 in-place patch (스크롤 유지)
+      useMediaUpdatesStore.getState().setEmotionUpdate(
+        currentMediaId, editEmotion, editIntensity,
+      );
 
       // 그룹 이미지 새로고침 (감정/강도 반영)
       if (media?.group_id) {
