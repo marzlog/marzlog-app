@@ -583,7 +583,13 @@ export default function MediaDetailScreen() {
         <TouchableOpacity style={styles.headerButton} onPress={handleClose}>
           <Ionicons name="chevron-back" size={24} color={isDark ? '#F9FAFB' : colors.text.primary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, isDark && styles.textLight]}>상세보기</Text>
+        <Text
+          style={[styles.headerTitle, isDark && styles.textLight]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
+          상세보기
+        </Text>
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.headerButton}
@@ -1458,7 +1464,8 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '600',
-    textAlign: 'center',
+    textAlign: 'left',
+    marginLeft: 4,
     color: colors.text.primary,
   },
   closeButton: {
@@ -1518,7 +1525,8 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   contentPadding: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 20,
   },
   // 기존 스타일 유지 (단일 이미지용)
   imageContainer: {
