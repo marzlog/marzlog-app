@@ -89,7 +89,11 @@
       }],
       ["expo-build-properties", {
         "android": {
-          "extraMavenRepos": ["https://devrepo.kakao.com/nexus/content/groups/public/"]
+          "extraMavenRepos": ["https://devrepo.kakao.com/nexus/content/groups/public/"],
+          "extraProguardRules": "-keep class com.kakao.** { *; }",
+          "packagingOptions": {
+            "pickFirst": ["**/libc++_shared.so"]
+          }
         }
       }],
       ["@sentry/react-native/expo", {
@@ -98,6 +102,7 @@
       }],
       "expo-apple-authentication",
       "expo-video",
+      "./plugins/withGradleMemory",
       [
         "expo-media-library",
         {
