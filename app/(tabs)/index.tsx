@@ -12,8 +12,10 @@ import {
   Platform,
   ActivityIndicator,
   Dimensions,
+  Image,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { palette, lightTheme, darkTheme } from '@/src/theme/colors';
@@ -26,6 +28,8 @@ import { useTimelineStore } from '@/src/store/timelineStore';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import i18nInstance from '@/src/i18n';
+import { getLocalizedTitle } from '@/src/utils/i18n';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useDialog } from '@/src/components/ui/Dialog';
 import notificationsApi from '@/src/api/notifications';
@@ -225,6 +229,15 @@ const isSameDay = (date1: Date, date2: Date): boolean => {
 };
 
 // 날짜를 YYYY-MM-DD 형식으로 변환
+const formatHeaderDate = (date: Date | string): string => {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const month = d.getMonth() + 1;
+  const day = d.getDate();
+  const weekdays = i18nInstance.t('common.weekdaysShort') as unknown as string[];
+  const weekday = Array.isArray(weekdays) ? weekdays[d.getDay()] : '';
+  return i18nInstance.t('common.dateHeader', { month, day, weekday });
+};
+
 const formatDateKey = (date: Date): string => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
@@ -247,7 +260,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { accessToken } = useAuthStore();
   const { themeMode } = useSettingsStore();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const systemColorScheme = useColorScheme();
   const { alert: showAlert } = useDialog();
 
@@ -274,7 +287,7 @@ export default function HomeScreen() {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [unreadAnnCount, setUnreadAnnCount] = useState(0);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [dayItems, setDayItems] = useState<TimelineListItem[] | null>(null);
@@ -388,7 +401,8 @@ export default function HomeScreen() {
     const mapped: ScheduleItem[] = filtered.map((item) => {
       // analysis_status 기반 제목 분기
       const status = item.analysis_status;
-      let displayTitle = item.title || item.caption_ko || item.caption;
+      const localizedTitle = getLocalizedTitle(item.title, item.title_en, language);
+      let displayTitle = localizedTitle || item.caption_ko || item.caption;
       if (!displayTitle) {
         if (status === 'queued' || status === 'running') {
           displayTitle = 'AI 분석 중...';
@@ -419,7 +433,7 @@ export default function HomeScreen() {
     });
     setSchedules(mapped);
     setLoading(false);
-  }, [selectedDate, allItems]);
+  }, [selectedDate, allItems, language, t]);
 
   // 초기 로드
   useEffect(() => {
@@ -666,24 +680,43 @@ export default function HomeScreen() {
 
         {/* Filter Bar */}
         <View style={styles.filterBar}>
-          {/* 총 건수 */}
-          <Text style={[styles.totalCount, { color: theme.text.secondary }]}>
-            총 {schedules.length}건
-          </Text>
+          {/* 날짜 + 총 건수 */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={[styles.headerDate, { color: theme.text.primary }]}>
+              {formatHeaderDate(selectedDate)}
+            </Text>
+            <Text style={[styles.headerCount, { color: theme.text.tertiary }]}>
+              총 {schedules.length}건
+            </Text>
+          </View>
 
           {/* 뷰 모드 토글 */}
           <View style={[styles.tabContainer, { backgroundColor: isDark ? palette.neutral[800] : '#EFEFEF' }]}>
             <TouchableOpacity
-              style={[styles.tabButton, viewMode === 'grid' && [styles.tabButtonActive, { backgroundColor: isDark ? palette.neutral[700] : '#FFFFFF' }]]}
-              onPress={() => setViewMode('grid')}
-            >
-              <GridIcon color={viewMode === 'grid' ? (isDark ? palette.neutral[0] : '#252525') : (isDark ? palette.neutral[500] : '#A3A3A3')} />
-            </TouchableOpacity>
-            <TouchableOpacity
               style={[styles.tabButton, viewMode === 'list' && [styles.tabButtonActive, { backgroundColor: isDark ? palette.neutral[700] : '#FFFFFF' }]]}
               onPress={() => setViewMode('list')}
+              accessibilityLabel="나의 기록"
             >
-              <ListIcon color={viewMode === 'list' ? (isDark ? palette.neutral[0] : '#252525') : (isDark ? palette.neutral[500] : '#A3A3A3')} />
+              <Ionicons
+                name="time-outline"
+                size={18}
+                color={viewMode === 'list'
+                  ? (isDark ? palette.neutral[0] : '#252525')
+                  : (isDark ? palette.neutral[500] : '#A3A3A3')}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tabButton, viewMode === 'grid' && [styles.tabButtonActive, { backgroundColor: isDark ? palette.neutral[700] : '#FFFFFF' }]]}
+              onPress={() => setViewMode('grid')}
+              accessibilityLabel="썸네일 보기"
+            >
+              <Ionicons
+                name="images-outline"
+                size={18}
+                color={viewMode === 'grid'
+                  ? (isDark ? palette.neutral[0] : '#252525')
+                  : (isDark ? palette.neutral[500] : '#A3A3A3')}
+              />
             </TouchableOpacity>
           </View>
         </View>
@@ -705,7 +738,7 @@ export default function HomeScreen() {
                 <View key={item.id} style={styles.gridCardWrapper}>
                   <ScheduleCard
                     id={item.id}
-                    title={item.title}
+                    title={getLocalizedTitle(item.title, item.title_en, language)}
                     location={undefined}
                     time={formatListTime(item.created_at ?? item.taken_at)}
                     imageUrl={item.thumbnail_url || ''}
@@ -725,16 +758,27 @@ export default function HomeScreen() {
                   activeOpacity={0.7}
                   onPress={() => handleDayItemPress(item)}
                 >
-                  <Text style={[styles.textListTime, { color: theme.text.tertiary }]}>
-                    {formatListTime(item.created_at ?? item.taken_at)}
-                  </Text>
-                  <Text
-                    style={[styles.textListTitle, { color: theme.text.primary }]}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {item.title}
-                  </Text>
+                  <View style={[styles.textListThumb, { backgroundColor: isDark ? palette.neutral[800] : '#F0F0F0' }]}>
+                    {item.thumbnail_url ? (
+                      <Image source={{ uri: item.thumbnail_url }} style={styles.textListThumbImage} />
+                    ) : (
+                      <View style={[styles.textListThumbPlaceholder, { backgroundColor: isDark ? palette.neutral[800] : '#F0F0F0' }]}>
+                        <Ionicons name="image-outline" size={18} color={isDark ? palette.neutral[600] : '#C0C0C0'} />
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.textListContent}>
+                    <Text style={[styles.textListTime, { color: theme.text.tertiary }]}>
+                      {formatListTime(item.created_at ?? item.taken_at)}
+                    </Text>
+                    <Text
+                      style={[styles.textListTitle, { color: theme.text.primary }]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {getLocalizedTitle(item.title, item.title_en, language)}
+                    </Text>
+                  </View>
                   {item.media_count != null && item.media_count > 1 && (
                     <View style={[styles.textListBadge, { backgroundColor: theme.background.secondary || '#F0F0F0' }]}>
                       <Text style={[styles.textListBadgeText, { color: theme.text.secondary }]}>
@@ -800,16 +844,27 @@ export default function HomeScreen() {
                   activeOpacity={0.7}
                   onPress={() => handlePhotoPress(schedule.mediaId)}
                 >
-                  <Text style={[styles.textListTime, { color: theme.text.tertiary }]}>
-                    {formatListTime(schedule.takenAt ?? null)}
-                  </Text>
-                  <Text
-                    style={[styles.textListTitle, { color: theme.text.primary }]}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {schedule.title}
-                  </Text>
+                  <View style={[styles.textListThumb, { backgroundColor: isDark ? palette.neutral[800] : '#F0F0F0' }]}>
+                    {schedule.imageUrl ? (
+                      <Image source={{ uri: schedule.imageUrl }} style={styles.textListThumbImage} />
+                    ) : (
+                      <View style={[styles.textListThumbPlaceholder, { backgroundColor: isDark ? palette.neutral[800] : '#F0F0F0' }]}>
+                        <Ionicons name="image-outline" size={18} color={isDark ? palette.neutral[600] : '#C0C0C0'} />
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.textListContent}>
+                    <Text style={[styles.textListTime, { color: theme.text.tertiary }]}>
+                      {formatListTime(schedule.takenAt ?? null)}
+                    </Text>
+                    <Text
+                      style={[styles.textListTitle, { color: theme.text.primary }]}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      {schedule.title}
+                    </Text>
+                  </View>
                   {schedule.groupCount != null && schedule.groupCount > 1 && (
                     <View style={[styles.textListBadge, { backgroundColor: theme.background.secondary || '#F0F0F0' }]}>
                       <Text style={[styles.textListBadgeText, { color: theme.text.secondary }]}>
@@ -1054,31 +1109,57 @@ const styles = StyleSheet.create({
   textListItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 44,
+    height: 68,
     paddingHorizontal: 4,
+    gap: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  textListThumb: {
+    width: 52,
+    height: 52,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  textListThumbImage: {
+    width: 52,
+    height: 52,
+  },
+  textListThumbPlaceholder: {
+    width: 52,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textListContent: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 3,
+  },
   textListTime: {
-    width: 45,
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '400',
     fontVariant: ['tabular-nums'],
   },
   textListTitle: {
-    flex: 1,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
-    marginLeft: 8,
   },
   textListBadge: {
     borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginLeft: 8,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    marginLeft: 4,
   },
   textListBadgeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
+  },
+  headerDate: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  headerCount: {
+    fontSize: 14,
   },
   dayItemRow: {
     flexDirection: 'row',

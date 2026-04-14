@@ -202,6 +202,7 @@ function RootLayoutNav() {
           <Stack.Screen name="withdraw-complete" options={{ headerShown: false }} />
           <Stack.Screen name="settings" options={{ headerShown: false }} />
           <Stack.Screen name="language-select" options={{ headerShown: false }} />
+          <Stack.Screen name="bookmarks" options={{ headerShown: false }} />
           <Stack.Screen name="labs" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>

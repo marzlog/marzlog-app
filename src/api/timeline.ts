@@ -50,6 +50,7 @@ export interface TimelineItem {
   additional_images: null;
   // AI 일기 생성 필드
   title?: string | null;
+  title_en?: string | null;
   content?: string | null;
   mood?: string | null;
   ai_provider?: string | null;

@@ -7,6 +7,7 @@ export interface TimelineListItem {
   id: string;
   media_id: string | null;
   title: string;
+  title_en?: string | null;
   taken_at: string | null;
   activity_category: string | null;
   thumbnail_url: string | null;

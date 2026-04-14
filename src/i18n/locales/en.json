@@ -30,7 +30,9 @@
     "back": "Back",
     "next": "Next",
     "done": "Done",
-    "or": "or"
+    "or": "or",
+    "dateHeader": "{{month}}/{{day}} ({{weekday}})",
+    "weekdaysShort": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
   },
   "auth": {
     "login": "Login",
@@ -241,10 +243,16 @@
     "home": "Home",
     "album": "Daily Moments",
     "profile": "Profile",
+    "bookmarks": "Bookmarks",
     "settings": "Settings",
     "notices": "Notices",
     "feedback": "Contact / Feedback",
     "appInfo": "App Info"
+  },
+  "bookmarks": {
+    "title": "Bookmarks",
+    "empty": "No bookmarked photos yet",
+    "emptyHint": "Tap the bookmark icon on a photo to save it here"
   },
   "home": {
     "title": "Home",
@@ -469,6 +477,7 @@
     "timeout": "Request timed out. Please try again",
     "server": "Server error occurred. Please try again later",
     "sessionExpired": "Session expired. Please log in again",
+    "notFound": "The requested item was not found",
     "unknown": "An unknown error occurred",
     "tapToRetry": "Tap to retry",
     "loadFailed": "Failed to load",

@@ -22,7 +22,7 @@ interface AuthStore extends AuthState {
   loginWithEmail: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  forceLogout: () => void;
+  forceLogout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
@@ -192,9 +192,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   // Force logout (no API call — used when session expired)
-  forceLogout: () => {
-    storage.removeItem('access_token');
-    storage.removeItem('refresh_token');
+  forceLogout: async () => {
+    await storage.removeItem('access_token');
+    await storage.removeItem('refresh_token');
     set({
       user: null,
       accessToken: null,
