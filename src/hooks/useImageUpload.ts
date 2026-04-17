@@ -59,7 +59,7 @@ export function useImageUpload() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: allowMultiple,
       selectionLimit: remainingSlots,
-      quality: 0.9,
+      quality: 1.0,  // EXIF 보존을 위해 재인코딩 방지
       exif: true,
     });
 
@@ -76,6 +76,7 @@ export function useImageUpload() {
       status: 'idle' as UploadStatus,
       progress: 0,
       isExisting: false, // 새 이미지임을 명시
+      clientExif: asset.exif ?? undefined,  // iOS quality<1.0 fallback용
     } as UploadItem));
 
     setItems((prev) => [...prev, ...newItems]);
@@ -96,7 +97,7 @@ export function useImageUpload() {
     }
 
     const result = await ImagePicker.launchCameraAsync({
-      quality: 0.9,
+      quality: 1.0,  // EXIF 보존을 위해 재인코딩 방지
       exif: true,
     });
 
@@ -114,6 +115,7 @@ export function useImageUpload() {
       status: 'idle',
       progress: 0,
       isExisting: false, // 새 이미지임을 명시
+      clientExif: asset.exif ?? undefined,  // iOS quality<1.0 fallback용
     } as UploadItem;
 
     setItems((prev) => [...prev, newItem]);
@@ -162,6 +164,7 @@ export function useImageUpload() {
           width: item.width,
           height: item.height,
           mimeType: item.mimeType,
+          clientExif: item.clientExif,
         };
 
         const result = await uploadImage(
@@ -287,6 +290,7 @@ export function useImageUpload() {
           metadata: {
             width: item.width,
             height: item.height,
+            ...(item.clientExif ? { client_exif: item.clientExif } : {}),
           },
         });
 
@@ -433,6 +437,7 @@ export function useImageUpload() {
           metadata: {
             width: item.width,
             height: item.height,
+            ...(item.clientExif ? { client_exif: item.clientExif } : {}),
           },
         });
 

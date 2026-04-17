@@ -48,6 +48,7 @@ export interface SelectedImage {
   height: number;
   mimeType: string;
   base64?: string;
+  clientExif?: Record<string, any>;
 }
 
 export type UploadStatus = 'idle' | 'hashing' | 'preparing' | 'uploading' | 'completing' | 'done' | 'error';
@@ -65,6 +66,7 @@ export interface UploadItem {
   error?: string;
   mediaId?: string;
   isExisting?: boolean; // 편집 모드에서 기존 이미지 표시용
+  clientExif?: Record<string, any>;
 }
 
 // ========== Group Upload Types ==========

@@ -192,6 +192,7 @@ export async function uploadImage(
     metadata: {
       width: image.width,
       height: image.height,
+      ...(image.clientExif ? { client_exif: image.clientExif } : {}),
     },
   });
   onProgress?.(15);
