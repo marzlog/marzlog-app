@@ -48,3 +48,4 @@ apk-download-qr.png
 # Firebase (secrets - never commit)
 google-services.json
 firebase-service-account.json
+GoogleService-Info.plist
