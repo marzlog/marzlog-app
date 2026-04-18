@@ -115,6 +115,14 @@ export default function SearchScreen() {
     ));
   }, [lastEmotionUpdate]);
 
+  // 삭제 broadcast 구독 → 검색 결과에서 해당 item 제거
+  const lastDeleteUpdate = useMediaUpdatesStore(s => s.lastDeleteUpdate);
+  useEffect(() => {
+    if (!lastDeleteUpdate) return;
+    const deletedId = lastDeleteUpdate.mediaId;
+    setResults(prev => prev.filter(r => r.media_id !== deletedId));
+  }, [lastDeleteUpdate]);
+
   // 자동완성 debounce
   useEffect(() => {
     if (query.length < 2) {
