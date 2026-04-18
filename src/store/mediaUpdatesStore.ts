@@ -21,11 +21,18 @@ interface BookmarkUpdate {
   ts: number;
 }
 
+interface DeleteUpdate {
+  mediaId: string;
+  ts: number;
+}
+
 interface MediaUpdatesStore {
   lastEmotionUpdate: EmotionUpdate | null;
   setEmotionUpdate: (mediaId: string, emotion: string, intensity: number) => void;
   lastBookmarkUpdate: BookmarkUpdate | null;
   setBookmarkUpdate: (mediaId: string, isBookmarked: boolean) => void;
+  lastDeleteUpdate: DeleteUpdate | null;
+  setDeleteUpdate: (mediaId: string) => void;
 }
 
 export const useMediaUpdatesStore = create<MediaUpdatesStore>((set) => ({
@@ -38,6 +45,11 @@ export const useMediaUpdatesStore = create<MediaUpdatesStore>((set) => ({
   setBookmarkUpdate: (mediaId, isBookmarked) =>
     set({
       lastBookmarkUpdate: { mediaId, isBookmarked, ts: Date.now() },
+    }),
+  lastDeleteUpdate: null,
+  setDeleteUpdate: (mediaId) =>
+    set({
+      lastDeleteUpdate: { mediaId, ts: Date.now() },
     }),
 }));
 

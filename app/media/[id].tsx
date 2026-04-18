@@ -404,6 +404,7 @@ export default function MediaDetailScreen() {
     setIsDeleting(true);
     try {
       await deleteMedia(id!);
+      useMediaUpdatesStore.getState().setDeleteUpdate(id!);
       router.back(); // 이전 화면(해당 날짜 그룹)으로 돌아감
     } catch (err) {
       captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.delete' });
