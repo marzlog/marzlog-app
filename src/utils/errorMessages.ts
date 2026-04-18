@@ -3,18 +3,26 @@ import { t } from '../i18n';
 
 export function getErrorMessage(error: unknown): string {
   if (error instanceof AxiosError) {
-    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-      return t('error.network');
-    }
-    if (error.code === 'ECONNABORTED') {
-      return t('error.timeout');
-    }
+    // HTTP 응답이 있으면 상태코드 우선 분기
     const status = error.response?.status;
     if (status === 401) {
       return t('error.sessionExpired');
     }
+    if (status === 404) {
+      return t('error.notFound');
+    }
     if (status && status >= 500) {
       return t('error.server');
+    }
+    if (status) {
+      return extractErrorMessage(error, t('error.unknown'));
+    }
+    // 응답 자체가 없을 때만 네트워크/타임아웃
+    if (error.code === 'ECONNABORTED') {
+      return t('error.timeout');
+    }
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      return t('error.network');
     }
     return extractErrorMessage(error, t('error.unknown'));
   }

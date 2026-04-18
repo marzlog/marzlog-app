@@ -26,6 +26,7 @@ import { useAuthStore } from '@/src/store/authStore';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { getLocalizedTitle } from '@/src/utils/i18n';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
@@ -226,7 +227,7 @@ export default function TimelineScreen() {
   const { themeMode } = useSettingsStore();
   const { accessToken } = useAuthStore();
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { alert: showAlert } = useDialog();
 
   // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
@@ -567,7 +568,8 @@ export default function TimelineScreen() {
 
   // analysis_status 기반 제목 결정
   const getDisplayTitle = (item: TimelineItem): string => {
-    const title = item.title || item.caption_ko || item.caption;
+    const localized = getLocalizedTitle(item.title, item.title_en, language);
+    const title = localized || item.caption_ko || item.caption;
     if (title) return title;
     const status = item.analysis_status;
     if (status === 'queued' || status === 'running') return 'AI 분석 중...';
@@ -629,14 +631,23 @@ export default function TimelineScreen() {
           </TouchableOpacity>
         </View>
         {/* OCR 텍스트 표시 (텍스트 탭에서) */}
-        <Text style={[styles.listCaption, { color: theme.text.primary }]} numberOfLines={3}>
-          {photo.ocr_text || photo.caption || t('search.noCaption')}
-        </Text>
-        {photo.caption && photo.ocr_text && (
-          <Text style={[styles.listSubCaption, { color: theme.text.secondary }]} numberOfLines={1}>
-            {photo.caption}
-          </Text>
-        )}
+        {(() => {
+          const displayCaption = language === 'ko'
+            ? (photo.caption_ko || photo.caption)
+            : (photo.caption || photo.caption_ko);
+          return (
+            <>
+              <Text style={[styles.listCaption, { color: theme.text.primary }]} numberOfLines={3}>
+                {photo.ocr_text || displayCaption || t('search.noCaption')}
+              </Text>
+              {displayCaption && photo.ocr_text && (
+                <Text style={[styles.listSubCaption, { color: theme.text.secondary }]} numberOfLines={1}>
+                  {displayCaption}
+                </Text>
+              )}
+            </>
+          );
+        })()}
       </View>
     </TouchableOpacity>
   );

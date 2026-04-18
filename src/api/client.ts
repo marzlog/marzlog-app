@@ -16,6 +16,34 @@ function notifySessionExpired() {
   }
 }
 
+// Refresh 동시성 단일화: 진행 중이면 동일 Promise를 공유 (race 방지)
+let _refreshPromise: Promise<string> | null = null;
+
+async function performRefresh(): Promise<string> {
+  const refreshToken = await storage.getItem('refresh_token');
+  if (!refreshToken) {
+    throw new Error('No refresh token');
+  }
+  const response = await axios.post(`${API_URL}/auth/refresh`, {
+    refresh_token: refreshToken,
+  });
+  const { access_token, refresh_token: newRefresh } = response.data;
+  await storage.setItem('access_token', access_token);
+  if (newRefresh) {
+    await storage.setItem('refresh_token', newRefresh);
+  }
+  return access_token;
+}
+
+function getOrStartRefresh(): Promise<string> {
+  if (!_refreshPromise) {
+    _refreshPromise = performRefresh().finally(() => {
+      _refreshPromise = null;
+    });
+  }
+  return _refreshPromise;
+}
+
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_URL,
   timeout: 30000,
@@ -44,26 +72,22 @@ apiClient.interceptors.response.use(
     
     const isAuthEndpoint = originalRequest?.url?.startsWith('/auth/');
 
-    if (error.response?.status === 401 && originalRequest && !isAuthEndpoint) {
+    // 무한 루프 방지: 같은 요청이 이미 한 번 retry된 경우 더 이상 시도 안 함
+    const alreadyRetried = (originalRequest as any)?._retry === true;
+
+    if (error.response?.status === 401 && originalRequest && !isAuthEndpoint && !alreadyRetried) {
       const refreshToken = await storage.getItem('refresh_token');
-      
+
       if (refreshToken) {
         try {
-          const response = await axios.post(`${API_URL}/auth/refresh`, {
-            refresh_token: refreshToken,
-          });
-          
-          const { access_token, refresh_token: newRefresh } = response.data;
-          
-          await storage.setItem('access_token', access_token);
-          if (newRefresh) {
-            await storage.setItem('refresh_token', newRefresh);
-          }
-          
+          // 동시 401 발생 시 단일 refresh Promise를 공유 (race condition 방지)
+          const access_token = await getOrStartRefresh();
+
+          (originalRequest as any)._retry = true;
           if (originalRequest.headers) {
             originalRequest.headers.Authorization = `Bearer ${access_token}`;
           }
-          
+
           return apiClient(originalRequest);
         } catch (refreshError) {
           // Clear tokens on refresh failure
@@ -75,6 +99,7 @@ apiClient.interceptors.response.use(
       } else {
         // No refresh token available — force logout
         await storage.removeItem('access_token');
+        await storage.removeItem('refresh_token');
         notifySessionExpired();
       }
     }
