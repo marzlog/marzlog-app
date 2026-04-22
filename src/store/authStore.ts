@@ -259,8 +259,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       // 앱 재시작 시 푸시 토큰 재등록
       registerPushToken().catch(() => {});
 
-      // Sync server analysis_mode to local settings (without triggering API call back)
-      if (user.analysis_mode) {
+      // Sync server analysis_mode to local settings only when server is explicitly 'precision'.
+      // If server returns 'light', null, or undefined, preserve the local default ('precise')
+      // so a stale backend doesn't silently downgrade the user's setting.
+      if (user.analysis_mode === 'precision') {
         const localMode = backendToAiMode(user.analysis_mode);
         if (useSettingsStore.getState().aiMode !== localMode) {
           useSettingsStore.getState().syncAIModeFromServer(localMode);
