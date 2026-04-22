@@ -313,7 +313,8 @@ export default function SettingsScreen() {
           {t('more.title')}
         </Text>
         <View style={[styles.card, { backgroundColor: cardBg }]}>
-          {/* AI Mode */}
+          {/* TODO: Re-enable when billing-phase2 is ready (precision=free tier, light=premium or vice versa) */}
+          {/*
           <AppTouchable
             style={[styles.menuItem, { borderBottomColor: divider }]}
             onPress={() => {
@@ -348,6 +349,7 @@ export default function SettingsScreen() {
               {aiMode === 'fast' ? t('settings.aiModeFast') : t('settings.aiModePrecise')}
             </Text>
           </AppTouchable>
+          */}
 
           {/* Labs */}
           <AppTouchable

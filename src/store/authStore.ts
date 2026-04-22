@@ -259,15 +259,16 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       // 앱 재시작 시 푸시 토큰 재등록
       registerPushToken().catch(() => {});
 
-      // Sync server analysis_mode to local settings only when server is explicitly 'precision'.
-      // If server returns 'light', null, or undefined, preserve the local default ('precise')
-      // so a stale backend doesn't silently downgrade the user's setting.
-      if (user.analysis_mode === 'precision') {
-        const localMode = backendToAiMode(user.analysis_mode);
-        if (useSettingsStore.getState().aiMode !== localMode) {
-          useSettingsStore.getState().syncAIModeFromServer(localMode);
-        }
-      }
+      // TODO: Re-enable with billing-phase2
+      // AI mode selector is hidden in settings UI; local stays at default ('precise').
+      // Server sync is disabled so a stale analysis_mode (legacy 'light' rows) can't
+      // downgrade the user's experience while precision is the only offered tier.
+      // if (user.analysis_mode) {
+      //   const localMode = backendToAiMode(user.analysis_mode);
+      //   if (useSettingsStore.getState().aiMode !== localMode) {
+      //     useSettingsStore.getState().syncAIModeFromServer(localMode);
+      //   }
+      // }
     } catch {
       // Clear invalid tokens
       await storage.removeItem('access_token');
