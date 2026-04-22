@@ -13,6 +13,7 @@ import type { SelectedImage, UploadItem, UploadCompleteResponse, UploadStatus, G
 import { getErrorMessage } from '../utils/errorMessages';
 import { captureError } from '../utils/sentry';
 import { resolveAssetLocation } from '../utils/exif/resolveAssetLocation';
+import { resolveCurrentLocation } from '../utils/exif/resolveCurrentLocation';
 import { t } from '../i18n';
 import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
 
@@ -111,8 +112,16 @@ export function useImageUpload() {
     if (result.canceled || !result.assets?.length) return;
 
     const asset = result.assets[0];
-    const { gps, warning } = await resolveAssetLocation(asset);
-    if (__DEV__ && warning) {
+    let { gps, warning } = await resolveAssetLocation(asset);
+    if (Object.keys(gps).length === 0) {
+      // 카메라 직촬본은 PHAsset이 없어 resolveAssetLocation이 GPS를 얻지 못함.
+      // 현재 위치로 fallback (iOS 기본 카메라 앱과 동일한 의미).
+      const fallback = await resolveCurrentLocation();
+      gps = fallback.gps;
+      if (__DEV__ && fallback.warning) {
+        console.warn(`[useImageUpload] resolveCurrentLocation: ${fallback.warning}`);
+      }
+    } else if (__DEV__ && warning) {
       console.warn(`[useImageUpload] resolveAssetLocation: ${warning}`);
     }
     const newItem: UploadItem = {
