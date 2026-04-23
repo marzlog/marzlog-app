@@ -378,6 +378,22 @@ export default function HomeScreen() {
     }
   }, []);
 
+  // B-1: 분석 중(queued/running) 아이템이 하나라도 있으면 10초 간격 폴링.
+  // 모두 done/failed로 전이하면 즉시 중단. push 채널이 없어 폴링만 가능.
+  const hasPendingAnalysis = useMemo(
+    () => allItems.some(
+      (it) => it.analysis_status === 'queued' || it.analysis_status === 'running',
+    ),
+    [allItems],
+  );
+  useEffect(() => {
+    if (!hasPendingAnalysis) return;
+    const id = setInterval(() => {
+      loadAllItems();
+    }, 10000);
+    return () => clearInterval(id);
+  }, [hasPendingAnalysis, loadAllItems]);
+
   // 선택된 날짜의 타임라인 필터링 (group_dates 기준 - 그룹 내 아무 이미지라도 해당 날짜면 표시)
   useEffect(() => {
     const selectedDateStr = formatDateKey(selectedDate);
