@@ -57,7 +57,7 @@ export default function MediaDetailScreen() {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
   const { setLastViewedDate } = useTimelineStore();
-  const { confirmDelete, alert } = useDialog();
+  const { confirm, alert } = useDialog();
 
   // 다크모드 결정
   const isDark = themeMode === 'system'
@@ -398,12 +398,41 @@ export default function MediaDetailScreen() {
 
   // 삭제 처리
   const handleDelete = async () => {
-    const confirmed = await confirmDelete();
+    const contextLines: string[] = [];
+    if ((media as any)?.is_bookmarked) {
+      contextLines.push(t('media.deleteContextBookmarked'));
+    }
+    if (media?.title || media?.content) {
+      contextLines.push(t('media.deleteContextHasDiary'));
+    }
+    const groupCount = media?.group_count ?? 0;
+    if (media?.group_id && groupCount > 1) {
+      const isPrimary = media.group_id === media.id;
+      contextLines.push(
+        isPrimary
+          ? t('media.deleteContextGroupPrimary', { count: groupCount })
+          : t('media.deleteContextGroupMember', { count: groupCount })
+      );
+    }
+
+    const description = [
+      t('media.deleteConfirmBody'),
+      ...(contextLines.length > 0 ? ['', ...contextLines] : []),
+    ].join('\n');
+
+    const confirmed = await confirm({
+      title: t('media.deleteConfirmTitle'),
+      description,
+      confirmText: t('common.delete'),
+      cancelText: t('common.cancel'),
+      variant: 'danger',
+    });
     if (!confirmed) return;
 
     setIsDeleting(true);
     try {
       await deleteMedia(id!);
+      useMediaUpdatesStore.getState().setDeleteUpdate(id!);
       router.back(); // 이전 화면(해당 날짜 그룹)으로 돌아감
     } catch (err) {
       captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.delete' });

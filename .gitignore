@@ -48,4 +48,8 @@ apk-download-qr.png
 # Firebase (secrets - never commit)
 google-services.json
 firebase-service-account.json
+
+# Firebase iOS config (contains API keys)
 GoogleService-Info.plist
+ios/GoogleService-Info.plist
+ios/**/GoogleService-Info.plist
