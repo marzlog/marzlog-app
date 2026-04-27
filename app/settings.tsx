@@ -313,13 +313,26 @@ export default function SettingsScreen() {
           {t('more.title')}
         </Text>
         <View style={[styles.card, { backgroundColor: cardBg }]}>
-          {/* AI Mode */}
+          {/* TODO: Re-enable when billing-phase2 is ready (precision=free tier, light=premium or vice versa) */}
+          {/*
           <AppTouchable
             style={[styles.menuItem, { borderBottomColor: divider }]}
             onPress={() => {
               const modes: AIMode[] = ['fast', 'precise'];
               const currentIndex = modes.indexOf(aiMode);
-              setAIMode(modes[(currentIndex + 1) % modes.length]);
+              const nextMode = modes[(currentIndex + 1) % modes.length];
+              if (nextMode === 'fast') {
+                Alert.alert(
+                  t('settings.aiModeWarningTitle') || 'AI 분석 모드 변경',
+                  t('settings.aiModeWarningMessage') || '빠름 모드에서는 AI 일기가 생성되지 않습니다. 계속하시겠습니까?',
+                  [
+                    { text: t('common.cancel') || '취소', style: 'cancel' },
+                    { text: t('common.confirm') || '확인', onPress: () => setAIMode('fast') },
+                  ],
+                );
+              } else {
+                setAIMode(nextMode);
+              }
             }}
             activeOpacity={0.7}
           >
@@ -336,6 +349,7 @@ export default function SettingsScreen() {
               {aiMode === 'fast' ? t('settings.aiModeFast') : t('settings.aiModePrecise')}
             </Text>
           </AppTouchable>
+          */}
 
           {/* Labs */}
           <AppTouchable

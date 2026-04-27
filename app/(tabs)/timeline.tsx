@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
   StyleSheet,
@@ -307,6 +307,24 @@ export default function TimelineScreen() {
       setRefreshing(false);
     }
   }, [accessToken]);
+
+  // B-1: 분석 중(queued/running) 아이템이 하나라도 있으면 10초 간격 폴링.
+  // 모두 done/failed로 전이하면 즉시 중단. push 채널이 없어 폴링만 가능.
+  const hasPendingAnalysis = useMemo(
+    () => dateGroups.some((g) =>
+      g.items.some(
+        (it) => it.analysis_status === 'queued' || it.analysis_status === 'running',
+      ),
+    ),
+    [dateGroups],
+  );
+  useEffect(() => {
+    if (!hasPendingAnalysis) return;
+    const id = setInterval(() => {
+      loadTimeline(false);
+    }, 10000);
+    return () => clearInterval(id);
+  }, [hasPendingAnalysis, loadTimeline]);
 
   const loadMore = useCallback(async () => {
     if (loadingRef.current || loadingMoreRef.current || !hasMoreRef.current) return;
