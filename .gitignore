@@ -53,3 +53,6 @@ firebase-service-account.json
 GoogleService-Info.plist
 ios/GoogleService-Info.plist
 ios/**/GoogleService-Info.plist
+
+# Firebase service account (server-side)
+firebase-service-account.json

@@ -12,6 +12,8 @@ import { uploadImage, prepareUpload, uploadToS3, calculateSHA256, completeGroupU
 import type { SelectedImage, UploadItem, UploadCompleteResponse, UploadStatus, GroupUploadCompleteResponse, GroupUploadItem } from '../types/upload';
 import { getErrorMessage } from '../utils/errorMessages';
 import { captureError } from '../utils/sentry';
+import { resolveAssetLocation } from '../utils/exif/resolveAssetLocation';
+import { resolveCurrentLocation } from '../utils/exif/resolveCurrentLocation';
 import { t } from '../i18n';
 import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
 
@@ -65,19 +67,25 @@ export function useImageUpload() {
 
     if (result.canceled || !result.assets?.length) return;
 
-    const newItems: UploadItem[] = result.assets.map((asset, index) => ({
-      id: `upload_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
-      uri: asset.uri,
-      filename: asset.fileName ?? `photo_${Date.now()}_${index}.jpg`,
-      fileSize: asset.fileSize ?? 0,
-      mimeType: asset.mimeType ?? 'image/jpeg',
-      width: asset.width,
-      height: asset.height,
-      status: 'idle' as UploadStatus,
-      progress: 0,
-      isExisting: false, // 새 이미지임을 명시
-      clientExif: asset.exif ?? undefined,  // iOS quality<1.0 fallback용
-    } as UploadItem));
+    const newItems: UploadItem[] = await Promise.all(result.assets.map(async (asset, index) => {
+      const { gps, warning } = await resolveAssetLocation(asset);
+      if (__DEV__ && warning) {
+        console.warn(`[useImageUpload] resolveAssetLocation: ${warning}`);
+      }
+      return {
+        id: `upload_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+        uri: asset.uri,
+        filename: asset.fileName ?? `photo_${Date.now()}_${index}.jpg`,
+        fileSize: asset.fileSize ?? 0,
+        mimeType: asset.mimeType ?? 'image/jpeg',
+        width: asset.width,
+        height: asset.height,
+        status: 'idle' as UploadStatus,
+        progress: 0,
+        isExisting: false, // 새 이미지임을 명시
+        clientExif: { ...(asset.exif ?? {}), ...gps },  // iOS quality<1.0 fallback + PHPicker GPS strip 우회
+      } as UploadItem;
+    }));
 
     setItems((prev) => [...prev, ...newItems]);
     return newItems;
@@ -104,6 +112,18 @@ export function useImageUpload() {
     if (result.canceled || !result.assets?.length) return;
 
     const asset = result.assets[0];
+    let { gps, warning } = await resolveAssetLocation(asset);
+    if (Object.keys(gps).length === 0) {
+      // 카메라 직촬본은 PHAsset이 없어 resolveAssetLocation이 GPS를 얻지 못함.
+      // 현재 위치로 fallback (iOS 기본 카메라 앱과 동일한 의미).
+      const fallback = await resolveCurrentLocation();
+      gps = fallback.gps;
+      if (__DEV__ && fallback.warning) {
+        console.warn(`[useImageUpload] resolveCurrentLocation: ${fallback.warning}`);
+      }
+    } else if (__DEV__ && warning) {
+      console.warn(`[useImageUpload] resolveAssetLocation: ${warning}`);
+    }
     const newItem: UploadItem = {
       id: `upload_${Date.now()}`,
       uri: asset.uri,
@@ -115,7 +135,7 @@ export function useImageUpload() {
       status: 'idle',
       progress: 0,
       isExisting: false, // 새 이미지임을 명시
-      clientExif: asset.exif ?? undefined,  // iOS quality<1.0 fallback용
+      clientExif: { ...(asset.exif ?? {}), ...gps },  // iOS quality<1.0 fallback + PHPicker GPS strip 우회
     } as UploadItem;
 
     setItems((prev) => [...prev, newItem]);

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# marzlog pre-push hook
+# main 브랜치 push 시 develop에 main으로 머지되지 않은 커밋이 있는지 검사.
+# 미머지 커밋이 있으면 목록을 보여주고 y/N 프롬프트로 확인받음.
+# 우회: git push --no-verify
+
+set -u
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [[ "$local_ref" != "refs/heads/main" ]]; then
+    continue
+  fi
+
+  if ! git rev-parse --verify --quiet refs/heads/develop >/dev/null; then
+    continue
+  fi
+
+  unmerged=$(git log main..develop --oneline 2>/dev/null || true)
+  if [[ -z "$unmerged" ]]; then
+    continue
+  fi
+
+  echo ""
+  echo "⚠️  develop 브랜치에 main으로 머지되지 않은 커밋이 있습니다:"
+  echo ""
+  printf '%s\n' "$unmerged" | sed 's/^/    /'
+  echo ""
+  echo "이대로 main을 push하면 develop의 변경사항이 반영되지 않습니다."
+  echo ""
+
+  if [[ -e /dev/tty ]]; then
+    exec < /dev/tty
+    read -r -p "그래도 push 하시겠습니까? (y/N): " answer
+    case "$answer" in
+      [yY]|[yY][eE][sS])
+        echo "계속 진행합니다."
+        ;;
+      *)
+        echo "push 중단. 'git merge develop' 후 다시 시도하거나 'git push --no-verify'로 우회하세요."
+        exit 1
+        ;;
+    esac
+  else
+    echo "비대화형 환경이라 확인 불가 — 안전상 중단합니다."
+    echo "우회: git push --no-verify"
+    exit 1
+  fi
+done
+
+exit 0
