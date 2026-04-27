@@ -1,4 +1,4 @@
-const { withDangerousMod, withXcodeProject } = require("expo/config-plugins");
+const { withDangerousMod, withXcodeProject, IOSConfig } = require("expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
 
@@ -76,23 +76,30 @@ const writeFile = (config) =>
     },
   ]);
 
+// xcode@3.0.1 project.addResourceFile + findPBXGroupKey({ name }) 조합은
+// 같은 이름의 nested group을 잘못 잡으면 correctForPath에서 null을 throw함
+// (EAS build 84ccae35 실패 원인). Expo 공식 IOSConfig.XcodeUtils 헬퍼로
+// 그룹 lookup/생성과 build phase 등록을 위임해 회피한다.
 const addToXcodeProject = (config) =>
   withXcodeProject(config, (cfg) => {
     const project = cfg.modResults;
     const projectName = cfg.modRequest.projectName;
     const relPath = `${projectName}/${FILE_NAME}`;
 
-    const groupKey = project.findPBXGroupKey({ name: projectName });
-    if (!groupKey) return cfg;
+    if (project.hasFile(relPath)) return cfg;
 
-    const existing = project.hasFile(relPath);
-    if (existing) return cfg;
-
-    project.addResourceFile(
-      relPath,
-      { target: project.getFirstTarget().uuid },
-      groupKey
-    );
+    IOSConfig.XcodeUtils.ensureGroupRecursively(project, projectName);
+    const { uuid: targetUuid } = IOSConfig.XcodeUtils.getApplicationNativeTarget({
+      project,
+      projectName,
+    });
+    IOSConfig.XcodeUtils.addResourceFileToGroup({
+      filepath: relPath,
+      groupName: projectName,
+      isBuildFile: true,
+      project,
+      targetUuid,
+    });
     return cfg;
   });
 

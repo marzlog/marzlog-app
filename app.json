@@ -104,6 +104,7 @@
       "expo-apple-authentication",
       "expo-video",
       "./plugins/withGradleMemory",
+      "./plugins/withPrivacyManifest",
       [
         "expo-media-library",
         {
