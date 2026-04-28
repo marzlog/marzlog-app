@@ -94,6 +94,16 @@ export async function generateDiary(
 }
 
 /**
+ * OCR (사진 속 글자 읽기) 트리거
+ */
+export async function triggerOcr(
+  mediaId: string
+): Promise<{ success: boolean; job_id: string | null; message: string }> {
+  const response = await apiClient.post(`/media/${mediaId}/ocr`);
+  return response.data;
+}
+
+/**
  * 개별 캡션 수정 (한글 캡션)
  */
 export async function updateCaption(
@@ -194,6 +204,7 @@ export default {
   updateMediaAnalysis,
   setPrimaryImage,
   generateDiary,
+  triggerOcr,
   updateCaption,
   updateDiary,
   updateMediaEmotion,
