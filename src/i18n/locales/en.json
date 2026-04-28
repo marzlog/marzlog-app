@@ -502,7 +502,9 @@
     "readTextButton": "Read Text in Photo",
     "readingText": "Reading text...",
     "readTextSection": "Text from Photo",
-    "readTextFailed": "Could not read text. Please try again later."
+    "readTextFailed": "Could not read text. Please try again later.",
+    "noTextInPhoto": "No text found in this photo",
+    "readTextRetry": "Try Again"
   },
   "appInfo": {
     "title": "App Info",
