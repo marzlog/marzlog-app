@@ -502,7 +502,9 @@
     "readTextButton": "사진 속 글자 읽기",
     "readingText": "글자 읽는 중...",
     "readTextSection": "사진에서 읽은 글자",
-    "readTextFailed": "글자를 읽지 못했어요. 잠시 후 다시 시도해주세요."
+    "readTextFailed": "글자를 읽지 못했어요. 잠시 후 다시 시도해주세요.",
+    "noTextInPhoto": "이 사진에는 글자가 없어요",
+    "readTextRetry": "다시 시도하기"
   },
   "appInfo": {
     "title": "앱정보",

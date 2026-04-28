@@ -472,7 +472,7 @@ export default function MediaDetailScreen() {
         ocrAttemptsRef.current += 1;
         try {
           const fresh = await getMediaAnalysis(id!);
-          if (fresh.ocr_text) {
+          if (fresh.ocr_status !== null && fresh.ocr_status !== undefined) {
             if (ocrPollingRef.current) {
               clearInterval(ocrPollingRef.current);
               ocrPollingRef.current = null;
@@ -1023,6 +1023,44 @@ export default function MediaDetailScreen() {
             <View style={[styles.ocrBox, isDark && styles.boxDark]}>
               <Text style={[styles.ocrText, isDark && styles.textLight]}>{analysis.ocr_text}</Text>
             </View>
+          </View>
+        ) : analysis?.ocr_status === 'no_text' ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionIcon}>📝</Text>
+              <Text style={[styles.sectionTitle, isDark && styles.textLight]}>{t('media.readTextSection')}</Text>
+            </View>
+            <Text style={[styles.ocrEmptyMessage, isDark && styles.textSecondaryDark]}>
+              {t('media.noTextInPhoto')}
+            </Text>
+          </View>
+        ) : analysis?.ocr_status === 'failed' ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionIcon}>📝</Text>
+              <Text style={[styles.sectionTitle, isDark && styles.textLight]}>{t('media.readTextSection')}</Text>
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.regenerateButton,
+                isOcrLoading && styles.regenerateButtonDisabled,
+                isDark && styles.regenerateButtonDark,
+              ]}
+              onPress={handleTriggerOcr}
+              disabled={isOcrLoading}
+            >
+              <Ionicons
+                name={isOcrLoading ? 'hourglass-outline' : 'refresh-outline'}
+                size={16}
+                color={isOcrLoading ? '#9CA3AF' : '#fff'}
+              />
+              <Text style={[
+                styles.regenerateButtonText,
+                isOcrLoading && styles.regenerateButtonTextDisabled,
+              ]}>
+                {isOcrLoading ? t('media.readingText') : t('media.readTextRetry')}
+              </Text>
+            </TouchableOpacity>
           </View>
         ) : analysis ? (
           <View style={styles.section}>
@@ -1810,6 +1848,13 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: colors.text.primary,
     lineHeight: 20,
+  },
+  ocrEmptyMessage: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+    paddingVertical: 12,
+    textAlign: 'center',
   },
   detailsContainer: {
     backgroundColor: colors.neutral[2],
