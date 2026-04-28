@@ -24,7 +24,7 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, updateCaption, updateDiary, updateMediaEmotion, patchBookmark } from '@/src/api/media';
+import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, triggerOcr, updateCaption, updateDiary, updateMediaEmotion, patchBookmark } from '@/src/api/media';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { copyText, saveImageToGallery } from '@/src/utils/copyUtils';
 import Slider from '@react-native-community/slider';
@@ -70,6 +70,9 @@ export default function MediaDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isGeneratingDiary, setIsGeneratingDiary] = useState(false);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
+  const ocrPollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const ocrAttemptsRef = useRef(0);
 
   // 일기/캡션 편집 모달 상태
   const [diaryEditModalVisible, setDiaryEditModalVisible] = useState(false);
@@ -260,6 +263,16 @@ export default function MediaDetailScreen() {
       });
   }, [currentImageIndex]);
 
+  // OCR polling cleanup (unmount 시 interval 정리)
+  useEffect(() => {
+    return () => {
+      if (ocrPollingRef.current) {
+        clearInterval(ocrPollingRef.current);
+        ocrPollingRef.current = null;
+      }
+    };
+  }, []);
+
   const handleClose = () => {
     router.back();
   };
@@ -446,6 +459,44 @@ export default function MediaDetailScreen() {
       await alert(t('common.error'), getErrorMessage(err));
     } finally {
       setIsGeneratingDiary(false);
+    }
+  };
+
+  const handleTriggerOcr = async () => {
+    if (isOcrLoading) return;
+    setIsOcrLoading(true);
+    ocrAttemptsRef.current = 0;
+    try {
+      await triggerOcr(id!);
+      ocrPollingRef.current = setInterval(async () => {
+        ocrAttemptsRef.current += 1;
+        try {
+          const fresh = await getMediaAnalysis(id!);
+          if (fresh.ocr_text) {
+            if (ocrPollingRef.current) {
+              clearInterval(ocrPollingRef.current);
+              ocrPollingRef.current = null;
+            }
+            setAnalysis(fresh);
+            setIsOcrLoading(false);
+            return;
+          }
+          if (ocrAttemptsRef.current >= 12) {
+            if (ocrPollingRef.current) {
+              clearInterval(ocrPollingRef.current);
+              ocrPollingRef.current = null;
+            }
+            setIsOcrLoading(false);
+            await alert(t('common.error'), t('media.readTextFailed'));
+          }
+        } catch (e) {
+          // analysis 조회 실패는 무시 (다음 polling에서 재시도)
+        }
+      }, 5000);
+    } catch (err: any) {
+      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.triggerOcr' });
+      setIsOcrLoading(false);
+      await alert(t('common.error'), t('media.readTextFailed'));
     }
   };
 
@@ -955,12 +1006,12 @@ export default function MediaDetailScreen() {
         )}
 
         {/* OCR Text */}
-        {analysis?.ocr_text && (
+        {analysis?.ocr_text ? (
           <View style={styles.section}>
             <View style={[styles.sectionHeader, { justifyContent: 'space-between' }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={styles.sectionIcon}>📝</Text>
-                <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Detected Text (OCR)</Text>
+                <Text style={[styles.sectionTitle, isDark && styles.textLight]}>{t('media.readTextSection')}</Text>
               </View>
               <TouchableOpacity
                 onPress={() => handleCopy(analysis.ocr_text, 'copy.ocrCopied')}
@@ -973,7 +1024,35 @@ export default function MediaDetailScreen() {
               <Text style={[styles.ocrText, isDark && styles.textLight]}>{analysis.ocr_text}</Text>
             </View>
           </View>
-        )}
+        ) : analysis ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionIcon}>📝</Text>
+              <Text style={[styles.sectionTitle, isDark && styles.textLight]}>{t('media.readTextSection')}</Text>
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.regenerateButton,
+                isOcrLoading && styles.regenerateButtonDisabled,
+                isDark && styles.regenerateButtonDark,
+              ]}
+              onPress={handleTriggerOcr}
+              disabled={isOcrLoading}
+            >
+              <Ionicons
+                name={isOcrLoading ? 'hourglass-outline' : 'scan-outline'}
+                size={16}
+                color={isOcrLoading ? '#9CA3AF' : '#fff'}
+              />
+              <Text style={[
+                styles.regenerateButtonText,
+                isOcrLoading && styles.regenerateButtonTextDisabled,
+              ]}>
+                {isOcrLoading ? t('media.readingText') : t('media.readTextButton')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         {/* Photo Details */}
         <View style={styles.section}>

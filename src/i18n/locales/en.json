@@ -212,7 +212,7 @@
     "aiModeFast": "Fast",
     "aiModePrecise": "Precise",
     "aiModeFastDesc": "Captions and search only (5-10 sec)",
-    "aiModePreciseDesc": "Captions, search, OCR, and AI diary (20-30 sec)",
+    "aiModePreciseDesc": "Captions, search, and AI diary (20-30 sec)",
     "darkMode": "Dark Mode",
     "darkModeSystem": "System",
     "darkModeLight": "Light",
@@ -498,7 +498,11 @@
     "diaryUpdated": "Diary has been updated",
     "captionUpdated": "Photo caption has been updated",
     "emotionUpdated": "Emotion has been updated",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "readTextButton": "Read Text in Photo",
+    "readingText": "Reading text...",
+    "readTextSection": "Text from Photo",
+    "readTextFailed": "Could not read text. Please try again later."
   },
   "appInfo": {
     "title": "App Info",
