@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 import * as Google from 'expo-auth-session/providers/google';
+import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
@@ -79,6 +80,13 @@ function NativeGoogleButton({ onSuccess, onError, style }: Props) {
     iosClientId: GOOGLE_IOS_CLIENT_ID,
     androidClientId: GOOGLE_ANDROID_CLIENT_ID,
     webClientId: GOOGLE_WEB_CLIENT_ID,
+    // Android: AndroidManifest intent-filter와 일치하는 redirect URI 명시
+    // (iOS는 expo-auth-session이 iosClientId로부터 자동 생성)
+    ...(Platform.OS === 'android' && {
+      redirectUri: makeRedirectUri({
+        native: 'com.googleusercontent.apps.446583916256-ichiq3gh2mvsm01kftom6iji65i4ut1k:/oauth2redirect',
+      }),
+    }),
   });
 
   // OAuth 응답 처리
