@@ -494,7 +494,11 @@ export default function MediaDetailScreen() {
         }
       }, 5000);
     } catch (err: any) {
-      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.triggerOcr' });
+      captureError(
+        err instanceof Error ? err : new Error(String(err)),
+        { context: 'MediaDetail.triggerOcr' },
+        { skipClientErrors: true },
+      );
       setIsOcrLoading(false);
       await alert(t('common.error'), t('media.readTextFailed'));
     }
