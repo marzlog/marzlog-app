@@ -24,7 +24,8 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, triggerOcr, updateCaption, updateDiary, updateMediaEmotion, patchBookmark } from '@/src/api/media';
+import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, triggerOcr, submitDeviceOcr, updateCaption, updateDiary, updateMediaEmotion, patchBookmark } from '@/src/api/media';
+import { runDeviceOcr } from '@/src/services/deviceOcr';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { copyText, saveImageToGallery } from '@/src/utils/copyUtils';
 import Slider from '@react-native-community/slider';
@@ -71,8 +72,6 @@ export default function MediaDetailScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isGeneratingDiary, setIsGeneratingDiary] = useState(false);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
-  const ocrPollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const ocrAttemptsRef = useRef(0);
 
   // 일기/캡션 편집 모달 상태
   const [diaryEditModalVisible, setDiaryEditModalVisible] = useState(false);
@@ -262,16 +261,6 @@ export default function MediaDetailScreen() {
         setAnalysis(null);
       });
   }, [currentImageIndex]);
-
-  // OCR polling cleanup (unmount 시 interval 정리)
-  useEffect(() => {
-    return () => {
-      if (ocrPollingRef.current) {
-        clearInterval(ocrPollingRef.current);
-        ocrPollingRef.current = null;
-      }
-    };
-  }, []);
 
   const handleClose = () => {
     router.back();
@@ -464,43 +453,42 @@ export default function MediaDetailScreen() {
 
   const handleTriggerOcr = async () => {
     if (isOcrLoading) return;
+
+    const targetMediaId = currentImage?.id ? String(currentImage.id) : id!;
+    const imageUrl = currentImage?.download_url || media?.download_url;
+    if (!imageUrl) {
+      await alert(t('common.error'), t('media.readTextFailed'));
+      return;
+    }
+
     setIsOcrLoading(true);
-    ocrAttemptsRef.current = 0;
     try {
-      await triggerOcr(id!);
-      ocrPollingRef.current = setInterval(async () => {
-        ocrAttemptsRef.current += 1;
-        try {
-          const fresh = await getMediaAnalysis(id!);
-          if (fresh.ocr_status !== null && fresh.ocr_status !== undefined) {
-            if (ocrPollingRef.current) {
-              clearInterval(ocrPollingRef.current);
-              ocrPollingRef.current = null;
-            }
-            setAnalysis(fresh);
-            setIsOcrLoading(false);
-            return;
-          }
-          if (ocrAttemptsRef.current >= 12) {
-            if (ocrPollingRef.current) {
-              clearInterval(ocrPollingRef.current);
-              ocrPollingRef.current = null;
-            }
-            setIsOcrLoading(false);
-            await alert(t('common.error'), t('media.readTextFailed'));
-          }
-        } catch (e) {
-          // analysis 조회 실패는 무시 (다음 polling에서 재시도)
-        }
-      }, 5000);
+      const ocrResult = await runDeviceOcr(imageUrl);
+
+      if (ocrResult.status === 'failed') {
+        captureError(
+          ocrResult.error,
+          { context: 'MediaDetail.deviceOcr' },
+          { skipClientErrors: true },
+        );
+        await alert(t('common.error'), t('media.readTextFailed'));
+        return;
+      }
+
+      const fresh = await submitDeviceOcr(targetMediaId, {
+        ocr_text: ocrResult.status === 'done' ? ocrResult.text : '',
+        ocr_status: ocrResult.status,
+      });
+      setAnalysis(fresh);
     } catch (err: any) {
       captureError(
         err instanceof Error ? err : new Error(String(err)),
-        { context: 'MediaDetail.triggerOcr' },
+        { context: 'MediaDetail.submitDeviceOcr' },
         { skipClientErrors: true },
       );
-      setIsOcrLoading(false);
       await alert(t('common.error'), t('media.readTextFailed'));
+    } finally {
+      setIsOcrLoading(false);
     }
   };
 

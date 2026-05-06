@@ -103,6 +103,26 @@ export async function triggerOcr(
   return response.data;
 }
 
+export interface SubmitDeviceOcrRequest {
+  ocr_text: string;
+  ocr_status: 'done' | 'no_text';
+}
+
+/**
+ * 디바이스 OCR 결과를 백엔드에 저장 (C1 PATCH /media/{id}/ocr).
+ * 'failed'는 디바이스 측 실패로, 서버 저장하지 않고 호출자가 토스트만 표시.
+ *
+ * Backend: alembic 012 + searchable_text 트리거 자동 갱신 (C1).
+ * Merge gate: 운영 RDS C3 적용 후.
+ */
+export async function submitDeviceOcr(
+  mediaId: string,
+  payload: SubmitDeviceOcrRequest
+): Promise<MediaAnalysis> {
+  const response = await apiClient.patch(`/media/${mediaId}/ocr`, payload);
+  return response.data;
+}
+
 /**
  * 개별 캡션 수정 (한글 캡션)
  */

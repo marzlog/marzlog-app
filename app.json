@@ -104,6 +104,9 @@
           "packagingOptions": {
             "pickFirst": ["**/libc++_shared.so"]
           }
+        },
+        "ios": {
+          "deploymentTarget": "15.5"
         }
       }],
       ["@sentry/react-native/expo", {
