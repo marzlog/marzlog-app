@@ -42,6 +42,15 @@
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
         "POST_NOTIFICATIONS"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "category": ["DEFAULT", "BROWSABLE"],
+          "data": [
+            { "scheme": "com.googleusercontent.apps.446583916256-ichiq3gh2mvsm01kftom6iji65i4ut1k" }
+          ]
+        }
       ]
     },
     "web": {
