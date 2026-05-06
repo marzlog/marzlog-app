@@ -213,7 +213,7 @@
     "aiModeFast": "빠름",
     "aiModePrecise": "정밀",
     "aiModeFastDesc": "캡션과 검색 기능만 제공 (5~10초)",
-    "aiModePreciseDesc": "캡션, 검색, OCR 텍스트 인식, AI 일기 자동 생성 (20~30초)",
+    "aiModePreciseDesc": "캡션, 검색, AI 일기 자동 생성 (20~30초)",
     "darkMode": "다크 모드",
     "darkModeSystem": "시스템",
     "darkModeLight": "라이트",
@@ -504,7 +504,13 @@
     "diaryUpdated": "일기가 수정되었습니다",
     "captionUpdated": "사진 설명이 수정되었습니다",
     "emotionUpdated": "감정이 수정되었습니다",
-    "loading": "불러오는 중..."
+    "loading": "불러오는 중...",
+    "readTextButton": "사진 속 글자 읽기",
+    "readingText": "글자 읽는 중...",
+    "readTextSection": "사진에서 읽은 글자",
+    "readTextFailed": "글자를 읽지 못했어요. 잠시 후 다시 시도해주세요.",
+    "noTextInPhoto": "이 사진에는 글자가 없어요",
+    "readTextRetry": "다시 시도하기"
   },
   "appInfo": {
     "title": "앱정보",

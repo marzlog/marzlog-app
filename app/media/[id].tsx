@@ -24,7 +24,8 @@ import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, updateCaption, updateDiary, updateMediaEmotion, patchBookmark } from '@/src/api/media';
+import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, triggerOcr, submitDeviceOcr, updateCaption, updateDiary, updateMediaEmotion, patchBookmark } from '@/src/api/media';
+import { runDeviceOcr } from '@/src/services/deviceOcr';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { copyText, saveImageToGallery } from '@/src/utils/copyUtils';
 import Slider from '@react-native-community/slider';
@@ -70,6 +71,7 @@ export default function MediaDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isGeneratingDiary, setIsGeneratingDiary] = useState(false);
+  const [isOcrLoading, setIsOcrLoading] = useState(false);
 
   // 일기/캡션 편집 모달 상태
   const [diaryEditModalVisible, setDiaryEditModalVisible] = useState(false);
@@ -475,6 +477,47 @@ export default function MediaDetailScreen() {
       await alert(t('common.error'), getErrorMessage(err));
     } finally {
       setIsGeneratingDiary(false);
+    }
+  };
+
+  const handleTriggerOcr = async () => {
+    if (isOcrLoading) return;
+
+    const targetMediaId = currentImage?.id ? String(currentImage.id) : id!;
+    const imageUrl = currentImage?.download_url || media?.download_url;
+    if (!imageUrl) {
+      await alert(t('common.error'), t('media.readTextFailed'));
+      return;
+    }
+
+    setIsOcrLoading(true);
+    try {
+      const ocrResult = await runDeviceOcr(imageUrl);
+
+      if (ocrResult.status === 'failed') {
+        captureError(
+          ocrResult.error,
+          { context: 'MediaDetail.deviceOcr' },
+          { skipClientErrors: true },
+        );
+        await alert(t('common.error'), t('media.readTextFailed'));
+        return;
+      }
+
+      const fresh = await submitDeviceOcr(targetMediaId, {
+        ocr_text: ocrResult.status === 'done' ? ocrResult.text : '',
+        ocr_status: ocrResult.status,
+      });
+      setAnalysis(fresh);
+    } catch (err: any) {
+      captureError(
+        err instanceof Error ? err : new Error(String(err)),
+        { context: 'MediaDetail.submitDeviceOcr' },
+        { skipClientErrors: true },
+      );
+      await alert(t('common.error'), t('media.readTextFailed'));
+    } finally {
+      setIsOcrLoading(false);
     }
   };
 
@@ -984,12 +1027,12 @@ export default function MediaDetailScreen() {
         )}
 
         {/* OCR Text */}
-        {analysis?.ocr_text && (
+        {analysis?.ocr_text ? (
           <View style={styles.section}>
             <View style={[styles.sectionHeader, { justifyContent: 'space-between' }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={styles.sectionIcon}>📝</Text>
-                <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Detected Text (OCR)</Text>
+                <Text style={[styles.sectionTitle, isDark && styles.textLight]}>{t('media.readTextSection')}</Text>
               </View>
               <TouchableOpacity
                 onPress={() => handleCopy(analysis.ocr_text, 'copy.ocrCopied')}
@@ -1002,7 +1045,73 @@ export default function MediaDetailScreen() {
               <Text style={[styles.ocrText, isDark && styles.textLight]}>{analysis.ocr_text}</Text>
             </View>
           </View>
-        )}
+        ) : analysis?.ocr_status === 'no_text' ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionIcon}>📝</Text>
+              <Text style={[styles.sectionTitle, isDark && styles.textLight]}>{t('media.readTextSection')}</Text>
+            </View>
+            <Text style={[styles.ocrEmptyMessage, isDark && styles.textSecondaryDark]}>
+              {t('media.noTextInPhoto')}
+            </Text>
+          </View>
+        ) : analysis?.ocr_status === 'failed' ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionIcon}>📝</Text>
+              <Text style={[styles.sectionTitle, isDark && styles.textLight]}>{t('media.readTextSection')}</Text>
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.regenerateButton,
+                isOcrLoading && styles.regenerateButtonDisabled,
+                isDark && styles.regenerateButtonDark,
+              ]}
+              onPress={handleTriggerOcr}
+              disabled={isOcrLoading}
+            >
+              <Ionicons
+                name={isOcrLoading ? 'hourglass-outline' : 'refresh-outline'}
+                size={16}
+                color={isOcrLoading ? '#9CA3AF' : '#fff'}
+              />
+              <Text style={[
+                styles.regenerateButtonText,
+                isOcrLoading && styles.regenerateButtonTextDisabled,
+              ]}>
+                {isOcrLoading ? t('media.readingText') : t('media.readTextRetry')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : analysis ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionIcon}>📝</Text>
+              <Text style={[styles.sectionTitle, isDark && styles.textLight]}>{t('media.readTextSection')}</Text>
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.regenerateButton,
+                isOcrLoading && styles.regenerateButtonDisabled,
+                isDark && styles.regenerateButtonDark,
+              ]}
+              onPress={handleTriggerOcr}
+              disabled={isOcrLoading}
+            >
+              <Ionicons
+                name={isOcrLoading ? 'hourglass-outline' : 'scan-outline'}
+                size={16}
+                color={isOcrLoading ? '#9CA3AF' : '#fff'}
+              />
+              <Text style={[
+                styles.regenerateButtonText,
+                isOcrLoading && styles.regenerateButtonTextDisabled,
+              ]}>
+                {isOcrLoading ? t('media.readingText') : t('media.readTextButton')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         {/* Photo Details */}
         <View style={styles.section}>
@@ -1760,6 +1869,13 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: colors.text.primary,
     lineHeight: 20,
+  },
+  ocrEmptyMessage: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+    paddingVertical: 12,
+    textAlign: 'center',
   },
   detailsContainer: {
     backgroundColor: colors.neutral[2],

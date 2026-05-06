@@ -16,6 +16,7 @@
     "@react-native-google-signin/google-signin": "^16.0.0",
     "@react-native-kakao/core": "^2.4.5",
     "@react-native-kakao/user": "^2.4.5",
+    "@react-native-ml-kit/text-recognition": "^2.0.0",
     "@react-navigation/native": "^7.1.8",
     "@react-oauth/google": "^0.12.2",
     "@sentry/react-native": "~7.2.0",

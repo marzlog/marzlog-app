@@ -9,6 +9,7 @@ export interface MediaAnalysis {
   tags: string[];
   tags_ko?: string[];
   ocr_text: string | null;
+  ocr_status: 'done' | 'no_text' | 'failed' | null;
   scene_type: string | null;
   scene_scores: Record<string, number> | null;
   analyzed_at: string | null;
