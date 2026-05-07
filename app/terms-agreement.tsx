@@ -50,7 +50,10 @@ export default function TermsAgreementScreen() {
     if (!allRequired) return;
     router.push({
       pathname: '/register',
-      params: { marketing: agreeMarketing ? '1' : '0' },
+      params: {
+        age_14: agreeAge ? '1' : '0',
+        marketing: agreeMarketing ? '1' : '0',
+      },
     });
   };
 
