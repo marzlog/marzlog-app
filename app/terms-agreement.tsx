@@ -21,6 +21,7 @@ export default function TermsAgreementScreen() {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
   const [agreeMarketing, setAgreeMarketing] = useState(false);
+  const [agreeAge, setAgreeAge] = useState(false);
 
   const insets = useSafeAreaInsets();
 
@@ -34,11 +35,12 @@ export default function TermsAgreementScreen() {
   const borderColor = isDark ? '#374151' : '#E5E7EB';
   const cardBg = isDark ? '#1F2937' : '#F9FAFB';
 
-  const allRequired = agreeTerms && agreePrivacy;
-  const allChecked = agreeTerms && agreePrivacy && agreeMarketing;
+  const allRequired = agreeAge && agreeTerms && agreePrivacy;
+  const allChecked = agreeAge && agreeTerms && agreePrivacy && agreeMarketing;
 
   const handleAgreeAll = () => {
     const newVal = !allChecked;
+    setAgreeAge(newVal);
     setAgreeTerms(newVal);
     setAgreePrivacy(newVal);
     setAgreeMarketing(newVal);
@@ -92,6 +94,22 @@ export default function TermsAgreementScreen() {
         </TouchableOpacity>
 
         <View style={[styles.separator, { backgroundColor: borderColor }]} />
+
+        <Text style={styles.helperText}>{t('terms.tapToView')}</Text>
+
+        {/* Age 14+ confirmation */}
+        <View style={styles.itemRow}>
+          <TouchableOpacity
+            style={styles.itemLeft}
+            onPress={() => setAgreeAge(!agreeAge)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkbox, agreeAge && styles.checkboxActive]}>
+              {agreeAge && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+            </View>
+            <Text style={[styles.itemLabel, { color: textColor }]}>{t('terms.ageConfirmRequired')}</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Terms of Service */}
         <View style={styles.itemRow}>
@@ -236,6 +254,14 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     marginBottom: 16,
+  },
+  helperText: {
+    fontSize: 13,
+    color: '#999',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+    lineHeight: 18,
   },
   itemRow: {
     flexDirection: 'row',
