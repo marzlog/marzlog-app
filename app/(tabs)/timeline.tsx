@@ -395,6 +395,40 @@ export default function TimelineScreen() {
     })));
   }, [lastBookmarkUpdate]);
 
+  // 삭제 broadcast 구독 → allItemsRef + dateGroups 에서 해당 item 제거
+  // 그룹 대표 이미지가 삭제된 경우 같은 group_id로 묶인 멤버도 함께 제거 (로컬 일관성)
+  const lastDeleteUpdate = useMediaUpdatesStore(s => s.lastDeleteUpdate);
+  useEffect(() => {
+    if (!lastDeleteUpdate) return;
+    const deletedId = lastDeleteUpdate.mediaId;
+
+    const wasPrimary = allItemsRef.current.some(
+      (item) =>
+        item.media?.id === deletedId &&
+        item.media?.group_id === deletedId
+    );
+
+    const shouldRemove = (item: TimelineItem): boolean => {
+      if (item.media?.id === deletedId) return true;
+      if (wasPrimary && item.media?.group_id === deletedId) return true;
+      return false;
+    };
+
+    allItemsRef.current = allItemsRef.current.filter((item) => !shouldRemove(item));
+
+    setDateGroups((prev) =>
+      prev
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => !shouldRemove(item)),
+        }))
+        .filter((group) => group.items.length > 0)
+    );
+
+    setLoadedCount((c) => Math.max(0, c - 1));
+    setTotal((t) => Math.max(0, t - 1));
+  }, [lastDeleteUpdate]);
+
   // 북마크 토글 핸들러 (텍스트 카드의 북마크 아이콘 클릭)
   const handleBookmarkToggle = useCallback(async (mediaId: string, currentValue: boolean) => {
     const next = !currentValue;

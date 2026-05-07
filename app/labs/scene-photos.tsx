@@ -16,6 +16,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { getScenePhotos, type ScenePhoto } from '@/src/api/scene';
+import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 
 const { width } = Dimensions.get('window');
 const NUM_COLUMNS = 3;
@@ -66,6 +67,20 @@ export default function ScenePhotosScreen() {
   useEffect(() => {
     fetchPhotos(0);
   }, [fetchPhotos]);
+
+  // 삭제 broadcast 구독 → 목록에서 해당 item 제거 + total 보정
+  const lastDeleteUpdate = useMediaUpdatesStore(s => s.lastDeleteUpdate);
+  useEffect(() => {
+    if (!lastDeleteUpdate) return;
+    const deletedId = lastDeleteUpdate.mediaId;
+    setPhotos((prev) => {
+      const next = prev.filter((p) => p.media_id !== deletedId);
+      if (next.length !== prev.length) {
+        setTotal((t) => Math.max(0, t - (prev.length - next.length)));
+      }
+      return next;
+    });
+  }, [lastDeleteUpdate]);
 
   const handleLoadMore = () => {
     if (!hasMore || loadingMore) return;

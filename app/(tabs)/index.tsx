@@ -342,6 +342,20 @@ export default function HomeScreen() {
     }));
   }, [lastEmotionUpdate]);
 
+  // 삭제 broadcast 구독 → allItems + dayItems 에서 해당 item 제거
+  const lastDeleteUpdate = useMediaUpdatesStore(s => s.lastDeleteUpdate);
+  useEffect(() => {
+    if (!lastDeleteUpdate) return;
+    const deletedId = lastDeleteUpdate.mediaId;
+
+    setAllItems((prev) => prev.filter((item) => item.media?.id !== deletedId));
+    setDayItems((prev) =>
+      prev
+        ? prev.filter((item) => item.media_id !== deletedId && item.id !== deletedId)
+        : prev
+    );
+  }, [lastDeleteUpdate]);
+
   // 전체 타임라인 로드 (초기 20개 + 자동 추가 로드)
   const loadAllItems = useCallback(async () => {
     if (!accessToken) {
