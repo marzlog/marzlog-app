@@ -15,10 +15,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
 import GoogleLoginButton from '@src/components/auth/GoogleLoginButton';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useAuthStore } from '@src/store/authStore';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { authApi } from '@src/api/auth';
+import {
+  recordConsent,
+  CURRENT_TERMS_VERSION,
+  CURRENT_PRIVACY_VERSION,
+} from '@src/api/consent';
 import { FloatingInput } from '@/src/components/common/FloatingInput';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +33,11 @@ export default function RegisterScreen() {
   const { themeMode } = useSettingsStore();
   const { register } = useAuthStore();
   const { t } = useTranslation();
+
+  // PIPA 22조 동의 payload — terms-agreement에서 전달
+  const params = useLocalSearchParams<{ age_14?: string; marketing?: string }>();
+  const ageConfirmed = params.age_14 === '1';
+  const marketingOptIn = params.marketing === '1';
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -100,12 +110,30 @@ export default function RegisterScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
+  /**
+   * Record consent silently — 가입 성공 후 consent 실패는 main 진입 차단 X.
+   * 다음 로그인 시 B-H (재동의 강제 화면)에서 자동 재시도. PIPA 22조 일관.
+   */
+  const recordConsentSafe = async () => {
+    try {
+      await recordConsent({
+        terms_version: CURRENT_TERMS_VERSION,
+        privacy_version: CURRENT_PRIVACY_VERSION,
+        age_14_confirmed: ageConfirmed,
+        marketing_opt_in: marketingOptIn,
+      });
+    } catch (err: any) {
+      console.warn('[Consent] record failed:', err?.message || err);
+    }
+  };
+
   const handleRegister = async () => {
     if (!validate()) return;
 
     setIsSubmitting(true);
     try {
       await register(name.trim(), email.trim(), password);
+      await recordConsentSafe();
       setShowComplete(true);
     } catch (e: any) {
       const message = e.message || t('auth.registerFailed');
@@ -115,7 +143,10 @@ export default function RegisterScreen() {
     }
   };
 
-  const handleGoogleSuccess = () => router.replace('/(tabs)');
+  const handleGoogleSuccess = async () => {
+    await recordConsentSafe();
+    router.replace('/(tabs)');
+  };
   const handleGoogleError = (errorMessage: string) => {
     setErrors({ form: errorMessage });
   };

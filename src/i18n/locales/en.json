@@ -233,6 +233,11 @@
     "version": "Version",
     "pushNotification": "Push Notifications"
   },
+  "consent": {
+    "errorAgeRequired": "Age 14+ confirmation is required.",
+    "errorVersionMismatch": "Please agree to the latest terms.",
+    "errorNetwork": "Failed to save consent record. Will retry at next login."
+  },
   "support": {
     "title": "Support",
     "help": "Help",
