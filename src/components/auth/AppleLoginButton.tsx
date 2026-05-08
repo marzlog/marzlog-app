@@ -4,9 +4,10 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import { useAuthStore } from '../../store/authStore';
 import { useTranslation } from '../../hooks/useTranslation';
+import type { AuthResponse } from '../../types/auth';
 
 interface Props {
-  onSuccess?: () => void;
+  onSuccess?: (authResponse: AuthResponse) => void;
   onError?: (error: string) => void;
 }
 
@@ -36,7 +37,7 @@ export default function AppleLoginButton({ onSuccess, onError }: Props) {
         return;
       }
 
-      await loginWithApple(
+      const response = await loginWithApple(
         credential.identityToken,
         nonce,
         credential.fullName
@@ -47,7 +48,7 @@ export default function AppleLoginButton({ onSuccess, onError }: Props) {
           : undefined,
       );
 
-      onSuccess?.();
+      onSuccess?.(response);
     } catch (err: any) {
       // 사용자 취소: 조용히 무시
       if (err.code === 'ERR_REQUEST_CANCELED') {

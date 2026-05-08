@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { login } from '@react-native-kakao/user';
 import { useAuthStore } from '../../store/authStore';
+import type { AuthResponse } from '../../types/auth';
 
 interface Props {
-  onSuccess?: () => void;
+  onSuccess?: (authResponse: AuthResponse) => void;
   onError?: (error: string) => void;
   style?: object;
 }
@@ -21,8 +22,8 @@ export default function KakaoLoginButton({ onSuccess, onError, style }: Props) {
     try {
       // 카카오 계정 웹 로그인 (카카오톡 미로그인 기기 대응)
       const result = await login({ useKakaoAccountLogin: true });
-      await loginWithKakao(result.accessToken);
-      onSuccess?.();
+      const response = await loginWithKakao(result.accessToken);
+      onSuccess?.(response);
     } catch (err: any) {
       const message = err?.message || String(err);
       // 사용자 취소: 조용히 무시

@@ -46,5 +46,38 @@ export async function recordConsent(payload: ConsentRequest): Promise<ConsentRes
   return response.data;
 }
 
-export const consentApi = { recordConsent };
+export interface RecordConsentSafeOptions {
+  ageConfirmed: boolean;
+  marketingOptIn: boolean;
+}
+
+/**
+ * Consent 기록 silent wrapper.
+ * register / terms-agreement(from=login) 양쪽 공유.
+ *
+ * 실패 시 throw 안 함 → ok=false 반환.
+ * 5xx는 axios interceptor가 Sentry로 자동 캡처 (sentry.ts 정책).
+ * 4xx는 silent — B-H 미들웨어가 다음 API 호출 시 재redirect로 잡음.
+ */
+export async function recordConsentSafe(
+  opts: RecordConsentSafeOptions,
+): Promise<{ ok: boolean; error?: unknown }> {
+  try {
+    await recordConsent({
+      terms_version: CURRENT_TERMS_VERSION,
+      privacy_version: CURRENT_PRIVACY_VERSION,
+      age_14_confirmed: opts.ageConfirmed,
+      marketing_opt_in: opts.marketingOptIn,
+    });
+    return { ok: true };
+  } catch (error) {
+    if (__DEV__) {
+      // eslint-disable-next-line no-console
+      console.warn('[recordConsentSafe] failed:', error);
+    }
+    return { ok: false, error };
+  }
+}
+
+export const consentApi = { recordConsent, recordConsentSafe };
 export default consentApi;

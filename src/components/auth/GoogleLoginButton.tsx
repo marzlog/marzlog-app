@@ -6,6 +6,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
+import type { AuthResponse } from '../../types/auth';
 
 // Expo Auth Session 설정
 WebBrowser.maybeCompleteAuthSession();
@@ -15,7 +16,7 @@ const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
 const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '';
 
 interface Props {
-  onSuccess?: () => void;
+  onSuccess?: (authResponse: AuthResponse) => void;
   onError?: (error: string) => void;
   style?: object;
 }
@@ -28,8 +29,8 @@ function WebGoogleButtonInner({ onSuccess, onError, style }: Props) {
     onSuccess: async (tokenResponse) => {
       setIsLoading(true);
       try {
-        await loginWithGoogle(tokenResponse.access_token);
-        onSuccess?.();
+        const response = await loginWithGoogle(tokenResponse.access_token);
+        onSuccess?.(response);
       } catch (e: any) {
         onError?.(e.message);
       } finally {
@@ -112,9 +113,9 @@ function NativeGoogleButton({ onSuccess, onError, style }: Props) {
   const handleGoogleLogin = async (idToken: string) => {
     try {
       // console.log('[NativeGoogleLogin] Got ID token, logging in...');
-      await loginWithGoogle(idToken);
+      const response = await loginWithGoogle(idToken);
       // console.log('[NativeGoogleLogin] Login success!');
-      onSuccess?.();
+      onSuccess?.(response);
     } catch (e: any) {
       // console.log('[NativeGoogleLogin] Login error:', e.message);
       onError?.(e.message);
@@ -134,8 +135,8 @@ function NativeGoogleButton({ onSuccess, onError, style }: Props) {
 
       // Access Token을 ID Token처럼 사용 (백엔드에서 처리 필요할 수 있음)
       // 또는 백엔드에 별도의 access token 처리 엔드포인트 필요
-      await loginWithGoogle(accessToken);
-      onSuccess?.();
+      const response = await loginWithGoogle(accessToken);
+      onSuccess?.(response);
     } catch (e: any) {
       // console.log('[NativeGoogleLogin] Error fetching user info:', e.message);
       onError?.(e.message);
