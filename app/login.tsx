@@ -20,6 +20,7 @@ import KakaoLoginButton from '@src/components/auth/KakaoLoginButton';
 import AppleLoginButton from '@src/components/auth/AppleLoginButton';
 import { router } from 'expo-router';
 import { useAuthStore } from '@src/store/authStore';
+import type { AuthResponse } from '@src/types/auth';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { AppTouchable } from '@/src/components/common/AppTouchable';
 
@@ -162,7 +163,18 @@ export default function LoginScreen() {
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
 
-  const handleSuccess = () => router.replace('/(tabs)');
+  /**
+   * OAuth/email 성공 후 라우팅.
+   * res는 분기 결정 전용 read-only — user/tokens는 useAuthStore가 단일 출처.
+   */
+  const handleSuccess = (res?: AuthResponse) => {
+    if (res?.is_new_user) {
+      // B-U: 소셜 자동 가입자 약관 동의 redirect
+      router.replace('/terms-agreement?from=login');
+      return;
+    }
+    router.replace('/(tabs)');
+  };
   const handleError = (errorMessage: string) => setError(errorMessage);
 
   const handleEmailLogin = async () => {
