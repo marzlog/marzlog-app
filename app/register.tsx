@@ -15,10 +15,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
 import GoogleLoginButton from '@src/components/auth/GoogleLoginButton';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useAuthStore } from '@src/store/authStore';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { authApi } from '@src/api/auth';
+import { recordConsentSafe } from '@src/api/consent';
 import { FloatingInput } from '@/src/components/common/FloatingInput';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +29,11 @@ export default function RegisterScreen() {
   const { themeMode } = useSettingsStore();
   const { register } = useAuthStore();
   const { t } = useTranslation();
+
+  // PIPA 22조 동의 payload — terms-agreement에서 전달
+  const params = useLocalSearchParams<{ age_14?: string; marketing?: string }>();
+  const ageConfirmed = params.age_14 === '1';
+  const marketingOptIn = params.marketing === '1';
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -106,6 +112,7 @@ export default function RegisterScreen() {
     setIsSubmitting(true);
     try {
       await register(name.trim(), email.trim(), password);
+      await recordConsentSafe({ ageConfirmed, marketingOptIn });
       setShowComplete(true);
     } catch (e: any) {
       const message = e.message || t('auth.registerFailed');
@@ -115,7 +122,10 @@ export default function RegisterScreen() {
     }
   };
 
-  const handleGoogleSuccess = () => router.replace('/(tabs)');
+  const handleGoogleSuccess = async () => {
+    await recordConsentSafe({ ageConfirmed, marketingOptIn });
+    router.replace('/(tabs)');
+  };
   const handleGoogleError = (errorMessage: string) => {
     setErrors({ form: errorMessage });
   };

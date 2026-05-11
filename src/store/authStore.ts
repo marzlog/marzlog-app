@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import authApi from '../api/auth';
 import { setOnSessionExpired } from '../api/client';
-import type { User, AuthState } from '../types/auth';
+import type { User, AuthState, AuthResponse } from '../types/auth';
 import { extractErrorMessage } from '../utils/errorMessages';
 import { secureStorage as storage, SECURE_KEYS } from '../utils/secureStorage';
 import { useSettingsStore, backendToAiMode } from './settingsStore';
@@ -16,9 +16,9 @@ interface AuthStore extends AuthState {
   setError: (error: string | null) => void;
 
   // Auth methods
-  loginWithGoogle: (idToken: string) => Promise<void>;
-  loginWithKakao: (accessToken: string) => Promise<void>;
-  loginWithApple: (identityToken: string, nonce: string, fullName?: { firstName?: string; lastName?: string }) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<AuthResponse>;
+  loginWithKakao: (accessToken: string) => Promise<AuthResponse>;
+  loginWithApple: (identityToken: string, nonce: string, fullName?: { firstName?: string; lastName?: string }) => Promise<AuthResponse>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -61,6 +61,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
 
       registerPushToken().catch(() => {});
+      return response;
     } catch (error: any) {
       const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });
@@ -86,6 +87,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
 
       registerPushToken().catch(() => {});
+      return response;
     } catch (error: any) {
       const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });
@@ -111,6 +113,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       });
 
       registerPushToken().catch(() => {});
+      return response;
     } catch (error: any) {
       const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });

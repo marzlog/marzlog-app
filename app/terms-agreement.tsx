@@ -9,7 +9,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { recordConsentSafe } from '@src/api/consent';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,6 +18,7 @@ export default function TermsAgreementScreen() {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
   const { t } = useTranslation();
+  const params = useLocalSearchParams<{ from?: string }>();
 
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
@@ -46,11 +48,27 @@ export default function TermsAgreementScreen() {
     setAgreeMarketing(newVal);
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!allRequired) return;
+
+    if (params.from === 'login') {
+      // B-U Phase 2: 소셜 자동 가입자 consent 기록 후 메인 진입.
+      // 실패해도 redirect — B-H 미들웨어가 다음 API 호출 시 재redirect로 잡음.
+      await recordConsentSafe({
+        ageConfirmed: agreeAge,
+        marketingOptIn: agreeMarketing,
+      });
+      router.replace('/(tabs)');
+      return;
+    }
+
+    // 기존 register 흐름 (변경 없음)
     router.push({
       pathname: '/register',
-      params: { marketing: agreeMarketing ? '1' : '0' },
+      params: {
+        age_14: agreeAge ? '1' : '0',
+        marketing: agreeMarketing ? '1' : '0',
+      },
     });
   };
 

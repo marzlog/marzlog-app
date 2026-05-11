@@ -16,6 +16,20 @@ function notifySessionExpired() {
   }
 }
 
+// Consent required callback (set by app/_layout.tsx)
+// PIPA 22조 동의 미완료 사용자 → 약관 화면으로 redirect (B-U Phase 4 / B-AE)
+let _onConsentRequired: (() => void) | null = null;
+
+export function setOnConsentRequired(callback: () => void) {
+  _onConsentRequired = callback;
+}
+
+function notifyConsentRequired() {
+  if (_onConsentRequired) {
+    _onConsentRequired();
+  }
+}
+
 // Refresh 동시성 단일화: 진행 중이면 동일 Promise를 공유 (race 방지)
 let _refreshPromise: Promise<string> | null = null;
 
@@ -71,6 +85,17 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
     
     const isAuthEndpoint = originalRequest?.url?.startsWith('/auth/');
+
+    // PIPA 22조 consent 미동의 — 약관 화면으로 redirect 후 reject (B-U Phase 4 / B-AE)
+    // status 403 + body code === 'CONSENT_REQUIRED'; auth endpoint는 제외 (refresh/login 보호)
+    const consentRequired =
+      error.response?.status === 403 &&
+      (error.response?.data as any)?.code === 'CONSENT_REQUIRED' &&
+      !isAuthEndpoint;
+    if (consentRequired) {
+      notifyConsentRequired();
+      return Promise.reject(error);
+    }
 
     // 무한 루프 방지: 같은 요청이 이미 한 번 retry된 경우 더 이상 시도 안 함
     const alreadyRetried = (originalRequest as any)?._retry === true;

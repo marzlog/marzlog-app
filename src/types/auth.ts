@@ -23,6 +23,8 @@ export interface AuthTokens {
 export interface AuthResponse {
   user: User;
   tokens: AuthTokens;
+  /** 신규 가입 사용자 여부. true면 약관 동의 화면 redirect. Backend PR #5. */
+  is_new_user?: boolean;
 }
 
 export interface GoogleAuthRequest {

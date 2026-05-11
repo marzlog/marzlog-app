@@ -233,6 +233,11 @@
     "appInfoSection": "앱 정보",
     "version": "버전"
   },
+  "consent": {
+    "errorAgeRequired": "만 14세 이상 확인이 필요합니다.",
+    "errorVersionMismatch": "최신 약관에 동의해주세요.",
+    "errorNetwork": "동의 기록 저장에 실패했습니다. 다음 로그인 시 다시 시도됩니다."
+  },
   "support": {
     "title": "지원",
     "help": "도움말",
