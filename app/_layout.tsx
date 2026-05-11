@@ -13,6 +13,7 @@ import * as Updates from 'expo-updates';
 import { initializeKakaoSDK } from '@react-native-kakao/core';
 import { useColorScheme } from '@/components/useColorScheme';
 import { initSentry } from '../src/utils/sentry';
+import { setOnConsentRequired } from '../src/api/client';
 import { useAuthStore } from '@src/store/authStore';
 import { useSettingsStore } from '@src/store/settingsStore';
 import { useAppLockStore } from '@src/store/appLockStore';
@@ -104,6 +105,14 @@ export default function RootLayout() {
       setInitialReady(true);
     };
     init();
+  }, []);
+
+  // Register consent-required callback: backend 403 + code === 'CONSENT_REQUIRED'
+  // → redirect to terms-agreement. Mount 1회만 등록. (B-U Phase 4 / B-AE)
+  useEffect(() => {
+    setOnConsentRequired(() => {
+      router.replace('/terms-agreement?from=login');
+    });
   }, []);
 
   // Background → foreground: lock after 30s
