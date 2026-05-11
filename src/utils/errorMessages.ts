@@ -71,6 +71,13 @@ export function translateErrorMessage(msg: string): string {
  * Automatically translates English messages to Korean.
  */
 export function extractErrorMessage(error: any, fallback: string): string {
+  // B-AF: CONSENT_REQUIRED는 Phase 4 interceptor가 router.replace를 트리거하므로
+  // raw detail을 사용자에게 노출하지 않음. router 전환 race 동안 잠깐 보이는 메시지 차단.
+  const code = (error?.response?.data as any)?.code;
+  if (code === 'CONSENT_REQUIRED') {
+    return '';
+  }
+
   const detail = error?.response?.data?.detail;
   let message = fallback;
 
