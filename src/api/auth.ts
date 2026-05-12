@@ -1,4 +1,5 @@
 
+import { AxiosError } from 'axios';
 import apiClient from './client';
 import type {
   AuthResponse,
@@ -8,6 +9,88 @@ import type {
   MessageResponse,
   VerifyResetCodeResponse,
 } from '../types/auth';
+
+// ─────────────────────────────────────────────────────────
+// B-AJ Phase 3c: DELETE /auth/account typed error
+// ─────────────────────────────────────────────────────────
+
+export type AccountDeletionErrorCode =
+  | 'WITHDRAWAL_CONSENT_REQUIRED'  // 412 — POST /users/me/withdrawal-consent first
+  | 'ACTIVE_SUBSCRIPTION'          // 409 — cancel App/Play subscription first
+  | 'USER_NOT_FOUND'               // 404 — token expired or already deleted
+  | 'UNKNOWN';                     // other 4xx
+
+export class AccountDeletionError extends Error {
+  readonly code: AccountDeletionErrorCode;
+  readonly statusCode: number | undefined;
+  readonly details: Record<string, unknown> | undefined;
+  readonly cause?: unknown;
+
+  constructor(
+    code: AccountDeletionErrorCode,
+    message: string,
+    statusCode?: number,
+    details?: Record<string, unknown>,
+    cause?: unknown,
+  ) {
+    super(message);
+    this.name = 'AccountDeletionError';
+    this.code = code;
+    this.statusCode = statusCode;
+    this.details = details;
+    this.cause = cause;
+  }
+}
+
+interface DeletionErrorBody {
+  code?: string;
+  message?: string;
+  details?: Record<string, unknown>;
+  detail?:
+    | string
+    | { code?: string; message?: string; details?: Record<string, unknown> };
+}
+
+function parseDeletionError(data: unknown): {
+  code: string | undefined;
+  message: string | undefined;
+  details: Record<string, unknown> | undefined;
+} {
+  if (typeof data !== 'object' || data === null) {
+    return { code: undefined, message: undefined, details: undefined };
+  }
+  const body = data as DeletionErrorBody;
+  if (typeof body.code === 'string') {
+    return { code: body.code, message: body.message, details: body.details };
+  }
+  if (typeof body.detail === 'object' && body.detail !== null) {
+    return {
+      code: body.detail.code,
+      message: body.detail.message,
+      details: body.detail.details,
+    };
+  }
+  if (typeof body.detail === 'string') {
+    return { code: undefined, message: body.detail, details: undefined };
+  }
+  return { code: undefined, message: undefined, details: undefined };
+}
+
+function mapDeletionErrorCode(
+  status: number,
+  code: string | undefined,
+): AccountDeletionErrorCode {
+  if (status === 412 || code === 'WITHDRAWAL_CONSENT_REQUIRED') {
+    return 'WITHDRAWAL_CONSENT_REQUIRED';
+  }
+  if (status === 409 || code === 'ACTIVE_SUBSCRIPTION') {
+    return 'ACTIVE_SUBSCRIPTION';
+  }
+  if (status === 404 || code === 'USER_NOT_FOUND') {
+    return 'USER_NOT_FOUND';
+  }
+  return 'UNKNOWN';
+}
 
 export const authApi = {
   /**
@@ -139,10 +222,37 @@ export const authApi = {
   },
 
   /**
-   * 계정 삭제
+   * DELETE /auth/account — 계정 영구 삭제 (B-AJ).
+   *
+   * Backend guards (raise typed AccountDeletionError on 4xx):
+   *   - 412 WITHDRAWAL_CONSENT_REQUIRED  → POST /users/me/withdrawal-consent first
+   *   - 409 ACTIVE_SUBSCRIPTION          → cancel App Store / Play Store sub first
+   *   - 404 USER_NOT_FOUND               → already deleted or token expired
+   *
+   * Signature preserved: `(): Promise<void>` — authStore.ts:214 caller unchanged.
+   * Only the rejection type is enriched (AxiosError → AccountDeletionError | AxiosError).
+   *
+   * @throws AccountDeletionError on 4xx (caller branches on .code)
+   * @throws AxiosError on network / 5xx
    */
   async deleteAccount(): Promise<void> {
-    await apiClient.delete('/auth/account');
+    try {
+      await apiClient.delete('/auth/account');
+    } catch (err) {
+      if (err instanceof AxiosError && err.response) {
+        const status = err.response.status;
+        const { code, message, details } = parseDeletionError(err.response.data);
+        const mapped = mapDeletionErrorCode(status, code);
+        throw new AccountDeletionError(
+          mapped,
+          message ?? '계정 삭제 처리 중 오류가 발생했습니다.',
+          status,
+          details,
+          err,
+        );
+      }
+      throw err;
+    }
   },
 
   /**
