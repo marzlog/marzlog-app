@@ -210,31 +210,33 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   // Delete Account
   deleteAccount: async () => {
-    try {
-      await authApi.deleteAccount();
-    } catch {
-      throw new Error('Account deletion failed');
-    } finally {
-      // Clear auth tokens
-      await storage.removeItem('access_token');
-      await storage.removeItem('refresh_token');
+    // SUCCESS path only clears auth state (typed error must propagate).
+    // - 412 WITHDRAWAL_CONSENT_REQUIRED / 409 ACTIVE_SUBSCRIPTION:
+    //   user must remain logged in to retry consent or cancel subscription
+    // - 404 USER_NOT_FOUND: caller (withdraw.tsx) calls forceLogout explicitly
+    // B-AJ Phase 3d / B-AU: typed AccountDeletionError thrown by authApi
+    // passes through to caller for step-based UI branching.
+    await authApi.deleteAccount();
 
-      // Clear app lock / PIN data
-      await storage.removeItem(SECURE_KEYS.PIN_HASH);
-      await storage.removeItem(SECURE_KEYS.APP_LOCK_ENABLED);
+    // Clear auth tokens
+    await storage.removeItem('access_token');
+    await storage.removeItem('refresh_token');
 
-      // Clear onboarding flag so re-signup shows onboarding again
-      await AsyncStorage.removeItem('@marzlog_onboarding_completed');
+    // Clear app lock / PIN data
+    await storage.removeItem(SECURE_KEYS.PIN_HASH);
+    await storage.removeItem(SECURE_KEYS.APP_LOCK_ENABLED);
 
-      set({
-        user: null,
-        accessToken: null,
-        refreshToken: null,
-        isAuthenticated: false,
-        isLoading: false,
-        error: null,
-      });
-    }
+    // Clear onboarding flag so re-signup shows onboarding again
+    await AsyncStorage.removeItem('@marzlog_onboarding_completed');
+
+    set({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+    });
   },
 
   // Check auth on app start
