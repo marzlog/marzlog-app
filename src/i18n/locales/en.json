@@ -236,7 +236,12 @@
     "withdrawCompletePhotoNoticeBody": "All photo files are permanently removed from backup storage within 24 hours.",
     "withdrawCompleteAppleTitle": "For users who signed in with Apple",
     "withdrawCompleteAppleBody": "Your account data has been deleted, but you should also revoke \"MarZlog\" from your Apple ID settings.",
-    "withdrawCompleteAppleLinkLabel": "View Apple guide"
+    "withdrawCompleteAppleLinkLabel": "View Apple guide",
+    "withdrawAppleReAuthTitle": "Apple Sign In re-authentication",
+    "withdrawAppleReAuthBody": "We need to re-verify your Apple Sign In for a secure account deletion. Please tap the button below.",
+    "withdrawAppleReAuthButton": "Re-authenticate with Apple",
+    "withdrawAppleReAuthInvalidCode": "Authentication expired. Please try again.",
+    "withdrawAppleReAuthUnavailable": "Apple service is temporarily unavailable. Please try again shortly."
   },
   "settings": {
     "title": "Settings",
