@@ -117,6 +117,74 @@ export async function postWithdrawalConsent(
   }
 }
 
+// ============================================================================
+// B-AJ Phase 2d: Apple Sign In token revoke (Option B)
+// ============================================================================
+
+export type AppleReAuthErrorCode =
+  | 'INVALID_AUTHORIZATION_CODE'
+  | 'APPLE_UNAVAILABLE'
+  | 'UNKNOWN';
+
+export class AppleReAuthError extends Error {
+  readonly code: AppleReAuthErrorCode;
+  readonly statusCode: number | undefined;
+  readonly cause?: unknown;
+
+  constructor(
+    code: AppleReAuthErrorCode,
+    message: string,
+    statusCode?: number,
+    cause?: unknown,
+  ) {
+    super(message);
+    this.name = 'AppleReAuthError';
+    this.code = code;
+    this.statusCode = statusCode;
+    this.cause = cause;
+  }
+}
+
+interface AppleRevokeRequest {
+  authorization_code: string;
+}
+
+/**
+ * POST /users/me/apple-revoke-token
+ *
+ * Server-side Apple token revoke. Frontend re-authenticates natively to obtain
+ * a fresh authorization_code, then calls this endpoint BEFORE DELETE /auth/account
+ * for Apple Sign In users. Refresh token is never persisted (Option B).
+ *
+ * @throws AppleReAuthError on 4xx/5xx (typed code for caller branching)
+ * @throws AxiosError on network failures
+ */
+export async function postAppleRevokeToken(authorizationCode: string): Promise<void> {
+  const payload: AppleRevokeRequest = { authorization_code: authorizationCode };
+  try {
+    await apiClient.post('/users/me/apple-revoke-token', payload);
+    // 204 No Content
+  } catch (err) {
+    if (err instanceof AxiosError && err.response) {
+      const status = err.response.status;
+      const code = extractErrorCode(err.response.data);
+      const message = extractErrorMessage(
+        err.response.data,
+        'Apple 재인증 처리 중 오류가 발생했습니다.',
+      );
+
+      if (status === 400 && code === 'INVALID_AUTHORIZATION_CODE') {
+        throw new AppleReAuthError('INVALID_AUTHORIZATION_CODE', message, status, err);
+      }
+      if (status === 502 && code === 'APPLE_UNAVAILABLE') {
+        throw new AppleReAuthError('APPLE_UNAVAILABLE', message, status, err);
+      }
+      throw new AppleReAuthError('UNKNOWN', message, status, err);
+    }
+    throw err;
+  }
+}
+
 // Bundled export (mirrors consent.ts: `export const consentApi = { ... }; export default consentApi;`)
-export const withdrawalApi = { postWithdrawalConsent };
+export const withdrawalApi = { postWithdrawalConsent, postAppleRevokeToken };
 export default withdrawalApi;

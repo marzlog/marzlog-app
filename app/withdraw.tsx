@@ -1,5 +1,5 @@
 // app/withdraw.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
@@ -21,6 +22,8 @@ import { useTranslation } from '@/src/hooks/useTranslation';
 import { Logo } from '@/src/components/common/Logo';
 import {
   postWithdrawalConsent,
+  postAppleRevokeToken,
+  AppleReAuthError,
   WithdrawalConsentError,
   CURRENT_WITHDRAWAL_TERMS_VERSION,
 } from '@/src/api/withdrawal';
@@ -48,7 +51,7 @@ type StepNumber = 1 | 2 | 3;
 export default function WithdrawScreen() {
   const systemColorScheme = useColorScheme();
   const { themeMode, language } = useSettingsStore();
-  const { deleteAccount, forceLogout } = useAuthStore();
+  const { deleteAccount, forceLogout, user } = useAuthStore();
   const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -72,6 +75,15 @@ export default function WithdrawScreen() {
 
   // Step 3: confirm phrase
   const [confirmInput, setConfirmInput] = useState('');
+
+  // Step 3 (Apple-only): native re-auth state for B-AJ Phase 2d
+  const [appleReAuthState, setAppleReAuthState] = useState<
+    'idle' | 'in-progress' | 'success' | 'error'
+  >('idle');
+  const appleAuthCodeRef = useRef<string | null>(null);
+
+  const authProvider = user?.auth_provider ?? null;
+  const isAppleUser = authProvider === 'apple';
 
   const confirmPhrase = language === 'en' ? CONFIRM_PHRASE_EN : CONFIRM_PHRASE_KO;
 
@@ -157,11 +169,78 @@ export default function WithdrawScreen() {
   };
 
   // ─── Step 3 logic ──────────────────────────────────────
-  const isStep3Valid = confirmInput.trim() === confirmPhrase;
+  const isStep3Valid =
+    confirmInput.trim() === confirmPhrase &&
+    (!isAppleUser || appleReAuthState === 'success');
+
+  // B-AJ Phase 2d: Apple re-authentication handler (Option B)
+  const handleAppleReAuth = async () => {
+    setAppleReAuthState('in-progress');
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [],
+      });
+      if (!credential.authorizationCode) {
+        throw new Error('No authorization code returned from Apple');
+      }
+      appleAuthCodeRef.current = credential.authorizationCode;
+      setAppleReAuthState('success');
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code === 'ERR_REQUEST_CANCELED') {
+        // User canceled — silently return to idle
+        setAppleReAuthState('idle');
+        return;
+      }
+      setAppleReAuthState('error');
+      Alert.alert(
+        t('common.error'),
+        t('account.withdrawAppleReAuthInvalidCode'),
+      );
+    }
+  };
 
   const submitDelete = async () => {
     if (!isStep3Valid || isSubmitting) return;
     setIsSubmitting(true);
+
+    // B-AJ Phase 2d: Apple users must revoke token first (Option B)
+    if (isAppleUser) {
+      const code = appleAuthCodeRef.current;
+      if (!code) {
+        Alert.alert(t('common.error'), t('account.withdrawAppleReAuthBody'));
+        setIsSubmitting(false);
+        return;
+      }
+      try {
+        await postAppleRevokeToken(code);
+        // 204 → proceed to deleteAccount below
+      } catch (err) {
+        if (err instanceof AppleReAuthError) {
+          if (err.code === 'INVALID_AUTHORIZATION_CODE') {
+            Alert.alert(
+              t('common.error'),
+              t('account.withdrawAppleReAuthInvalidCode'),
+            );
+            appleAuthCodeRef.current = null;
+            setAppleReAuthState('idle');
+          } else if (err.code === 'APPLE_UNAVAILABLE') {
+            Alert.alert(
+              t('common.error'),
+              t('account.withdrawAppleReAuthUnavailable'),
+            );
+            // Keep success state so user can retry without re-auth (code still valid)
+          } else {
+            Alert.alert(t('common.error'), t('account.withdrawErrorGeneric'));
+          }
+        } else {
+          Alert.alert(t('common.error'), t('account.withdrawErrorGeneric'));
+        }
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     try {
       await deleteAccount();
       router.replace('/withdraw-complete');
@@ -275,6 +354,9 @@ export default function WithdrawScreen() {
             confirmPhrase={confirmPhrase}
             confirmInput={confirmInput}
             setConfirmInput={setConfirmInput}
+            isAppleUser={isAppleUser}
+            onAppleReAuth={handleAppleReAuth}
+            appleReAuthState={appleReAuthState}
           />
         )}
       </ScrollView>
@@ -513,6 +595,9 @@ interface Step3Props {
   confirmPhrase: string;
   confirmInput: string;
   setConfirmInput: (s: string) => void;
+  isAppleUser: boolean;
+  onAppleReAuth: () => void;
+  appleReAuthState: 'idle' | 'in-progress' | 'success' | 'error';
 }
 function Step3({
   isDark,
@@ -520,7 +605,13 @@ function Step3({
   confirmPhrase,
   confirmInput,
   setConfirmInput,
+  isAppleUser,
+  onAppleReAuth,
+  appleReAuthState,
 }: Step3Props) {
+  const isAppleBusy = appleReAuthState === 'in-progress';
+  const isAppleDone = appleReAuthState === 'success';
+
   return (
     <View>
       <Text style={[styles.stepTitle, isDark && styles.textLight]}>
@@ -542,6 +633,35 @@ function Step3({
         autoCapitalize="none"
         autoCorrect={false}
       />
+
+      {isAppleUser && (
+        <View style={[styles.appleReAuthBox, isDark && styles.appleReAuthBoxDark]}>
+          <Text style={[styles.appleReAuthTitle, isDark && styles.textLight]}>
+            {t('account.withdrawAppleReAuthTitle')}
+          </Text>
+          <Text
+            style={[styles.appleReAuthBody, isDark && styles.textSecondaryDark]}
+          >
+            {t('account.withdrawAppleReAuthBody')}
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.appleReAuthButton,
+              isAppleDone && styles.appleReAuthButtonSuccess,
+              isAppleBusy && styles.appleReAuthButtonDisabled,
+            ]}
+            onPress={onAppleReAuth}
+            disabled={isAppleBusy || isAppleDone}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.appleReAuthButtonText}>
+              {isAppleDone
+                ? `✓ ${t('account.withdrawAppleReAuthButton')}`
+                : t('account.withdrawAppleReAuthButton')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -677,4 +797,35 @@ const styles = StyleSheet.create({
   primaryBtnActive: { backgroundColor: '#FF6B6B' },
   primaryBtnDisabled: { backgroundColor: '#E0E0E0' },
   primaryBtnText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
+
+  // B-AJ Phase 2d — Apple re-auth box (Step 3, Apple users only)
+  appleReAuthBox: {
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+  },
+  appleReAuthBoxDark: { backgroundColor: '#1F2937' },
+  appleReAuthTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  appleReAuthBody: {
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  appleReAuthButton: {
+    backgroundColor: '#000000',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  appleReAuthButtonSuccess: { backgroundColor: '#10B981' },
+  appleReAuthButtonDisabled: { opacity: 0.5 },
+  appleReAuthButtonText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
 });
