@@ -231,7 +231,12 @@
     "withdrawErrorConsentRequired": "Please agree to the withdrawal terms first.",
     "withdrawErrorActiveSubscription": "Cannot delete account with active subscription.",
     "withdrawErrorUserNotFound": "Account not found. Please log in again.",
-    "withdrawErrorGeneric": "An error occurred. Please try again later."
+    "withdrawErrorGeneric": "An error occurred. Please try again later.",
+    "withdrawCompletePhotoNoticeTitle": "Photos are fully removed within 24 hours",
+    "withdrawCompletePhotoNoticeBody": "All photo files are permanently removed from backup storage within 24 hours.",
+    "withdrawCompleteAppleTitle": "For users who signed in with Apple",
+    "withdrawCompleteAppleBody": "Your account data has been deleted, but you should also revoke \"MarZlog\" from your Apple ID settings.",
+    "withdrawCompleteAppleLinkLabel": "View Apple guide"
   },
   "settings": {
     "title": "Settings",
