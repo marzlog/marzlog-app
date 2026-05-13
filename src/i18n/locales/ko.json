@@ -231,7 +231,12 @@
     "withdrawErrorConsentRequired": "탈퇴 약관에 먼저 동의해 주세요.",
     "withdrawErrorActiveSubscription": "활성 구독이 있어 탈퇴할 수 없습니다.",
     "withdrawErrorUserNotFound": "계정을 찾을 수 없습니다. 다시 로그인해 주세요.",
-    "withdrawErrorGeneric": "탈퇴 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
+    "withdrawErrorGeneric": "탈퇴 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+    "withdrawCompletePhotoNoticeTitle": "사진은 24시간 내 완전 삭제됩니다",
+    "withdrawCompletePhotoNoticeBody": "백업 서버에서도 24시간 이내에 모든 사진 파일이 영구 삭제됩니다.",
+    "withdrawCompleteAppleTitle": "Apple로 로그인하신 분께",
+    "withdrawCompleteAppleBody": "앱 데이터는 삭제되었지만, Apple ID 설정에서 \"MarZlog\" 앱 권한을 직접 해제해 주세요.",
+    "withdrawCompleteAppleLinkLabel": "Apple 가이드 보기"
   },
   "settings": {
     "title": "설정",
