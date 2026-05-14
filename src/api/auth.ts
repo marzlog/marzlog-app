@@ -92,25 +92,111 @@ function mapDeletionErrorCode(
   return 'UNKNOWN';
 }
 
+// ─────────────────────────────────────────────────────────
+// B-CF: register / social login typed errors
+// ─────────────────────────────────────────────────────────
+
+export class AccountAlreadyExistsError extends Error {
+  constructor(
+    public readonly registeredProvider: string,
+    public readonly emailMasked: string,
+    public readonly traceId: string,
+  ) {
+    super('Account already exists');
+    this.name = 'AccountAlreadyExistsError';
+  }
+}
+
+export class AccountExistsDifferentProviderError extends Error {
+  constructor(
+    public readonly registeredProvider: string,
+    public readonly emailMasked: string,
+    public readonly traceId: string,
+  ) {
+    super('Account exists with different provider');
+    this.name = 'AccountExistsDifferentProviderError';
+  }
+}
+
+export class EmailRecentlyWithdrawnError extends Error {
+  constructor(
+    public readonly withdrawnAt: string,
+    public readonly rejoinAvailableAt: string,
+    public readonly traceId: string,
+  ) {
+    super('Email recently withdrawn');
+    this.name = 'EmailRecentlyWithdrawnError';
+  }
+}
+
+interface RegistrationErrorDetail {
+  code?: string;
+  registered_provider?: string;
+  email_masked?: string;
+  withdrawn_at?: string;
+  rejoin_available_at?: string;
+  trace_id?: string;
+}
+
+function handleRegistrationError(err: unknown): never {
+  if (err instanceof AxiosError && err.response) {
+    const status = err.response.status;
+    const data = err.response.data as { detail?: RegistrationErrorDetail } | undefined;
+    const detail = data?.detail;
+    const code = detail?.code;
+
+    if (status === 410 && code === 'EMAIL_RECENTLY_WITHDRAWN' && detail) {
+      throw new EmailRecentlyWithdrawnError(
+        detail.withdrawn_at ?? '',
+        detail.rejoin_available_at ?? '',
+        detail.trace_id ?? '',
+      );
+    }
+    if (status === 409 && code === 'ACCOUNT_ALREADY_EXISTS' && detail) {
+      throw new AccountAlreadyExistsError(
+        detail.registered_provider ?? '',
+        detail.email_masked ?? '',
+        detail.trace_id ?? '',
+      );
+    }
+    if (status === 409 && code === 'ACCOUNT_EXISTS_DIFFERENT_PROVIDER' && detail) {
+      throw new AccountExistsDifferentProviderError(
+        detail.registered_provider ?? '',
+        detail.email_masked ?? '',
+        detail.trace_id ?? '',
+      );
+    }
+  }
+  throw err;
+}
+
 export const authApi = {
   /**
    * Google OAuth 로그인
    */
   async googleLogin(idToken: string): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>('/auth/google', {
-      id_token: idToken,
-    } as GoogleAuthRequest);
-    return response.data;
+    try {
+      const response = await apiClient.post<AuthResponse>('/auth/google', {
+        id_token: idToken,
+      } as GoogleAuthRequest);
+      return response.data;
+    } catch (err) {
+      handleRegistrationError(err);
+    }
   },
 
   /**
    * Kakao OAuth 로그인
    */
   async kakaoLogin(accessToken: string): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>('/auth/kakao', {
-      access_token: accessToken,
-    });
-    return response.data;
+    try {
+      const response = await apiClient.post<AuthResponse>('/auth/kakao', {
+        access_token: accessToken,
+      });
+      return response.data;
+    } catch (err) {
+      handleRegistrationError(err);
+    }
   },
 
   /**
@@ -121,37 +207,49 @@ export const authApi = {
     nonce: string,
     fullName?: { firstName?: string; lastName?: string },
   ): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>('/auth/apple', {
-      identity_token: identityToken,
-      nonce,
-      full_name: fullName
-        ? `${fullName.firstName || ''} ${fullName.lastName || ''}`.trim() || undefined
-        : undefined,
-    });
-    return response.data;
+    try {
+      const response = await apiClient.post<AuthResponse>('/auth/apple', {
+        identity_token: identityToken,
+        nonce,
+        full_name: fullName
+          ? `${fullName.firstName || ''} ${fullName.lastName || ''}`.trim() || undefined
+          : undefined,
+      });
+      return response.data;
+    } catch (err) {
+      handleRegistrationError(err);
+    }
   },
 
   /**
    * 이메일 회원가입
    */
   async register(name: string, email: string, password: string): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>('/auth/register', {
-      name,
-      email,
-      password,
-    });
-    return response.data;
+    try {
+      const response = await apiClient.post<AuthResponse>('/auth/register', {
+        name,
+        email,
+        password,
+      });
+      return response.data;
+    } catch (err) {
+      handleRegistrationError(err);
+    }
   },
 
   /**
    * 이메일 로그인
    */
   async emailLogin(email: string, password: string): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>('/auth/email-login', {
-      email,
-      password,
-    });
-    return response.data;
+    try {
+      const response = await apiClient.post<AuthResponse>('/auth/email-login', {
+        email,
+        password,
+      });
+      return response.data;
+    } catch (err) {
+      handleRegistrationError(err);
+    }
   },
 
   /**
