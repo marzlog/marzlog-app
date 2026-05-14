@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { t } from '@/src/i18n';
 
 interface CoolingOffModalProps {
   visible: boolean;
@@ -42,20 +43,18 @@ export function CoolingOffModal({
     >
       <View style={styles.overlay}>
         <View style={styles.container}>
-          <Text style={styles.title}>최근 탈퇴한 이메일입니다</Text>
-          <Text style={styles.message}>
-            30일 이내에 탈퇴한 계정으로는 재가입할 수 없습니다.
-          </Text>
+          <Text style={styles.title}>{t('auth.coolingOffTitle')}</Text>
+          <Text style={styles.message}>{t('auth.coolingOffMessage')}</Text>
           <View style={styles.dateBlock}>
-            <Text style={styles.dateLabel}>탈퇴일</Text>
+            <Text style={styles.dateLabel}>{t('auth.coolingOffWithdrawnAt')}</Text>
             <Text style={styles.dateValue}>{formatKoreanDate(withdrawnAt)}</Text>
           </View>
           <View style={styles.dateBlock}>
-            <Text style={styles.dateLabel}>재가입 가능일</Text>
+            <Text style={styles.dateLabel}>{t('auth.coolingOffRejoinAvailableAt')}</Text>
             <Text style={styles.dateValue}>{formatKoreanDate(rejoinAvailableAt)}</Text>
           </View>
           <TouchableOpacity style={styles.button} onPress={onClose}>
-            <Text style={styles.buttonText}>확인</Text>
+            <Text style={styles.buttonText}>{t('auth.coolingOffConfirm')}</Text>
           </TouchableOpacity>
         </View>
       </View>

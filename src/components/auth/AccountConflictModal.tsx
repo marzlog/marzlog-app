@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { t } from '@/src/i18n';
 
 type ConflictCode = 'ACCOUNT_ALREADY_EXISTS' | 'ACCOUNT_EXISTS_DIFFERENT_PROVIDER';
 
@@ -21,13 +22,13 @@ interface AccountConflictModalProps {
 function providerLabel(provider: string): string {
   switch (provider) {
     case 'apple':
-      return 'Apple';
+      return t('auth.providerApple');
     case 'google':
-      return 'Google';
+      return t('auth.providerGoogle');
     case 'kakao':
-      return '카카오';
+      return t('auth.providerKakao');
     case 'email':
-      return '이메일';
+      return t('auth.providerEmail');
     default:
       return provider;
   }
@@ -45,16 +46,16 @@ export function AccountConflictModal({
   const isSameProvider = conflictCode === 'ACCOUNT_ALREADY_EXISTS';
 
   const title = isSameProvider
-    ? '이미 가입된 이메일입니다'
-    : `${label}로 가입된 이메일입니다`;
+    ? t('auth.conflictAlreadyExistsTitle')
+    : t('auth.conflictDifferentProviderTitle', { provider: label });
 
   const message = isSameProvider
-    ? '아래 이메일로 이미 가입되어 있습니다. 로그인해주세요.'
-    : `이 이메일은 ${label} 로그인으로 이미 가입되어 있습니다.\n${label}로 로그인해주세요.`;
+    ? t('auth.conflictAlreadyExistsMessage')
+    : t('auth.conflictDifferentProviderMessage', { provider: label });
 
   const ctaLabel = isSameProvider
-    ? '로그인 화면으로'
-    : `${label}로 로그인`;
+    ? t('auth.conflictLoginCta')
+    : t('auth.conflictProviderLoginCta', { provider: label });
 
   return (
     <Modal
@@ -68,7 +69,7 @@ export function AccountConflictModal({
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
           <View style={styles.emailBlock}>
-            <Text style={styles.emailLabel}>이메일</Text>
+            <Text style={styles.emailLabel}>{t('auth.conflictEmailLabel')}</Text>
             <Text style={styles.emailValue}>{emailMasked}</Text>
           </View>
           <TouchableOpacity
@@ -78,7 +79,7 @@ export function AccountConflictModal({
             <Text style={styles.primaryButtonText}>{ctaLabel}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryButton} onPress={onClose}>
-            <Text style={styles.secondaryButtonText}>취소</Text>
+            <Text style={styles.secondaryButtonText}>{t('auth.conflictCancel')}</Text>
           </TouchableOpacity>
         </View>
       </View>
