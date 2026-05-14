@@ -7,6 +7,12 @@ import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import type { AuthResponse } from '../../types/auth';
+import {
+  EmailRecentlyWithdrawnError,
+  AccountAlreadyExistsError,
+  AccountExistsDifferentProviderError,
+  type RegistrationTypedError,
+} from '../../api/auth';
 
 // Expo Auth Session 설정
 WebBrowser.maybeCompleteAuthSession();
@@ -18,10 +24,28 @@ const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_I
 interface Props {
   onSuccess?: (authResponse: AuthResponse) => void;
   onError?: (error: string) => void;
+  onTypedError?: (error: RegistrationTypedError) => void;
   style?: object;
 }
 
-function WebGoogleButtonInner({ onSuccess, onError, style }: Props) {
+function dispatchAuthError(
+  e: unknown,
+  onTypedError: Props['onTypedError'],
+  onError: Props['onError'],
+) {
+  if (
+    e instanceof EmailRecentlyWithdrawnError ||
+    e instanceof AccountAlreadyExistsError ||
+    e instanceof AccountExistsDifferentProviderError
+  ) {
+    onTypedError?.(e);
+    return;
+  }
+  const message = e instanceof Error ? e.message : 'Google 로그인 실패';
+  onError?.(message);
+}
+
+function WebGoogleButtonInner({ onSuccess, onError, onTypedError, style }: Props) {
   const { loginWithGoogle } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -31,8 +55,8 @@ function WebGoogleButtonInner({ onSuccess, onError, style }: Props) {
       try {
         const response = await loginWithGoogle(tokenResponse.access_token);
         onSuccess?.(response);
-      } catch (e: any) {
-        onError?.(e.message);
+      } catch (e: unknown) {
+        dispatchAuthError(e, onTypedError, onError);
       } finally {
         setIsLoading(false);
       }
@@ -72,7 +96,7 @@ function WebGoogleButton(props: Props) {
   );
 }
 
-function NativeGoogleButton({ onSuccess, onError, style }: Props) {
+function NativeGoogleButton({ onSuccess, onError, onTypedError, style }: Props) {
   const { loginWithGoogle } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -112,13 +136,10 @@ function NativeGoogleButton({ onSuccess, onError, style }: Props) {
 
   const handleGoogleLogin = async (idToken: string) => {
     try {
-      // console.log('[NativeGoogleLogin] Got ID token, logging in...');
       const response = await loginWithGoogle(idToken);
-      // console.log('[NativeGoogleLogin] Login success!');
       onSuccess?.(response);
-    } catch (e: any) {
-      // console.log('[NativeGoogleLogin] Login error:', e.message);
-      onError?.(e.message);
+    } catch (e: unknown) {
+      dispatchAuthError(e, onTypedError, onError);
     } finally {
       setIsLoading(false);
     }
@@ -126,20 +147,16 @@ function NativeGoogleButton({ onSuccess, onError, style }: Props) {
 
   const fetchUserInfoAndLogin = async (accessToken: string) => {
     try {
-      // console.log('[NativeGoogleLogin] Fetching user info with access token...');
       const userInfoResponse = await fetch('https://www.googleapis.com/userinfo/v2/me', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const userInfo = await userInfoResponse.json();
-      // console.log('[NativeGoogleLogin] User info:', userInfo.email);
+      void userInfo;
 
-      // Access Token을 ID Token처럼 사용 (백엔드에서 처리 필요할 수 있음)
-      // 또는 백엔드에 별도의 access token 처리 엔드포인트 필요
       const response = await loginWithGoogle(accessToken);
       onSuccess?.(response);
-    } catch (e: any) {
-      // console.log('[NativeGoogleLogin] Error fetching user info:', e.message);
-      onError?.(e.message);
+    } catch (e: unknown) {
+      dispatchAuthError(e, onTypedError, onError);
     } finally {
       setIsLoading(false);
     }

@@ -3,14 +3,21 @@ import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, Platform } from 
 import { login } from '@react-native-kakao/user';
 import { useAuthStore } from '../../store/authStore';
 import type { AuthResponse } from '../../types/auth';
+import {
+  EmailRecentlyWithdrawnError,
+  AccountAlreadyExistsError,
+  AccountExistsDifferentProviderError,
+  type RegistrationTypedError,
+} from '../../api/auth';
 
 interface Props {
   onSuccess?: (authResponse: AuthResponse) => void;
   onError?: (error: string) => void;
+  onTypedError?: (error: RegistrationTypedError) => void;
   style?: object;
 }
 
-export default function KakaoLoginButton({ onSuccess, onError, style }: Props) {
+export default function KakaoLoginButton({ onSuccess, onError, onTypedError, style }: Props) {
   const { loginWithKakao } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -29,6 +36,16 @@ export default function KakaoLoginButton({ onSuccess, onError, style }: Props) {
       // 사용자 취소: 조용히 무시
       if (/cancel/i.test(message)) {
         setIsLoading(false);
+        return;
+      }
+
+      // B-CF: typed errors는 분기 처리 (modal 표시)
+      if (
+        err instanceof EmailRecentlyWithdrawnError ||
+        err instanceof AccountAlreadyExistsError ||
+        err instanceof AccountExistsDifferentProviderError
+      ) {
+        onTypedError?.(err);
         return;
       }
 

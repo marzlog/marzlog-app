@@ -23,6 +23,14 @@ import { useAuthStore } from '@src/store/authStore';
 import type { AuthResponse } from '@src/types/auth';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { AppTouchable } from '@/src/components/common/AppTouchable';
+import {
+  AccountAlreadyExistsError,
+  AccountExistsDifferentProviderError,
+  EmailRecentlyWithdrawnError,
+  type RegistrationTypedError,
+} from '@src/api/auth';
+import { CoolingOffModal } from '@src/components/auth/CoolingOffModal';
+import { AccountConflictModal } from '@src/components/auth/AccountConflictModal';
 
 // Floating Label 입력 컴포넌트
 interface FloatingInputProps {
@@ -156,6 +164,41 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // B-CF: typed error modals
+  const [coolingOffData, setCoolingOffData] = useState<{
+    withdrawnAt: string;
+    rejoinAvailableAt: string;
+  } | null>(null);
+  const [conflictData, setConflictData] = useState<{
+    conflictCode: 'ACCOUNT_ALREADY_EXISTS' | 'ACCOUNT_EXISTS_DIFFERENT_PROVIDER';
+    registeredProvider: string;
+    emailMasked: string;
+  } | null>(null);
+
+  const handleTypedAuthError = (e: RegistrationTypedError) => {
+    if (e instanceof EmailRecentlyWithdrawnError) {
+      setCoolingOffData({
+        withdrawnAt: e.withdrawnAt,
+        rejoinAvailableAt: e.rejoinAvailableAt,
+      });
+      return;
+    }
+    if (e instanceof AccountAlreadyExistsError) {
+      setConflictData({
+        conflictCode: 'ACCOUNT_ALREADY_EXISTS',
+        registeredProvider: e.registeredProvider,
+        emailMasked: e.emailMasked,
+      });
+      return;
+    }
+    if (e instanceof AccountExistsDifferentProviderError) {
+      setConflictData({
+        conflictCode: 'ACCOUNT_EXISTS_DIFFERENT_PROVIDER',
+        registeredProvider: e.registeredProvider,
+        emailMasked: e.emailMasked,
+      });
+    }
+  };
 
   const passwordRef = useRef<TextInput>(null);
 
@@ -187,7 +230,15 @@ export default function LoginScreen() {
       await loginWithEmail(email.trim(), password);
       router.replace('/(tabs)');
     } catch (e: any) {
-      // error is set by the store
+      // B-CF: typed errors → modal (defensive — backend currently only fires on register/social signup)
+      if (
+        e instanceof EmailRecentlyWithdrawnError ||
+        e instanceof AccountAlreadyExistsError ||
+        e instanceof AccountExistsDifferentProviderError
+      ) {
+        handleTypedAuthError(e);
+      }
+      // generic error: store already set error state
     } finally {
       setIsSubmitting(false);
     }
@@ -224,9 +275,21 @@ export default function LoginScreen() {
 
         {/* 소셜 로그인 - 상단 */}
         <View style={styles.socialArea}>
-          <KakaoLoginButton onSuccess={handleSuccess} onError={handleError} />
-          <GoogleLoginButton onSuccess={handleSuccess} onError={handleError} />
-          <AppleLoginButton onSuccess={handleSuccess} onError={handleError} />
+          <KakaoLoginButton
+            onSuccess={handleSuccess}
+            onError={handleError}
+            onTypedError={handleTypedAuthError}
+          />
+          <GoogleLoginButton
+            onSuccess={handleSuccess}
+            onError={handleError}
+            onTypedError={handleTypedAuthError}
+          />
+          <AppleLoginButton
+            onSuccess={handleSuccess}
+            onError={handleError}
+            onTypedError={handleTypedAuthError}
+          />
         </View>
 
         {/* 구분선 */}
@@ -327,6 +390,25 @@ export default function LoginScreen() {
           </View>
         </View>
       </KeyboardAwareScrollView>
+
+      {coolingOffData && (
+        <CoolingOffModal
+          visible
+          withdrawnAt={coolingOffData.withdrawnAt}
+          rejoinAvailableAt={coolingOffData.rejoinAvailableAt}
+          onClose={() => setCoolingOffData(null)}
+        />
+      )}
+      {conflictData && (
+        <AccountConflictModal
+          visible
+          conflictCode={conflictData.conflictCode}
+          registeredProvider={conflictData.registeredProvider}
+          emailMasked={conflictData.emailMasked}
+          onClose={() => setConflictData(null)}
+          onLoginPress={() => setConflictData(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }

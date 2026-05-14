@@ -129,6 +129,11 @@ export class EmailRecentlyWithdrawnError extends Error {
   }
 }
 
+export type RegistrationTypedError =
+  | EmailRecentlyWithdrawnError
+  | AccountAlreadyExistsError
+  | AccountExistsDifferentProviderError;
+
 interface RegistrationErrorDetail {
   code?: string;
   registered_provider?: string;

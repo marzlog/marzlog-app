@@ -5,13 +5,20 @@ import * as Crypto from 'expo-crypto';
 import { useAuthStore } from '../../store/authStore';
 import { useTranslation } from '../../hooks/useTranslation';
 import type { AuthResponse } from '../../types/auth';
+import {
+  EmailRecentlyWithdrawnError,
+  AccountAlreadyExistsError,
+  AccountExistsDifferentProviderError,
+  type RegistrationTypedError,
+} from '../../api/auth';
 
 interface Props {
   onSuccess?: (authResponse: AuthResponse) => void;
   onError?: (error: string) => void;
+  onTypedError?: (error: RegistrationTypedError) => void;
 }
 
-export default function AppleLoginButton({ onSuccess, onError }: Props) {
+export default function AppleLoginButton({ onSuccess, onError, onTypedError }: Props) {
   const { loginWithApple } = useAuthStore();
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
@@ -51,10 +58,18 @@ export default function AppleLoginButton({ onSuccess, onError }: Props) {
       onSuccess?.(response);
     } catch (err: any) {
       // 사용자 취소: 조용히 무시
-      if (err.code === 'ERR_REQUEST_CANCELED') {
+      if (err?.code === 'ERR_REQUEST_CANCELED') {
         return;
       }
-      onError?.(err.message || t('auth.appleNotSupported'));
+      if (
+        err instanceof EmailRecentlyWithdrawnError ||
+        err instanceof AccountAlreadyExistsError ||
+        err instanceof AccountExistsDifferentProviderError
+      ) {
+        onTypedError?.(err);
+        return;
+      }
+      onError?.(err?.message || t('auth.appleNotSupported'));
     } finally {
       setIsLoading(false);
     }
