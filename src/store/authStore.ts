@@ -1,5 +1,9 @@
 import { create } from 'zustand';
-import authApi from '../api/auth';
+import authApi, {
+  EmailRecentlyWithdrawnError,
+  AccountAlreadyExistsError,
+  AccountExistsDifferentProviderError,
+} from '../api/auth';
 import { setOnSessionExpired } from '../api/client';
 import type { User, AuthState, AuthResponse } from '../types/auth';
 import { extractErrorMessage } from '../utils/errorMessages';
@@ -63,6 +67,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       registerPushToken().catch(() => {});
       return response;
     } catch (error: any) {
+      // B-CF: typed errors는 pass-through (UI에서 분기 처리)
+      if (
+        error instanceof EmailRecentlyWithdrawnError ||
+        error instanceof AccountAlreadyExistsError ||
+        error instanceof AccountExistsDifferentProviderError
+      ) {
+        set({ isLoading: false });
+        throw error;
+      }
       const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });
       throw new Error(message);
@@ -89,6 +102,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       registerPushToken().catch(() => {});
       return response;
     } catch (error: any) {
+      // B-CF: typed errors는 pass-through (UI에서 분기 처리)
+      if (
+        error instanceof EmailRecentlyWithdrawnError ||
+        error instanceof AccountAlreadyExistsError ||
+        error instanceof AccountExistsDifferentProviderError
+      ) {
+        set({ isLoading: false });
+        throw error;
+      }
       const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });
       throw error;
@@ -115,6 +137,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       registerPushToken().catch(() => {});
       return response;
     } catch (error: any) {
+      // B-CF: typed errors는 pass-through (UI에서 분기 처리)
+      if (
+        error instanceof EmailRecentlyWithdrawnError ||
+        error instanceof AccountAlreadyExistsError ||
+        error instanceof AccountExistsDifferentProviderError
+      ) {
+        set({ isLoading: false });
+        throw error;
+      }
       const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });
       throw new Error(message);
@@ -140,6 +171,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       registerPushToken().catch(() => {});
     } catch (error: any) {
+      // B-CF: typed errors는 pass-through (UI에서 분기 처리)
+      if (
+        error instanceof EmailRecentlyWithdrawnError ||
+        error instanceof AccountAlreadyExistsError ||
+        error instanceof AccountExistsDifferentProviderError
+      ) {
+        set({ isLoading: false });
+        throw error;
+      }
       const message = extractErrorMessage(error, 'Login failed');
       set({ error: message, isLoading: false });
       throw new Error(message);
@@ -165,6 +205,15 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       registerPushToken().catch(() => {});
     } catch (error: any) {
+      // B-CF: typed errors는 pass-through (UI에서 분기 처리)
+      if (
+        error instanceof EmailRecentlyWithdrawnError ||
+        error instanceof AccountAlreadyExistsError ||
+        error instanceof AccountExistsDifferentProviderError
+      ) {
+        set({ isLoading: false });
+        throw error;
+      }
       const message = extractErrorMessage(error, 'Registration failed');
       set({ error: message, isLoading: false });
       throw new Error(message);

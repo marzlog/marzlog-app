@@ -18,7 +18,15 @@ import GoogleLoginButton from '@src/components/auth/GoogleLoginButton';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuthStore } from '@src/store/authStore';
 import { useTranslation } from '@src/hooks/useTranslation';
-import { authApi } from '@src/api/auth';
+import {
+  authApi,
+  AccountAlreadyExistsError,
+  AccountExistsDifferentProviderError,
+  EmailRecentlyWithdrawnError,
+  type RegistrationTypedError,
+} from '@src/api/auth';
+import { CoolingOffModal } from '@src/components/auth/CoolingOffModal';
+import { AccountConflictModal } from '@src/components/auth/AccountConflictModal';
 import { recordConsentSafe } from '@src/api/consent';
 import { FloatingInput } from '@/src/components/common/FloatingInput';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -47,6 +55,43 @@ export default function RegisterScreen() {
   const [emailStatus, setEmailStatus] = useState<'available' | 'taken' | null>(null);
   const [showComplete, setShowComplete] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // B-CF: typed error modals
+  const [coolingOffData, setCoolingOffData] = useState<{
+    withdrawnAt: string;
+    rejoinAvailableAt: string;
+  } | null>(null);
+  const [conflictData, setConflictData] = useState<{
+    conflictCode: 'ACCOUNT_ALREADY_EXISTS' | 'ACCOUNT_EXISTS_DIFFERENT_PROVIDER';
+    registeredProvider: string;
+    emailMasked: string;
+  } | null>(null);
+
+  const handleTypedAuthError = (e: RegistrationTypedError): boolean => {
+    if (e instanceof EmailRecentlyWithdrawnError) {
+      setCoolingOffData({
+        withdrawnAt: e.withdrawnAt,
+        rejoinAvailableAt: e.rejoinAvailableAt,
+      });
+      return true;
+    }
+    if (e instanceof AccountAlreadyExistsError) {
+      setConflictData({
+        conflictCode: 'ACCOUNT_ALREADY_EXISTS',
+        registeredProvider: e.registeredProvider,
+        emailMasked: e.emailMasked,
+      });
+      return true;
+    }
+    if (e instanceof AccountExistsDifferentProviderError) {
+      setConflictData({
+        conflictCode: 'ACCOUNT_EXISTS_DIFFERENT_PROVIDER',
+        registeredProvider: e.registeredProvider,
+        emailMasked: e.emailMasked,
+      });
+      return true;
+    }
+    return false;
+  };
 
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
@@ -115,6 +160,15 @@ export default function RegisterScreen() {
       await recordConsentSafe({ ageConfirmed, marketingOptIn });
       setShowComplete(true);
     } catch (e: any) {
+      // B-CF: typed errors → modal, generic → form error
+      if (
+        e instanceof EmailRecentlyWithdrawnError ||
+        e instanceof AccountAlreadyExistsError ||
+        e instanceof AccountExistsDifferentProviderError
+      ) {
+        handleTypedAuthError(e);
+        return;
+      }
       const message = e.message || t('auth.registerFailed');
       setErrors({ form: message });
     } finally {
@@ -197,6 +251,7 @@ export default function RegisterScreen() {
           <GoogleLoginButton
             onSuccess={handleGoogleSuccess}
             onError={handleGoogleError}
+            onTypedError={handleTypedAuthError}
             style={{ marginHorizontal: 16 }}
           />
         </View>
@@ -348,6 +403,28 @@ export default function RegisterScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAwareScrollView>
+
+      {coolingOffData && (
+        <CoolingOffModal
+          visible
+          withdrawnAt={coolingOffData.withdrawnAt}
+          rejoinAvailableAt={coolingOffData.rejoinAvailableAt}
+          onClose={() => setCoolingOffData(null)}
+        />
+      )}
+      {conflictData && (
+        <AccountConflictModal
+          visible
+          conflictCode={conflictData.conflictCode}
+          registeredProvider={conflictData.registeredProvider}
+          emailMasked={conflictData.emailMasked}
+          onClose={() => setConflictData(null)}
+          onLoginPress={() => {
+            setConflictData(null);
+            router.replace('/login');
+          }}
+        />
+      )}
     </View>
   );
 }
