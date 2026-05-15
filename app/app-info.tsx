@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
+import * as Updates from 'expo-updates';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
@@ -186,9 +187,11 @@ export default function AppInfoScreen() {
 
         {/* Version */}
         <View style={[styles.card, isDark && styles.cardDark]}>
-          <View style={[styles.menuItem, styles.menuItemLast]}>
+          <View style={[styles.menuItem, styles.menuItemLast, styles.versionRow]}>
             <Text style={[styles.menuLabel, isDark && styles.textLight]}>{t('appInfo.version')}</Text>
-            <Text style={styles.versionValue}>App Version 1.0</Text>
+            <Text style={styles.versionValue} selectable>
+              App Version 1.0 ({Updates.updateId ?? 'embedded'})
+            </Text>
           </View>
         </View>
 
@@ -287,9 +290,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#374151',
   },
+  versionRow: {
+    height: undefined,
+    minHeight: 56,
+    paddingVertical: 12,
+    alignItems: 'flex-start',
+  },
   versionValue: {
     fontSize: 14,
     color: '#9CA3AF',
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: 16,
   },
   iconSection: {
     padding: 16,
