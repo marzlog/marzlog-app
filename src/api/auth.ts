@@ -8,6 +8,10 @@ import type {
   UserStats,
   MessageResponse,
   VerifyResetCodeResponse,
+  SendVerificationRequest,
+  SendVerificationResponse,
+  VerifyCodeRequest,
+  VerifyCodeResponse,
 } from '../types/auth';
 
 // ─────────────────────────────────────────────────────────
@@ -129,10 +133,23 @@ export class EmailRecentlyWithdrawnError extends Error {
   }
 }
 
+export class EmailRateLimitedError extends Error {
+  readonly code = 'RATE_LIMIT_EXCEEDED';
+  readonly retryAfterSeconds: number;
+  readonly traceId?: string;
+  constructor(retryAfterSeconds: number, traceId?: string) {
+    super('Too many verification requests');
+    this.name = 'EmailRateLimitedError';
+    this.retryAfterSeconds = retryAfterSeconds;
+    this.traceId = traceId;
+  }
+}
+
 export type RegistrationTypedError =
   | EmailRecentlyWithdrawnError
   | AccountAlreadyExistsError
-  | AccountExistsDifferentProviderError;
+  | AccountExistsDifferentProviderError
+  | EmailRateLimitedError;
 
 interface RegistrationErrorDetail {
   code?: string;
@@ -170,6 +187,10 @@ function handleRegistrationError(err: unknown): never {
         detail.email_masked ?? '',
         detail.trace_id ?? '',
       );
+    }
+    if (status === 429 && code === 'RATE_LIMIT_EXCEEDED') {
+      const retryAfter = Number(err.response.headers?.['retry-after']) || 60;
+      throw new EmailRateLimitedError(retryAfter, detail?.trace_id);
     }
   }
   throw err;
@@ -229,13 +250,16 @@ export const authApi = {
   /**
    * 이메일 회원가입
    */
-  async register(name: string, email: string, password: string): Promise<AuthResponse> {
+  async register(
+    name: string,
+    email: string,
+    password: string,
+    verifyToken?: string,
+  ): Promise<AuthResponse> {
     try {
-      const response = await apiClient.post<AuthResponse>('/auth/register', {
-        name,
-        email,
-        password,
-      });
+      const body: Record<string, unknown> = { name, email, password };
+      if (verifyToken) body.verify_token = verifyToken;
+      const response = await apiClient.post<AuthResponse>('/auth/register', body);
       return response.data;
     } catch (err) {
       handleRegistrationError(err);
@@ -252,6 +276,36 @@ export const authApi = {
         password,
       });
       return response.data;
+    } catch (err) {
+      handleRegistrationError(err);
+    }
+  },
+
+  /**
+   * B-CN A.4: 가입 이메일 인증코드 발송
+   */
+  async sendVerification(email: string): Promise<SendVerificationResponse> {
+    try {
+      const res = await apiClient.post<SendVerificationResponse>(
+        '/auth/email/send-verification',
+        { email } as SendVerificationRequest,
+      );
+      return res.data;
+    } catch (err) {
+      handleRegistrationError(err);
+    }
+  },
+
+  /**
+   * B-CN A.4: 가입 이메일 인증코드 검증 → verify_token 발급
+   */
+  async verifyCode(email: string, code: string): Promise<VerifyCodeResponse> {
+    try {
+      const res = await apiClient.post<VerifyCodeResponse>(
+        '/auth/email/verify-code',
+        { email, code } as VerifyCodeRequest,
+      );
+      return res.data;
     } catch (err) {
       handleRegistrationError(err);
     }

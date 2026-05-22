@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import {
   AccountAlreadyExistsError,
   AccountExistsDifferentProviderError,
   EmailRecentlyWithdrawnError,
+  EmailRateLimitedError,
   type RegistrationTypedError,
 } from '@src/api/auth';
 import { CoolingOffModal } from '@src/components/auth/CoolingOffModal';
@@ -53,7 +54,13 @@ export default function RegisterScreen() {
   const [emailChecked, setEmailChecked] = useState(false);
   const [emailCheckLoading, setEmailCheckLoading] = useState(false);
   const [emailStatus, setEmailStatus] = useState<'available' | 'taken' | null>(null);
-  const [showComplete, setShowComplete] = useState(false);
+  // B-CN A.4: 이메일 인증 step
+  const [step, setStep] = useState<'form' | 'verify' | 'complete'>('form');
+  const [verifyCode, setVerifyCode] = useState('');
+  const [verifyToken, setVerifyToken] = useState('');
+  const [timeLeft, setTimeLeft] = useState(600);
+  const [timerActive, setTimerActive] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   // B-CF: typed error modals
   const [coolingOffData, setCoolingOffData] = useState<{
@@ -136,6 +143,37 @@ export default function RegisterScreen() {
     }
   };
 
+  // B-CN A.4: 인증코드 타이머 (600초)
+  useEffect(() => {
+    if (timerActive && timeLeft > 0) {
+      timerRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            setTimerActive(false);
+            if (timerRef.current) clearInterval(timerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [timerActive, timeLeft]);
+
+  const startTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTimeLeft(600);
+    setTimerActive(true);
+  }, []);
+
+  const formatTime = (s: number): string => {
+    const m = Math.floor(s / 60);
+    const ss = (s % 60).toString().padStart(2, '0');
+    return `${m}:${ss}`;
+  };
+
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -151,16 +189,20 @@ export default function RegisterScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleRegister = async () => {
+  // B-CN A.4: 1단계 — 폼 검증 후 인증코드 발송 → verify step
+  const handleStartVerification = async () => {
     if (!validate()) return;
-
     setIsSubmitting(true);
+    setErrors({});
     try {
-      await register(name.trim(), email.trim(), password);
-      await recordConsentSafe({ ageConfirmed, marketingOptIn });
-      setShowComplete(true);
+      await authApi.sendVerification(email.trim());
+      setStep('verify');
+      startTimer();
     } catch (e: any) {
-      // B-CF: typed errors → modal, generic → form error
+      if (e instanceof EmailRateLimitedError) {
+        setErrors({ form: t('auth.rateLimited', { retryAfter: e.retryAfterSeconds }) });
+        return;
+      }
       if (
         e instanceof EmailRecentlyWithdrawnError ||
         e instanceof AccountAlreadyExistsError ||
@@ -169,10 +211,60 @@ export default function RegisterScreen() {
         handleTypedAuthError(e);
         return;
       }
-      const message = e.message || t('auth.registerFailed');
-      setErrors({ form: message });
+      setErrors({ form: e?.message || t('auth.registerFailed') });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // B-CN A.4: 2단계 — 코드 검증 → verify_token 받은 직후 register
+  const handleVerifyAndRegister = async () => {
+    if (verifyCode.trim().length !== 6) {
+      setErrors({ code: t('auth.invalidCode') });
+      return;
+    }
+    setIsSubmitting(true);
+    setErrors({});
+    try {
+      const result = await authApi.verifyCode(email.trim(), verifyCode.trim());
+      const token = result.verify_token;
+      setVerifyToken(token);
+      await register(name.trim(), email.trim(), password, token);
+      await recordConsentSafe({ ageConfirmed, marketingOptIn });
+      if (timerRef.current) clearInterval(timerRef.current);
+      setStep('complete');
+    } catch (e: any) {
+      if (e instanceof EmailRateLimitedError) {
+        setErrors({ form: t('auth.rateLimited', { retryAfter: e.retryAfterSeconds }) });
+        return;
+      }
+      if (
+        e instanceof EmailRecentlyWithdrawnError ||
+        e instanceof AccountAlreadyExistsError ||
+        e instanceof AccountExistsDifferentProviderError
+      ) {
+        handleTypedAuthError(e);
+        return;
+      }
+      setErrors({ code: e?.message || t('auth.invalidCode') });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // B-CN A.4: 코드 재발송
+  const handleResendCode = async () => {
+    setErrors({});
+    try {
+      await authApi.sendVerification(email.trim());
+      setVerifyCode('');
+      startTimer();
+    } catch (e: any) {
+      if (e instanceof EmailRateLimitedError) {
+        setErrors({ form: t('auth.rateLimited', { retryAfter: e.retryAfterSeconds }) });
+        return;
+      }
+      setErrors({ form: e?.message || t('auth.registerFailed') });
     }
   };
 
@@ -185,7 +277,7 @@ export default function RegisterScreen() {
   };
 
   // Registration complete screen
-  if (showComplete) {
+  if (step === 'complete') {
     return (
       <View style={[styles.completeScreen, isDark && styles.completeScreenDark, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
@@ -217,6 +309,154 @@ export default function RegisterScreen() {
             <Text style={styles.startButtonText}>{t('auth.startUsing')}</Text>
           </TouchableOpacity>
         </View>
+      </View>
+    );
+  }
+
+  // B-CN A.4: 이메일 인증 코드 입력 단계
+  if (step === 'verify') {
+    return (
+      <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+
+        {/* Header — 뒤로가기: form 단계로 복귀 */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            onPress={() => {
+              if (timerRef.current) clearInterval(timerRef.current);
+              setTimerActive(false);
+              setVerifyCode('');
+              setErrors({});
+              setStep('form');
+            }}
+            style={styles.backButton}
+          >
+            <Ionicons name="chevron-back" size={24} color={isDark ? '#F9FAFB' : '#1F2937'} />
+          </TouchableOpacity>
+        </View>
+
+        <KeyboardAwareScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          bounces={false}
+          enableOnAndroid
+          extraScrollHeight={20}
+          keyboardDismissMode="on-drag"
+        >
+          <Text style={[styles.sectionTitle, isDark && { color: '#F9FAFB' }]}>
+            {t('auth.verificationCode')}
+          </Text>
+          <Text style={[styles.description, isDark && { color: '#9CA3AF' }]}>
+            {t('auth.verificationCodeDesc')}
+          </Text>
+
+          {/* Timer */}
+          <View style={styles.timerContainer}>
+            <Ionicons
+              name="time-outline"
+              size={18}
+              color={timeLeft <= 60 ? '#EF4444' : isDark ? '#9CA3AF' : '#6B7280'}
+            />
+            <Text
+              style={[
+                styles.timerText,
+                { color: timeLeft <= 60 ? '#EF4444' : isDark ? '#F9FAFB' : '#2D3A35' },
+              ]}
+            >
+              {formatTime(timeLeft)}
+            </Text>
+          </View>
+
+          {/* Code Input */}
+          <View style={styles.fieldGroup}>
+            <Text style={[styles.label, isDark && { color: '#F9FAFB' }]}>
+              {t('auth.verificationCode')}
+            </Text>
+            <View
+              style={[
+                styles.inputWrapper,
+                {
+                  backgroundColor: isDark ? '#1F2937' : '#F3F4F6',
+                  borderColor: errors.code
+                    ? '#EF4444'
+                    : isDark
+                    ? '#374151'
+                    : '#E5E7EB',
+                },
+              ]}
+            >
+              <Ionicons
+                name="key-outline"
+                size={20}
+                color={isDark ? '#6B7280' : '#9CA3AF'}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={[
+                  styles.input,
+                  styles.codeInput,
+                  { color: isDark ? '#F9FAFB' : '#111827' },
+                ]}
+                placeholder={t('auth.verificationCodePlaceholder')}
+                placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+                value={verifyCode}
+                onChangeText={(text) => {
+                  setVerifyCode(text.replace(/[^0-9]/g, '').slice(0, 6));
+                  setErrors({});
+                }}
+                keyboardType="number-pad"
+                maxLength={6}
+                autoFocus
+                editable={!isSubmitting && timeLeft > 0}
+              />
+            </View>
+            {errors.code ? <Text style={styles.errorText}>{errors.code}</Text> : null}
+          </View>
+
+          {errors.form ? (
+            <View style={[styles.formError, isDark && styles.formErrorDark]}>
+              <Ionicons name="alert-circle" size={14} color="#EF4444" />
+              <Text style={styles.formErrorText}>{errors.form}</Text>
+            </View>
+          ) : null}
+
+          {timeLeft === 0 ? (
+            <View style={[styles.formError, isDark && styles.formErrorDark]}>
+              <Ionicons name="alert-circle" size={14} color="#EF4444" />
+              <Text style={styles.formErrorText}>{t('auth.codeExpired')}</Text>
+            </View>
+          ) : null}
+
+          {/* Verify & Register Button */}
+          <TouchableOpacity
+            style={[
+              styles.registerButton,
+              (isSubmitting || timeLeft === 0) && { opacity: 0.6 },
+            ]}
+            onPress={handleVerifyAndRegister}
+            disabled={isSubmitting || timeLeft === 0}
+            activeOpacity={0.8}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.registerButtonText}>{t('auth.verifyCode')}</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Resend link */}
+          <TouchableOpacity
+            style={styles.resendLink}
+            onPress={handleResendCode}
+            disabled={isSubmitting}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.resendText, isDark && { color: '#9CA3AF' }]}>
+              {t('auth.resendCode')}
+            </Text>
+          </TouchableOpacity>
+        </KeyboardAwareScrollView>
       </View>
     );
   }
@@ -357,7 +597,7 @@ export default function RegisterScreen() {
             autoCapitalize="none"
             returnKeyType="done"
             inputRef={passwordConfirmRef}
-            onSubmitEditing={handleRegister}
+            onSubmitEditing={handleStartVerification}
             rightIcon={
               <TouchableOpacity onPress={() => setShowPasswordConfirm(!showPasswordConfirm)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons
@@ -382,7 +622,7 @@ export default function RegisterScreen() {
         {/* Register Button */}
         <TouchableOpacity
           style={[styles.registerButton, isSubmitting && { opacity: 0.6 }]}
-          onPress={handleRegister}
+          onPress={handleStartVerification}
           disabled={isSubmitting}
           activeOpacity={0.8}
         >
@@ -430,6 +670,33 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
+  // B-CN A.4: verify step
+  sectionTitle: { fontSize: 22, fontWeight: '700', marginBottom: 8 },
+  description: { fontSize: 14, lineHeight: 20, marginBottom: 28 },
+  fieldGroup: { marginBottom: 18 },
+  label: { fontSize: 14, fontWeight: '600', marginBottom: 8 },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    minHeight: 50,
+  },
+  inputIcon: { marginRight: 10 },
+  input: { flex: 1, fontSize: 15, paddingVertical: 14 },
+  codeInput: { letterSpacing: 6, fontSize: 18, fontWeight: '600', textAlign: 'center' },
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 20,
+  },
+  timerText: { fontSize: 20, fontWeight: '700' },
+  resendLink: { alignItems: 'center', marginTop: 16, paddingVertical: 8 },
+  resendText: { fontSize: 14, textDecorationLine: 'underline', color: '#888' },
+
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
