@@ -3,6 +3,7 @@ import authApi, {
   EmailRecentlyWithdrawnError,
   AccountAlreadyExistsError,
   AccountExistsDifferentProviderError,
+  EmailRateLimitedError,
 } from '../api/auth';
 import { setOnSessionExpired } from '../api/client';
 import type { User, AuthState, AuthResponse } from '../types/auth';
@@ -24,7 +25,9 @@ interface AuthStore extends AuthState {
   loginWithKakao: (accessToken: string) => Promise<AuthResponse>;
   loginWithApple: (identityToken: string, nonce: string, fullName?: { firstName?: string; lastName?: string }) => Promise<AuthResponse>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  sendVerification: (email: string) => Promise<void>;
+  verifyCode: (email: string, code: string) => Promise<string>;
+  register: (name: string, email: string, password: string, verifyToken?: string) => Promise<void>;
   logout: () => Promise<void>;
   forceLogout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -187,10 +190,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   },
 
   // Email Register
-  register: async (name: string, email: string, password: string) => {
+  register: async (name: string, email: string, password: string, verifyToken?: string) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await authApi.register(name, email, password);
+      const response = await authApi.register(name, email, password, verifyToken);
 
       await storage.setItem('access_token', response.tokens.access_token);
       await storage.setItem('refresh_token', response.tokens.refresh_token);
@@ -209,12 +212,48 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       if (
         error instanceof EmailRecentlyWithdrawnError ||
         error instanceof AccountAlreadyExistsError ||
-        error instanceof AccountExistsDifferentProviderError
+        error instanceof AccountExistsDifferentProviderError ||
+        error instanceof EmailRateLimitedError
       ) {
         set({ isLoading: false });
         throw error;
       }
       const message = extractErrorMessage(error, 'Registration failed');
+      set({ error: message, isLoading: false });
+      throw new Error(message);
+    }
+  },
+
+  // B-CN A.4: send email verification code
+  sendVerification: async (email: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      await authApi.sendVerification(email);
+      set({ isLoading: false });
+    } catch (error: any) {
+      if (error instanceof EmailRateLimitedError) {
+        set({ isLoading: false });
+        throw error;
+      }
+      const message = extractErrorMessage(error, 'Failed to send verification code');
+      set({ error: message, isLoading: false });
+      throw new Error(message);
+    }
+  },
+
+  // B-CN A.4: verify email code → verify_token
+  verifyCode: async (email: string, code: string) => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await authApi.verifyCode(email, code);
+      set({ isLoading: false });
+      return res.verify_token;
+    } catch (error: any) {
+      if (error instanceof EmailRateLimitedError) {
+        set({ isLoading: false });
+        throw error;
+      }
+      const message = extractErrorMessage(error, 'Invalid verification code');
       set({ error: message, isLoading: false });
       throw new Error(message);
     }

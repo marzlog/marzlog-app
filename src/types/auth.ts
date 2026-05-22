@@ -35,6 +35,7 @@ export interface EmailRegisterRequest {
   name: string;
   email: string;
   password: string;
+  verify_token?: string; // B-CN A.4: 이메일 인증 토큰
 }
 
 export interface EmailLoginRequest {
@@ -57,6 +58,23 @@ export interface MessageResponse {
 
 export interface VerifyResetCodeResponse {
   reset_token: string;
+}
+
+// ── B-CN A.4: 가입 이메일 인증 ──
+export interface SendVerificationRequest {
+  email: string;
+}
+export interface SendVerificationResponse {
+  message: string;
+  expires_in_seconds?: number;
+}
+export interface VerifyCodeRequest {
+  email: string;
+  code: string;
+}
+export interface VerifyCodeResponse {
+  verify_token: string;
+  expires_in_seconds?: number;
 }
 
 export interface AuthState {
