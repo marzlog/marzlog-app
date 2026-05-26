@@ -50,6 +50,7 @@ const IMAGE_SIZE = SCREEN_WIDTH - 40;
 const CAROUSEL_IMAGE_WIDTH = SCREEN_WIDTH;
 const CAROUSEL_IMAGE_HEIGHT = SCREEN_HEIGHT * 0.45; // 화면 높이의 45%
 const isWeb = Platform.OS === 'web';
+const REVERSE_GEOCODE_TIMEOUT_MS = 8000;
 
 export default function MediaDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -185,7 +186,7 @@ export default function MediaDetailScreen() {
   };
 
   // GPS 좌표를 지역명으로 변환 (Nominatim API)
-  const reverseGeocode = async (lat: number, lon: number): Promise<string | null> => {
+  const reverseGeocode = async (lat: number, lon: number, signal?: AbortSignal): Promise<string | null> => {
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=ko`,
@@ -193,6 +194,7 @@ export default function MediaDetailScreen() {
           headers: {
             'User-Agent': 'MarZlog/1.0',
           },
+          signal,
         }
       );
 
@@ -211,6 +213,7 @@ export default function MediaDetailScreen() {
       }
       return null;
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return null;
       captureError(error instanceof Error ? error : new Error(String(error)), { context: 'MediaDetail.reverseGeocode' });
       return null;
     }
@@ -218,19 +221,30 @@ export default function MediaDetailScreen() {
 
   // GPS 좌표가 있으면 지역명 가져오기
   useEffect(() => {
-    const fetchLocationName = async () => {
-      const gps = analysis?.exif?.gps;
-      if (gps?.latitude && gps?.longitude) {
-        setLoadingLocation(true);
-        const name = await reverseGeocode(gps.latitude, gps.longitude);
+    if (!analysis) return;
+    const gps = analysis.exif?.gps;
+    if (!gps?.latitude || !gps?.longitude) return;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REVERSE_GEOCODE_TIMEOUT_MS);
+    let cancelled = false;
+
+    setLoadingLocation(true);
+    reverseGeocode(gps.latitude, gps.longitude, controller.signal)
+      .then((name) => {
+        if (cancelled) return;
         setLocationName(name);
         setLoadingLocation(false);
-      }
-    };
+      })
+      .finally(() => {
+        clearTimeout(timeoutId);
+      });
 
-    if (analysis) {
-      fetchLocationName();
-    }
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, [analysis]);
 
   // 스와이프 시 현재 이미지의 analysis 로드
@@ -372,7 +386,9 @@ export default function MediaDetailScreen() {
   // GPS 좌표로 구글맵 열기
   const openMapWithGPS = (lat: number, lon: number) => {
     const url = `https://maps.google.com/?q=${lat},${lon}`;
-    Linking.openURL(url);
+    Linking.openURL(url).catch(() => {
+      alert(t('common.error'), t('exif.mapOpenFailed'));
+    });
   };
 
   if (loading) {
@@ -1241,7 +1257,9 @@ export default function MediaDetailScreen() {
                         android: `geo:${latitude},${longitude}?q=${latitude},${longitude}`,
                         default: `https://maps.google.com/?q=${latitude},${longitude}`,
                       })!;
-                      Linking.openURL(url);
+                      Linking.openURL(url).catch(() => {
+                        alert(t('common.error'), t('exif.mapOpenFailed'));
+                      });
                     }}
                   >
                     <Text style={styles.openMapButtonText}>{'\uD83D\uDCCD'} 지도에서 보기</Text>
