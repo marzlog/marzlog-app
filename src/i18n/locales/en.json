@@ -663,7 +663,8 @@
     "flash": "Flash",
     "flashFired": "Fired",
     "flashNotFired": "Not fired",
-    "location": "Location"
+    "location": "Location",
+    "mapOpenFailed": "Could not open the map app. Please make sure a map app is installed."
   },
   "calendar": {
     "weekdays": "Sun,Mon,Tue,Wed,Thu,Fri,Sat",

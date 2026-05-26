@@ -663,7 +663,8 @@
     "flash": "플래시",
     "flashFired": "발광",
     "flashNotFired": "발광 안 함",
-    "location": "위치"
+    "location": "위치",
+    "mapOpenFailed": "지도 앱을 열 수 없습니다. 지도 앱이 설치되어 있는지 확인해주세요."
   },
   "calendar": {
     "weekdays": "일,월,화,수,목,금,토",
