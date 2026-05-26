@@ -24,6 +24,7 @@ import {
   AccountExistsDifferentProviderError,
   EmailRecentlyWithdrawnError,
   EmailRateLimitedError,
+  resolveVerifyErrorI18nKey,
   type RegistrationTypedError,
 } from '@src/api/auth';
 import { CoolingOffModal } from '@src/components/auth/CoolingOffModal';
@@ -246,7 +247,8 @@ export default function RegisterScreen() {
         handleTypedAuthError(e);
         return;
       }
-      setErrors({ code: e?.message || t('auth.invalidCode') });
+      const verifyKey = resolveVerifyErrorI18nKey(e);
+      setErrors({ code: verifyKey ? t(verifyKey) : t('auth.invalidCode') });
     } finally {
       setIsSubmitting(false);
     }
