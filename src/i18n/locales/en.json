@@ -97,6 +97,7 @@
     "resendCode": "Resend Code",
     "codeExpired": "The code has expired. Please request a new one.",
     "invalidCode": "The verification code is incorrect",
+    "codeMaxAttempts": "Too many failed attempts (5). Please request a new code.",
     "rateLimited": "Please try again in {{retryAfter}} seconds",
     "sendVerificationCode": "Send Verification Code",
     "coolingOffTitle": "This email was recently withdrawn",

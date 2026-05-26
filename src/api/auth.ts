@@ -196,6 +196,29 @@ function handleRegistrationError(err: unknown): never {
   throw err;
 }
 
+/**
+ * verify-code 실패(AxiosError)를 i18n 키로 변환한다.
+ * 매핑되지 않으면 null을 반환(호출자가 기본 fallback 처리).
+ * - 410 VERIFY_CODE_EXPIRED      → 'auth.codeExpired'
+ * - 401 VERIFY_CODE_INVALID      → 'auth.invalidCode'
+ * - 401 VERIFY_CODE_MAX_ATTEMPTS → 'auth.codeMaxAttempts'
+ */
+export function resolveVerifyErrorI18nKey(err: unknown): string | null {
+  if (!(err instanceof AxiosError)) return null;
+  const data = err.response?.data as { detail?: RegistrationErrorDetail } | undefined;
+  const code = data?.detail?.code;
+  switch (code) {
+    case 'VERIFY_CODE_EXPIRED':
+      return 'auth.codeExpired';
+    case 'VERIFY_CODE_INVALID':
+      return 'auth.invalidCode';
+    case 'VERIFY_CODE_MAX_ATTEMPTS':
+      return 'auth.codeMaxAttempts';
+    default:
+      return null;
+  }
+}
+
 export const authApi = {
   /**
    * Google OAuth 로그인

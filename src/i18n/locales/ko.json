@@ -97,6 +97,7 @@
     "resendCode": "코드 재발송",
     "codeExpired": "인증코드가 만료되었습니다. 다시 요청해주세요.",
     "invalidCode": "인증코드가 올바르지 않습니다",
+    "codeMaxAttempts": "인증 시도 횟수(5회)를 초과했습니다. 코드를 재발송해주세요.",
     "rateLimited": "{{retryAfter}}초 후 다시 시도해주세요",
     "sendVerificationCode": "인증코드 발송",
     "coolingOffTitle": "최근 탈퇴한 이메일입니다",
