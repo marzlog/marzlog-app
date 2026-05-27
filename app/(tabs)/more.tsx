@@ -62,7 +62,7 @@ export default function MoreScreen() {
       </View>
 
       <View style={styles.content}>
-        <StorageUsageBar isDark={isDark} onUpgrade={() => router.push('/plans' as any)} />
+        <StorageUsageBar isDark={isDark} />
         <View style={[styles.card, isDark && styles.cardDark]}>
           {MENU_ITEMS.map((item, index) => (
             <AppTouchable

@@ -97,6 +97,13 @@ export function StorageUsageBar({ isDark, onUpgrade }: StorageUsageBarProps) {
             </AppTouchable>
           )}
         </View>
+
+        {/* Free-for-now notice (shown when upgrade is disabled) */}
+        {!onUpgrade && (
+          <Text style={[styles.freeNoticeText, isDark && styles.textMuted]}>
+            {t('storage.freeNotice')}
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -175,6 +182,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6366F1',
     fontWeight: '500',
+  },
+  freeNoticeText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 8,
   },
   // Skeleton
   skeletonLine: {

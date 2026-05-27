@@ -178,6 +178,8 @@
     "currentPlan": "Current Plan",
     "quotaExceeded": "Storage full",
     "quotaExceededDesc": "Upgrade your plan to store more photos",
+    "quotaExceededCleanup": "Storage is full. Please remove some existing photos and try again",
+    "freeNotice": "Enjoy all features, free for now",
     "cacheSize": "Cache Size",
     "clearCache": "Clear Cache",
     "clearCacheConfirm": "Clear cache? This may temporarily affect app performance.",

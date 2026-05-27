@@ -493,16 +493,15 @@ export default function UploadScreen() {
         <View style={[styles.quotaBanner, isDark && styles.quotaBannerDark]}>
           <View style={styles.quotaBannerContent}>
             <Ionicons name="cloud-offline-outline" size={20} color="#EF4444" />
-            <Text style={[styles.quotaBannerText, isDark && { color: '#F9FAFB' }]}>
-              {t('storage.quotaExceeded')}
-            </Text>
+            <View style={styles.quotaBannerTextWrap}>
+              <Text style={[styles.quotaBannerText, isDark && { color: '#F9FAFB' }]}>
+                {t('storage.quotaExceeded')}
+              </Text>
+              <Text style={[styles.quotaBannerDesc, isDark && { color: '#D1D5DB' }]}>
+                {t('storage.quotaExceededCleanup')}
+              </Text>
+            </View>
           </View>
-          <Pressable
-            style={styles.quotaUpgradeBtn}
-            onPress={() => router.push('/plans')}
-          >
-            <Text style={styles.quotaUpgradeBtnText}>{t('storage.upgrade')}</Text>
-          </Pressable>
         </View>
       )}
 
@@ -760,20 +759,17 @@ const styles = StyleSheet.create({
     gap: 8,
     flex: 1,
   },
+  quotaBannerTextWrap: {
+    flex: 1,
+  },
   quotaBannerText: {
     fontSize: 13,
     fontWeight: '600',
     color: '#991B1B',
   },
-  quotaUpgradeBtn: {
-    backgroundColor: '#8B5CF6',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  quotaUpgradeBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
+  quotaBannerDesc: {
+    fontSize: 12,
+    color: '#991B1B',
+    marginTop: 2,
   },
 });

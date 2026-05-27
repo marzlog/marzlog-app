@@ -189,7 +189,6 @@ export default function ProfileScreen() {
                 usagePercent={stats?.storage_usage_percent || 0}
                 plan={stats?.storage_plan || 'free'}
                 isDark={isDark}
-                onUpgrade={() => router.push('/plans')}
               />
             </>
           )}
@@ -231,13 +230,12 @@ export default function ProfileScreen() {
   );
 }
 
-function StorageGauge({ usedFormatted, limitFormatted, usagePercent, plan, isDark, onUpgrade }: {
+function StorageGauge({ usedFormatted, limitFormatted, usagePercent, plan, isDark }: {
   usedFormatted: string;
   limitFormatted: string;
   usagePercent: number;
   plan: string;
   isDark: boolean;
-  onUpgrade: () => void;
 }) {
   const { t } = useTranslation();
   const barColor = usagePercent >= 95 ? '#EF4444' : usagePercent >= 80 ? '#F59E0B' : '#8B5CF6';
@@ -260,17 +258,13 @@ function StorageGauge({ usedFormatted, limitFormatted, usagePercent, plan, isDar
         <Text style={{ fontSize: 12, color: barColor, fontWeight: '500' }}>
           {t('storage.usagePercent', { percent: usagePercent })}
         </Text>
-        <AppTouchable
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
-          onPress={onUpgrade}
-          activeOpacity={0.7}
-        >
-          <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-            {t('storage.currentPlan')}: {planLabel}
-          </Text>
-          <Ionicons name="chevron-forward" size={14} color="#8B5CF6" />
-        </AppTouchable>
+        <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
+          {t('storage.currentPlan')}: {planLabel}
+        </Text>
       </View>
+      <Text style={{ fontSize: 12, color: isDark ? '#6B7280' : '#9CA3AF', marginTop: 8 }}>
+        {t('storage.freeNotice')}
+      </Text>
     </View>
   );
 }
