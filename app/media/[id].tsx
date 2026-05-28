@@ -383,9 +383,13 @@ export default function MediaDetailScreen() {
     return `f/${aperture.toFixed(1)}`;
   };
 
-  // GPS 좌표로 구글맵 열기
+  // GPS 좌표로 지도 열기 (iOS Apple Maps / Android geo / web Google Maps)
   const openMapWithGPS = (lat: number, lon: number) => {
-    const url = `https://maps.google.com/?q=${lat},${lon}`;
+    const url = Platform.select({
+      ios: `maps://app?ll=${lat},${lon}`,
+      android: `geo:${lat},${lon}?q=${lat},${lon}`,
+      default: `https://maps.google.com/?q=${lat},${lon}`,
+    })!;
     Linking.openURL(url).catch(() => {
       alert(t('common.error'), t('exif.mapOpenFailed'));
     });
@@ -1250,17 +1254,7 @@ export default function MediaDetailScreen() {
                 {analysis.exif.gps && (
                   <TouchableOpacity
                     style={[styles.openMapButton, isDark && styles.openMapButtonDark]}
-                    onPress={() => {
-                      const { latitude, longitude } = analysis.exif!.gps!;
-                      const url = Platform.select({
-                        ios: `maps://app?ll=${latitude},${longitude}`,
-                        android: `geo:${latitude},${longitude}?q=${latitude},${longitude}`,
-                        default: `https://maps.google.com/?q=${latitude},${longitude}`,
-                      })!;
-                      Linking.openURL(url).catch(() => {
-                        alert(t('common.error'), t('exif.mapOpenFailed'));
-                      });
-                    }}
+                    onPress={() => openMapWithGPS(analysis.exif!.gps!.latitude, analysis.exif!.gps!.longitude)}
                   >
                     <Text style={styles.openMapButtonText}>{'\uD83D\uDCCD'} 지도에서 보기</Text>
                   </TouchableOpacity>
