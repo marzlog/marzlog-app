@@ -14,7 +14,6 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
-import GoogleLoginButton from '@src/components/auth/GoogleLoginButton';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuthStore } from '@src/store/authStore';
 import { useTranslation } from '@src/hooks/useTranslation';
@@ -270,14 +269,6 @@ export default function RegisterScreen() {
     }
   };
 
-  const handleGoogleSuccess = async () => {
-    await recordConsentSafe({ ageConfirmed, marketingOptIn });
-    router.replace('/(tabs)');
-  };
-  const handleGoogleError = (errorMessage: string) => {
-    setErrors({ form: errorMessage });
-  };
-
   // Registration complete screen
   if (step === 'complete') {
     return (
@@ -487,25 +478,6 @@ export default function RegisterScreen() {
         <Text style={[styles.title, isDark && { color: '#F9FAFB' }]}>
           {t('auth.registerTitle')}
         </Text>
-
-        {/* Social Login */}
-        <View style={styles.socialArea}>
-          <GoogleLoginButton
-            onSuccess={handleGoogleSuccess}
-            onError={handleGoogleError}
-            onTypedError={handleTypedAuthError}
-            style={{ marginHorizontal: 16 }}
-          />
-        </View>
-
-        {/* Divider */}
-        <View style={styles.dividerRow}>
-          <View style={[styles.dividerLine, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
-          <Text style={[styles.dividerText, isDark && { color: '#6B7280' }]}>
-            {t('common.or')}
-          </Text>
-          <View style={[styles.dividerLine, { backgroundColor: isDark ? '#374151' : '#E5E7EB' }]} />
-        </View>
 
         {/* Input Fields */}
         <View style={styles.inputArea}>
@@ -728,25 +700,6 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     color: '#1F2937',
     marginBottom: 20,
-  },
-  socialArea: {
-    alignItems: 'stretch',
-    marginBottom: 20,
-    paddingHorizontal: 16,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-    gap: 10,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    fontSize: 12,
-    color: '#9CA3AF',
   },
   inputArea: {
     marginBottom: 4,
