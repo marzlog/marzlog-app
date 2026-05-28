@@ -226,23 +226,32 @@ export default function MediaDetailScreen() {
     if (!gps?.latitude || !gps?.longitude) return;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REVERSE_GEOCODE_TIMEOUT_MS);
     let cancelled = false;
-
     setLoadingLocation(true);
-    reverseGeocode(gps.latitude, gps.longitude, controller.signal)
+
+    // signal abort는 best-effort. RN fetch가 signal을 무시할 수 있으므로
+    // Promise.race로 타임아웃이 무조건 promise를 해결하게 해 스피너 무한 방지.
+    const timeoutPromise = new Promise<string | null>((resolve) => {
+      setTimeout(() => {
+        controller.abort();
+        resolve(null);
+      }, REVERSE_GEOCODE_TIMEOUT_MS);
+    });
+
+    Promise.race([
+      reverseGeocode(gps.latitude, gps.longitude, controller.signal),
+      timeoutPromise,
+    ])
       .then((name) => {
         if (cancelled) return;
         setLocationName(name);
-        setLoadingLocation(false);
       })
       .finally(() => {
-        clearTimeout(timeoutId);
+        if (!cancelled) setLoadingLocation(false);
       });
 
     return () => {
       cancelled = true;
-      clearTimeout(timeoutId);
       controller.abort();
     };
   }, [analysis]);
@@ -386,7 +395,7 @@ export default function MediaDetailScreen() {
   // GPS 좌표로 지도 열기 (iOS Apple Maps / Android geo / web Google Maps)
   const openMapWithGPS = (lat: number, lon: number) => {
     const url = Platform.select({
-      ios: `maps://app?ll=${lat},${lon}`,
+      ios: `maps://?q=${lat},${lon}`,
       android: `geo:${lat},${lon}?q=${lat},${lon}`,
       default: `https://maps.google.com/?q=${lat},${lon}`,
     })!;
