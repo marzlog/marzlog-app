@@ -77,13 +77,21 @@ export default function RootLayout() {
     if (Platform.OS === 'web') return;
     (async () => {
       try {
+        console.log('[OTA] check start, channel/runtime check');
         const update = await Updates.checkForUpdateAsync();
+        console.log('[OTA] checkForUpdate result, isAvailable=', update.isAvailable);
         if (update.isAvailable) {
+          console.log('[OTA] fetching...');
           await Updates.fetchUpdateAsync();
+          console.log('[OTA] fetched, reloading...');
           await Updates.reloadAsync();
         }
-      } catch {
-        // silently fail
+      } catch (e) {
+        console.log('[OTA] ERROR:', String((e as Error)?.message ?? e));
+        try {
+          const Sentry = require('@sentry/react-native');
+          Sentry.captureException(e, { tags: { area: 'ota-check' } });
+        } catch {}
       }
     })();
   }, []);
