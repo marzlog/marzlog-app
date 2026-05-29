@@ -80,6 +80,20 @@ export default function RootLayout() {
         console.log('[OTA] check start, channel/runtime check');
         const update = await Updates.checkForUpdateAsync();
         console.log('[OTA] checkForUpdate result, isAvailable=', update.isAvailable);
+        try {
+          const Sentry = require('@sentry/react-native');
+          Sentry.captureMessage('[OTA] check result', {
+            level: 'info',
+            tags: { area: 'ota-check' },
+            extra: {
+              isAvailable: update.isAvailable,
+              currentUpdateId: Updates.updateId ?? 'embedded',
+              channel: Updates.channel ?? 'unknown',
+              runtimeVersion: Updates.runtimeVersion ?? 'unknown',
+              isEmbeddedLaunch: Updates.isEmbeddedLaunch,
+            },
+          });
+        } catch {}
         if (update.isAvailable) {
           console.log('[OTA] fetching...');
           await Updates.fetchUpdateAsync();

@@ -15,6 +15,7 @@ import {
   Modal,
   TextInput,
   Alert,
+  AppState,
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
@@ -50,7 +51,6 @@ const IMAGE_SIZE = SCREEN_WIDTH - 40;
 const CAROUSEL_IMAGE_WIDTH = SCREEN_WIDTH;
 const CAROUSEL_IMAGE_HEIGHT = SCREEN_HEIGHT * 0.45; // 화면 높이의 45%
 const isWeb = Platform.OS === 'web';
-const REVERSE_GEOCODE_TIMEOUT_MS = 8000;
 
 export default function MediaDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -109,7 +109,6 @@ export default function MediaDetailScreen() {
 
   // GPS 지역명 상태
   const [locationName, setLocationName] = useState<string | null>(null);
-  const [loadingLocation, setLoadingLocation] = useState(false);
 
   // 스와이프 시 analysis 캐시 (media_id → analysis)
   const analysisCacheRef = useRef<Record<string, MediaAnalysis | null>>({});
@@ -218,49 +217,6 @@ export default function MediaDetailScreen() {
       return null;
     }
   };
-
-  // GPS 좌표가 있으면 지역명 가져오기
-  useEffect(() => {
-    if (!analysis) return;
-    const gps = analysis.exif?.gps;
-    if (!gps?.latitude || !gps?.longitude) return;
-
-    const controller = new AbortController();
-    let cancelled = false;
-    setLoadingLocation(true);
-
-    // signal abort는 best-effort. RN fetch가 signal을 무시할 수 있으므로
-    // Promise.race로 타임아웃이 무조건 promise를 해결하게 해 스피너 무한 방지.
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    const timeoutPromise = new Promise<string | null>((resolve) => {
-      timeoutId = setTimeout(() => {
-        controller.abort();
-        resolve(null);
-      }, REVERSE_GEOCODE_TIMEOUT_MS);
-    });
-
-    Promise.race([
-      reverseGeocode(gps.latitude, gps.longitude, controller.signal),
-      timeoutPromise,
-    ])
-      .then((name) => {
-        if (cancelled) return;
-        setLocationName(name);
-      })
-      .catch((err) => {
-        if (__DEV__) console.warn('reverseGeocode failed:', err);
-      })
-      .finally(() => {
-        clearTimeout(timeoutId);
-        if (!cancelled) setLoadingLocation(false);
-      });
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timeoutId);
-      controller.abort();
-    };
-  }, [analysis]);
 
   // 스와이프 시 현재 이미지의 analysis 로드
   useEffect(() => {
@@ -409,6 +365,27 @@ export default function MediaDetailScreen() {
       alert(t('common.error'), t('exif.mapOpenFailed'));
     });
   };
+
+  // 지도를 보고 돌아오면(앱 active 복귀) 1회 주소 조회. 자동/스피너 없음 — 무한 방지.
+  const mapVisitedRef = useRef(false);
+  const openMapWithGPSRef = useRef(openMapWithGPS);
+  openMapWithGPSRef.current = openMapWithGPS;
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && mapVisitedRef.current) {
+        mapVisitedRef.current = false;
+        const gps = analysis?.exif?.gps;
+        if (gps?.latitude && gps?.longitude && !locationName) {
+          // 백그라운드 조회 — 실패/지연돼도 화면엔 좌표 유지(스피너 없음)
+          reverseGeocode(gps.latitude, gps.longitude)
+            .then((name) => { if (name) setLocationName(name); })
+            .catch(() => {});
+        }
+      }
+    });
+    return () => sub.remove();
+  }, [analysis, locationName]);
 
   if (loading) {
     return (
@@ -1237,15 +1214,13 @@ export default function MediaDetailScreen() {
                 {analysis.exif.gps && (
                   <TouchableOpacity
                     style={styles.detailRow}
-                    onPress={() => openMapWithGPS(analysis.exif!.gps!.latitude, analysis.exif!.gps!.longitude)}
+                    onPress={() => { mapVisitedRef.current = true; openMapWithGPS(analysis.exif!.gps!.latitude, analysis.exif!.gps!.longitude); }}
                   >
                     <Text style={[styles.detailLabel, isDark && styles.textSecondaryDark]}>{t('exif.location')}</Text>
                     <View style={styles.locationValueColumn}>
                       <View style={styles.locationValue}>
                         <Ionicons name="location" size={14} color={colors.brand.primary} />
-                        {loadingLocation ? (
-                          <ActivityIndicator size="small" color={colors.brand.primary} style={{ marginLeft: 4 }} />
-                        ) : locationName ? (
+                        {locationName ? (
                           <Text style={[styles.detailValueLink, isDark && styles.textLight]}>
                             {locationName}
                           </Text>
