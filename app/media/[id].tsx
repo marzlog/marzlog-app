@@ -231,8 +231,9 @@ export default function MediaDetailScreen() {
 
     // signal abort는 best-effort. RN fetch가 signal을 무시할 수 있으므로
     // Promise.race로 타임아웃이 무조건 promise를 해결하게 해 스피너 무한 방지.
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const timeoutPromise = new Promise<string | null>((resolve) => {
-      setTimeout(() => {
+      timeoutId = setTimeout(() => {
         controller.abort();
         resolve(null);
       }, REVERSE_GEOCODE_TIMEOUT_MS);
@@ -246,12 +247,17 @@ export default function MediaDetailScreen() {
         if (cancelled) return;
         setLocationName(name);
       })
+      .catch((err) => {
+        if (__DEV__) console.warn('reverseGeocode failed:', err);
+      })
       .finally(() => {
+        clearTimeout(timeoutId);
         if (!cancelled) setLoadingLocation(false);
       });
 
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
       controller.abort();
     };
   }, [analysis]);
