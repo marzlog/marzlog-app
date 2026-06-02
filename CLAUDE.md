@@ -80,12 +80,14 @@ EOF
 - BLIP-2 캡셔닝, PaddleOCR 등 AI 처리 전담
 
 ### 배포 규칙
-- API 서버 코드 변경: `docker cp` + `docker compose restart api`
-- `docker compose up --build --force-recreate` 직접 실행 금지
-- 배포는 반드시 `deploy_api.sh` 사용
+- API 서버 코드 변경: `docker compose build api` (available 400MB+ 확인) → `docker compose up -d api` → `docker builder prune -f`
+- 정식 배포 절차의 단일 권위 소스 = BACKEND `docs/CLAUDE-SESSION-BOOTSTRAP.md §4.1` (이 파일은 포인터만 유지, 상세 복제 금지)
+- `deploy_api.sh` 사용 금지 (docker cp 방식, image drift 원인)
 
-### 위반 시 결과
-- API 서버 OOM → SSH 불가 → 강제 stop/start 필요 (2026-04-06 실제 발생)
+### 배경 / 위반 시 결과
+- 2026-04-06 API 서버 OOM → SSH 불가 → 강제 stop/start 사고 발생.
+- 근본 원인이던 SigLIP의 API 동거가 Worker EC2로 분리되어 해소됨 (API 1.15GB→126MB). 이에 따라 "무조건 build 금지"에서 "available 400MB+ 확인 후 build"로 진화.
+- ⚠️ build는 반드시 `available 400MB+` 확인 후 실행.
 
 ## 주의사항
 
