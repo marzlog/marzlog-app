@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { getLanguage } from '@src/i18n';
 import { VideoView, useVideoPlayer } from 'expo-video';
+import { Logo } from '@/src/components/common/Logo';
 
 const ONBOARDING_KEY = '@marzlog_onboarding_completed';
 
@@ -43,53 +44,54 @@ interface FrameConfig {
 
 const FRAMES: FrameConfig[] = [
   {
-    key: 'splash1',
-    type: 'splash',
-    titleKey: 'onboarding.frame1Title',
-    subtitleKey: 'onboarding.frame1Subtitle',
+    key: 'video',
+    type: 'video',
   },
   {
     key: 'illust1',
     type: 'illustration',
-    titleKey: 'onboarding.frame2Title',
-    subtitleKey: 'onboarding.frame2Subtitle',
-    illustration: require('@/assets/images/onboarding/illust_1_algorithm.png'),
+    titleKey: 'onboarding.frame1Title',
+    subtitleKey: 'onboarding.frame1Subtitle',
+    illustration: require('@/assets/images/onboarding/illust_1_pile.png'),
   },
   {
     key: 'illust2',
     type: 'illustration',
-    titleKey: 'onboarding.frame3Title',
-    subtitleKey: 'onboarding.frame3Subtitle',
-    illustration: require('@/assets/images/onboarding/illust_2_recall.png'),
+    titleKey: 'onboarding.frame2Title',
+    subtitleKey: 'onboarding.frame2Subtitle',
+    illustration: require('@/assets/images/onboarding/illust_2_algorithm.png'),
   },
   {
     key: 'illust3',
     type: 'illustration',
-    titleKey: 'onboarding.frame4Title',
-    subtitleKey: 'onboarding.frame4Subtitle',
-    illustration: require('@/assets/images/onboarding/illust_3_caption.png'),
+    titleKey: 'onboarding.frame3Title',
+    subtitleKey: 'onboarding.frame3Subtitle',
+    illustration: require('@/assets/images/onboarding/illust_3_aidraft.png'),
   },
   {
     key: 'illust4',
     type: 'illustration',
-    titleKey: 'onboarding.frame5Title',
-    subtitleKey: 'onboarding.frame5Subtitle',
-    illustration: require('@/assets/images/onboarding/illust_4_ocr.png'),
+    titleKey: 'onboarding.frame4Title',
+    subtitleKey: 'onboarding.frame4Subtitle',
+    illustration: require('@/assets/images/onboarding/illust_4_search.png'),
   },
   {
     key: 'illust5',
     type: 'illustration',
+    titleKey: 'onboarding.frame5Title',
+    subtitleKey: 'onboarding.frame5Subtitle',
+    illustration: require('@/assets/images/onboarding/illust_5_ocr.png'),
+  },
+  {
+    key: 'illust6',
+    type: 'illustration',
     titleKey: 'onboarding.frame6Title',
     subtitleKey: 'onboarding.frame6Subtitle',
-    illustration: require('@/assets/images/onboarding/illust_5_secure.png'),
+    illustration: require('@/assets/images/onboarding/illust_6_secure.png'),
   },
   {
     key: 'splash2',
     type: 'splash',
-  },
-  {
-    key: 'video',
-    type: 'video',
   },
   {
     key: 'final',
@@ -103,19 +105,86 @@ interface PageSizeProps {
 }
 
 const VIDEO_SOURCES = {
-  ko: require('@/assets/videos/onboarding_ko.mp4'),
-  en: require('@/assets/videos/onboarding_en.mp4'),
+  ko: require('@/assets/videos/onboarding_intro.mp4'),
+  en: require('@/assets/videos/onboarding_intro.mp4'),
 };
 
-/** Page 8: full-screen video (no buttons, swipe to next) */
-function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
+interface VideoPageProps extends PageSizeProps {
+  onNext?: () => void;
+}
+
+/** Page 1: full-screen intro video — plays once, then fades in logo + next overlay */
+function VideoPage({ screenWidth, screenHeight, onNext }: VideoPageProps) {
+  const { t } = useTranslation();
   const videoSrc = VIDEO_SOURCES[getLanguage()];
+  const [ended, setEnded] = useState(false);
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const overlayTranslateY = useRef(new Animated.Value(12)).current;
 
   const player = useVideoPlayer(videoSrc, (p) => {
-    p.loop = true;
+    p.loop = false;
     p.muted = true;
     p.play();
   });
+
+  useEffect(() => {
+    const sub = player.addListener('playToEnd', () => setEnded(true));
+    return () => sub.remove();
+  }, [player]);
+
+  useEffect(() => {
+    if (ended) {
+      Animated.parallel([
+        Animated.timing(overlayOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(overlayTranslateY, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [ended]);
+
+  const overlay = (
+    <Animated.View
+      pointerEvents={ended ? 'auto' : 'none'}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: screenWidth,
+        height: screenHeight,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        alignItems: 'center',
+        opacity: overlayOpacity,
+        transform: [{ translateY: overlayTranslateY }],
+      }}
+    >
+      <View style={{ marginTop: Math.round(screenHeight * 0.26) }}>
+        <Logo iconOnly color="#FAFAF9" size={Math.round(screenWidth * 0.22)} />
+      </View>
+      <RNImage
+        source={require('@/assets/images/onboarding/logo_text.png')}
+        style={{
+          width: screenWidth * 0.30,
+          height: screenWidth * 0.30 * (303 / 1200),
+          resizeMode: 'contain',
+          marginTop: 16,
+        }}
+      />
+      <TouchableOpacity
+        style={{
+          position: 'absolute',
+          bottom: Math.round(screenHeight * 0.16),
+          alignSelf: 'center',
+          paddingHorizontal: 36,
+          paddingVertical: 15,
+          borderRadius: 28,
+          backgroundColor: '#FF6A5F',
+        }}
+        onPress={onNext}
+        activeOpacity={0.8}
+      >
+        <Text style={{ color: '#292928', fontSize: 16, fontWeight: '600' }}>{t('onboarding.next')}</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
 
   if (Platform.OS === 'web') {
     return (
@@ -124,14 +193,15 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
           src={typeof videoSrc === 'number' ? undefined : (videoSrc as any)}
           autoPlay
           muted
-          loop
           playsInline
+          onEnded={() => setEnded(true)}
           style={{
             width: screenWidth,
             height: screenHeight,
             objectFit: 'cover' as any,
           }}
         />
+        {overlay}
       </View>
     );
   }
@@ -144,6 +214,7 @@ function VideoPage({ screenWidth, screenHeight }: PageSizeProps) {
         contentFit="cover"
         nativeControls={false}
       />
+      {overlay}
     </View>
   );
 }
@@ -159,7 +230,7 @@ function FinalPage({ screenWidth, screenHeight, insets, t, onComplete }: FinalPa
   return (
     <View style={[styles.page, { width: screenWidth, height: screenHeight, backgroundColor: '#1a1a2e' }]}>
       <Image
-        source={require('@/assets/images/onboarding/splash_astronaut_mars.png')}
+        source={require('@/assets/images/onboarding/astronaut_bg.png')}
         style={StyleSheet.absoluteFillObject}
         contentFit="cover"
       />
@@ -168,9 +239,24 @@ function FinalPage({ screenWidth, screenHeight, insets, t, onComplete }: FinalPa
         locations={[0.3, 0.6, 1.0]}
         style={StyleSheet.absoluteFillObject}
       />
-      <View style={[styles.finalBottomWrap, { paddingBottom: insets.bottom + 56 }]}>
+      {/* Top wordmark (~25% from top) */}
+      <View style={[styles.finalLogoWrap, { top: screenHeight * 0.25 }]} pointerEvents="none">
+        <RNImage
+          source={require('@/assets/images/onboarding/logo_text.png')}
+          style={{
+            width: screenWidth * 0.36,
+            height: screenWidth * 0.36 * (303 / 1200),
+            resizeMode: 'contain',
+          }}
+        />
+      </View>
+      {/* Title + subtitle block (~58-69% region) */}
+      <View style={[styles.finalTextWrap, { top: screenHeight * 0.58 }]}>
         <Text style={styles.finalTitle}>{t('onboarding.final.title')}</Text>
         <Text style={styles.finalSubtitle}>{t('onboarding.final.subtitle')}</Text>
+      </View>
+      {/* Start button (center ~78%) */}
+      <View style={[styles.finalButtonWrap, { top: screenHeight * 0.78 - 28 }]}>
         <TouchableOpacity
           style={styles.finalStartButton}
           onPress={onComplete}
@@ -428,7 +514,7 @@ export default function OnboardingScreen() {
           ]}
         >
           <Image
-            source={require('@/assets/images/onboarding/splash_astronaut_space.png')}
+            source={require('@/assets/images/onboarding/astronaut_bg.png')}
             style={[styles.splashImage, { width: screenWidth, height: screenHeight }]}
             contentFit="cover"
           />
@@ -495,7 +581,7 @@ export default function OnboardingScreen() {
     </View>
   );
 
-  const renderVideo = () => <VideoPage screenWidth={screenWidth} screenHeight={screenHeight} />;
+  const renderVideo = () => <VideoPage screenWidth={screenWidth} screenHeight={screenHeight} onNext={handleNext} />;
 
   const renderFinal = () => <FinalPage screenWidth={screenWidth} screenHeight={screenHeight} insets={insets} t={t} onComplete={completeOnboarding} />;
 
@@ -534,8 +620,8 @@ export default function OnboardingScreen() {
         bounces={false}
       />
 
-      {/* Bottom section — hidden on final page only */}
-      {!isLastPage && (
+      {/* Bottom section — hidden on intro video page and final page */}
+      {!isLastPage && currentIndex !== 0 && (
         <View
           style={[styles.bottomSection, { paddingBottom: insets.bottom + 60 }]}
           pointerEvents="box-none"
@@ -644,10 +730,22 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
 
-  // Final page (8) - video/image overlay
-  finalBottomWrap: {
+  // Final page (9) - CTA layout (top-anchored ratios)
+  finalLogoWrap: {
     position: 'absolute',
-    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  finalTextWrap: {
+    position: 'absolute',
+    left: 24,
+    right: 24,
+    alignItems: 'center',
+  },
+  finalButtonWrap: {
+    position: 'absolute',
     left: 24,
     right: 24,
     alignItems: 'center',
@@ -667,7 +765,7 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   finalStartButton: {
-    backgroundColor: '#FA5252',
+    backgroundColor: '#1A2E27',
     paddingVertical: 16,
     paddingHorizontal: 48,
     borderRadius: 12,
