@@ -43,6 +43,7 @@ yarn-error.*
 
 # build artifacts
 *.apk
+*.aab
 apk-download-qr.png
 
 # Firebase (secrets - never commit)
