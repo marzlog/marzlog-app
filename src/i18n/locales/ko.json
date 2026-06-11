@@ -32,7 +32,15 @@
     "done": "완료",
     "or": "또는",
     "dateHeader": "{{month}}월 {{day}}일 ({{weekday}})",
-    "weekdaysShort": ["일", "월", "화", "수", "목", "금", "토"]
+    "weekdaysShort": [
+      "일",
+      "월",
+      "화",
+      "수",
+      "목",
+      "금",
+      "토"
+    ]
   },
   "auth": {
     "login": "로그인",
@@ -323,7 +331,7 @@
     "title": "홈",
     "recentPhotos": "최근 사진",
     "schedule": "일정",
-    "noPhotosToday": "이 날의 사진이 없습니다",
+    "noPhotosToday": "선택하신 날의 기억을 등록하세요",
     "addPhotos": "사진 추가하기"
   },
   "timeline": {
@@ -489,9 +497,38 @@
     "today": "오늘",
     "yesterday": "어제",
     "yearMonth": "{{year}}년 {{month}}월",
-    "weekdaysShort": ["일", "월", "화", "수", "목", "금", "토"],
-    "weekdaysEn": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-    "months": ["1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월"]
+    "weekdaysShort": [
+      "일",
+      "월",
+      "화",
+      "수",
+      "목",
+      "금",
+      "토"
+    ],
+    "weekdaysEn": [
+      "Sun",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat"
+    ],
+    "months": [
+      "1월",
+      "2월",
+      "3월",
+      "4월",
+      "5월",
+      "6월",
+      "7월",
+      "8월",
+      "9월",
+      "10월",
+      "11월",
+      "12월"
+    ]
   },
   "version": "버전",
   "profileEdit": {

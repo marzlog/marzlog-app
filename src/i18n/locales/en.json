@@ -32,7 +32,15 @@
     "done": "Done",
     "or": "or",
     "dateHeader": "{{month}}/{{day}} ({{weekday}})",
-    "weekdaysShort": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    "weekdaysShort": [
+      "Sun",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat"
+    ]
   },
   "auth": {
     "login": "Login",
@@ -323,7 +331,7 @@
     "title": "Home",
     "recentPhotos": "Recent Photos",
     "schedule": "Schedule",
-    "noPhotosToday": "No photos for this day",
+    "noPhotosToday": "Log your memory for the selected date",
     "addPhotos": "Add Photos"
   },
   "timeline": {
@@ -489,9 +497,38 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "yearMonth": "{{month}} {{year}}",
-    "weekdaysShort": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-    "weekdaysEn": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-    "months": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    "weekdaysShort": [
+      "Sun",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat"
+    ],
+    "weekdaysEn": [
+      "Sun",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat"
+    ],
+    "months": [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December"
+    ]
   },
   "version": "Version",
   "profileEdit": {
