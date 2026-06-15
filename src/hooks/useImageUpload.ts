@@ -3,12 +3,16 @@
  * - 이미지 선택 (갤러리/카메라)
  * - 업로드 진행 관리
  * - 상태 추적
+ * - B-DN 패턴1: 최초 업로드 시 영속 큐(uploadQueue)에 사본+manifest 등록 + 진행 기록
+ *   (markItemUploaded / markDone / markFailed). 재개(resume)는 화면 state와 분리된
+ *   순수 함수 src/services/resumeUploads.ts가 담당한다(여기엔 없음).
  */
 import { useState, useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Alert, Platform } from 'react-native';
 import { AxiosError } from 'axios';
 import { uploadImage, prepareUpload, uploadToS3, calculateSHA256, completeGroupUpload, addImagesToGroup } from '../api/upload';
+import { updateMedia } from '../api/media';
 import type { SelectedImage, UploadItem, UploadCompleteResponse, UploadStatus, GroupUploadCompleteResponse, GroupUploadItem } from '../types/upload';
 import { getErrorMessage } from '../utils/errorMessages';
 import { captureError } from '../utils/sentry';
@@ -16,6 +20,10 @@ import { resolveAssetLocation } from '../utils/exif/resolveAssetLocation';
 import { resolveCurrentLocation } from '../utils/exif/resolveCurrentLocation';
 import { t } from '../i18n';
 import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
+import { useAuthStore } from '../store/authStore';
+import * as uploadQueue from '../services/uploadQueue';
+import { UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS } from '../constants/upload';
+import { withRetry } from '../utils/retry';
 
 function isQuotaExceededError(err: unknown): boolean {
   if (err instanceof AxiosError) {
@@ -27,6 +35,46 @@ function isQuotaExceededError(err: unknown): boolean {
 
 const MAX_SELECTION = 5; // 대표 1개 + 서브 4개
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+
+// ===== B-DN 패턴1: 영속 큐 헬퍼 (web에서는 documentDirectory 부재로 큐 비활성) =====
+
+const QUEUE_DISABLED = Platform.OS === 'web';
+
+type UploadMetadata = { title?: string; content?: string; memo?: string; emotion?: string; intensity?: number };
+
+function currentUserId(): string | null {
+  return useAuthStore.getState().user?.id ?? null;
+}
+
+/** 큐 변형 호출 래퍼 — 큐 실패가 업로드 흐름을 깨뜨리지 않도록 swallow + 보고 */
+async function safeQueue(fn: () => Promise<void>): Promise<void> {
+  try {
+    await fn();
+  } catch (e) {
+    captureError(e instanceof Error ? e : new Error(String(e)), { context: 'uploadQueue' });
+  }
+}
+
+async function safeEnqueue(input: uploadQueue.EnqueueInput): Promise<uploadQueue.QueueJob | null> {
+  try {
+    return await uploadQueue.enqueue(input);
+  } catch (e) {
+    captureError(e instanceof Error ? e : new Error(String(e)), { context: 'uploadQueue.enqueue' });
+    return null;
+  }
+}
+
+function toSource(item: UploadItem): uploadQueue.QueueSourceItem {
+  return {
+    uri: item.uri,
+    filename: item.filename,
+    mimeType: item.mimeType,
+    fileSize: item.fileSize,
+    width: item.width,
+    height: item.height,
+    clientExif: item.clientExif,
+  };
+}
 
 export function useImageUpload() {
   const [items, setItems] = useState<UploadItem[]>([]);
@@ -150,7 +198,12 @@ export function useImageUpload() {
   }, []);
 
   // 업로드 시작 (직접 아이템을 전달받거나 상태에서 가져옴)
-  const startUpload = useCallback(async (directItems?: UploadItem[], takenAt?: string): Promise<UploadCompleteResponse[]> => {
+  // B-DN: metadata가 주어지면 업로드 성공 후 updateMedia(메타)까지 한 job으로 영속/재개.
+  const startUpload = useCallback(async (
+    directItems?: UploadItem[],
+    takenAt?: string,
+    metadata?: UploadMetadata,
+  ): Promise<UploadCompleteResponse[]> => {
     const pendingItems = directItems
       ? directItems.filter((i) => i.status === 'idle' || i.status === 'error')
       : items.filter((i) => i.status === 'idle' || i.status === 'error');
@@ -158,6 +211,24 @@ export function useImageUpload() {
     if (pendingItems.length === 0) {
       Alert.alert('알림', '업로드할 사진이 없습니다.');
       return [];
+    }
+
+    // 영속 큐 등록 (최초 업로드)
+    let jobId: string | null = null;
+    const jobAttempts = 0;
+    if (!jobId && !QUEUE_DISABLED) {
+      const uid = currentUserId();
+      if (uid) {
+        const job = await safeEnqueue({
+          kind: 'single',
+          userId: uid,
+          items: pendingItems.map(toSource),
+          primaryIndex: 0,
+          takenAt,
+          metadata,
+        });
+        jobId = job?.jobId ?? null;
+      }
     }
 
     setIsUploading(true);
@@ -227,6 +298,44 @@ export function useImageUpload() {
 
     setIsUploading(false);
 
+    // ===== 영속 큐 상태 갱신 (single 2단계: 업로드 → updateMedia) =====
+    const allOk = results.length === pendingItems.length;
+    if (!allOk) {
+      // 일부라도 실패 → 보존(다음 재개 때 재시도)
+      if (jobId) {
+        const id = jobId;
+        await safeQueue(() => uploadQueue.markFailed(id, jobAttempts + 1));
+      }
+    } else if (results.length > 0 && results[0].media_id) {
+      const firstMediaId = results[0].media_id;
+      // 업로드 완료된 media_id 보존 → updateMedia 실패해도 재업로드 없이 메타만 재시도
+      if (jobId) {
+        const id = jobId;
+        await safeQueue(() => uploadQueue.markSingleUploaded(id, firstMediaId));
+      }
+      let metaOk = true;
+      if (metadata) {
+        try {
+          await withRetry(() => updateMedia(firstMediaId, metadata), UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS);
+        } catch (e) {
+          metaOk = false;
+          captureError(e instanceof Error ? e : new Error(String(e)), { context: 'useImageUpload.startUpload.updateMedia' });
+          if (jobId) {
+            const id = jobId;
+            await safeQueue(() => uploadQueue.markFailed(id, jobAttempts + 1));
+          }
+        }
+      }
+      if (metaOk && jobId) {
+        const id = jobId;
+        await safeQueue(() => uploadQueue.markDone(id));
+      }
+    } else if (jobId) {
+      // 성공했으나 media_id 없음(이론상 도달 안 함) — 보존 위해 done 처리
+      const id = jobId;
+      await safeQueue(() => uploadQueue.markDone(id));
+    }
+
     if (results.length > 0) {
       const reusedCount = results.filter((r) => r.status === 'reused').length;
       const newCount = results.length - reusedCount;
@@ -264,7 +373,7 @@ export function useImageUpload() {
     directItems: UploadItem[],
     primaryIndex: number = 0,
     takenAt?: string,  // 캘린더에서 선택한 날짜
-    metadata?: { title?: string; content?: string; memo?: string; emotion?: string; intensity?: number }
+    metadata?: UploadMetadata,
   ): Promise<GroupUploadCompleteResponse | null> => {
     if (directItems.length === 0) {
       Alert.alert('알림', '업로드할 사진이 없습니다.');
@@ -273,6 +382,24 @@ export function useImageUpload() {
 
     setIsUploading(true);
     setError(null);
+
+    // 영속 큐 등록 (최초 업로드)
+    let jobId: string | null = null;
+    const jobAttempts = 0;
+    if (!jobId && !QUEUE_DISABLED) {
+      const uid = currentUserId();
+      if (uid) {
+        const job = await safeEnqueue({
+          kind: 'group',
+          userId: uid,
+          items: directItems.map(toSource),
+          primaryIndex,
+          takenAt,
+          metadata,
+        });
+        jobId = job?.jobId ?? null;
+      }
+    }
 
     const uploadedItems: GroupUploadItem[] = [];
     let duplicateCount = 0;
@@ -320,11 +447,16 @@ export function useImageUpload() {
 
           // S3 업로드 건너뛰고 바로 그룹에 포함
           if (prepareResponse.upload_id && prepareResponse.storage_key) {
-            uploadedItems.push({
+            const uploaded: GroupUploadItem = {
               upload_id: prepareResponse.upload_id,
               storage_key: prepareResponse.storage_key,
               sha256,
-            });
+            };
+            uploadedItems.push(uploaded);
+            if (jobId) {
+              const id = jobId;
+              await safeQueue(() => uploadQueue.markItemUploaded(id, i, uploaded));
+            }
           }
           updateItem(item.id, { status: 'done', progress: 100 });
           continue;
@@ -338,19 +470,28 @@ export function useImageUpload() {
           throw new Error('No presigned URL received');
         }
 
-        await uploadToS3(uploadUrl, item.uri, item.mimeType, (progress) => {
-          updateItem(item.id, { progress: 15 + Math.round(progress * 0.75) });
-        });
+        await withRetry(
+          () => uploadToS3(uploadUrl, item.uri, item.mimeType, (progress) => {
+            updateItem(item.id, { progress: 15 + Math.round(progress * 0.75) });
+          }),
+          UPLOAD_MAX_ATTEMPTS,
+          UPLOAD_BACKOFF_BASE_MS,
+        );
 
         updateItem(item.id, { status: 'completing', progress: 90 });
 
         // 업로드 정보 수집
         if (prepareResponse.upload_id && prepareResponse.storage_key) {
-          uploadedItems.push({
+          const uploaded: GroupUploadItem = {
             upload_id: prepareResponse.upload_id,
             storage_key: prepareResponse.storage_key,
             sha256,
-          });
+          };
+          uploadedItems.push(uploaded);
+          if (jobId) {
+            const id = jobId;
+            await safeQueue(() => uploadQueue.markItemUploaded(id, i, uploaded));
+          }
         }
 
         updateItem(item.id, { progress: 95 });
@@ -359,6 +500,10 @@ export function useImageUpload() {
       // 2. 그룹 업로드 완료 API 호출
       if (uploadedItems.length === 0) {
         Alert.alert('알림', '새로 업로드할 사진이 없습니다. (모두 중복)');
+        if (jobId) {
+          const id = jobId;
+          await safeQueue(() => uploadQueue.markDone(id));
+        }
         setIsUploading(false);
         return null;
       }
@@ -381,6 +526,12 @@ export function useImageUpload() {
         updateItem(item.id, { status: 'done', progress: 100 });
       });
 
+      // 영속 큐: job 완료 → 사본 제거
+      if (jobId) {
+        const id = jobId;
+        await safeQueue(() => uploadQueue.markDone(id));
+      }
+
       let alertMessage = `${result.total_images}장이 업로드되었습니다.`;
       if (duplicateCount > 0) {
         alertMessage += `\n(${duplicateCount}장은 기존 파일 재사용)`;
@@ -393,6 +544,11 @@ export function useImageUpload() {
       return result;
 
     } catch (err) {
+      // 부분 실패라도 성공분(uploadedItems)은 manifest에 markItemUploaded로 보존됨 → 재개 시 흡수
+      if (jobId) {
+        const id = jobId;
+        await safeQueue(() => uploadQueue.markFailed(id, jobAttempts + 1));
+      }
       if (isQuotaExceededError(err)) {
         setQuotaExceeded(true);
         setError(t('storage.quotaExceeded'));
@@ -411,10 +567,10 @@ export function useImageUpload() {
   // 기존 그룹에 이미지 추가
   const addToExistingGroup = useCallback(async (
     groupId: string,
-    newItems: UploadItem[]
+    newItems: UploadItem[],
   ): Promise<boolean> => {
     // 새 이미지만 필터 (isExisting이 없는 것들)
-    const itemsToUpload = newItems.filter((item: any) => !item.isExisting);
+    const itemsToUpload = newItems.filter((item) => !item.isExisting);
 
     if (itemsToUpload.length === 0) {
       return true;
@@ -422,6 +578,23 @@ export function useImageUpload() {
 
     setIsUploading(true);
     setError(null);
+
+    // 영속 큐 등록 (최초 업로드)
+    let jobId: string | null = null;
+    const jobAttempts = 0;
+    if (!jobId && !QUEUE_DISABLED) {
+      const uid = currentUserId();
+      if (uid) {
+        const job = await safeEnqueue({
+          kind: 'add',
+          userId: uid,
+          items: itemsToUpload.map(toSource),
+          primaryIndex: 0,
+          groupId,
+        });
+        jobId = job?.jobId ?? null;
+      }
+    }
 
     const uploadedItems: GroupUploadItem[] = [];
 
@@ -464,11 +637,16 @@ export function useImageUpload() {
         // 중복 체크 - skip_upload이면 S3 업로드 건너뛰고 그룹에 포함
         if (prepareResponse.duplicate && prepareResponse.skip_upload) {
           if (prepareResponse.upload_id && prepareResponse.storage_key) {
-            uploadedItems.push({
+            const uploaded: GroupUploadItem = {
               upload_id: prepareResponse.upload_id,
               storage_key: prepareResponse.storage_key,
               sha256,
-            });
+            };
+            uploadedItems.push(uploaded);
+            if (jobId) {
+              const id = jobId;
+              await safeQueue(() => uploadQueue.markItemUploaded(id, i, uploaded));
+            }
           }
           updateItem(item.id, { status: 'done', progress: 100 });
           continue;
@@ -482,18 +660,27 @@ export function useImageUpload() {
           throw new Error('No presigned URL received');
         }
 
-        await uploadToS3(uploadUrl, item.uri, item.mimeType, (progress) => {
-          updateItem(item.id, { progress: 15 + Math.round(progress * 0.75) });
-        });
+        await withRetry(
+          () => uploadToS3(uploadUrl, item.uri, item.mimeType, (progress) => {
+            updateItem(item.id, { progress: 15 + Math.round(progress * 0.75) });
+          }),
+          UPLOAD_MAX_ATTEMPTS,
+          UPLOAD_BACKOFF_BASE_MS,
+        );
 
         updateItem(item.id, { status: 'completing', progress: 90 });
 
         if (prepareResponse.upload_id && prepareResponse.storage_key) {
-          uploadedItems.push({
+          const uploaded: GroupUploadItem = {
             upload_id: prepareResponse.upload_id,
             storage_key: prepareResponse.storage_key,
             sha256,
-          });
+          };
+          uploadedItems.push(uploaded);
+          if (jobId) {
+            const id = jobId;
+            await safeQueue(() => uploadQueue.markItemUploaded(id, i, uploaded));
+          }
         }
 
         updateItem(item.id, { progress: 95 });
@@ -509,10 +696,19 @@ export function useImageUpload() {
         updateItem(item.id, { status: 'done', progress: 100 });
       });
 
+      if (jobId) {
+        const id = jobId;
+        await safeQueue(() => uploadQueue.markDone(id));
+      }
+
       setIsUploading(false);
       return true;
 
     } catch (err) {
+      if (jobId) {
+        const id = jobId;
+        await safeQueue(() => uploadQueue.markFailed(id, jobAttempts + 1));
+      }
       if (isQuotaExceededError(err)) {
         setQuotaExceeded(true);
         setError(t('storage.quotaExceeded'));

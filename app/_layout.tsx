@@ -20,6 +20,7 @@ import { useAppLockStore } from '@src/store/appLockStore';
 import { useReminderStore } from '@src/store/reminderStore';
 import { DialogProvider } from '@/src/components/ui/Dialog';
 import { BiometricLock } from '@/src/components/auth/BiometricLock';
+import { resumeUploads } from '@src/services/resumeUploads';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -60,6 +61,26 @@ export default function RootLayout() {
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const backgroundTimestamp = useRef<number | null>(null);
   const LOCK_THRESHOLD_MS = 30_000;
+
+  // B-DN: 영속 업로드 큐 재개 (포그라운드 복귀/콜드스타트). 중복 실행 가드.
+  // 재개는 화면 state와 분리된 순수 함수(resumeUploads) — 훅 인스턴스화 없음.
+  const resumeInFlight = useRef(false);
+
+  const triggerResume = async () => {
+    if (Platform.OS === 'web') return;
+    if (resumeInFlight.current) return;
+    const { isAuthenticated: loggedIn, user } = useAuthStore.getState();
+    const uid = user?.id;
+    if (!loggedIn || !uid) return;
+    resumeInFlight.current = true;
+    try {
+      await resumeUploads(uid);
+    } catch {
+      // resumeUploads 내부에서 job별 보존 처리됨 — 여기서는 크래시만 방지
+    } finally {
+      resumeInFlight.current = false;
+    }
+  };
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
@@ -135,6 +156,24 @@ export default function RootLayout() {
     setOnConsentRequired(() => {
       router.replace('/terms-agreement?from=login');
     });
+  }, []);
+
+  // B-DN: 콜드스타트 — 인증 확인 후 업로드 큐 1회 재개
+  useEffect(() => {
+    if (!initialReady) return;
+    triggerResume();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialReady, isAuthenticated]);
+
+  // B-DN: 포그라운드 복귀 시 업로드 큐 재개 (앱락 리스너와 분리된 별도 리스너)
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        triggerResume();
+      }
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Background → foreground: lock after 30s

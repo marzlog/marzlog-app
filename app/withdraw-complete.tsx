@@ -15,6 +15,7 @@ import { Logo } from '@/src/components/common/Logo';
 import { useAuthStore } from '@/src/store/authStore';
 import { useAppLockStore } from '@/src/store/appLockStore';
 import { secureStorage, SECURE_KEYS } from '@/src/utils/secureStorage';
+import * as uploadQueue from '@/src/services/uploadQueue';
 
 const APPLE_HELP_URL_KO = 'https://support.apple.com/ko-kr/HT210426';
 const APPLE_HELP_URL_EN = 'https://support.apple.com/HT210426';
@@ -38,6 +39,13 @@ export default function WithdrawCompleteScreen() {
     await secureStorage.removeItem(SECURE_KEYS.PIN_HASH);
     await secureStorage.removeItem(SECURE_KEYS.APP_LOCK_ENABLED);
     useAppLockStore.getState().unlock();
+
+    // B-DN: 계정삭제 시에만 업로드 큐(영속 사본) 전체 정리. 실패해도 전환은 진행.
+    try {
+      await uploadQueue.clearAll();
+    } catch {
+      // swallow — non-critical, 계정삭제 흐름 보호
+    }
 
     router.replace('/login');
   };

@@ -336,13 +336,9 @@ export default function UploadScreen() {
       };
 
       if (images.length === 1) {
-        // 단일 이미지: 업로드 후 메타데이터 업데이트
-        const results = await startUpload(images, takenAt);
-
-        // 메타데이터 저장 (title, emotion 등)
-        if (results.length > 0 && results[0].media_id) {
-          await updateMedia(results[0].media_id, metadata);
-        }
+        // 단일 이미지: 업로드 + 메타데이터(updateMedia)를 한 큐 job으로 영속화/재개
+        // (B-DN: metadata를 startUpload에 위임 — 업로드 성공 후 내부에서 updateMedia 수행)
+        await startUpload(images, takenAt, metadata);
       } else {
         // 여러 이미지: 그룹 업로드 (메타데이터 포함)
         const result = await startGroupUpload(images, primaryImageIndex, takenAt, metadata);

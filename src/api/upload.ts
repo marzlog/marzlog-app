@@ -17,9 +17,27 @@ import type {
 } from '../types/upload';
 import { apiClient } from './client';
 import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
+import { UPLOAD_PUT_TIMEOUT_MS } from '../constants/upload';
 
 function getCurrentAnalysisMode(): 'light' | 'precision' {
   return aiModeToBackend(useSettingsStore.getState().aiMode);
+}
+
+/** 약한 네트워크에서 uploadAsync가 hang하는 것을 차단 — 타임아웃 시 'UPLOAD_TIMEOUT' reject */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('UPLOAD_TIMEOUT')), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
 }
 
 /**
@@ -98,6 +116,9 @@ export async function uploadToS3(
       xhr.addEventListener('load', () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve();
+        } else if (xhr.status === 403) {
+          // presigned URL 만료/서명 무효 — 상위에서 prepare 재발급 분기
+          reject(new Error('PRESIGNED_EXPIRED'));
         } else {
           reject(new Error(`S3 upload failed: ${xhr.status} ${xhr.statusText}`));
         }
@@ -113,13 +134,23 @@ export async function uploadToS3(
     // Native: Use legacy uploadAsync to avoid Hermes Blob limitation
     // Dynamic require to prevent web bundle from including this module
     const LegacyFS = require('expo-file-system/legacy');
-    const result = await LegacyFS.uploadAsync(presignedUrl, fileUri, {
-      httpMethod: 'PUT',
-      uploadType: LegacyFS.FileSystemUploadType.BINARY_CONTENT,
-      headers: {
-        'Content-Type': contentType,
-      },
-    });
+    // 약한 네트워크 hang 방지: UPLOAD_PUT_TIMEOUT_MS 초과 시 'UPLOAD_TIMEOUT' reject
+    // LegacyFS는 동적 require(any)라 결과 형태를 명시한다.
+    const result = await withTimeout<{ status: number }>(
+      LegacyFS.uploadAsync(presignedUrl, fileUri, {
+        httpMethod: 'PUT',
+        uploadType: LegacyFS.FileSystemUploadType.BINARY_CONTENT,
+        headers: {
+          'Content-Type': contentType,
+        },
+      }),
+      UPLOAD_PUT_TIMEOUT_MS,
+    );
+
+    if (result.status === 403) {
+      // presigned URL 만료/서명 무효 — 상위에서 prepare 재발급 분기
+      throw new Error('PRESIGNED_EXPIRED');
+    }
 
     if (result.status < 200 || result.status >= 300) {
       throw new Error(`S3 upload failed: ${result.status}`);
