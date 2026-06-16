@@ -357,6 +357,15 @@ export default function HomeScreen() {
     );
   }, [lastDeleteUpdate]);
 
+  // B-DN: 큐 업로드 완료 broadcast 구독 → 전체 재로드 (신규 카드는 in-place patch 불가)
+  // loadingRef in-flight 가드가 중복 GET을 막음.
+  const lastUploadComplete = useMediaUpdatesStore(s => s.lastUploadComplete);
+  useEffect(() => {
+    if (!lastUploadComplete) return;
+    loadAllItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastUploadComplete]);
+
   // 전체 타임라인 로드 (초기 20개 + 자동 추가 로드)
   // 폴링/netinfo/focus 동시 트리거로 인한 중복 GET race 방지용 in-flight 가드.
   const loadingRef = useRef(false);

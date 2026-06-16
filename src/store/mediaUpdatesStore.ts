@@ -26,6 +26,10 @@ interface DeleteUpdate {
   ts: number;
 }
 
+interface UploadCompleteUpdate {
+  ts: number;  // 신규 미디어 추가 — payload 없이 ts 신호만 (구독측이 재로드)
+}
+
 interface MediaUpdatesStore {
   lastEmotionUpdate: EmotionUpdate | null;
   setEmotionUpdate: (mediaId: string, emotion: string, intensity: number) => void;
@@ -33,6 +37,8 @@ interface MediaUpdatesStore {
   setBookmarkUpdate: (mediaId: string, isBookmarked: boolean) => void;
   lastDeleteUpdate: DeleteUpdate | null;
   setDeleteUpdate: (mediaId: string) => void;
+  lastUploadComplete: UploadCompleteUpdate | null;
+  setUploadComplete: () => void;
 }
 
 export const useMediaUpdatesStore = create<MediaUpdatesStore>((set) => ({
@@ -50,6 +56,11 @@ export const useMediaUpdatesStore = create<MediaUpdatesStore>((set) => ({
   setDeleteUpdate: (mediaId) =>
     set({
       lastDeleteUpdate: { mediaId, ts: Date.now() },
+    }),
+  lastUploadComplete: null,
+  setUploadComplete: () =>
+    set({
+      lastUploadComplete: { ts: Date.now() },
     }),
 }));
 

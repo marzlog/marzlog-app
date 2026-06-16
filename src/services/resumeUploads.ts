@@ -28,6 +28,7 @@ import { captureError } from './../utils/sentry';
 import { withRetry, isTransientUploadError } from '../utils/retry';
 import { UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS } from '../constants/upload';
 import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
+import { useMediaUpdatesStore } from '../store/mediaUpdatesStore';
 import * as uploadQueue from './uploadQueue';
 
 const QUEUE_DISABLED = Platform.OS === 'web';
@@ -135,6 +136,7 @@ async function resumeGroup(job: uploadQueue.QueueJob): Promise<void> {
     taken_at: job.takenAt,
     ...job.metadata,
   });
+  useMediaUpdatesStore.getState().setUploadComplete();
   await safeQueue(() => uploadQueue.markDone(job.jobId));
 }
 
@@ -147,6 +149,7 @@ async function resumeAdd(job: uploadQueue.QueueJob): Promise<void> {
   const uploadedItems = await collectGroupItems(job);
   if (uploadedItems.length > 0) {
     await addImagesToGroup(job.groupId, { items: uploadedItems });
+    useMediaUpdatesStore.getState().setUploadComplete();
   }
   await safeQueue(() => uploadQueue.markDone(job.jobId));
 }
@@ -160,6 +163,7 @@ async function resumeSingle(job: uploadQueue.QueueJob): Promise<void> {
     if (meta) {
       await withRetry(() => updateMedia(mediaId, meta), UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS);
     }
+    useMediaUpdatesStore.getState().setUploadComplete();
     await safeQueue(() => uploadQueue.markDone(job.jobId));
     return;
   }
@@ -187,6 +191,7 @@ async function resumeSingle(job: uploadQueue.QueueJob): Promise<void> {
     if (meta) {
       await withRetry(() => updateMedia(mediaId, meta), UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS);
     }
+    useMediaUpdatesStore.getState().setUploadComplete();
   }
   await safeQueue(() => uploadQueue.markDone(job.jobId));
 }

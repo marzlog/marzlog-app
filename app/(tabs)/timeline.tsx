@@ -430,6 +430,14 @@ export default function TimelineScreen() {
     setTotal((t) => Math.max(0, t - 1));
   }, [lastDeleteUpdate]);
 
+  // B-DN: 큐 업로드 완료 broadcast 구독 → 무음 재로드 (신규 카드는 in-place patch 불가)
+  const lastUploadComplete = useMediaUpdatesStore(s => s.lastUploadComplete);
+  useEffect(() => {
+    if (!lastUploadComplete) return;
+    loadTimeline(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastUploadComplete]);
+
   // 북마크 토글 핸들러 (텍스트 카드의 북마크 아이콘 클릭)
   const handleBookmarkToggle = useCallback(async (mediaId: string, currentValue: boolean) => {
     const next = !currentValue;
