@@ -25,7 +25,7 @@ import {
 import { updateMedia } from '../api/media';
 import type { SelectedImage, GroupUploadItem } from '../types/upload';
 import { captureError } from './../utils/sentry';
-import { withRetry } from '../utils/retry';
+import { withRetry, isTransientUploadError } from '../utils/retry';
 import { UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS } from '../constants/upload';
 import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
 import * as uploadQueue from './uploadQueue';
@@ -217,12 +217,18 @@ export async function resumeUploads(userId: string): Promise<void> {
         await resumeSingle(job);
       }
     } catch (e) {
-      // 재개 중 401(refresh 만료)/PRESIGNED_EXPIRED 등 — markFailed로 보존, 크래시 금지
       captureError(e instanceof Error ? e : new Error(String(e)), {
         context: 'resumeUploads.job',
         jobId: job.jobId,
       });
-      await safeQueue(() => uploadQueue.markFailed(job.jobId, job.attempts + 1));
+      if (isTransientUploadError(e)) {
+        // 네트워크성/일시 실패 — attempts 소모 안 함.
+        // markFailed 미호출 → state/attempts 불변 → 다음 온라인 재개에서 재시도.
+        // (대응1 gating이 "온라인일 때만 재개"를 보장하므로, 도중 끊김만 여기 해당)
+      } else {
+        // 영구성 실패만 attempts 누적(MAX_RESUME_ATTEMPTS 도달 시 자동재시도 중단·보존)
+        await safeQueue(() => uploadQueue.markFailed(job.jobId, job.attempts + 1));
+      }
     }
   }
 }

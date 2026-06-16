@@ -29,3 +29,18 @@ export async function withRetry<T>(
   }
   throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
 }
+
+/** 네트워크성/일시적 업로드 실패 판별 — attempts 소모 면제 대상.
+ *  에러는 전부 new Error(문자열) 형태라 message 매칭으로 분류(구조화 code 없음). */
+export function isTransientUploadError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg === 'UPLOAD_TIMEOUT' ||
+    msg === 'PRESIGNED_EXPIRED' ||
+    msg.includes('Network error') ||   // S3 xhr 끊김('Network error during S3 upload')
+    msg.includes('Network Error') ||   // axios 네트워크
+    msg.includes('ECONNABORTED') ||
+    msg.includes('ERR_NETWORK') ||
+    msg.includes('timeout')
+  );
+}
