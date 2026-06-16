@@ -106,7 +106,8 @@
           }
         },
         "ios": {
-          "deploymentTarget": "15.5"
+          "deploymentTarget": "15.5",
+          "useModularHeaders": true
         }
       }],
       ["@sentry/react-native/expo", {
