@@ -107,7 +107,10 @@
         },
         "ios": {
           "deploymentTarget": "15.5",
-          "useModularHeaders": true
+          "extraPods": [
+            { "name": "GoogleSignIn", "version": "9.1.0" },
+            { "name": "AppCheckCore", "version": "11.2.0" }
+          ]
         }
       }],
       ["@sentry/react-native/expo", {
