@@ -28,6 +28,7 @@ import { useTimelineStore } from '@/src/store/timelineStore';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { useNetworkResume } from '@/src/hooks/useNetworkResume';
 import i18nInstance from '@/src/i18n';
 import { getLocalizedTitle } from '@/src/utils/i18n';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -357,11 +358,15 @@ export default function HomeScreen() {
   }, [lastDeleteUpdate]);
 
   // 전체 타임라인 로드 (초기 20개 + 자동 추가 로드)
+  // 폴링/netinfo/focus 동시 트리거로 인한 중복 GET race 방지용 in-flight 가드.
+  const loadingRef = useRef(false);
   const loadAllItems = useCallback(async () => {
     if (!accessToken) {
       setLoading(false);
       return;
     }
+    if (loadingRef.current) return;
+    loadingRef.current = true;
 
     try {
       setError(null);
@@ -377,6 +382,7 @@ export default function HomeScreen() {
       captureError(err instanceof Error ? err : new Error(String(err)), { context: 'Home.loadAllItems' });
       setError(getErrorMessage(err));
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   }, [accessToken]);
@@ -469,6 +475,9 @@ export default function HomeScreen() {
   useEffect(() => {
     loadAllItems();
   }, [loadAllItems]);
+
+  // 네트워크 복구(offline→online) 시 자동 재로드 — "다시 시도" 없이 갱신
+  useNetworkResume(loadAllItems);
 
   // 선택된 날짜 변경 시 스토어에도 동기화
   const setSelectedDate = useCallback((date: Date) => {

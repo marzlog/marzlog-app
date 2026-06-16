@@ -26,6 +26,7 @@ import { useAuthStore } from '@/src/store/authStore';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { useNetworkResume } from '@/src/hooks/useNetworkResume';
 import { getLocalizedTitle } from '@/src/utils/i18n';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { useDialog } from '@/src/components/ui/Dialog';
@@ -497,6 +498,9 @@ export default function TimelineScreen() {
   useEffect(() => {
     loadTimeline();
   }, [loadTimeline]);
+
+  // 네트워크 복구(offline→online) 시 무음 자동 재로드 (showLoading=false)
+  useNetworkResume(() => loadTimeline(false));
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
