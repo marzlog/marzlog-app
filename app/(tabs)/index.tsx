@@ -417,9 +417,11 @@ export default function HomeScreen() {
     [allItems],
   );
 
-  // B-DK fix v2(2026-06-18): Dan Abramov useInterval + useIsFocused 패턴.
-  // 옵션 B의 폴링 race(ref stale)를 delay state 변화로 자동 등록·해제하여 회피.
-  useFocusedInterval(loadAllItems, hasPendingAnalysis ? 10000 : null);
+  // B-DK fix v3(2026-06-18): delay 상수로 race 회피.
+  // v2(opt D)에서 delay null→10000 변화 시 useEffect re-trigger 실패 관찰(기기 e2e).
+  // useIsFocused가 화면 비활성 시 자동 cleanup → 백그라운드 부담 0.
+  // 출시 후 P2: race 본질 진단 + hasPendingAnalysis 의존성 복귀 검토.
+  useFocusedInterval(loadAllItems, 10000);
 
   // 선택된 날짜의 타임라인 필터링 (group_dates 기준 - 그룹 내 아무 이미지라도 해당 날짜면 표시)
   useEffect(() => {
