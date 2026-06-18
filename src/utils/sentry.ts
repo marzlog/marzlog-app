@@ -39,3 +39,8 @@ export const captureError = (
 
   Sentry.captureException(error, { extra: context });
 };
+
+// [B-DK] 진단용 info 레벨 메시지. captureError와 동일하게 wrapper 경유(옵션 A) — 화면에서 raw Sentry import 회피.
+export const captureMessage = (message: string): void => {
+  Sentry.captureMessage(message, 'info');
+};

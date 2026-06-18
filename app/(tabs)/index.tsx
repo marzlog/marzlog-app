@@ -36,7 +36,7 @@ import { useDialog } from '@/src/components/ui/Dialog';
 import notificationsApi from '@/src/api/notifications';
 import announcementsApi from '@/src/api/announcements';
 import { getErrorMessage } from '@/src/utils/errorMessages';
-import { captureError } from '@/src/utils/sentry';
+import { captureError, captureMessage } from '@/src/utils/sentry';
 import ErrorView from '@/src/components/common/ErrorView';
 import { cardsApi } from '@/src/api/cards';
 import { getActivityIcon } from '@/src/utils/cardUtils';
@@ -328,6 +328,16 @@ export default function HomeScreen() {
 
   const PAGE_SIZE = 20;
 
+  // [B-DK] 진단: 홈 마운트/언마운트 추적 (iOS 폴링 미등록 가설 검증용)
+  useEffect(() => {
+    captureMessage('[B-DK] Home mounted');
+    console.log('[B-DK] Home mounted');
+    return () => {
+      captureMessage('[B-DK] Home unmounted');
+      console.log('[B-DK] Home unmounted');
+    };
+  }, []);
+
   // 미디어 emotion 변경 broadcast 구독 → allItems in-place patch
   const lastEmotionUpdate = useMediaUpdatesStore(s => s.lastEmotionUpdate);
   useEffect(() => {
@@ -381,6 +391,15 @@ export default function HomeScreen() {
       setError(null);
       const response = await timelineApi.getTimeline(PAGE_SIZE, 0, false);
       setAllItems(response.items);
+      const pendingCount = response.items.filter(
+        (i: any) => i.analysis_status === 'queued' || i.analysis_status === 'running'
+      ).length;
+      const sample = response.items.slice(0, 3).map(
+        (i: any) => ({ id: String(i.id).slice(0, 8), s: i.analysis_status })
+      );
+      const msg = `[B-DK] loadAllItems: total=${response.items.length} pending=${pendingCount} sample=${JSON.stringify(sample)}`;
+      captureMessage(msg);
+      console.log(msg);
       setHasMore(response.has_more);
 
       // 추가 페이지가 있으면 백그라운드로 나머지 로드
@@ -417,10 +436,18 @@ export default function HomeScreen() {
   );
   useEffect(() => {
     if (!hasPendingAnalysis) return;
+    captureMessage('[B-DK] setInterval REGISTERED');
+    console.log('[B-DK] setInterval REGISTERED');
     const id = setInterval(() => {
+      captureMessage('[B-DK] polling tick');
+      console.log('[B-DK] polling tick');
       loadAllItems();
     }, 10000);
-    return () => clearInterval(id);
+    return () => {
+      captureMessage('[B-DK] setInterval CLEARED');
+      console.log('[B-DK] setInterval CLEARED');
+      clearInterval(id);
+    };
   }, [hasPendingAnalysis, loadAllItems]);
 
   // 선택된 날짜의 타임라인 필터링 (group_dates 기준 - 그룹 내 아무 이미지라도 해당 날짜면 표시)
@@ -498,6 +525,9 @@ export default function HomeScreen() {
   const isFirstFocus = useRef(true);
   useFocusEffect(
     useCallback(() => {
+      const msg = `[B-DK] useFocusEffect fire isFirst=${isFirstFocus.current}`;
+      captureMessage(msg);
+      console.log(msg);
       // 첫 포커스는 초기 로드에서 처리하므로 스킵
       if (isFirstFocus.current) {
         isFirstFocus.current = false;
