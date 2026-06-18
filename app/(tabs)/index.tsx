@@ -37,6 +37,7 @@ import notificationsApi from '@/src/api/notifications';
 import announcementsApi from '@/src/api/announcements';
 import { getErrorMessage } from '@/src/utils/errorMessages';
 import { captureError } from '@/src/utils/sentry';
+import * as Sentry from '@sentry/react-native';
 import ErrorView from '@/src/components/common/ErrorView';
 import { cardsApi } from '@/src/api/cards';
 import { getActivityIcon } from '@/src/utils/cardUtils';
@@ -509,9 +510,18 @@ export default function HomeScreen() {
         isFirstFocus.current = false;
       }
 
+      // [B-DK-MINI] 진단(2026-06-18): setInterval 등록 시점 ref 값 측정
+      // 주의: isFirstFocus는 가드 평가 후 false일 수 있음. ref 값이 진단의 핵심.
+      const refValue = hasPendingAnalysisRef.current;
+      const firstValue = isFirstFocus.current;
+      const dumpMsg = `[B-DK-MINI] useFocusEffect check: ref=${refValue} isFirst=${firstValue}`;
+      Sentry.captureMessage(dumpMsg, 'info');
+      console.log(dumpMsg);
+
       // pending 있을 때만 폴링 시작 (10초 간격)
       let intervalId: ReturnType<typeof setInterval> | null = null;
       if (hasPendingAnalysisRef.current) {
+        Sentry.captureMessage('[B-DK-MINI] setInterval REGISTERED', 'info');
         intervalId = setInterval(() => {
           if (hasPendingAnalysisRef.current) {
             loadAllItems();
@@ -520,6 +530,8 @@ export default function HomeScreen() {
             intervalId = null;
           }
         }, 10000);
+      } else {
+        Sentry.captureMessage('[B-DK-MINI] setInterval SKIPPED (ref=false)', 'info');
       }
 
       return () => {
