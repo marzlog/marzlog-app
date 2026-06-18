@@ -29,6 +29,7 @@ import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useNetworkResume } from '@/src/hooks/useNetworkResume';
+import { useFocusedInterval } from '@/src/hooks/useFocusedInterval';
 import i18nInstance from '@/src/i18n';
 import { getLocalizedTitle } from '@/src/utils/i18n';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -37,7 +38,6 @@ import notificationsApi from '@/src/api/notifications';
 import announcementsApi from '@/src/api/announcements';
 import { getErrorMessage } from '@/src/utils/errorMessages';
 import { captureError } from '@/src/utils/sentry';
-import * as Sentry from '@sentry/react-native';
 import ErrorView from '@/src/components/common/ErrorView';
 import { cardsApi } from '@/src/api/cards';
 import { getActivityIcon } from '@/src/utils/cardUtils';
@@ -417,11 +417,9 @@ export default function HomeScreen() {
     [allItems],
   );
 
-  // B-DK fix(2026-06-18): setInterval 콜백 안에서 stale closure 회피용 ref
-  const hasPendingAnalysisRef = useRef(hasPendingAnalysis);
-  useEffect(() => {
-    hasPendingAnalysisRef.current = hasPendingAnalysis;
-  }, [hasPendingAnalysis]);
+  // B-DK fix v2(2026-06-18): Dan Abramov useInterval + useIsFocused 패턴.
+  // 옵션 B의 폴링 race(ref stale)를 delay state 변화로 자동 등록·해제하여 회피.
+  useFocusedInterval(loadAllItems, hasPendingAnalysis ? 10000 : null);
 
   // 선택된 날짜의 타임라인 필터링 (group_dates 기준 - 그룹 내 아무 이미지라도 해당 날짜면 표시)
   useEffect(() => {
@@ -498,8 +496,7 @@ export default function HomeScreen() {
   const isFirstFocus = useRef(true);
   useFocusEffect(
     useCallback(() => {
-      // B-DK fix(2026-06-18): focused 상태일 때만 폴링.
-      // 매 focus마다 polling 재설정 → iOS router.replace 메모리 누수에 무관하게 동작.
+      // 상세에서 복귀 시 마지막 본 날짜 복원 + 데이터 재로드 (첫 focus는 초기 useEffect가 담당).
       if (!isFirstFocus.current) {
         const restoredDate = restoreFromLastViewed();
         if (restoredDate) {
@@ -509,37 +506,7 @@ export default function HomeScreen() {
       } else {
         isFirstFocus.current = false;
       }
-
-      // [B-DK-MINI] 진단(2026-06-18): setInterval 등록 시점 ref 값 측정
-      // 주의: isFirstFocus는 가드 평가 후 false일 수 있음. ref 값이 진단의 핵심.
-      const refValue = hasPendingAnalysisRef.current;
-      const firstValue = isFirstFocus.current;
-      const dumpMsg = `[B-DK-MINI] useFocusEffect check: ref=${refValue} isFirst=${firstValue}`;
-      Sentry.captureMessage(dumpMsg, 'info');
-      console.log(dumpMsg);
-
-      // pending 있을 때만 폴링 시작 (10초 간격)
-      let intervalId: ReturnType<typeof setInterval> | null = null;
-      if (hasPendingAnalysisRef.current) {
-        Sentry.captureMessage('[B-DK-MINI] setInterval REGISTERED', 'info');
-        intervalId = setInterval(() => {
-          if (hasPendingAnalysisRef.current) {
-            loadAllItems();
-          } else if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
-          }
-        }, 10000);
-      } else {
-        Sentry.captureMessage('[B-DK-MINI] setInterval SKIPPED (ref=false)', 'info');
-      }
-
-      return () => {
-        if (intervalId) {
-          clearInterval(intervalId);
-          intervalId = null;
-        }
-      };
+      // 폴링은 위 useFocusedInterval이 처리 (delay state 기반, race-free)
     }, [loadAllItems, restoreFromLastViewed])
   );
 
