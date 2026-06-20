@@ -283,7 +283,6 @@ export default function HomeScreen() {
   const [selectedDate, setSelectedDateLocal] = useState(() => getSelectedDate());
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [allItems, setAllItems] = useState<TimelineItem[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -397,6 +396,12 @@ export default function HomeScreen() {
     }
   }, [accessToken]);
 
+  // 폴링 타이머가 deps 재생성에 영향받지 않도록 loadAllItems를 ref로 최신 유지.
+  const loadAllItemsRef = useRef(loadAllItems);
+  useEffect(() => {
+    loadAllItemsRef.current = loadAllItems;
+  }, [loadAllItems]);
+
   // 나머지 아이템 백그라운드 로드 (캘린더 점 표시용)
   const loadRemainingItems = useCallback(async (loaded: number, total: number) => {
     try {
@@ -418,61 +423,49 @@ export default function HomeScreen() {
   );
 
   // 선택된 날짜의 타임라인 필터링 (group_dates 기준 - 그룹 내 아무 이미지라도 해당 날짜면 표시)
-  useEffect(() => {
+  // 파생값이므로 useMemo. (B-DK 근본원인: 과거 useEffect+setState 구조에 t가 deps로 들어가
+  //  t가 매 렌더 새 함수 → setState→리렌더→재실행 무한루프로 React 커밋 throttle → 화면 잔류.
+  //  useMemo + t 의존 제거(language로 충분)로 해소.)
+  const schedules = useMemo<ScheduleItem[]>(() => {
     const selectedDateStr = formatDateKey(selectedDate);
-
     const filtered = allItems.filter((item) => {
-      // group_dates는 서버에서 KST 기준 'YYYY-MM-DD' 형식으로 반환
       const groupDates = item.media?.group_dates;
       if (groupDates && groupDates.length > 0) {
-        const isMatch = groupDates.some((dateStr) => {
-          if (!dateStr) return false;
-          return dateStr.substring(0, 10) === selectedDateStr;
-        });
-        return isMatch;
+        return groupDates.some((dateStr) => dateStr && dateStr.substring(0, 10) === selectedDateStr);
       }
-
-      // fallback: taken_at 또는 created_at
       const takenAt = new Date(item.media?.taken_at || item.created_at);
       return isSameDay(takenAt, selectedDate);
     });
-
     const mapped: ScheduleItem[] = filtered.map((item) => {
-      // analysis_status 기반 제목 분기
       const status = item.analysis_status;
       const localizedTitle = getLocalizedTitle(item.title, item.title_en, language);
       let displayTitle = localizedTitle || item.caption_ko || item.caption;
       if (!displayTitle) {
-        if (status === 'queued' || status === 'running') {
-          displayTitle = 'AI 분석 중...';
-        } else if (status === 'failed') {
-          displayTitle = '분석 실패';
-        } else {
-          displayTitle = t('common.noTitle');
-        }
+        if (status === 'queued' || status === 'running') displayTitle = 'AI 분석 중...';
+        else if (status === 'failed') displayTitle = '분석 실패';
+        else displayTitle = t('common.noTitle');
       }
       return {
-      id: item.id,
-      title: displayTitle,
-      location: undefined,
-      time: formatTime(item.media?.taken_at || item.created_at),
-      imageUrl: item.media?.thumbnail_url || item.media?.download_url || '',
-      mediaId: item.media_id,
-      groupId: item.media?.group_id || undefined,
-      groupCount: item.media?.group_count || undefined,
-      emotion: item.media?.emotion || null,
-      takenAt: item.created_at || item.media?.taken_at,
-    };
+        id: item.id,
+        title: displayTitle,
+        location: undefined,
+        time: formatTime(item.media?.taken_at || item.created_at),
+        imageUrl: item.media?.thumbnail_url || item.media?.download_url || '',
+        mediaId: item.media_id,
+        groupId: item.media?.group_id || undefined,
+        groupCount: item.media?.group_count || undefined,
+        emotion: item.media?.emotion || null,
+        takenAt: item.created_at || item.media?.taken_at,
+      };
     });
-
     mapped.sort((a, b) => {
       const ta = a.takenAt ? new Date(a.takenAt).getTime() : 0;
       const tb = b.takenAt ? new Date(b.takenAt).getTime() : 0;
       return tb - ta;
     });
-    setSchedules(mapped);
-    setLoading(false);
-  }, [selectedDate, allItems, language, t]);
+    return mapped;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate, allItems, language]);   // ★ t 제거 (language로 충분, t는 무한루프 유발)
 
   // 초기 로드
   useEffect(() => {
@@ -502,15 +495,18 @@ export default function HomeScreen() {
       } else {
         isFirstFocus.current = false;
       }
-      // 폴링: 화면 focus 동안 주기적 재로드, blur/unmount 시 정리.
-      // useIsFocused 대신 useFocusEffect 사용 → react-navigation #7002(빠른 복귀 시
-      // isFocused false 잔류, iOS) 근본 회피. cleanup이 이전 interval 정리 → 중복 누적 없음.
-      const intervalId = setInterval(() => {
-        loadAllItems();
-      }, POLL_INTERVAL_MS);
-      return () => clearInterval(intervalId);
     }, [loadAllItems, restoreFromLastViewed])
   );
+
+  // AI 분석 폴링: deps 무관 단일 setInterval. store 참조 재생성에 영향받지 않음.
+  // (B-DK: 기존엔 useFocusEffect 안에 있어 restoreFromLastViewed 참조 불안정 →
+  //  매 리렌더 cleanup→재등록으로 10초 tick 전 취소되어 iOS 폴링 사망. 분리로 해소.)
+  useEffect(() => {
+    const id = setInterval(() => {
+      loadAllItemsRef.current();
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
