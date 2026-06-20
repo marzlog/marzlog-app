@@ -29,7 +29,6 @@ import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useNetworkResume } from '@/src/hooks/useNetworkResume';
-import { useFocusedInterval } from '@/src/hooks/useFocusedInterval';
 import i18nInstance from '@/src/i18n';
 import { getLocalizedTitle } from '@/src/utils/i18n';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -328,6 +327,7 @@ export default function HomeScreen() {
   }, [allItems]);
 
   const PAGE_SIZE = 20;
+  const POLL_INTERVAL_MS = 10000; // AI 분석 결과 폴링 주기 (B-DK)
 
   // 미디어 emotion 변경 broadcast 구독 → allItems in-place patch
   const lastEmotionUpdate = useMediaUpdatesStore(s => s.lastEmotionUpdate);
@@ -417,12 +417,6 @@ export default function HomeScreen() {
     [allItems],
   );
 
-  // B-DK fix v3(2026-06-18): delay 상수로 race 회피.
-  // v2(opt D)에서 delay null→10000 변화 시 useEffect re-trigger 실패 관찰(기기 e2e).
-  // useIsFocused가 화면 비활성 시 자동 cleanup → 백그라운드 부담 0.
-  // 출시 후 P2: race 본질 진단 + hasPendingAnalysis 의존성 복귀 검토.
-  useFocusedInterval(loadAllItems, 10000);
-
   // 선택된 날짜의 타임라인 필터링 (group_dates 기준 - 그룹 내 아무 이미지라도 해당 날짜면 표시)
   useEffect(() => {
     const selectedDateStr = formatDateKey(selectedDate);
@@ -508,7 +502,13 @@ export default function HomeScreen() {
       } else {
         isFirstFocus.current = false;
       }
-      // 폴링은 위 useFocusedInterval이 처리 (delay state 기반, race-free)
+      // 폴링: 화면 focus 동안 주기적 재로드, blur/unmount 시 정리.
+      // useIsFocused 대신 useFocusEffect 사용 → react-navigation #7002(빠른 복귀 시
+      // isFocused false 잔류, iOS) 근본 회피. cleanup이 이전 interval 정리 → 중복 누적 없음.
+      const intervalId = setInterval(() => {
+        loadAllItems();
+      }, POLL_INTERVAL_MS);
+      return () => clearInterval(intervalId);
     }, [loadAllItems, restoreFromLastViewed])
   );
 
