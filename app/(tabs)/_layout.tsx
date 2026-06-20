@@ -94,7 +94,7 @@ const CENTER_TAB_INDEX = 2; // search가 중앙
 function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const systemColorScheme = useColorScheme();
-  const { themeMode } = useSettingsStore();
+  const themeMode = useSettingsStore((s) => s.themeMode);
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
@@ -166,10 +166,14 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   );
 }
 
+// 인라인 함수 금지 (React Navigation: tabBar에 render 중 생성 함수 전달 시 route 리마운트).
+// 모듈 레벨 고정 참조로 리마운트 방지.
+const renderTabBar = (props: BottomTabBarProps) => <CustomTabBar {...props} />;
+
 export default function TabLayout() {
   return (
     <Tabs
-      tabBar={(props) => <CustomTabBar {...props} />}
+      tabBar={renderTabBar}
       screenOptions={{
         headerShown: false,
       }}>
