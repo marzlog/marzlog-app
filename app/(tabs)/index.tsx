@@ -285,6 +285,39 @@ const ScheduleRow = React.memo(function ScheduleRow({ schedule, onPhotoPress, th
   );
 });
 
+// 렌더에 영향 주는 필드만 시그니처화 (embedding/metadata/ocr 제외).
+// id 정렬 후 비교 → 서버 순서 무관 + 감정 뒤바뀜(3차 버그) 방지.
+function itemSignature(item: TimelineItem): string {
+  const m = item.media;
+  return [
+    item.id,
+    item.analysis_status ?? '',
+    item.title ?? '',
+    item.title_en ?? '',
+    item.content ?? '',
+    item.mood ?? '',
+    item.caption ?? '',
+    item.caption_ko ?? '',
+    m?.emotion ?? '',
+    m?.thumbnail_url ?? '',
+    m?.group_count ?? '',
+    (m?.group_dates ?? []).join(','),
+    m?.taken_at ?? '',
+    m?.group_id ?? '',
+  ].join('|');
+}
+
+// 폴링 결과가 기존과 동일하면 setAllItems를 건너뛰기 위한 동등성 비교.
+// 동일하면 prev 참조 유지 → dateEmotions/schedules/hasPendingAnalysis 재생성 차단(캘린더 깜박 방지).
+function itemsEqual(a: TimelineItem[], b: TimelineItem[]): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort((x, y) => x.id.localeCompare(y.id)).map(itemSignature);
+  const sb = [...b].sort((x, y) => x.id.localeCompare(y.id)).map(itemSignature);
+  for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) return false;
+  return true;
+}
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -409,7 +442,7 @@ export default function HomeScreen() {
     try {
       setError(null);
       const response = await timelineApi.getTimeline(PAGE_SIZE, 0, false);
-      setAllItems(response.items);
+      setAllItems(prev => itemsEqual(prev, response.items) ? prev : response.items);
       setHasMore(response.has_more);
 
       // 추가 페이지가 있으면 백그라운드로 나머지 로드
