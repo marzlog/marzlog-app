@@ -67,7 +67,7 @@ interface ScheduleCardProps {
   size?: 'large' | 'compact';
 }
 
-export function ScheduleCard({
+function ScheduleCardBase({
   id,
   title,
   location,
@@ -350,4 +350,5 @@ const styles = StyleSheet.create({
   },
 });
 
+export const ScheduleCard = React.memo(ScheduleCardBase);
 export default ScheduleCard;
