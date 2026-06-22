@@ -431,7 +431,7 @@ export default function HomeScreen() {
   // 전체 타임라인 로드 (초기 20개 + 자동 추가 로드)
   // 폴링/netinfo/focus 동시 트리거로 인한 중복 GET race 방지용 in-flight 가드.
   const loadingRef = useRef(false);
-  const loadAllItems = useCallback(async () => {
+  const loadAllItems = useCallback(async (isPolling = false) => {
     if (!accessToken) {
       setLoading(false);
       return;
@@ -445,8 +445,10 @@ export default function HomeScreen() {
       setAllItems(prev => itemsEqual(prev, response.items) ? prev : response.items);
       setHasMore(response.has_more);
 
-      // 추가 페이지가 있으면 백그라운드로 나머지 로드
-      if (response.has_more) {
+      // 폴링은 첫 페이지만 가드 비교로 갱신. 페이지네이션 append는 초기/명시 로드 시에만.
+      // (분석중 항목은 최신=첫 페이지에 위치하므로 폴링 갱신으로 충분. append 경로는 무가드라
+      //  폴링마다 allItems 참조를 강제 변경 → 캘린더 깜박 재발하므로 폴링에서 스킵. B-DK-CAL)
+      if (!isPolling && response.has_more) {
         loadRemainingItems(response.items.length, response.total);
       }
     } catch (err) {
@@ -565,7 +567,7 @@ export default function HomeScreen() {
   //  매 리렌더 cleanup→재등록으로 10초 tick 전 취소되어 iOS 폴링 사망. 분리로 해소.)
   useEffect(() => {
     const id = setInterval(() => {
-      loadAllItemsRef.current();
+      loadAllItemsRef.current(true);
     }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, []);
