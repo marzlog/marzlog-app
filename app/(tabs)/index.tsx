@@ -318,6 +318,16 @@ function itemsEqual(a: TimelineItem[], b: TimelineItem[]): boolean {
   return true;
 }
 
+// 폴링 첫 페이지(fresh)를 기존 목록에 id 기준 병합. 겹침=fresh로 갱신, 신규=추가, 나머지(21+)=보존.
+// (폴링이 첫20개로 전체 교체하면 21+ 항목이 사라져 캘린더 아이콘이 축소 → 머지로 보존. B-DK-CAL v2)
+function mergeFirstPage(prev: TimelineItem[], fresh: TimelineItem[]): TimelineItem[] {
+  const freshById = new Map(fresh.map(it => [it.id, it]));
+  const merged = prev.map(it => freshById.get(it.id) ?? it);
+  const prevIds = new Set(prev.map(it => it.id));
+  const added = fresh.filter(it => !prevIds.has(it.id));
+  return added.length ? [...added, ...merged] : merged;
+}
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -442,7 +452,16 @@ export default function HomeScreen() {
     try {
       setError(null);
       const response = await timelineApi.getTimeline(PAGE_SIZE, 0, false);
-      setAllItems(prev => itemsEqual(prev, response.items) ? prev : response.items);
+      if (isPolling) {
+        // 폴링: 첫 페이지를 머지(21+ 보존). 변화 없으면 prev 참조 유지 → 깜박 차단.
+        setAllItems(prev => {
+          const next = mergeFirstPage(prev, response.items);
+          return itemsEqual(prev, next) ? prev : next;
+        });
+      } else {
+        // 초기/focus/onRefresh: 직전과 동일하면 유지, 다르면 교체(이후 append로 전체 복원).
+        setAllItems(prev => itemsEqual(prev, response.items) ? prev : response.items);
+      }
       setHasMore(response.has_more);
 
       // 폴링은 첫 페이지만 가드 비교로 갱신. 페이지네이션 append는 초기/명시 로드 시에만.
