@@ -388,6 +388,7 @@ export default function HomeScreen() {
   }, [allItems]);
 
   const PAGE_SIZE = 20;
+  const MAX_TIMELINE_LIMIT = 200; // 백엔드 /timeline limit le=200 상한 (폴링 전체 fetch 캡)
   const POLL_INTERVAL_MS = 10000; // AI 분석 결과 폴링 주기 (B-DK)
 
   // 미디어 emotion 변경 broadcast 구독 → allItems in-place patch
@@ -431,6 +432,8 @@ export default function HomeScreen() {
   // 전체 타임라인 로드 (초기 20개 + 자동 추가 로드)
   // 폴링/netinfo/focus 동시 트리거로 인한 중복 GET race 방지용 in-flight 가드.
   const loadingRef = useRef(false);
+  const knownTotalRef = useRef(0);     // 폴링 전체 fetch용 total 캐시 (B-DK-CAL v3)
+  const hasPendingRef = useRef(false); // 폴링 게이팅용 분석중 플래그 미러 (setInterval deps=[] 유지)
   const loadAllItems = useCallback(async (isPolling = false) => {
     if (!accessToken) {
       setLoading(false);
@@ -441,7 +444,13 @@ export default function HomeScreen() {
 
     try {
       setError(null);
-      const response = await timelineApi.getTimeline(PAGE_SIZE, 0, false);
+      // 폴링은 total 기반 전체 fetch(21+ 보존 AND 분석완료 갱신 동시 충족).
+      // total 미확보(첫 호출) 시 PAGE_SIZE fallback. 변화 없으면 itemsEqual로 prev 유지(깜박 차단).
+      const pollLimit = isPolling && knownTotalRef.current > PAGE_SIZE
+        ? Math.min(knownTotalRef.current, MAX_TIMELINE_LIMIT)
+        : PAGE_SIZE;
+      const response = await timelineApi.getTimeline(pollLimit, 0, false);
+      knownTotalRef.current = response.total;
       setAllItems(prev => itemsEqual(prev, response.items) ? prev : response.items);
       setHasMore(response.has_more);
 
@@ -472,6 +481,7 @@ export default function HomeScreen() {
       const remaining = await timelineApi.getTimeline(total - loaded, loaded, false);
       setAllItems(prev => [...prev, ...remaining.items]);
       setHasMore(false);
+      knownTotalRef.current = total;   // 폴링 전체 fetch limit 갱신 (B-DK-CAL v3)
     } catch (err) {
       captureError(err instanceof Error ? err : new Error(String(err)), { context: 'Home.loadRemainingItems' });
     }
@@ -485,6 +495,9 @@ export default function HomeScreen() {
     ),
     [allItems],
   );
+
+  // 폴링 게이팅용 ref 미러 — setInterval deps=[] 유지(재등록 시 iOS 폴링 사망)를 위해 ref로만 읽음. B-DK-CAL v3
+  useEffect(() => { hasPendingRef.current = hasPendingAnalysis; }, [hasPendingAnalysis]);
 
   // 선택된 날짜의 타임라인 필터링 (group_dates 기준 - 그룹 내 아무 이미지라도 해당 날짜면 표시)
   // 파생값이므로 useMemo. (B-DK 근본원인: 과거 useEffect+setState 구조에 t가 deps로 들어가
@@ -567,6 +580,7 @@ export default function HomeScreen() {
   //  매 리렌더 cleanup→재등록으로 10초 tick 전 취소되어 iOS 폴링 사망. 분리로 해소.)
   useEffect(() => {
     const id = setInterval(() => {
+      if (!hasPendingRef.current) return; // 분석중 항목 없으면 폴링 no-op (전체 fetch 비용 절감)
       loadAllItemsRef.current(true);
     }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
