@@ -37,6 +37,7 @@ import notificationsApi from '@/src/api/notifications';
 import announcementsApi from '@/src/api/announcements';
 import { getErrorMessage } from '@/src/utils/errorMessages';
 import { captureError } from '@/src/utils/sentry';
+import * as Sentry from '@sentry/react-native'; // B-DK-CAL 진단용 (revert 예정)
 import ErrorView from '@/src/components/common/ErrorView';
 import { cardsApi } from '@/src/api/cards';
 import { getActivityIcon } from '@/src/utils/cardUtils';
@@ -285,6 +286,9 @@ const ScheduleRow = React.memo(function ScheduleRow({ schedule, onPhotoPress, th
   );
 });
 
+// B-DK-CAL 진단용 throttle (revert 예정): CAL-EMO 폴링당 1회만 전송.
+let __lastEmoLog = 0;
+
 // 렌더에 영향 주는 필드만 시그니처화 (embedding/metadata/ocr 제외).
 // id 정렬 후 비교 → 서버 순서 무관 + 감정 뒤바뀜(3차 버그) 방지.
 function itemSignature(item: TimelineItem): string {
@@ -314,7 +318,10 @@ function itemsEqual(a: TimelineItem[], b: TimelineItem[]): boolean {
   if (a.length !== b.length) return false;
   const sa = [...a].sort((x, y) => x.id.localeCompare(y.id)).map(itemSignature);
   const sb = [...b].sort((x, y) => x.id.localeCompare(y.id)).map(itemSignature);
-  for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) return false;
+  for (let i = 0; i < sa.length; i++) if (sa[i] !== sb[i]) {
+    Sentry.captureMessage(`[CAL-DIFF] i=${i} a=${sa[i]} b=${sb[i]}`, 'info');
+    return false;
+  }
   return true;
 }
 
@@ -364,6 +371,7 @@ export default function HomeScreen() {
 
   // 날짜별 대표 감정 매핑 (첫 번째 그룹의 감정)
   const dateEmotions = useMemo(() => {
+    if (Date.now() - __lastEmoLog > 9000) { __lastEmoLog = Date.now(); Sentry.captureMessage(`[CAL-EMO] recompute`, 'info'); }
     const map = new Map<string, string>();
     allItems.forEach((item) => {
       const emotion = item.media?.emotion;
@@ -442,7 +450,11 @@ export default function HomeScreen() {
     try {
       setError(null);
       const response = await timelineApi.getTimeline(PAGE_SIZE, 0, false);
-      setAllItems(prev => itemsEqual(prev, response.items) ? prev : response.items);
+      setAllItems(prev => {
+        const same = itemsEqual(prev, response.items);
+        Sentry.captureMessage(`[CAL-GUARD] same=${same} prevLen=${prev.length} nextLen=${response.items.length}`, 'info');
+        return same ? prev : response.items;
+      });
       setHasMore(response.has_more);
 
       // 추가 페이지가 있으면 백그라운드로 나머지 로드

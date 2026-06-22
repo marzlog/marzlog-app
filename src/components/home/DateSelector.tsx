@@ -15,6 +15,10 @@ import { useTranslation } from '@/src/hooks/useTranslation';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { getEmotionIcon } from '@/constants/emotions';
+import * as Sentry from '@sentry/react-native'; // B-DK-CAL 진단용 (revert 예정)
+
+// B-DK-CAL 진단용 throttle (revert 예정): CAL-RENDER 폴링당 1회만 전송.
+let __lastRenderLog = 0;
 
 // Android requires LayoutAnimation flag
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -91,6 +95,7 @@ export function DateSelector({
   onDateSelect,
   dateEmotions = new Map(),
 }: DateSelectorProps) {
+  if (Date.now() - __lastRenderLog > 9000) { __lastRenderLog = Date.now(); Sentry.captureMessage(`[CAL-RENDER]`, 'info'); }
   const { t, language } = useTranslation();
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
