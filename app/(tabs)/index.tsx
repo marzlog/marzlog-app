@@ -18,7 +18,7 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { palette, lightTheme, darkTheme } from '@/src/theme/colors';
+import { palette, lightTheme, darkTheme, Theme } from '@/src/theme/colors';
 import { ScheduleCard, DateSelector } from '@/src/components/home';
 import { Logo } from '@/src/components/common/Logo';
 import timelineApi, { TimelineItem } from '@/src/api/timeline';
@@ -255,6 +255,35 @@ interface ScheduleItem {
   emotion?: string | null;
   takenAt?: string | null;
 }
+
+interface ScheduleRowProps {
+  schedule: ScheduleItem;
+  onPhotoPress: (mediaId: string) => void;
+  theme: Theme;
+  size: 'compact' | 'large';
+}
+
+// schedule 그리드 카드 1개 — onPress를 내부에서 메모이즈해 ScheduleCard(React.memo) 재렌더 차단
+const ScheduleRow = React.memo(function ScheduleRow({ schedule, onPhotoPress, theme, size }: ScheduleRowProps) {
+  const handlePress = useCallback(
+    () => onPhotoPress(schedule.mediaId),
+    [onPhotoPress, schedule.mediaId]
+  );
+  return (
+    <ScheduleCard
+      id={schedule.id}
+      title={schedule.title}
+      location={schedule.location}
+      time={schedule.time}
+      imageUrl={schedule.imageUrl}
+      groupCount={schedule.groupCount}
+      emotion={schedule.emotion}
+      onPress={handlePress}
+      theme={theme}
+      size={size}
+    />
+  );
+});
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -641,9 +670,9 @@ export default function HomeScreen() {
   };
 
   // 사진 상세 화면으로 이동
-  const handlePhotoPress = (mediaId: string) => {
+  const handlePhotoPress = useCallback((mediaId: string) => {
     router.push(`/media/${mediaId}`);
-  };
+  }, [router]);
 
   // dayItem 탭 → 기존 미디어 상세 화면
   const handleDayItemPress = (item: TimelineListItem) => {
@@ -864,15 +893,9 @@ export default function HomeScreen() {
               viewMode === 'grid' ? (
               schedules.map((schedule) => (
                 <View key={schedule.id} style={styles.gridCardWrapper}>
-                  <ScheduleCard
-                    id={schedule.id}
-                    title={schedule.title}
-                    location={schedule.location}
-                    time={schedule.time}
-                    imageUrl={schedule.imageUrl}
-                    groupCount={schedule.groupCount}
-                    emotion={schedule.emotion}
-                    onPress={() => handlePhotoPress(schedule.mediaId)}
+                  <ScheduleRow
+                    schedule={schedule}
+                    onPhotoPress={handlePhotoPress}
                     theme={theme}
                     size="compact"
                   />
