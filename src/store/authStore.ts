@@ -10,8 +10,22 @@ import type { User, AuthState, AuthResponse } from '../types/auth';
 import { extractErrorMessage } from '../utils/errorMessages';
 import { secureStorage as storage, SECURE_KEYS } from '../utils/secureStorage';
 import { useSettingsStore, backendToAiMode } from './settingsStore';
+import { setLanguage as setI18nLanguage } from '../i18n';
 import { registerPushToken, unregisterPushToken } from '../services/pushTokenService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// B-EN-LANG-SYNC: 서버 users.app_lang을 단일 진실로 삼아 로그인/checkAuth 시
+// i18n 표시언어와 settingsStore.language(로컬 persist)를 거기에 맞춘다.
+// app_lang이 NULL이면 skip → _layout 게이트(language-select)가 처리.
+// 서버→로컬 단방향 동기화이므로 서버 push는 하지 않는다(이중 push/루프 방지).
+function syncLanguageFromUser(appLang?: 'ko' | 'en' | null) {
+  if (appLang !== 'ko' && appLang !== 'en') return;
+  setI18nLanguage(appLang);
+  if (useSettingsStore.getState().language !== appLang) {
+    // setLanguage는 로컬 persist만(서버 push 없음) → 서버 값으로 안전하게 수렴
+    useSettingsStore.getState().setLanguage(appLang).catch(() => {});
+  }
+}
 
 interface AuthStore extends AuthState {
   // Actions
@@ -67,6 +81,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isLoading: false,
       });
 
+      syncLanguageFromUser(response.user.app_lang);
       registerPushToken().catch(() => {});
       return response;
     } catch (error: any) {
@@ -102,6 +117,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isLoading: false,
       });
 
+      syncLanguageFromUser(response.user.app_lang);
       registerPushToken().catch(() => {});
       return response;
     } catch (error: any) {
@@ -137,6 +153,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isLoading: false,
       });
 
+      syncLanguageFromUser(response.user.app_lang);
       registerPushToken().catch(() => {});
       return response;
     } catch (error: any) {
@@ -172,6 +189,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isLoading: false,
       });
 
+      syncLanguageFromUser(response.user.app_lang);
       registerPushToken().catch(() => {});
     } catch (error: any) {
       // B-CF: typed errors는 pass-through (UI에서 분기 처리)
@@ -206,6 +224,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isLoading: false,
       });
 
+      syncLanguageFromUser(response.user.app_lang);
       registerPushToken().catch(() => {});
     } catch (error: any) {
       // B-CF: typed errors는 pass-through (UI에서 분기 처리)
@@ -348,6 +367,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         isAuthenticated: true,
         isLoading: false,
       });
+
+      syncLanguageFromUser(user.app_lang);
 
       // 앱 재시작 시 푸시 토큰 재등록
       registerPushToken().catch(() => {});
