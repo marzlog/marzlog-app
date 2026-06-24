@@ -518,8 +518,8 @@ export default function HomeScreen() {
       const localizedTitle = getLocalizedTitle(item.title, item.title_en, language);
       let displayTitle = localizedTitle || item.caption_ko || item.caption;
       if (!displayTitle) {
-        if (status === 'queued' || status === 'running') displayTitle = 'AI 분석 중...';
-        else if (status === 'failed') displayTitle = '분석 실패';
+        if (status === 'queued' || status === 'running') displayTitle = t('home.analyzing');
+        else if (status === 'failed') displayTitle = t('home.analysisFailed');
         else displayTitle = t('common.noTitle');
       }
       return {
@@ -806,7 +806,7 @@ export default function HomeScreen() {
               {formatHeaderDate(selectedDate)}
             </Text>
             <Text style={[styles.headerCount, { color: theme.text.tertiary }]}>
-              총 {schedules.length}건
+              {t('home.totalCount', { count: schedules.length })}
             </Text>
           </View>
 
@@ -851,7 +851,7 @@ export default function HomeScreen() {
               </View>
             ) : dayItems && dayItems.length === 0 ? (
               <View style={styles.emptyState}>
-                <Text style={[styles.emptyText, { color: theme.text.secondary }]}>이 날은 기록이 없어요</Text>
+                <Text style={[styles.emptyText, { color: theme.text.secondary }]}>{t('home.emptyDay')}</Text>
               </View>
             ) : viewMode === 'grid' ? (
               (dayItems ?? []).map((item) => (

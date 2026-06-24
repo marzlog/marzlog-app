@@ -835,7 +835,7 @@ export default function MediaDetailScreen() {
             <View style={styles.aiBadge}>
               <Ionicons name="sparkles" size={12} color="#fff" />
               <Text style={styles.aiBadgeText}>
-                {analysis.ai_reused ? 'AI (재사용)' : 'AI'}
+                {analysis.ai_reused ? t('mediaDetail.aiReused') : t('mediaDetail.aiBadge')}
               </Text>
             </View>
           )}
@@ -878,7 +878,7 @@ export default function MediaDetailScreen() {
             <View style={styles.emotionCardEmpty}>
               <Ionicons name="add-circle-outline" size={28} color={isDark ? '#6B7280' : '#9CA3AF'} />
               <Text style={[styles.emotionPlaceholder, isDark && styles.textSecondaryDark]}>
-                감정을 선택해주세요
+                {t('mediaDetail.selectEmotion')}
               </Text>
             </View>
           )}
@@ -899,7 +899,7 @@ export default function MediaDetailScreen() {
               <View style={styles.aiProviderRow}>
                 <Ionicons name="sparkles" size={12} color={isDark ? '#9CA3AF' : colors.neutral[5]} />
                 <Text style={[styles.aiProviderText, isDark && styles.textTertiaryDark]}>
-                  AI 생성
+                  {t('mediaDetail.aiGenerated')}
                 </Text>
               </View>
             )}
@@ -983,14 +983,14 @@ export default function MediaDetailScreen() {
         {/* 메모 */}
         {media.memo && (
           <View style={[styles.userSection, isDark && styles.sectionBorderDark]}>
-            <Text style={[styles.userSectionLabel, isDark && styles.textSecondaryDark]}>메모</Text>
+            <Text style={[styles.userSectionLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.memo')}</Text>
             <Text style={[styles.memoText, isDark && styles.textLight]}>{media.memo}</Text>
           </View>
         )}
 
         {/* 등록일 */}
         <View style={[styles.userSection, isDark && styles.sectionBorderDark]}>
-          <Text style={[styles.userSectionLabel, isDark && styles.textSecondaryDark]}>등록일</Text>
+          <Text style={[styles.userSectionLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.registeredDate')}</Text>
           <Text style={[styles.dateText, isDark && styles.textSecondaryDark]}>
             {formatDateTime(media.created_at)}
           </Text>
@@ -1258,7 +1258,7 @@ export default function MediaDetailScreen() {
                     style={[styles.openMapButton, isDark && styles.openMapButtonDark]}
                     onPress={() => openMapWithGPS(analysis.exif!.gps!.latitude, analysis.exif!.gps!.longitude)}
                   >
-                    <Text style={styles.openMapButtonText}>{'\uD83D\uDCCD'} 지도에서 보기</Text>
+                    <Text style={styles.openMapButtonText}>{'\uD83D\uDCCD'} {t('mediaDetail.openInMap')}</Text>
                   </TouchableOpacity>
                 )}
               </>
@@ -1282,7 +1282,7 @@ export default function MediaDetailScreen() {
           <View style={styles.section}>
             <View style={[styles.pendingBox, isDark && styles.boxDark]}>
               <Ionicons name="hourglass-outline" size={24} color={isDark ? '#9CA3AF' : colors.neutral[5]} />
-              <Text style={[styles.pendingText, isDark && styles.textSecondaryDark]}>AI 분석 대기 중...</Text>
+              <Text style={[styles.pendingText, isDark && styles.textSecondaryDark]}>{t('mediaDetail.analysisPending')}</Text>
             </View>
           </View>
         )}
@@ -1295,7 +1295,7 @@ export default function MediaDetailScreen() {
       {/* Confirm Button - Fixed at bottom */}
       <View style={[styles.bottomContainer, isDark && styles.bottomContainerDark, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm}>
-          <Text style={styles.confirmButtonText}>확인</Text>
+          <Text style={styles.confirmButtonText}>{t('common.confirm')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -1310,7 +1310,7 @@ export default function MediaDetailScreen() {
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
               <Text style={[styles.modalTitle, isDark && styles.textLight]}>{t('mediaDetail.diaryEdit')}</Text>
-              <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>제목</Text>
+              <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.titleLabel')}</Text>
               <TextInput
                 style={[styles.textInput, isDark && styles.textInputDark]}
                 value={editTitle}
@@ -1319,7 +1319,7 @@ export default function MediaDetailScreen() {
                 placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                 maxLength={50}
               />
-              <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>내용</Text>
+              <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.contentLabel')}</Text>
               <TextInput
                 style={[styles.textInput, styles.textArea, isDark && styles.textInputDark]}
                 value={editContent}
@@ -1363,7 +1363,7 @@ export default function MediaDetailScreen() {
             <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
               <View style={[styles.modalContent, isDark && styles.modalContentDark]}>
                 <Text style={[styles.modalTitle, isDark && styles.textLight]}>{t('mediaDetail.diaryEdit')}</Text>
-                <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>제목</Text>
+                <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.titleLabel')}</Text>
                 <TextInput
                   style={[styles.textInput, isDark && styles.textInputDark]}
                   value={editTitle}
@@ -1372,7 +1372,7 @@ export default function MediaDetailScreen() {
                   placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
                   maxLength={50}
                 />
-                <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>내용</Text>
+                <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.contentLabel')}</Text>
                 <TextInput
                   style={[styles.textInput, styles.textArea, isDark && styles.textInputDark]}
                   value={editContent}
