@@ -1,7 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack, router } from 'expo-router';
+import { Stack, router, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
@@ -56,6 +56,7 @@ export default function RootLayout() {
   });
 
   const { isAuthenticated, checkAuth } = useAuthStore();
+  const pathname = usePathname();
   const { loadSettings } = useSettingsStore();
   const { isLocked, isEnabled: appLockEnabled, initialize: initAppLock, lock: lockApp } = useAppLockStore();
   const [initialReady, setInitialReady] = useState(false);
@@ -259,9 +260,12 @@ export default function RootLayout() {
     if (!initialReady || !loaded || onboardingCompleted === null) return;
 
     if (isAuthenticated) {
-      const { user } = useAuthStore.getState();
-      if (user && (user.app_lang === null || user.app_lang === undefined)) {
-        router.replace('/language-select?from=login');  // 언어 미선택 → 1회 선택
+      const u = useAuthStore.getState().user;
+      if (u && (u.app_lang === null || u.app_lang === undefined)) {
+        // B-EN-GATE(안 A): 이미 language-select면 재replace 금지 → 재진입 루프 차단
+        if (!pathname.startsWith('/language-select')) {
+          router.replace('/language-select?from=login');  // 언어 미선택 → 1회 선택
+        }
       }
       return; // 선택됨 → tabs
     }
