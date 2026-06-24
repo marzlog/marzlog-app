@@ -9,6 +9,7 @@ export interface User {
   has_password?: boolean;
   role: 'user' | 'admin';
   analysis_mode?: 'light' | 'precision';
+  app_lang?: 'ko' | 'en' | null;
   created_at: string;
   updated_at: string;
 }

@@ -454,7 +454,7 @@ export const authApi = {
   /**
    * 사용자 설정 변경
    */
-  async updateSettings(data: { analysis_mode?: string }): Promise<{ status: string; analysis_mode: string }> {
+  async updateSettings(data: { analysis_mode?: string; app_lang?: string }): Promise<{ status: string; analysis_mode: string; app_lang?: string }> {
     const response = await apiClient.patch<{ status: string; analysis_mode: string }>('/auth/me/settings', data);
     return response.data;
   },

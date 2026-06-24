@@ -34,6 +34,7 @@ import { timelineApi, GroupImageItem } from '@/src/api/timeline';
 import { colors } from '@/src/theme';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
+import { useAuthStore } from '@/src/store/authStore';
 import { useTimelineStore } from '@/src/store/timelineStore';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { t } from '@/src/i18n';
@@ -464,6 +465,17 @@ export default function MediaDetailScreen() {
     if (media.group_id && !isCurrentImagePrimary) {
       await alert(t('common.confirm'), t('media.diaryGroupOnly'));
       return;
+    }
+
+    // 재생성 = 현재 app_lang으로 덮어씀. 기존 일기 언어와 다르면 경고.
+    const appLang = useAuthStore.getState().user?.app_lang;
+    if (media?.diary_lang && appLang && media.diary_lang !== appLang) {
+      const ok = await confirm({
+        title: t('media.regenerateLangWarnTitle'),
+        description: t('media.regenerateLangWarnBody'),
+        confirmText: t('common.confirm'),
+      });
+      if (!ok) return;
     }
 
     setIsGeneratingDiary(true);

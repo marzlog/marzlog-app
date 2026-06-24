@@ -601,6 +601,8 @@
     "diaryGroupOnly": "그룹 일기는 대표 사진에서만 생성할 수 있습니다",
     "diaryStarted": "AI가 일기를 생성하고 있습니다.\n10초 후 자동으로 새로고침됩니다",
     "diaryStartedTitle": "일기 생성 시작",
+    "regenerateLangWarnTitle": "일기 언어 변경",
+    "regenerateLangWarnBody": "이 일기를 현재 앱 언어로 다시 생성합니다. 기존 내용은 사라집니다. 계속할까요?",
     "diaryUpdated": "일기가 수정되었습니다",
     "captionUpdated": "사진 설명이 수정되었습니다",
     "emotionUpdated": "감정이 수정되었습니다",

@@ -258,7 +258,13 @@ export default function RootLayout() {
   useEffect(() => {
     if (!initialReady || !loaded || onboardingCompleted === null) return;
 
-    if (isAuthenticated) return; // logged in → show tabs (initialRouteName)
+    if (isAuthenticated) {
+      const { user } = useAuthStore.getState();
+      if (user && (user.app_lang === null || user.app_lang === undefined)) {
+        router.replace('/language-select?from=login');  // 언어 미선택 → 1회 선택
+      }
+      return; // 선택됨 → tabs
+    }
 
     if (!onboardingCompleted) {
       router.replace('/onboarding');

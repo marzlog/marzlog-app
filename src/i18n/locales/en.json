@@ -601,6 +601,8 @@
     "diaryGroupOnly": "Group diary can only be created from the main photo",
     "diaryStarted": "AI is generating a diary.\nIt will auto-refresh in 10 seconds",
     "diaryStartedTitle": "Diary generation started",
+    "regenerateLangWarnTitle": "Change diary language",
+    "regenerateLangWarnBody": "This diary will be regenerated in your current app language. The existing content will be replaced. Continue?",
     "diaryUpdated": "Diary has been updated",
     "captionUpdated": "Photo caption has been updated",
     "emotionUpdated": "Emotion has been updated",

@@ -1,6 +1,8 @@
 import { useCallback } from 'react';
 import i18n, { setLanguage as setI18nLanguage } from '../i18n';
 import { useSettingsStore } from '../store/settingsStore';
+import { authApi } from '../api/auth';
+import { useAuthStore } from '../store/authStore';
 
 /**
  * 다국어 지원 훅
@@ -24,6 +26,11 @@ export function useTranslation() {
   const changeLanguage = useCallback(async (lang: 'ko' | 'en') => {
     setI18nLanguage(lang);
     await setStoreLanguage(lang);
+    // 서버 push (단일 진실 = users.app_lang). 실패해도 UI 언어는 이미 반영됨.
+    authApi.updateSettings({ app_lang: lang }).catch(() => {});
+    // 로컬 user 즉시 갱신 → _layout 게이트 통과
+    const { user, setUser } = useAuthStore.getState();
+    if (user) setUser({ ...user, app_lang: lang });
   }, [setStoreLanguage]);
 
   return {

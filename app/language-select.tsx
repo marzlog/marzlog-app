@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
@@ -18,6 +18,7 @@ export default function LanguageSelectScreen() {
   const { themeMode } = useSettingsStore();
   const { t, language, changeLanguage } = useTranslation();
   const router = useRouter();
+  const { from } = useLocalSearchParams<{ from?: string }>();
   const insets = useSafeAreaInsets();
 
   const [selected, setSelected] = useState<'ko' | 'en'>(language);
@@ -26,9 +27,15 @@ export default function LanguageSelectScreen() {
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    // from=login: app_lang NULL 게이트 경유 → 선택값 반드시 서버 반영 후 tabs로
+    if (from === 'login') {
+      await changeLanguage(selected);   // selected===language여도 app_lang push 보장
+      router.replace('/(tabs)');
+      return;
+    }
     if (selected !== language) {
-      changeLanguage(selected);
+      await changeLanguage(selected);
     }
     router.back();
   };

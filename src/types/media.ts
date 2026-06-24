@@ -67,5 +67,6 @@ export interface MediaDetail {
   intensity?: number | null;
   // AI 일기 생성 필드
   mood?: string | null;
+  diary_lang?: 'ko' | 'en';
   ai_provider?: string | null;
 }
