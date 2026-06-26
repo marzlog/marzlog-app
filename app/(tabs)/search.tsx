@@ -41,7 +41,7 @@ export default function SearchScreen() {
   const { themeMode } = useSettingsStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
 
   const ROTATING_PLACEHOLDERS = [
     t('search.placeholder1'), t('search.placeholder2'), t('search.placeholder3'),
@@ -232,7 +232,13 @@ export default function SearchScreen() {
     <View style={styles.resultCardWrapper}>
       <ScheduleCard
         id={item.id}
-        title={item.title || item.caption_ko || item.caption || t('search.noCaption')}
+        title={
+          item.title
+          || (language === 'ko'
+              ? (item.caption_ko || item.caption)
+              : (item.caption || item.caption_ko))
+          || t('search.noCaption')
+        }
         time={item.score ? `${(item.score * 100).toFixed(0)}%` : ''}
         imageUrl={getImageUrl(item)}
         emotion={item.emotion}

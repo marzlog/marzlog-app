@@ -39,6 +39,15 @@ export function ShareSheet({ visible, onClose, imageUrl, caption, diary, cardVie
   const [loadingMode, setLoadingMode] = useState<ShareMode | null>(null);
 
   const handleShare = useCallback(async (mode: ShareMode) => {
+    // 공유 기능 출시 후 보류 — 세 옵션 모두 "준비 중" 안내 (다운로드는 별개로 정상)
+    // 복구: SHARE_ENABLED 를 true 로 바꾸거나 이 가드 블록을 제거하면 됨.
+    const SHARE_ENABLED: boolean = false;
+    if (!SHARE_ENABLED) {
+      Alert.alert(t('common.comingSoon'), t('common.comingSoonDesc'));
+      onClose();
+      return;
+    }
+
     setLoadingMode(mode);
     try {
       switch (mode) {
