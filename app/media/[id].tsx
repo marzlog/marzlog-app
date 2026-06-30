@@ -46,6 +46,7 @@ import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 import { EMOTIONS, getEmotionByName, getEmotionIcon, getEmotionIllustration, EMOTION_KEY_TO_NAME } from '@/constants/emotions';
 import { ShareSheet } from '@/src/components/media/ShareSheet';
 import { ShareCardView } from '@/src/components/media/ShareCardView';
+import FullscreenImageViewer from '@/src/components/media/FullscreenImageViewer';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IMAGE_SIZE = SCREEN_WIDTH - 40;
@@ -100,6 +101,8 @@ export default function MediaDetailScreen() {
 
   // 공유 관련 상태
   const [showShareSheet, setShowShareSheet] = useState(false);
+  // 전체화면 줌 뷰어 표시 상태
+  const [viewerVisible, setViewerVisible] = useState(false);
   const shareCardRef = useRef<View>(null);
 
   // 이미지 갤러리 저장 상태 (early return 위에 위치 — hooks 순서 보장)
@@ -804,7 +807,11 @@ export default function MediaDetailScreen() {
             style={{ width: CAROUSEL_IMAGE_WIDTH }}
           >
             {displayImages.map((img, index) => (
-              <View key={img.id || index} style={useSingleAspect ? styles.carouselImageContainerAuto : styles.carouselImageContainer}>
+              <Pressable
+                key={img.id || index}
+                style={useSingleAspect ? styles.carouselImageContainerAuto : styles.carouselImageContainer}
+                onPress={() => setViewerVisible(true)}
+              >
                 <Image
                   source={img.download_url || img.thumbnail_url}
                   style={useSingleAspect ? [styles.carouselImageAuto, { aspectRatio: singleAspectRatio }] : styles.carouselImage}
@@ -813,7 +820,7 @@ export default function MediaDetailScreen() {
                   cachePolicy="memory-disk"
                   onLoad={isSingleImage ? handleSingleImageLoad : undefined}
                 />
-              </View>
+              </Pressable>
             ))}
           </ScrollView>
 
@@ -1623,6 +1630,14 @@ export default function MediaDetailScreen() {
         caption={analysis?.caption_ko || analysis?.caption}
         diary={media?.title && media?.content ? { title: media.title, content: media.content } : null}
         cardViewRef={shareCardRef}
+      />
+
+      {/* 전체화면 줌 뷰어 (탭으로 진입, 핀치/더블탭/팬/스와이프) */}
+      <FullscreenImageViewer
+        images={displayImages}
+        initialIndex={currentImageIndex}
+        visible={viewerVisible}
+        onClose={() => setViewerVisible(false)}
       />
     </View>
   );
