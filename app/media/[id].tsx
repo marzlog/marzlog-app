@@ -21,7 +21,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
-import { Image } from 'expo-image';
+import { Image, type ImageLoadEventData } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -51,6 +51,8 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IMAGE_SIZE = SCREEN_WIDTH - 40;
 const CAROUSEL_IMAGE_WIDTH = SCREEN_WIDTH;
 const CAROUSEL_IMAGE_HEIGHT = SCREEN_HEIGHT * 0.45; // 화면 높이의 45%
+// 단일 이미지 비율 자동높이 경로의 세로 상한 (극단 세로사진이 화면을 넘기지 않도록 캡)
+const CAROUSEL_SINGLE_MAX_HEIGHT = SCREEN_HEIGHT * 0.7;
 const isWeb = Platform.OS === 'web';
 
 export default function MediaDetailScreen() {
@@ -107,6 +109,8 @@ export default function MediaDetailScreen() {
   const [groupImages, setGroupImages] = useState<GroupImageItem[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const carouselRef = useRef<ScrollView>(null);
+  // 단일 이미지 비율(w/h) 런타임 취득값(onLoad). exif 비율이 없을 때만 사용.
+  const [singleImageRatio, setSingleImageRatio] = useState<number | null>(null);
 
   // GPS 지역명 상태
   const [locationName, setLocationName] = useState<string | null>(null);
@@ -295,6 +299,23 @@ export default function MediaDetailScreen() {
     : media
       ? [{ id: media.id, download_url: media.download_url, thumbnail_url: media.thumbnail_url || '' }]
       : [];
+
+  // ── 단일 이미지 비율 자동높이 분기 (N장 그룹은 기존 고정 height 유지) ──
+  // 분기 기준: displayImages.length === 1 일 때만 비율 경로. 비율은 exif(1순위)→onLoad(2순위),
+  // 둘 다 없으면 null → 기존 고정 height 폴백(현행 동작 보존).
+  const isSingleImage = displayImages.length === 1;
+  const exifW = analysis?.exif?.width ?? null;
+  const exifH = analysis?.exif?.height ?? null;
+  const exifRatio = exifW && exifH && exifH > 0 ? exifW / exifH : null;
+  const singleAspectRatio = isSingleImage ? exifRatio ?? singleImageRatio : null;
+  const useSingleAspect = singleAspectRatio != null;
+
+  // 단일 이미지 런타임 비율 취득(exif 비율이 없을 때만 의미). expo-image onLoad의 source 치수 사용.
+  const handleSingleImageLoad = (e: ImageLoadEventData) => {
+    const w = e.source?.width;
+    const h = e.source?.height;
+    if (w && h && h > 0) setSingleImageRatio(w / h);
+  };
 
   // 현재 이미지의 감정/강도 (그룹 이미지별 독립)
   const currentImage = groupImages.length > 0 ? groupImages[currentImageIndex] : null;
@@ -772,7 +793,7 @@ export default function MediaDetailScreen() {
         nestedScrollEnabled={true}
       >
         {/* Image Carousel */}
-        <View style={[styles.carouselWrapper, isDark && styles.carouselWrapperDark]}>
+        <View style={[useSingleAspect ? styles.carouselWrapperAuto : styles.carouselWrapper, isDark && styles.carouselWrapperDark]}>
           <ScrollView
             ref={carouselRef}
             horizontal={true}
@@ -783,13 +804,14 @@ export default function MediaDetailScreen() {
             style={{ width: CAROUSEL_IMAGE_WIDTH }}
           >
             {displayImages.map((img, index) => (
-              <View key={img.id || index} style={styles.carouselImageContainer}>
+              <View key={img.id || index} style={useSingleAspect ? styles.carouselImageContainerAuto : styles.carouselImageContainer}>
                 <Image
                   source={img.download_url || img.thumbnail_url}
-                  style={styles.carouselImage}
+                  style={useSingleAspect ? [styles.carouselImageAuto, { aspectRatio: singleAspectRatio }] : styles.carouselImage}
                   contentFit="contain"
                   transition={200}
                   cachePolicy="memory-disk"
+                  onLoad={isSingleImage ? handleSingleImageLoad : undefined}
                 />
               </View>
             ))}
@@ -1723,6 +1745,22 @@ const styles = StyleSheet.create({
   carouselImage: {
     width: CAROUSEL_IMAGE_WIDTH,
     height: CAROUSEL_IMAGE_HEIGHT,
+  },
+  // 단일 이미지 비율 자동높이 경로 (고정 height 제거, width는 SCREEN_WIDTH 유지 — 페이징 산식 보존)
+  carouselWrapperAuto: {
+    width: SCREEN_WIDTH,
+    backgroundColor: colors.neutral[1],
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  carouselImageContainerAuto: {
+    width: SCREEN_WIDTH,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  carouselImageAuto: {
+    width: CAROUSEL_IMAGE_WIDTH,
+    maxHeight: CAROUSEL_SINGLE_MAX_HEIGHT,
   },
   carouselButton: {
     position: 'absolute',
