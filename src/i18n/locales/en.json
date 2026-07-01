@@ -31,6 +31,7 @@
     "next": "Next",
     "done": "Done",
     "or": "or",
+    "notice": "Notice",
     "dateHeader": "{{month}}/{{day}} ({{weekday}})",
     "weekdaysShort": [
       "Sun",
@@ -433,7 +434,22 @@
     "contentLabel": "Content",
     "contentPlaceholder": "Write about your day (optional)",
     "memoToggle": "Add a Memo",
-    "memoPlaceholder": "Write an additional memo..."
+    "memoPlaceholder": "Write an additional memo...",
+    "permissionTitle": "Permission required",
+    "galleryPermissionMessage": "Gallery access is required to select photos.",
+    "cameraPermissionMessage": "Camera access is required to take photos.",
+    "maxSelectionTitle": "Selection limit",
+    "maxSelectionMessage": "You can select up to {{count}} photos at once.",
+    "webCameraUnavailable": "The camera is not available on the web.",
+    "noPhotosToUpload": "There are no photos to upload.",
+    "noNewPhotos": "No new photos to upload. (all duplicates)",
+    "fileTooLarge": "File is too large (max 100MB)",
+    "fileTooLargeNamed": "File is too large: {{filename}}",
+    "completeTitle": "Upload complete",
+    "completeMessage": "{{count}} photo(s) uploaded!",
+    "uploadedMessage": "{{count}} photo(s) uploaded.",
+    "reusedNote": "\n({{count}} reused existing file(s))",
+    "analysisStarted": "\nAI analysis will begin."
   },
   "mediaDetail": {
     "pageTitle": "Photo Detail",

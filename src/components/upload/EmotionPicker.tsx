@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { colors } from '@/src/theme';
-import { EMOTIONS as EMOTION_DATA } from '@/constants/emotions';
+import { EMOTIONS as EMOTION_DATA, emotionLabel } from '@/constants/emotions';
+import { useTranslation } from '@/src/hooks/useTranslation';
 
 interface EmotionPickerProps {
   selectedEmotion: string;
@@ -10,9 +11,10 @@ interface EmotionPickerProps {
 }
 
 export function EmotionPicker({ selectedEmotion, onSelect, isDark = false }: EmotionPickerProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, isDark && styles.titleDark]}>현재 기분은 어떤가요?</Text>
+      <Text style={[styles.title, isDark && styles.titleDark]}>{t('mediaDetail.emotionQuestion')}</Text>
       <View style={styles.grid}>
         {EMOTION_DATA.map((emotion) => {
           const isSelected = selectedEmotion === emotion.nameKo;
@@ -38,7 +40,7 @@ export function EmotionPicker({ selectedEmotion, onSelect, isDark = false }: Emo
                   isSelected && styles.labelSelected,
                 ]}
               >
-                {emotion.nameKo}
+                {emotionLabel(emotion)}
               </Text>
             </TouchableOpacity>
           );

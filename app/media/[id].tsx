@@ -43,7 +43,7 @@ import { captureError } from '@/src/utils/sentry';
 import ErrorView from '@/src/components/common/ErrorView';
 import { AiNotice } from '@/src/components/common/AiNotice';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
-import { EMOTIONS, getEmotionByName, getEmotionIcon, getEmotionIllustration, EMOTION_KEY_TO_NAME } from '@/constants/emotions';
+import { EMOTIONS, getEmotionByName, getEmotionIcon, getEmotionIllustration, EMOTION_KEY_TO_NAME, emotionLabel } from '@/constants/emotions';
 import { ShareSheet } from '@/src/components/media/ShareSheet';
 import { ShareCardView } from '@/src/components/media/ShareCardView';
 import FullscreenImageViewer from '@/src/components/media/FullscreenImageViewer';
@@ -1528,7 +1528,7 @@ export default function MediaDetailScreen() {
                         style={styles.emotionOptionIcon}
                       />
                       <Text style={[styles.emotionOptionName, isDark && styles.textSecondaryDark, isSelected && styles.emotionOptionNameSelected]}>
-                        {emotion.nameKo}
+                        {emotionLabel(emotion)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -1580,7 +1580,7 @@ export default function MediaDetailScreen() {
                           style={styles.emotionOptionIcon}
                         />
                         <Text style={[styles.emotionOptionName, isDark && styles.textSecondaryDark, isSelected && styles.emotionOptionNameSelected]}>
-                          {emotion.nameKo}
+                          {emotionLabel(emotion)}
                         </Text>
                       </TouchableOpacity>
                     );
