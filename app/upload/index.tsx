@@ -383,7 +383,7 @@ export default function UploadScreen() {
       {isLoading && (
         <View style={[styles.loadingOverlay, isDark && styles.loadingOverlayDark]}>
           <ActivityIndicator size="large" color={colors.brand.primary} />
-          <Text style={[styles.loadingText, isDark && styles.textLight]}>데이터 로딩 중...</Text>
+          <Text style={[styles.loadingText, isDark && styles.textLight]}>{t('common.loading')}</Text>
         </View>
       )}
 

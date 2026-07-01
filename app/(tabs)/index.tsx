@@ -815,7 +815,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={[styles.tabButton, viewMode === 'list' && [styles.tabButtonActive, { backgroundColor: isDark ? palette.neutral[700] : '#FFFFFF' }]]}
               onPress={() => setViewMode('list')}
-              accessibilityLabel="나의 기록"
+              accessibilityLabel={t('home.viewListLabel')}
             >
               <Ionicons
                 name="time-outline"
@@ -828,7 +828,7 @@ export default function HomeScreen() {
             <TouchableOpacity
               style={[styles.tabButton, viewMode === 'grid' && [styles.tabButtonActive, { backgroundColor: isDark ? palette.neutral[700] : '#FFFFFF' }]]}
               onPress={() => setViewMode('grid')}
-              accessibilityLabel="썸네일 보기"
+              accessibilityLabel={t('home.viewGridLabel')}
             >
               <Ionicons
                 name="images-outline"

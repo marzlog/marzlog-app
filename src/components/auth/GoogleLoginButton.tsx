@@ -6,6 +6,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
+import { useTranslation } from '@/src/hooks/useTranslation';
 import type { AuthResponse } from '../../types/auth';
 import {
   EmailRecentlyWithdrawnError,
@@ -48,6 +49,7 @@ function dispatchAuthError(
 function WebGoogleButtonInner({ onSuccess, onError, onTypedError, style }: Props) {
   const { loginWithGoogle } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const { t } = useTranslation();
 
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
@@ -71,7 +73,7 @@ function WebGoogleButtonInner({ onSuccess, onError, onTypedError, style }: Props
     return (
       <View style={styles.loading}>
         <ActivityIndicator color="#4285F4" />
-        <Text style={styles.loadingText}>로그인 중...</Text>
+        <Text style={styles.loadingText}>{t('auth.loggingIn')}</Text>
       </View>
     );
   }
@@ -83,7 +85,7 @@ function WebGoogleButtonInner({ onSuccess, onError, onTypedError, style }: Props
       activeOpacity={0.8}
     >
       <Ionicons name="logo-google" size={20} color="#4285F4" />
-      <Text style={styles.googleBtnText}>Google 계정으로 계속하기</Text>
+      <Text style={styles.googleBtnText}>{t('auth.continueWithGoogle')}</Text>
     </TouchableOpacity>
   );
 }
@@ -99,6 +101,7 @@ function WebGoogleButton(props: Props) {
 function NativeGoogleButton({ onSuccess, onError, onTypedError, style }: Props) {
   const { loginWithGoogle } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const { t } = useTranslation();
 
   // expo-auth-session Google OAuth 설정
   const [request, response, promptAsync] = Google.useAuthRequest({
@@ -175,7 +178,7 @@ function NativeGoogleButton({ onSuccess, onError, onTypedError, style }: Props) 
     return (
       <View style={styles.loading}>
         <ActivityIndicator color="#4285F4" />
-        <Text style={styles.loadingText}>로그인 중...</Text>
+        <Text style={styles.loadingText}>{t('auth.loggingIn')}</Text>
       </View>
     );
   }
@@ -187,7 +190,7 @@ function NativeGoogleButton({ onSuccess, onError, onTypedError, style }: Props) 
       disabled={!request}
     >
       <Ionicons name="logo-google" size={20} color="#4285F4" />
-      <Text style={styles.googleBtnText}>Google 계정으로 계속하기</Text>
+      <Text style={styles.googleBtnText}>{t('auth.continueWithGoogle')}</Text>
     </TouchableOpacity>
   );
 }

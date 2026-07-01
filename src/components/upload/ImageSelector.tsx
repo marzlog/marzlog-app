@@ -9,6 +9,7 @@ import {
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme';
+import { useTranslation } from '@/src/hooks/useTranslation';
 import type { UploadItem } from '@/src/hooks/useImageUpload';
 
 // Figma MO_HOM_0102 기준
@@ -35,6 +36,7 @@ export function ImageSelector({
   onEditImage,
   maxImages = 9,
 }: ImageSelectorProps) {
+  const { t } = useTranslation();
   const primaryImage = images[primaryIndex];
   const additionalImages = images.filter((_, i) => i !== primaryIndex);
 
@@ -64,7 +66,7 @@ export function ImageSelector({
       {/* Primary Image Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>대표 이미지</Text>
+          <Text style={styles.sectionTitle}>{t('upload.primaryImageSection')}</Text>
           <TouchableOpacity style={styles.aiButton}>
             <Text style={styles.aiButtonText}>AI</Text>
           </TouchableOpacity>
@@ -101,7 +103,7 @@ export function ImageSelector({
 
       {/* Additional Images Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>추가 이미지</Text>
+        <Text style={styles.sectionTitle}>{t('upload.additionalImageSection')}</Text>
 
         <View style={styles.imageGrid}>
           {/* Show additional images */}

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { colors } from '@/src/theme';
+import { useTranslation } from '@/src/hooks/useTranslation';
 
 interface IntensitySliderProps {
   value: number;
@@ -9,9 +10,10 @@ interface IntensitySliderProps {
 }
 
 export function IntensitySlider({ value, onChange }: IntensitySliderProps) {
+  const { t } = useTranslation();
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>기분의 강도를 선택하세요</Text>
+      <Text style={styles.title}>{t('mediaDetail.intensityLabel')}</Text>
 
       <View style={styles.sliderContainer}>
         <Slider

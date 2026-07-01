@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { login } from '@react-native-kakao/user';
 import { useAuthStore } from '../../store/authStore';
+import { useTranslation } from '@/src/hooks/useTranslation';
 import type { AuthResponse } from '../../types/auth';
 import {
   EmailRecentlyWithdrawnError,
@@ -19,6 +20,7 @@ interface Props {
 
 export default function KakaoLoginButton({ onSuccess, onError, onTypedError, style }: Props) {
   const { loginWithKakao } = useAuthStore();
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
 
   // 카카오 로그인은 네이티브 전용 (웹에서는 미노출)
@@ -73,7 +75,7 @@ export default function KakaoLoginButton({ onSuccess, onError, onTypedError, sty
       {isLoading ? (
         <ActivityIndicator color="rgba(0,0,0,0.85)" size="small" />
       ) : (
-        <Text style={styles.buttonText}>카카오로 계속하기</Text>
+        <Text style={styles.buttonText}>{t('auth.continueWithKakao')}</Text>
       )}
     </TouchableOpacity>
   );
