@@ -88,7 +88,7 @@ export function useImageUpload() {
 
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('권한 필요', '사진 선택을 위해 갤러리 접근 권한이 필요합니다.');
+      Alert.alert(t('upload.permissionTitle'), t('upload.galleryPermissionMessage'));
       return false;
     }
     return true;
@@ -101,7 +101,7 @@ export function useImageUpload() {
 
     const remainingSlots = MAX_SELECTION - items.length;
     if (remainingSlots <= 0) {
-      Alert.alert('최대 선택', `한 번에 최대 ${MAX_SELECTION}장까지 선택할 수 있습니다.`);
+      Alert.alert(t('upload.maxSelectionTitle'), t('upload.maxSelectionMessage', { count: MAX_SELECTION }));
       return;
     }
 
@@ -142,13 +142,13 @@ export function useImageUpload() {
   // 카메라로 촬영
   const takePhoto = useCallback(async (): Promise<UploadItem | undefined> => {
     if (Platform.OS === 'web') {
-      Alert.alert('알림', '웹에서는 카메라를 사용할 수 없습니다.');
+      Alert.alert(t('common.notice'), t('upload.webCameraUnavailable'));
       return;
     }
 
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('권한 필요', '사진 촬영을 위해 카메라 권한이 필요합니다.');
+      Alert.alert(t('upload.permissionTitle'), t('upload.cameraPermissionMessage'));
       return;
     }
 
@@ -209,7 +209,7 @@ export function useImageUpload() {
       : items.filter((i) => i.status === 'idle' || i.status === 'error');
 
     if (pendingItems.length === 0) {
-      Alert.alert('알림', '업로드할 사진이 없습니다.');
+      Alert.alert(t('common.notice'), t('upload.noPhotosToUpload'));
       return [];
     }
 
@@ -240,7 +240,7 @@ export function useImageUpload() {
       if (item.fileSize > MAX_FILE_SIZE) {
         updateItem(item.id, {
           status: 'error',
-          error: '파일이 너무 큽니다 (최대 100MB)',
+          error: t('upload.fileTooLarge'),
         });
         continue;
       }
@@ -340,12 +340,12 @@ export function useImageUpload() {
       const reusedCount = results.filter((r) => r.status === 'reused').length;
       const newCount = results.length - reusedCount;
 
-      let message = `${results.length}장 업로드 완료!`;
+      let message = t('upload.completeMessage', { count: results.length });
       if (reusedCount > 0) {
-        message += `\n(${reusedCount}장은 기존 파일 재사용)`;
+        message += t('upload.reusedNote', { count: reusedCount });
       }
-      message += '\nAI 분석이 시작됩니다.';
-      Alert.alert('업로드 완료', message);
+      message += t('upload.analysisStarted');
+      Alert.alert(t('upload.completeTitle'), message);
     }
 
     return results;
@@ -376,7 +376,7 @@ export function useImageUpload() {
     metadata?: UploadMetadata,
   ): Promise<GroupUploadCompleteResponse | null> => {
     if (directItems.length === 0) {
-      Alert.alert('알림', '업로드할 사진이 없습니다.');
+      Alert.alert(t('common.notice'), t('upload.noPhotosToUpload'));
       return null;
     }
 
@@ -411,7 +411,7 @@ export function useImageUpload() {
 
         // 파일 크기 체크
         if (item.fileSize > MAX_FILE_SIZE) {
-          throw new Error(`파일이 너무 큽니다: ${item.filename}`);
+          throw new Error(t('upload.fileTooLargeNamed', { filename: item.filename }));
         }
 
         updateItem(item.id, { status: 'hashing', progress: 0 });
@@ -499,7 +499,7 @@ export function useImageUpload() {
 
       // 2. 그룹 업로드 완료 API 호출
       if (uploadedItems.length === 0) {
-        Alert.alert('알림', '새로 업로드할 사진이 없습니다. (모두 중복)');
+        Alert.alert(t('common.notice'), t('upload.noNewPhotos'));
         if (jobId) {
           const id = jobId;
           await safeQueue(() => uploadQueue.markDone(id));
@@ -532,13 +532,13 @@ export function useImageUpload() {
         await safeQueue(() => uploadQueue.markDone(id));
       }
 
-      let alertMessage = `${result.total_images}장이 업로드되었습니다.`;
+      let alertMessage = t('upload.uploadedMessage', { count: result.total_images });
       if (duplicateCount > 0) {
-        alertMessage += `\n(${duplicateCount}장은 기존 파일 재사용)`;
+        alertMessage += t('upload.reusedNote', { count: duplicateCount });
       }
-      alertMessage += '\nAI 분석이 시작됩니다.';
+      alertMessage += t('upload.analysisStarted');
 
-      Alert.alert('업로드 완료', alertMessage);
+      Alert.alert(t('upload.completeTitle'), alertMessage);
 
       setIsUploading(false);
       return result;
@@ -604,7 +604,7 @@ export function useImageUpload() {
         const item = itemsToUpload[i];
 
         if (item.fileSize > MAX_FILE_SIZE) {
-          throw new Error(`파일이 너무 큽니다: ${item.filename}`);
+          throw new Error(t('upload.fileTooLargeNamed', { filename: item.filename }));
         }
 
         updateItem(item.id, { status: 'hashing', progress: 0 });

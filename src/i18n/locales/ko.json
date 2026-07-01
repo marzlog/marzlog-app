@@ -31,6 +31,7 @@
     "next": "다음",
     "done": "완료",
     "or": "또는",
+    "notice": "알림",
     "dateHeader": "{{month}}월 {{day}}일 ({{weekday}})",
     "weekdaysShort": [
       "일",
@@ -433,7 +434,22 @@
     "contentLabel": "내용",
     "contentPlaceholder": "오늘의 일상을 기록해보세요 (선택)",
     "memoToggle": "메모 작성하기",
-    "memoPlaceholder": "추가 메모를 작성하세요..."
+    "memoPlaceholder": "추가 메모를 작성하세요...",
+    "permissionTitle": "권한 필요",
+    "galleryPermissionMessage": "사진 선택을 위해 갤러리 접근 권한이 필요합니다.",
+    "cameraPermissionMessage": "사진 촬영을 위해 카메라 권한이 필요합니다.",
+    "maxSelectionTitle": "최대 선택",
+    "maxSelectionMessage": "한 번에 최대 {{count}}장까지 선택할 수 있습니다.",
+    "webCameraUnavailable": "웹에서는 카메라를 사용할 수 없습니다.",
+    "noPhotosToUpload": "업로드할 사진이 없습니다.",
+    "noNewPhotos": "새로 업로드할 사진이 없습니다. (모두 중복)",
+    "fileTooLarge": "파일이 너무 큽니다 (최대 100MB)",
+    "fileTooLargeNamed": "파일이 너무 큽니다: {{filename}}",
+    "completeTitle": "업로드 완료",
+    "completeMessage": "{{count}}장 업로드 완료!",
+    "uploadedMessage": "{{count}}장이 업로드되었습니다.",
+    "reusedNote": "\n({{count}}장은 기존 파일 재사용)",
+    "analysisStarted": "\nAI 분석이 시작됩니다."
   },
   "mediaDetail": {
     "pageTitle": "상세보기",

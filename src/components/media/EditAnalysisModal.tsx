@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme';
-import { EMOTIONS as EMOTION_DATA } from '@/constants/emotions';
+import { EMOTIONS as EMOTION_DATA, emotionLabel } from '@/constants/emotions';
 
 interface EditAnalysisModalProps {
   visible: boolean;
@@ -143,7 +143,7 @@ export function EditAnalysisModal({
                           isSelected && styles.emotionLabelActive,
                         ]}
                       >
-                        {e.nameKo}
+                        {emotionLabel(e)}
                       </Text>
                     </TouchableOpacity>
                   );

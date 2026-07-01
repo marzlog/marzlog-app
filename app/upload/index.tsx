@@ -515,7 +515,7 @@ export default function UploadScreen() {
             pressed && styles.cancelButtonPressed,
           ]}
         >
-          <Text style={[styles.cancelButtonText, isDark && styles.textLight]}>취소</Text>
+          <Text style={[styles.cancelButtonText, isDark && styles.textLight]}>{t('common.cancel')}</Text>
         </Pressable>
 
         {/* 등록/수정 버튼 */}
