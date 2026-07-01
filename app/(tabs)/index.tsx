@@ -801,8 +801,8 @@ export default function HomeScreen() {
         {/* Filter Bar */}
         <View style={styles.filterBar}>
           {/* 날짜 + 총 건수 */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={[styles.headerDate, { color: theme.text.primary }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, minWidth: 0 }}>
+            <Text style={[styles.headerDate, { color: theme.text.primary }]} numberOfLines={1}>
               {formatHeaderDate(selectedDate)}
             </Text>
             <Text style={[styles.headerCount, { color: theme.text.tertiary }]}>
@@ -1139,6 +1139,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
     padding: 2,
+    flexShrink: 0,
   },
   tabButton: {
     paddingHorizontal: 10,

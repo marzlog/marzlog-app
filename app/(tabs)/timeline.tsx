@@ -738,7 +738,7 @@ export default function TimelineScreen() {
               {formatDate(item.date)}
             </Text>
             <Text style={[styles.dateHeaderDay, { color: dayColor }]}>
-              {dayName}요일 · {item.items.length}장
+              {t('timeline.dayHeader', { day: dayName, count: item.items.length })}
             </Text>
           </View>
         </View>
