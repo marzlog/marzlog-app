@@ -14,6 +14,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Zoomable } from '@likashefqet/react-native-image-zoom';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   runOnJS,
   useAnimatedReaction,
@@ -147,6 +148,7 @@ export default function FullscreenImageViewer({
       onRequestClose={onClose}
       statusBarTranslucent
     >
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <View style={styles.container}>
         <StatusBar hidden />
 
@@ -199,6 +201,7 @@ export default function FullscreenImageViewer({
           </View>
         )}
       </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
