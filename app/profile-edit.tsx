@@ -68,7 +68,7 @@ export default function ProfileEditScreen() {
     if (Platform.OS !== 'web') {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        showToast('갤러리 접근 권한이 필요합니다');
+        showToast(t('profileEdit.photoPermission'));
         return;
       }
     }
@@ -86,17 +86,17 @@ export default function ProfileEditScreen() {
 
       const asset = result.assets[0];
       setAvatarUploading(true);
-      setAvatarStatus('업로드 중...');
+      setAvatarStatus(t('upload.uploading'));
 
       const response = await authApi.uploadAvatar(asset.uri, asset.mimeType || 'image/jpeg');
       setUser(response.user);
 
       setAvatarStatus('');
-      showToast('프로필 사진이 변경되었습니다');
+      showToast(t('profileEdit.photoChanged'));
       setTimeout(() => scrollRef.current?.scrollToPosition(0, 0, true), 300);
     } catch (error: any) {
       setAvatarStatus('');
-      showToast('프로필 사진 업로드에 실패했습니다');
+      showToast(t('profileEdit.photoUploadFailed'));
     } finally {
       setAvatarUploading(false);
     }
@@ -120,17 +120,17 @@ export default function ProfileEditScreen() {
 
       const asset = result.assets[0];
       setAvatarUploading(true);
-      setAvatarStatus('업로드 중...');
+      setAvatarStatus(t('upload.uploading'));
 
       const response = await authApi.uploadAvatar(asset.uri, asset.mimeType || 'image/jpeg');
       setUser(response.user);
 
       setAvatarStatus('');
-      showToast('프로필 사진이 변경되었습니다');
+      showToast(t('profileEdit.photoChanged'));
       setTimeout(() => scrollRef.current?.scrollToPosition(0, 0, true), 300);
     } catch (error: any) {
       setAvatarStatus('');
-      showToast('프로필 사진 업로드에 실패했습니다');
+      showToast(t('profileEdit.photoUploadFailed'));
     } finally {
       setAvatarUploading(false);
     }
@@ -139,15 +139,15 @@ export default function ProfileEditScreen() {
   const handleDeleteAvatar = async () => {
     try {
       setAvatarUploading(true);
-      setAvatarStatus('삭제 중...');
+      setAvatarStatus(t('profileEdit.deleting'));
       const response = await authApi.deleteAvatar();
       setUser(response.user);
       setAvatarStatus('');
-      showToast('프로필 사진이 삭제되었습니다');
+      showToast(t('profileEdit.photoDeleted'));
     } catch (error: any) {
-      const detail = error?.response?.data?.detail || error?.message || '알 수 없는 오류';
+      const detail = error?.response?.data?.detail || error?.message || t('error.unknown');
       setAvatarStatus('');
-      showToast('삭제 실패: ' + String(detail));
+      showToast(t('profileEdit.photoDeleteFailed', { detail: String(detail) }));
     } finally {
       setAvatarUploading(false);
     }

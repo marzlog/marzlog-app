@@ -49,6 +49,8 @@
     "logoutConfirm": "정말 로그아웃하시겠습니까?",
     "continueWithGoogle": "Google로 계속",
     "continueWithApple": "Apple로 계속",
+    "continueWithKakao": "카카오로 계속하기",
+    "loggingIn": "로그인 중...",
     "appleSignIn": "Apple로 계속하기",
     "appleNotSupported": "Apple 로그인은 현재 지원되지 않습니다. Google 계정을 이용해주세요.",
     "register": "회원가입",
@@ -337,7 +339,9 @@
     "analyzing": "AI 분석 중...",
     "analysisFailed": "분석 실패",
     "totalCount": "총 {{count}}건",
-    "emptyDay": "이 날은 기록이 없어요"
+    "emptyDay": "이 날은 기록이 없어요",
+    "viewListLabel": "나의 기록",
+    "viewGridLabel": "썸네일 보기"
   },
   "timeline": {
     "title": "일상 모아보기",
@@ -449,7 +453,9 @@
     "completeMessage": "{{count}}장 업로드 완료!",
     "uploadedMessage": "{{count}}장이 업로드되었습니다.",
     "reusedNote": "\n({{count}}장은 기존 파일 재사용)",
-    "analysisStarted": "\nAI 분석이 시작됩니다."
+    "analysisStarted": "\nAI 분석이 시작됩니다.",
+    "primaryImageSection": "대표 이미지",
+    "additionalImageSection": "추가 이미지"
   },
   "mediaDetail": {
     "pageTitle": "상세보기",
@@ -579,7 +585,13 @@
     "chooseFromGallery": "갤러리에서 선택",
     "deletePhoto": "사진 삭제",
     "profilePhoto": "프로필 사진",
-    "cameraPermissionRequired": "카메라 접근 권한이 필요합니다"
+    "cameraPermissionRequired": "카메라 접근 권한이 필요합니다",
+    "photoPermission": "갤러리 접근 권한이 필요합니다",
+    "photoChanged": "프로필 사진이 변경되었습니다",
+    "photoUploadFailed": "프로필 사진 업로드에 실패했습니다",
+    "photoDeleted": "프로필 사진이 삭제되었습니다",
+    "photoDeleteFailed": "삭제 실패: {{detail}}",
+    "deleting": "삭제 중..."
   },
   "onboarding": {
     "skip": "건너뛰기",

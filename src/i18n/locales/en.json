@@ -49,6 +49,8 @@
     "logoutConfirm": "Are you sure you want to logout?",
     "continueWithGoogle": "Continue with Google",
     "continueWithApple": "Continue with Apple",
+    "continueWithKakao": "Continue with Kakao",
+    "loggingIn": "Signing in...",
     "appleSignIn": "Continue with Apple",
     "appleNotSupported": "Apple Sign-In is not available yet. Please use your Google account.",
     "register": "Sign Up",
@@ -337,7 +339,9 @@
     "analyzing": "Analyzing...",
     "analysisFailed": "Analysis failed",
     "totalCount": "{{count}} total",
-    "emptyDay": "No entries on this day"
+    "emptyDay": "No entries on this day",
+    "viewListLabel": "My records",
+    "viewGridLabel": "Thumbnail view"
   },
   "timeline": {
     "title": "Daily Moments",
@@ -449,7 +453,9 @@
     "completeMessage": "{{count}} photo(s) uploaded!",
     "uploadedMessage": "{{count}} photo(s) uploaded.",
     "reusedNote": "\n({{count}} reused existing file(s))",
-    "analysisStarted": "\nAI analysis will begin."
+    "analysisStarted": "\nAI analysis will begin.",
+    "primaryImageSection": "Primary photo",
+    "additionalImageSection": "Additional photos"
   },
   "mediaDetail": {
     "pageTitle": "Photo Detail",
@@ -579,7 +585,13 @@
     "chooseFromGallery": "Choose from Gallery",
     "deletePhoto": "Delete Photo",
     "profilePhoto": "Profile Photo",
-    "cameraPermissionRequired": "Camera permission is required"
+    "cameraPermissionRequired": "Camera permission is required",
+    "photoPermission": "Gallery access is required",
+    "photoChanged": "Profile photo updated",
+    "photoUploadFailed": "Failed to upload profile photo",
+    "photoDeleted": "Profile photo removed",
+    "photoDeleteFailed": "Delete failed: {{detail}}",
+    "deleting": "Deleting..."
   },
   "onboarding": {
     "skip": "Skip",
