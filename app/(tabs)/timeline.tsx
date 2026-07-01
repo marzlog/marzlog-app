@@ -15,7 +15,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { Image } from 'expo-image';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -129,9 +129,9 @@ function ListIcon({ color = palette.neutral[900] }: { color?: string }) {
       <Path d="M8 6H21" stroke={color} strokeWidth={2} strokeLinecap="round" />
       <Path d="M8 12H21" stroke={color} strokeWidth={2} strokeLinecap="round" />
       <Path d="M8 18H21" stroke={color} strokeWidth={2} strokeLinecap="round" />
-      <Path d="M3 6H3.01" stroke={color} strokeWidth={2} strokeLinecap="round" />
-      <Path d="M3 12H3.01" stroke={color} strokeWidth={2} strokeLinecap="round" />
-      <Path d="M3 18H3.01" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Circle cx={3.5} cy={6} r={1.1} fill={color} />
+      <Circle cx={3.5} cy={12} r={1.1} fill={color} />
+      <Circle cx={3.5} cy={18} r={1.1} fill={color} />
     </Svg>
   );
 }
