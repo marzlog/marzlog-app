@@ -879,7 +879,12 @@ export default function TimelineScreen() {
 
         <View style={styles.filterActions}>
           {/* 시간 필터 (주/월/3개월/전체) */}
-          <View style={styles.timeFilterContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.timeFilterScroll}
+            contentContainerStyle={styles.timeFilterScrollContent}
+          >
             {(['week', 'month', '3month', 'all'] as const).map((f) => {
               const label = t(`timeline.filter_${f}` as any);
               const isActive = timeFilter === f;
@@ -901,7 +906,7 @@ export default function TimelineScreen() {
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
 
           {/* 뷰 모드 토글 */}
           <View style={styles.viewModeContainer}>
@@ -1103,10 +1108,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flexShrink: 1,
+    minWidth: 0,
   },
-  timeFilterContainer: {
+  timeFilterScroll: {
+    flexShrink: 1,
+  },
+  timeFilterScrollContent: {
     flexDirection: 'row',
     gap: 8,
+    alignItems: 'center',
   },
   timeFilterButton: {
     paddingHorizontal: 16,
@@ -1121,6 +1132,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flexShrink: 0,
   },
   viewModeButton: {
     padding: 6,
