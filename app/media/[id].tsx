@@ -304,16 +304,19 @@ export default function MediaDetailScreen() {
       : [];
 
   // ── 단일 이미지 비율 자동높이 분기 (N장 그룹은 기존 고정 height 유지) ──
-  // 분기 기준: displayImages.length === 1 일 때만 비율 경로. 비율은 exif(1순위)→onLoad(2순위),
+  // 분기 기준: displayImages.length === 1 일 때만 비율 경로. 비율은 onLoad(1순위)→exif(2순위),
   // 둘 다 없으면 null → 기존 고정 height 폴백(현행 동작 보존).
+  // ⚠️ onLoad 우선 이유: exif width/height는 센서 원본 치수라 EXIF orientation(6/8=90°회전)을
+  //    반영하지 않음(삼성 세로 사진: 4000×3000 + orientation:6 → 실제 표시는 세로). expo-image의
+  //    e.source 치수는 회전 반영 후 값이므로 항상 올바름. exif는 onLoad 도착 전 초기 폴백으로만 사용.
   const isSingleImage = displayImages.length === 1;
   const exifW = analysis?.exif?.width ?? null;
   const exifH = analysis?.exif?.height ?? null;
   const exifRatio = exifW && exifH && exifH > 0 ? exifW / exifH : null;
-  const singleAspectRatio = isSingleImage ? exifRatio ?? singleImageRatio : null;
+  const singleAspectRatio = isSingleImage ? singleImageRatio ?? exifRatio : null;
   const useSingleAspect = singleAspectRatio != null;
 
-  // 단일 이미지 런타임 비율 취득(exif 비율이 없을 때만 의미). expo-image onLoad의 source 치수 사용.
+  // 단일 이미지 런타임 비율 취득(1순위). expo-image onLoad의 source 치수(회전 반영 후)를 사용.
   const handleSingleImageLoad = (e: ImageLoadEventData) => {
     const w = e.source?.width;
     const h = e.source?.height;
