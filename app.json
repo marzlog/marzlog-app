@@ -43,6 +43,7 @@
         "VIBRATE",
         "POST_NOTIFICATIONS"
       ],
+      "blockedPermissions": ["android.permission.SYSTEM_ALERT_WINDOW"],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -73,7 +74,8 @@
         "expo-image-picker",
         {
           "photosPermission": "사진을 업로드하고 추억을 기록하기 위해 사진 라이브러리 접근 권한이 필요합니다.",
-          "cameraPermission": "사진 촬영을 위해 카메라 접근 권한이 필요합니다."
+          "cameraPermission": "사진 촬영을 위해 카메라 접근 권한이 필요합니다.",
+          "microphonePermission": false
         }
       ],
       ["expo-alternate-app-icons", {
@@ -126,7 +128,8 @@
         {
           "photosPermission": "사진을 갤러리에 저장하기 위해 접근 권한이 필요합니다.",
           "savePhotosPermission": "사진을 갤러리에 저장하기 위해 접근 권한이 필요합니다.",
-          "isAccessMediaLocationEnabled": true
+          "isAccessMediaLocationEnabled": true,
+          "granularPermissions": ["photo"]
         }
       ],
       [
