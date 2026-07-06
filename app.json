@@ -14,16 +14,15 @@
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
+    "locales": {
+      "en": "./locales/en.json",
+      "ko": "./locales/ko.json"
+    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.marzlog.app",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "사진 촬영을 위해 카메라 접근 권한이 필요합니다.",
-        "NSPhotoLibraryUsageDescription": "사진을 업로드하고 촬영 위치 등 추억을 기록하기 위해 사진 라이브러리 접근 권한이 필요합니다.",
-        "NSPhotoLibraryAddUsageDescription": "촬영한 사진을 저장하기 위해 사진 라이브러리 쓰기 권한이 필요합니다.",
-        "NSFaceIDUsageDescription": "사진과 일기를 안전하게 보호하기 위해 Face ID를 사용합니다.",
-        "NSLocationWhenInUseUsageDescription": "촬영한 사진에 위치 정보를 기록하기 위해 위치 권한이 필요합니다.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -66,15 +65,15 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "사진과 일기를 안전하게 보호하기 위해 Face ID를 사용합니다."
+          "faceIDPermission": "MarZlog uses Face ID to lock the app and keep your photos and diary entries private. For example, unlock the app with Face ID instead of entering your passcode."
         }
       ],
       "expo-web-browser",
       [
         "expo-image-picker",
         {
-          "photosPermission": "사진을 업로드하고 추억을 기록하기 위해 사진 라이브러리 접근 권한이 필요합니다.",
-          "cameraPermission": "사진 촬영을 위해 카메라 접근 권한이 필요합니다.",
+          "photosPermission": "MarZlog needs access to your photo library so you can select photos to create diary entries. For example, choose today's photos to generate an AI diary.",
+          "cameraPermission": "MarZlog uses the camera so you can take photos and attach them to your diary. For example, capture this moment and add it directly to today's entry.",
           "microphonePermission": false
         }
       ],
@@ -126,8 +125,7 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "사진을 갤러리에 저장하기 위해 접근 권한이 필요합니다.",
-          "savePhotosPermission": "사진을 갤러리에 저장하기 위해 접근 권한이 필요합니다.",
+          "savePhotosPermission": "MarZlog saves photos to your library when you download images from your diary. For example, save a diary photo back to your camera roll.",
           "isAccessMediaLocationEnabled": true,
           "granularPermissions": ["photo"]
         }
@@ -135,7 +133,9 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "촬영한 사진에 위치 정보를 기록하기 위해 위치 권한이 필요합니다."
+          "locationWhenInUsePermission": "MarZlog uses your location to tag where photos were taken in your diary. For example, your entry can show the place where you captured the moment.",
+          "locationAlwaysPermission": false,
+          "locationAlwaysAndWhenInUsePermission": false
         }
       ]
     ],

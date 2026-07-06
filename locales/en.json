@@ -1,0 +1,7 @@
+{
+  "NSCameraUsageDescription": "MarZlog uses the camera so you can take photos and attach them to your diary. For example, capture this moment and add it directly to today's entry.",
+  "NSPhotoLibraryUsageDescription": "MarZlog needs access to your photo library so you can select photos to create diary entries. For example, choose today's photos to generate an AI diary.",
+  "NSPhotoLibraryAddUsageDescription": "MarZlog saves photos to your library when you download images from your diary. For example, save a diary photo back to your camera roll.",
+  "NSFaceIDUsageDescription": "MarZlog uses Face ID to lock the app and keep your photos and diary entries private. For example, unlock the app with Face ID instead of entering your passcode.",
+  "NSLocationWhenInUseUsageDescription": "MarZlog uses your location to tag where photos were taken in your diary. For example, your entry can show the place where you captured the moment."
+}
