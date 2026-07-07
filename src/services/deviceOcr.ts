@@ -14,6 +14,8 @@
  */
 import TextRecognition, { TextRecognitionScript } from '@react-native-ml-kit/text-recognition';
 
+import { reconstructLayout } from './ocrLayout';
+
 const OCR_TEXT_BYTE_LIMIT = 50_000;
 
 export type DeviceOcrResult =
@@ -24,7 +26,13 @@ export type DeviceOcrResult =
 export async function runDeviceOcr(imageUri: string): Promise<DeviceOcrResult> {
   try {
     const result = await TextRecognition.recognize(imageUri, TextRecognitionScript.KOREAN);
-    const rawText = (result?.text ?? '').trim();
+    let rawText: string;
+    try {
+      rawText = reconstructLayout(result);
+    } catch {
+      rawText = result?.text ?? ''; // 재구성 실패 시 기존 동작 유지
+    }
+    rawText = rawText.trim();
 
     if (rawText.length === 0) {
       return { status: 'no_text', text: '' };
