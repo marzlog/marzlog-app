@@ -73,4 +73,63 @@ describe('reconstructLayout', () => {
     };
     expect(reconstructLayout(result)).toBe('A\nB');
   });
+
+  const rot = (x: number, y: number, deg: number): { x: number; y: number } => {
+    const r = (deg * Math.PI) / 180;
+    return {
+      x: x * Math.cos(r) - y * Math.sin(r),
+      y: x * Math.sin(r) + y * Math.cos(r),
+    };
+  };
+
+  /** 텍스트 좌표계에서 x0~x1 구간의 라인을 deg만큼 기울인 cornerPoints */
+  const tiltedQuad = (x0: number, x1: number, deg: number, yBase = 0, h = 20) =>
+    [
+      rot(x0, yBase, deg),
+      rot(x1, yBase, deg),
+      rot(x1, yBase + h, deg),
+      rot(x0, yBase + h, deg),
+    ] as const;
+
+  it('기울어진 사진: 행 끝 꼬리 조각이 같은 행으로 병합된다', () => {
+    const result: OcrResultLike = {
+      text: '멜리세덱의\n반\n다음 줄',
+      blocks: [
+        {
+          lines: [
+            { text: '멜리세덱의', cornerPoints: tiltedQuad(0, 300, 10) },
+            { text: '반', cornerPoints: tiltedQuad(320, 360, 10) },
+            { text: '다음 줄', cornerPoints: tiltedQuad(0, 300, 10, 40) },
+          ],
+        },
+      ],
+    };
+    expect(reconstructLayout(result)).toBe('멜리세덱의 반\n다음 줄');
+  });
+
+  it('좁은 간격은 단일 공백, 넓은 간격은 컬럼 구분자로 병합된다', () => {
+    const result: OcrResultLike = {
+      text: '',
+      blocks: [
+        {
+          lines: [
+            { text: 'A', frame: frame(0, 0, 100, 20) },
+            { text: 'B', frame: frame(0, 110, 100, 20) },
+            { text: 'C', frame: frame(0, 400, 100, 20) },
+          ],
+        },
+      ],
+    };
+    expect(reconstructLayout(result)).toBe(`A B${COLUMN_SEPARATOR}C`);
+  });
+
+  it('cornerPoints만 있고 frame이 없어도 처리된다', () => {
+    const result: OcrResultLike = {
+      text: 'RAW',
+      blocks: [
+        { lines: [{ text: '좌표있음', cornerPoints: tiltedQuad(0, 100, 0) }] },
+      ],
+    };
+    expect(reconstructLayout(result)).toBe('좌표있음');
+  });
 });
