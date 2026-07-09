@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getLocales } from 'expo-localization';
 import { authApi } from '../api/auth';
-import { secureStorage as storage } from '../utils/secureStorage';
+import { secureStorage } from '../utils/secureStorage';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type Language = 'ko' | 'en';
@@ -57,13 +59,19 @@ type SettingsStore = SettingsState & SettingsActions;
 
 const STORAGE_KEY = 'marzlog_settings';
 
+// F-DEFAULT-LANG: persist 부재 시 초기 언어 = 기기 로케일 (ko 외 전부 en 폴백).
+// persist 값이 있으면 loadSettings가 덮어쓰므로 유저 명시 선택이 항상 우선.
+function deviceLanguage(): Language {
+  return getLocales()[0]?.languageCode === 'ko' ? 'ko' : 'en';
+}
+
 const defaultSettings: SettingsState = {
   themeMode: 'system',
   notificationsEnabled: true,
   autoUploadEnabled: true,
   autoUploadWifiOnly: true,
   aiMode: 'precise',
-  language: 'ko',
+  language: deviceLanguage(),
   isLoaded: false,
 };
 
@@ -110,7 +118,17 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   loadSettings: async () => {
     try {
-      const stored = await storage.getItem(STORAGE_KEY);
+      let stored = await AsyncStorage.getItem(STORAGE_KEY);
+      if (!stored) {
+        // F-DEFAULT-LANG 1회 마이그레이션: 구 Keychain persist → AsyncStorage.
+        // Keychain은 앱 삭제 후에도 잔존해 재설치 시 stale 언어가 살아나므로 이관 후 삭제.
+        const legacy = await secureStorage.getItem(STORAGE_KEY);
+        if (legacy) {
+          await AsyncStorage.setItem(STORAGE_KEY, legacy);
+          await secureStorage.removeItem(STORAGE_KEY);
+          stored = legacy;
+        }
+      }
       if (stored) {
         const parsed = JSON.parse(stored) as Partial<SettingsState>;
         set({
@@ -129,7 +147,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   resetSettings: async () => {
     set({ ...defaultSettings, isLoaded: true });
-    await storage.removeItem(STORAGE_KEY);
+    await AsyncStorage.removeItem(STORAGE_KEY);
   },
 }));
 
@@ -145,7 +163,7 @@ async function saveSettings(state: SettingsStore) {
   };
 
   try {
-    await storage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
   } catch (error) {
     // silently fail
   }
