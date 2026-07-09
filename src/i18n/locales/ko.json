@@ -216,6 +216,10 @@
     "comingSoon": "결제 기능은 곧 지원될 예정입니다",
     "usageSummary": "현재 사용량"
   },
+  "plus": {
+    "regenComingSoonTitle": "곧 만나요",
+    "regenComingSoonBody": "일기 다시 쓰기는 Marzlog Plus에서 준비하고 있어요. 조금만 기다려 주세요."
+  },
   "account": {
     "title": "계정",
     "deleteAccount": "계정 삭제",

@@ -216,6 +216,10 @@
     "comingSoon": "Payment support coming soon",
     "usageSummary": "Current Usage"
   },
+  "plus": {
+    "regenComingSoonTitle": "Coming soon",
+    "regenComingSoonBody": "Rewriting your diary is coming with Marzlog Plus. Stay tuned."
+  },
   "account": {
     "title": "Account",
     "deleteAccount": "Delete Account",
