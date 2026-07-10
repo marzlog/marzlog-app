@@ -21,6 +21,12 @@ export const UPLOAD_BACKOFF_BASE_MS = 2_000;
 export const MAX_RESUME_ATTEMPTS = 5;
 
 /**
+ * 대기 큐 존재 시 주기 재시도 간격 (F-UPLOAD-RESUME-UX).
+ * tick은 uploadQueueStore.pendingCount > 0 선체크로 게이팅 — 큐가 비면 no-op(파일 I/O 없음).
+ */
+export const RESUME_INTERVAL_MS = 60_000;
+
+/**
  * 업로드 큐 영속 디렉터리.
  * web에서는 documentDirectory가 null이라 'nullupload_queue/'가 되지만,
  * 큐는 native(Platform.OS !== 'web')에서만 사용하므로 무해하다.

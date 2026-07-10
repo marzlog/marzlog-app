@@ -24,6 +24,8 @@ import { Logo } from '@/src/components/common/Logo';
 import timelineApi, { TimelineItem } from '@/src/api/timeline';
 import { useAuthStore } from '@/src/store/authStore';
 import { useSettingsStore } from '@/src/store/settingsStore';
+import { useUploadQueueStore } from '@/src/store/uploadQueueStore';
+import { triggerResume } from '@/src/services/resumeUploads';
 import { useTimelineStore } from '@/src/store/timelineStore';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
@@ -326,6 +328,8 @@ export default function HomeScreen() {
   const { t, language } = useTranslation();
   const systemColorScheme = useColorScheme();
   const { alert: showAlert } = useDialog();
+  // F-UPLOAD-RESUME-UX: 대기 업로드 배너 — count만 selector 구독(기존 훅 deps 불변, B-DK 제약)
+  const pendingUploadCount = useUploadQueueStore((s) => s.pendingCount);
 
   // Timeline store - 선택된 날짜 유지
   const {
@@ -776,6 +780,25 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      {/* F-UPLOAD-RESUME-UX: 업로드 대기 배너 (pendingCount>0일 때만, 탭=수동 재시도) */}
+      {pendingUploadCount > 0 && (
+        <TouchableOpacity
+          style={[
+            styles.pendingBanner,
+            { backgroundColor: theme.surface.secondary, borderColor: theme.border.default },
+          ]}
+          onPress={() => { triggerResume(); }}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.pendingBannerText, { color: theme.text.secondary }]}>
+            {t('upload.pendingBanner', { count: pendingUploadCount })}
+          </Text>
+          <Text style={[styles.pendingBannerAction, { color: theme.primary.default }]}>
+            {t('upload.retryNow')}
+          </Text>
+        </TouchableOpacity>
+      )}
+
       {/* Content */}
       <ScrollView
         style={styles.content}
@@ -1099,6 +1122,28 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
     lineHeight: 18,
+  },
+  pendingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 20,
+    marginBottom: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  pendingBannerText: {
+    fontSize: 13,
+    fontWeight: '500',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  pendingBannerAction: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 12,
   },
   content: {
     flex: 1,

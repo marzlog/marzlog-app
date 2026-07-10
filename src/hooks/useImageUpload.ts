@@ -21,6 +21,7 @@ import { resolveCurrentLocation } from '../utils/exif/resolveCurrentLocation';
 import { t } from '../i18n';
 import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
+import { useUploadQueueStore } from '../store/uploadQueueStore';
 import * as uploadQueue from '../services/uploadQueue';
 import { UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS } from '../constants/upload';
 import { withRetry } from '../utils/retry';
@@ -46,12 +47,16 @@ function currentUserId(): string | null {
   return useAuthStore.getState().user?.id ?? null;
 }
 
-/** 큐 변형 호출 래퍼 — 큐 실패가 업로드 흐름을 깨뜨리지 않도록 swallow + 보고 */
+/** 큐 변형 호출 래퍼 — 큐 실패가 업로드 흐름을 깨뜨리지 않도록 swallow + 보고.
+ *  F-UPLOAD-RESUME-UX: 변형 후 대기 카운트 미러 갱신(배너/주기 tick 게이팅) —
+ *  최초 업로드 경로의 enqueue/markFailed/markDone은 전부 이 두 래퍼를 경유한다. */
 async function safeQueue(fn: () => Promise<void>): Promise<void> {
   try {
     await fn();
   } catch (e) {
     captureError(e instanceof Error ? e : new Error(String(e)), { context: 'uploadQueue' });
+  } finally {
+    void useUploadQueueStore.getState().refreshPendingCount(currentUserId());
   }
 }
 
@@ -61,6 +66,8 @@ async function safeEnqueue(input: uploadQueue.EnqueueInput): Promise<uploadQueue
   } catch (e) {
     captureError(e instanceof Error ? e : new Error(String(e)), { context: 'uploadQueue.enqueue' });
     return null;
+  } finally {
+    void useUploadQueueStore.getState().refreshPendingCount(currentUserId());
   }
 }
 

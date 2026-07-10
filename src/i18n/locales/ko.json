@@ -460,7 +460,9 @@
     "reusedNote": "\n({{count}}장은 기존 파일 재사용)",
     "analysisStarted": "\nAI 분석이 시작됩니다.",
     "primaryImageSection": "대표 이미지",
-    "additionalImageSection": "추가 이미지"
+    "additionalImageSection": "추가 이미지",
+    "pendingBanner": "업로드 대기 중 {{count}}건",
+    "retryNow": "지금 재시도"
   },
   "mediaDetail": {
     "pageTitle": "상세보기",

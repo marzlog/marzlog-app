@@ -21,7 +21,9 @@ import { useAppLockStore } from '@src/store/appLockStore';
 import { useReminderStore } from '@src/store/reminderStore';
 import { DialogProvider } from '@/src/components/ui/Dialog';
 import { BiometricLock } from '@/src/components/auth/BiometricLock';
-import { resumeUploads } from '@src/services/resumeUploads';
+import { triggerResume } from '@src/services/resumeUploads';
+import { RESUME_INTERVAL_MS } from '@src/constants/upload';
+import { useUploadQueueStore } from '@src/store/uploadQueueStore';
 import NetInfo from '@react-native-community/netinfo';
 
 export {
@@ -65,37 +67,8 @@ export default function RootLayout() {
   const backgroundTimestamp = useRef<number | null>(null);
   const LOCK_THRESHOLD_MS = 30_000;
 
-  // B-DN: 영속 업로드 큐 재개 (포그라운드 복귀/콜드스타트). 중복 실행 가드.
-  // 재개는 화면 state와 분리된 순수 함수(resumeUploads) — 훅 인스턴스화 없음.
-  const resumeInFlight = useRef(false);
-  // B-DN: netinfo "연결 복구" 판정용 — 직전 offline 여부 기억(전환 시에만 재개)
-  const wasOfflineRef = useRef(false);
-
-  const triggerResume = async () => {
-    if (Platform.OS === 'web') return;
-    if (resumeInFlight.current) return;
-    const { isAuthenticated: loggedIn, user } = useAuthStore.getState();
-    const uid = user?.id;
-    if (!loggedIn || !uid) return;
-    // B-DN 대응1: 오프라인이면 재개 시도 안 함(헛된 attempts 소모/실패 방지)
-    try {
-      const net = await NetInfo.fetch();
-      const online =
-        net.isConnected === true &&
-        (net.isInternetReachable === true || net.isInternetReachable === null);
-      if (!online) return;
-    } catch {
-      // NetInfo.fetch 실패 시 보수적으로 진행(막아서 영영 재개 안 되는 것보다 시도가 나음)
-    }
-    resumeInFlight.current = true;
-    try {
-      await resumeUploads(uid);
-    } catch {
-      // resumeUploads 내부에서 job별 보존 처리됨 — 여기서는 크래시만 방지
-    } finally {
-      resumeInFlight.current = false;
-    }
-  };
+  // B-DN: 영속 업로드 큐 재개 트리거는 src/services/resumeUploads.ts의 triggerResume으로
+  // 이동(F-UPLOAD-RESUME-UX — 홈 배너 수동 재시도와 공유). in-flight/오프라인 가드 내장.
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
@@ -191,23 +164,35 @@ export default function RootLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // B-DN: 네트워크 offline→online 전환 시 재개
+  // B-DN: 네트워크 online 이벤트 시 재개
   // (앱을 foreground에 켜둔 채 Wi-Fi/데이터만 끊겼다 붙는 경우 — AppState active 공백 보완)
+  // F-UPLOAD-RESUME-UX: wasOfflineRef(직전 offline 관측 필수) 조건 제거 — offline 순간을
+  // 놓쳐도 회복 이벤트면 재개. 중복 호출은 triggerResume의 in-flight/오프라인 가드가 흡수.
   useEffect(() => {
     if (Platform.OS === 'web') return;
     const unsubscribe = NetInfo.addEventListener((state) => {
       const online =
         state.isConnected === true &&
         (state.isInternetReachable === true || state.isInternetReachable === null);
-      if (wasOfflineRef.current && online) {
-        wasOfflineRef.current = false;
+      if (online) {
         triggerResume();
-      } else if (!online) {
-        wasOfflineRef.current = true;
       }
     });
     return () => unsubscribe();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // F-UPLOAD-RESUME-UX: 대기 큐 존재 시 주기 재시도.
+  // ★B-DK 교훈: setInterval은 deps=[] 단일 등록 불변 — 게이팅은 getState() 선체크로만.
+  // pendingCount === 0이면 tick은 no-op(listResumable 파일 I/O 없음). cleanup에서 clearInterval(B-DL).
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const timer = setInterval(() => {
+      if (useUploadQueueStore.getState().pendingCount > 0) {
+        triggerResume();
+      }
+    }, RESUME_INTERVAL_MS);
+    return () => clearInterval(timer);
   }, []);
 
   // Background → foreground: lock after 30s

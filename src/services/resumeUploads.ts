@@ -14,6 +14,7 @@
  * markFailed되고 다음 재개 사이클이 새 presigned로 흡수한다.
  */
 import { Platform } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import {
   prepareUpload,
   uploadToS3,
@@ -29,6 +30,8 @@ import { withRetry, isTransientUploadError } from '../utils/retry';
 import { UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS } from '../constants/upload';
 import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
 import { useMediaUpdatesStore } from '../store/mediaUpdatesStore';
+import { useAuthStore } from '../store/authStore';
+import { useUploadQueueStore } from '../store/uploadQueueStore';
 import * as uploadQueue from './uploadQueue';
 
 const QUEUE_DISABLED = Platform.OS === 'web';
@@ -235,5 +238,40 @@ export async function resumeUploads(userId: string): Promise<void> {
         await safeQueue(() => uploadQueue.markFailed(job.jobId, job.attempts + 1));
       }
     }
+  }
+}
+
+// F-UPLOAD-RESUME-UX: _layout 로컬 함수였던 재개 트리거를 모듈 공개로 이동 —
+// 홈 배너 수동 재시도와 트리거 4곳(콜드스타트/AppState/NetInfo/주기 tick)이 공유.
+// 외부 상태는 전부 getState()/모듈 변수로 읽으므로 stale closure 무해.
+let resumeInFlight = false;
+
+export async function triggerResume(): Promise<void> {
+  if (QUEUE_DISABLED) return;
+  if (resumeInFlight) return;
+  const { isAuthenticated: loggedIn, user } = useAuthStore.getState();
+  const uid = user?.id;
+  if (!loggedIn || !uid) return;
+  // 배너/주기 tick 게이팅용 카운트 동기화 — 오프라인 early-return보다 먼저
+  // (콜드스타트가 오프라인이어도 대기 건수는 배너에 노출돼야 함)
+  await useUploadQueueStore.getState().refreshPendingCount(uid);
+  // B-DN 대응1: 오프라인이면 재개 시도 안 함(헛된 attempts 소모/실패 방지)
+  try {
+    const net = await NetInfo.fetch();
+    const online =
+      net.isConnected === true &&
+      (net.isInternetReachable === true || net.isInternetReachable === null);
+    if (!online) return;
+  } catch {
+    // NetInfo.fetch 실패 시 보수적으로 진행(막아서 영영 재개 안 되는 것보다 시도가 나음)
+  }
+  resumeInFlight = true;
+  try {
+    await resumeUploads(uid);
+  } catch {
+    // resumeUploads 내부에서 job별 보존 처리됨 — 여기서는 크래시만 방지
+  } finally {
+    resumeInFlight = false;
+    await useUploadQueueStore.getState().refreshPendingCount(uid);
   }
 }
