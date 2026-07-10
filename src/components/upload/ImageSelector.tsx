@@ -8,7 +8,9 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '@/src/theme';
+import { colors, getTheme } from '@/src/theme';
+import { useColorScheme } from '@/components/useColorScheme';
+import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import type { UploadItem } from '@/src/hooks/useImageUpload';
 
@@ -37,6 +39,13 @@ export function ImageSelector({
   maxImages = 9,
 }: ImageSelectorProps) {
   const { t } = useTranslation();
+  // F-DARKMODE-LABELS: 다크모드 결정 — 홈 index.tsx 동형 (themeMode 'system'이면 시스템 설정)
+  const { themeMode } = useSettingsStore();
+  const systemColorScheme = useColorScheme();
+  const isDark = themeMode === 'system'
+    ? systemColorScheme === 'dark'
+    : themeMode === 'dark';
+  const theme = getTheme(isDark);
   const primaryImage = images[primaryIndex];
   const additionalImages = images.filter((_, i) => i !== primaryIndex);
 
@@ -66,7 +75,7 @@ export function ImageSelector({
       {/* Primary Image Section */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('upload.primaryImageSection')}</Text>
+          <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>{t('upload.primaryImageSection')}</Text>
           <TouchableOpacity style={styles.aiButton}>
             <Text style={styles.aiButtonText}>AI</Text>
           </TouchableOpacity>
@@ -91,11 +100,11 @@ export function ImageSelector({
           </View>
         ) : (
           <TouchableOpacity
-            style={styles.primaryPlaceholder}
+            style={[styles.primaryPlaceholder, { backgroundColor: theme.background.tertiary }]}
             onPress={onAddImages}
           >
-            <View style={styles.addIconContainer}>
-              <Ionicons name="add" size={32} color={colors.neutral[5]} />
+            <View style={[styles.addIconContainer, { backgroundColor: theme.surface.primary }]}>
+              <Ionicons name="add" size={32} color={theme.icon.secondary} />
             </View>
           </TouchableOpacity>
         )}
@@ -103,7 +112,7 @@ export function ImageSelector({
 
       {/* Additional Images Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('upload.additionalImageSection')}</Text>
+        <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>{t('upload.additionalImageSection')}</Text>
 
         <View style={styles.imageGrid}>
           {/* Show additional images */}
@@ -132,10 +141,10 @@ export function ImageSelector({
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
-                  style={styles.setPrimaryButton}
+                  style={[styles.setPrimaryButton, { backgroundColor: theme.surface.elevated }]}
                   onPress={() => onSetPrimary(actualIndex)}
                 >
-                  <Ionicons name="star-outline" size={12} color={colors.text.primary} />
+                  <Ionicons name="star-outline" size={12} color={theme.text.primary} />
                 </TouchableOpacity>
               </View>
             );
@@ -144,17 +153,17 @@ export function ImageSelector({
           {/* Add more button */}
           {images.length < maxImages && (
             <TouchableOpacity
-              style={styles.addMoreButton}
+              style={[styles.addMoreButton, { backgroundColor: theme.background.tertiary }]}
               onPress={onAddImages}
             >
-              <Ionicons name="add" size={24} color={colors.neutral[5]} />
+              <Ionicons name="add" size={24} color={theme.icon.secondary} />
             </TouchableOpacity>
           )}
 
           {/* Empty placeholders - 2열 그리드에 맞게 조정 */}
           {Array.from({ length: Math.max(0, 3 - additionalImages.length - (images.length < maxImages ? 1 : 0)) }).map(
             (_, index) => (
-              <View key={`empty-${index}`} style={styles.emptyPlaceholder} />
+              <View key={`empty-${index}`} style={[styles.emptyPlaceholder, { backgroundColor: theme.background.tertiary }]} />
             )
           )}
         </View>
@@ -179,7 +188,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text.primary,
+    // color는 인라인 theme.text.primary (F-DARKMODE-LABELS)
   },
   aiButton: {
     paddingHorizontal: 12,
@@ -209,7 +218,6 @@ const styles = StyleSheet.create({
     aspectRatio: DEFAULT_ASPECT_RATIO, // 기본 4:3 비율
     maxHeight: MAX_PRIMARY_HEIGHT,
     borderRadius: 16,
-    backgroundColor: colors.neutral[2],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -217,7 +225,6 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.neutral['0.5'],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -278,7 +285,6 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: colors.neutral['0.5'],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -286,7 +292,6 @@ const styles = StyleSheet.create({
     width: '48%', // Figma: 2열 그리드
     aspectRatio: 1,
     borderRadius: 12,
-    backgroundColor: colors.neutral[2],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -294,7 +299,6 @@ const styles = StyleSheet.create({
     width: '48%', // Figma: 2열 그리드
     aspectRatio: 1,
     borderRadius: 12,
-    backgroundColor: colors.neutral[2],
     opacity: 0.5,
   },
 });
