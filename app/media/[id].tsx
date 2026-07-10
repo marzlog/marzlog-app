@@ -56,6 +56,13 @@ const CAROUSEL_IMAGE_HEIGHT = SCREEN_HEIGHT * 0.45; // 화면 높이의 45%
 const CAROUSEL_SINGLE_MAX_HEIGHT = SCREEN_HEIGHT * 0.7;
 const isWeb = Platform.OS === 'web';
 
+// 백엔드 diary_generator.py:31-40의 fallback 문구와 동기.
+// 백엔드 문구 변경 시 이 배열도 갱신 필요 (B-REGEN-FALLBACK-SYNC).
+const DIARY_FALLBACK_PREFIXES = [
+  'AI 일기를 생성하지 못했',
+  'Could not generate the diary',
+] as const;
+
 export default function MediaDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -491,6 +498,18 @@ export default function MediaDetailScreen() {
     // 그룹이면서 메인이 아닌 경우 경고
     if (media.group_id && !isCurrentImagePrimary) {
       await alert(t('common.confirm'), t('media.diaryGroupOnly'));
+      return;
+    }
+
+    // Plus 예고 게이트: 정상 일기 재생성은 Marzlog Plus 출시 전까지 차단.
+    // 실패 일기(ai_provider='fallback' 또는 fallback 문구) 복구 재생성은 게이트 우회.
+    // 복구: REGEN_PLUS_GATE 를 false 로 바꾸거나 이 가드 블록을 제거하면 됨.
+    const REGEN_PLUS_GATE: boolean = true;
+    const isDiaryFailed =
+      media.ai_provider === 'fallback' ||
+      DIARY_FALLBACK_PREFIXES.some((prefix) => media.content?.startsWith(prefix));
+    if (REGEN_PLUS_GATE && !isDiaryFailed) {
+      await alert(t('plus.regenComingSoonTitle'), t('plus.regenComingSoonBody'));
       return;
     }
 
