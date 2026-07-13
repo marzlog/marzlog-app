@@ -77,6 +77,18 @@ export interface GroupUploadItem {
   sha256: string;
 }
 
+/**
+ * F-UPLOAD-DUP B: prepare 성공 결과의 영속용 스냅샷 (single job).
+ * 재개 시 재-prepare 대신 같은 storage_key로 PUT+complete하면
+ * 서버 (user_id, storage_key) 멱등이 중복 Media 생성을 흡수한다.
+ */
+export interface PreparedUploadInfo {
+  upload_id: string;
+  storage_key: string;
+  sha256: string;
+  presigned_put_url: string;
+}
+
 export interface GroupUploadCompleteRequest {
   items: GroupUploadItem[];
   primary_index?: number;

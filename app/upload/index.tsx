@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -60,6 +60,9 @@ export default function UploadScreen() {
   const [memo, setMemo] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  // F-UPLOAD-DUP D: 이중 탭 차단용 동기 가드 — isSubmitting state는 re-render가
+  // 반영되기 전 프레임 동안 뚫릴 수 있다(disabled 미적용 창). ref는 즉시 반영.
+  const submittingRef = useRef(false);
 
   const { startUpload, startGroupUpload, addToExistingGroup, pickFromGallery, takePhoto, quotaExceeded, error: uploadError } = useImageUpload();
 
@@ -308,8 +311,8 @@ export default function UploadScreen() {
     }
   };
 
-  // 등록 버튼 핸들러
-  const handleSubmit = async () => {
+  // 등록 버튼 핸들러 본체 — handleSubmit(이중 탭 가드)를 통해서만 호출
+  const doSubmit = async () => {
     // 편집 모드일 때는 수정 처리
     if (isEditMode) {
       await handleUpdate();
@@ -353,6 +356,19 @@ export default function UploadScreen() {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // F-UPLOAD-DUP D: 첫 줄 동기 ref 가드 — 이중 탭이 doSubmit을 2번 돌려
+  // 같은 이미지를 병렬 업로드(중복 Media)하는 것을 차단. isSubmitting state는
+  // 버튼 disabled(UI)용으로 유지.
+  const handleSubmit = async () => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      await doSubmit();
+    } finally {
+      submittingRef.current = false;
     }
   };
 

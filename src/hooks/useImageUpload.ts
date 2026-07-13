@@ -238,109 +238,128 @@ export function useImageUpload() {
       }
     }
 
+    // F-UPLOAD-DUP C: 직접 업로드 진행 중 재개 루프가 같은 job을 집지 못하게 마킹
+    if (jobId) uploadQueue.markJobActive(jobId);
+
     setIsUploading(true);
     setError(null);
     const results: UploadCompleteResponse[] = [];
 
-    for (const item of pendingItems) {
-      // 파일 크기 체크
-      if (item.fileSize > MAX_FILE_SIZE) {
-        updateItem(item.id, {
-          status: 'error',
-          error: t('upload.fileTooLarge'),
-        });
-        continue;
-      }
-
-      try {
-        updateItem(item.id, { status: 'hashing', progress: 0 });
-
-        const selectedImage: SelectedImage = {
-          uri: item.uri,
-          filename: item.filename,
-          fileSize: item.fileSize,
-          width: item.width,
-          height: item.height,
-          mimeType: item.mimeType,
-          clientExif: item.clientExif,
-        };
-
-        const result = await uploadImage(
-          selectedImage,
-          (progress) => updateItem(item.id, { progress }),
-          (status) => {
-            const statusMap: Record<string, UploadStatus> = {
-              '해시 계산 중...': 'hashing',
-              '업로드 준비 중...': 'preparing',
-              '업로드 중...': 'uploading',
-              '분석 요청 중...': 'completing',
-              '완료!': 'done',
-            };
-            updateItem(item.id, { status: statusMap[status] || 'uploading' });
-          },
-          takenAt  // 캘린더에서 선택한 날짜 전달
-        );
-
-        updateItem(item.id, {
-          status: 'done',
-          progress: 100,
-          mediaId: result.media_id,
-        });
-        results.push(result);
-      } catch (err) {
-        if (isQuotaExceededError(err)) {
-          setQuotaExceeded(true);
-          setError(t('storage.quotaExceeded'));
-          updateItem(item.id, { status: 'error', error: t('storage.quotaExceeded') });
-          break;
+    try {
+      for (let i = 0; i < pendingItems.length; i++) {
+        const item = pendingItems[i];
+        // 파일 크기 체크
+        if (item.fileSize > MAX_FILE_SIZE) {
+          updateItem(item.id, {
+            status: 'error',
+            error: t('upload.fileTooLarge'),
+          });
+          continue;
         }
-        const errorMsg = getErrorMessage(err);
-        updateItem(item.id, {
-          status: 'error',
-          error: errorMsg,
-        });
-        captureError(err instanceof Error ? err : new Error(String(err)), { context: 'useImageUpload.startUpload', filename: item.filename });
-      }
-    }
 
-    setIsUploading(false);
-
-    // ===== 영속 큐 상태 갱신 (single 2단계: 업로드 → updateMedia) =====
-    const allOk = results.length === pendingItems.length;
-    if (!allOk) {
-      // 일부라도 실패 → 보존(다음 재개 때 재시도)
-      if (jobId) {
-        const id = jobId;
-        await safeQueue(() => uploadQueue.markFailed(id, jobAttempts + 1));
-      }
-    } else if (results.length > 0 && results[0].media_id) {
-      const firstMediaId = results[0].media_id;
-      // 업로드 완료된 media_id 보존 → updateMedia 실패해도 재업로드 없이 메타만 재시도
-      if (jobId) {
-        const id = jobId;
-        await safeQueue(() => uploadQueue.markSingleUploaded(id, firstMediaId));
-      }
-      let metaOk = true;
-      if (metadata) {
         try {
-          await withRetry(() => updateMedia(firstMediaId, metadata), UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS);
-        } catch (e) {
-          metaOk = false;
-          captureError(e instanceof Error ? e : new Error(String(e)), { context: 'useImageUpload.startUpload.updateMedia' });
-          if (jobId) {
-            const id = jobId;
-            await safeQueue(() => uploadQueue.markFailed(id, jobAttempts + 1));
+          updateItem(item.id, { status: 'hashing', progress: 0 });
+
+          const selectedImage: SelectedImage = {
+            uri: item.uri,
+            filename: item.filename,
+            fileSize: item.fileSize,
+            width: item.width,
+            height: item.height,
+            mimeType: item.mimeType,
+            clientExif: item.clientExif,
+          };
+
+          // F-UPLOAD-DUP B: prepare 결과를 PUT 전에 manifest에 영속 —
+          // 중단 후 재개(resumeSingle)가 같은 storage_key를 재사용해 중복 Media 차단
+          const id = jobId;
+          const itemIndex = i;
+          const result = await uploadImage(
+            selectedImage,
+            (progress) => updateItem(item.id, { progress }),
+            (status) => {
+              const statusMap: Record<string, UploadStatus> = {
+                '해시 계산 중...': 'hashing',
+                '업로드 준비 중...': 'preparing',
+                '업로드 중...': 'uploading',
+                '분석 요청 중...': 'completing',
+                '완료!': 'done',
+              };
+              updateItem(item.id, { status: statusMap[status] || 'uploading' });
+            },
+            takenAt,  // 캘린더에서 선택한 날짜 전달
+            id
+              ? {
+                  onPrepared: (p) =>
+                    safeQueue(() => uploadQueue.markItemPrepared(id, itemIndex, p)),
+                }
+              : undefined,
+          );
+
+          updateItem(item.id, {
+            status: 'done',
+            progress: 100,
+            mediaId: result.media_id,
+          });
+          results.push(result);
+        } catch (err) {
+          if (isQuotaExceededError(err)) {
+            setQuotaExceeded(true);
+            setError(t('storage.quotaExceeded'));
+            updateItem(item.id, { status: 'error', error: t('storage.quotaExceeded') });
+            break;
+          }
+          const errorMsg = getErrorMessage(err);
+          updateItem(item.id, {
+            status: 'error',
+            error: errorMsg,
+          });
+          captureError(err instanceof Error ? err : new Error(String(err)), { context: 'useImageUpload.startUpload', filename: item.filename });
+        }
+      }
+
+      setIsUploading(false);
+
+      // ===== 영속 큐 상태 갱신 (single 2단계: 업로드 → updateMedia) =====
+      const allOk = results.length === pendingItems.length;
+      if (!allOk) {
+        // 일부라도 실패 → 보존(다음 재개 때 재시도)
+        if (jobId) {
+          const id = jobId;
+          await safeQueue(() => uploadQueue.markFailed(id, jobAttempts + 1));
+        }
+      } else if (results.length > 0 && results[0].media_id) {
+        const firstMediaId = results[0].media_id;
+        // 업로드 완료된 media_id 보존 → updateMedia 실패해도 재업로드 없이 메타만 재시도
+        if (jobId) {
+          const id = jobId;
+          await safeQueue(() => uploadQueue.markSingleUploaded(id, firstMediaId));
+        }
+        let metaOk = true;
+        if (metadata) {
+          try {
+            await withRetry(() => updateMedia(firstMediaId, metadata), UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS);
+          } catch (e) {
+            metaOk = false;
+            captureError(e instanceof Error ? e : new Error(String(e)), { context: 'useImageUpload.startUpload.updateMedia' });
+            if (jobId) {
+              const id = jobId;
+              await safeQueue(() => uploadQueue.markFailed(id, jobAttempts + 1));
+            }
           }
         }
-      }
-      if (metaOk && jobId) {
+        if (metaOk && jobId) {
+          const id = jobId;
+          await safeQueue(() => uploadQueue.markDone(id));
+        }
+      } else if (jobId) {
+        // 성공했으나 media_id 없음(이론상 도달 안 함) — 보존 위해 done 처리
         const id = jobId;
         await safeQueue(() => uploadQueue.markDone(id));
       }
-    } else if (jobId) {
-      // 성공했으나 media_id 없음(이론상 도달 안 함) — 보존 위해 done 처리
-      const id = jobId;
-      await safeQueue(() => uploadQueue.markDone(id));
+    } finally {
+      // F-UPLOAD-DUP C: 모든 경로(정상/throw)에서 active 해제
+      if (jobId) uploadQueue.markJobInactive(jobId);
     }
 
     if (results.length > 0) {
@@ -407,6 +426,9 @@ export function useImageUpload() {
         jobId = job?.jobId ?? null;
       }
     }
+
+    // F-UPLOAD-DUP C: 직접 업로드 진행 중 재개 루프가 같은 job을 집지 못하게 마킹
+    if (jobId) uploadQueue.markJobActive(jobId);
 
     const uploadedItems: GroupUploadItem[] = [];
     let duplicateCount = 0;
@@ -568,6 +590,9 @@ export function useImageUpload() {
       Alert.alert(t('common.error'), errorMsg);
       setIsUploading(false);
       return null;
+    } finally {
+      // F-UPLOAD-DUP C: 모든 경로(정상/조기 return/throw)에서 active 해제
+      if (jobId) uploadQueue.markJobInactive(jobId);
     }
   }, [updateItem]);
 
@@ -602,6 +627,9 @@ export function useImageUpload() {
         jobId = job?.jobId ?? null;
       }
     }
+
+    // F-UPLOAD-DUP C: 직접 업로드 진행 중 재개 루프가 같은 job을 집지 못하게 마킹
+    if (jobId) uploadQueue.markJobActive(jobId);
 
     const uploadedItems: GroupUploadItem[] = [];
 
@@ -727,6 +755,9 @@ export function useImageUpload() {
       captureError(err instanceof Error ? err : new Error(String(err)), { context: 'useImageUpload.addToExistingGroup' });
       setIsUploading(false);
       return false;
+    } finally {
+      // F-UPLOAD-DUP C: 모든 경로(정상/throw)에서 active 해제
+      if (jobId) uploadQueue.markJobInactive(jobId);
     }
   }, [updateItem]);
 

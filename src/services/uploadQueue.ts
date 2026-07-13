@@ -26,7 +26,7 @@ import {
   writeAsStringAsync,
 } from 'expo-file-system/legacy';
 import { QUEUE_DIR, QUEUE_MANIFEST, MAX_RESUME_ATTEMPTS } from '../constants/upload';
-import type { GroupUploadItem } from '../types/upload';
+import type { GroupUploadItem, PreparedUploadInfo } from '../types/upload';
 
 export type QueueJobKind = 'single' | 'group' | 'add';
 export type QueueJobState = 'pending' | 'failed' | 'done';
@@ -52,6 +52,12 @@ export interface QueueItem {
   clientExif?: Record<string, unknown>;
   /** S3 업로드(또는 dup-skip) 성공 시 채워짐 → 재개 시 재업로드 생략 */
   uploaded?: GroupUploadItem;
+  /**
+   * F-UPLOAD-DUP B: prepare 성공 시 채워짐(single) → 재개 시 재-prepare 없이
+   * 같은 storage_key로 PUT+complete (서버 (user_id, storage_key) 멱등이 흡수).
+   * presigned 만료(PRESIGNED_EXPIRED) 재-prepare 시 새 값으로 교체된다.
+   */
+  prepared?: PreparedUploadInfo;
 }
 
 /** enqueue 입력(원본 uri 기준; 내부에서 사본 복사) */
@@ -209,6 +215,22 @@ export async function markItemUploaded(
   await writeManifest(jobs);
 }
 
+/**
+ * F-UPLOAD-DUP B: 해당 index 항목의 prepare 결과 영속(markItemUploaded 동형).
+ * 만료 재-prepare 시 같은 index에 새 값을 덮어써 구 storage_key를 교체한다(고아 key 방지).
+ */
+export async function markItemPrepared(
+  jobId: string,
+  index: number,
+  prepared: PreparedUploadInfo,
+): Promise<void> {
+  const jobs = await readManifest();
+  const job = jobs.find((j) => j.jobId === jobId);
+  if (!job || !job.items[index]) return;
+  job.items[index] = { ...job.items[index], prepared };
+  await writeManifest(jobs);
+}
+
 /** single: 업로드 완료된 media_id 보존(메타 갱신 대기 상태) */
 export async function markSingleUploaded(jobId: string, mediaId: string): Promise<void> {
   const jobs = await readManifest();
@@ -231,6 +253,27 @@ export async function listResumable(userId: string): Promise<QueueJob[]> {
       j.userId === userId &&
       j.attempts < MAX_RESUME_ATTEMPTS,
   );
+}
+
+/**
+ * F-UPLOAD-DUP C: 직접 업로드(useImageUpload 3경로)가 현재 처리 중인 job 집합.
+ * 재개 루프(resumeUploads)가 같은 job을 병렬 처리하는 1차-vs-재개 race를 차단한다.
+ * 모듈 메모리(비영속): 직접 업로드는 프로세스 생존을 전제하므로, 프로세스 재시작 후에는
+ * Set이 비어 재개가 정상 동작한다. useImageUpload/resumeUploads 양쪽이 이미 이 모듈을
+ * import하므로 순환 import 없음 (여기에 두는 이유).
+ */
+const activeJobIds = new Set<string>();
+
+export function markJobActive(jobId: string): void {
+  activeJobIds.add(jobId);
+}
+
+export function markJobInactive(jobId: string): void {
+  activeJobIds.delete(jobId);
+}
+
+export function isJobActive(jobId: string): boolean {
+  return activeJobIds.has(jobId);
 }
 
 /** QUEUE_DIR 통째 삭제(계정삭제 전용). 실패해도 swallow */

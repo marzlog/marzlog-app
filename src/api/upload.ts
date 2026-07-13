@@ -9,6 +9,7 @@ import { Platform } from 'react-native';
 import type {
   GroupUploadCompleteRequest,
   GroupUploadCompleteResponse,
+  PreparedUploadInfo,
   SelectedImage,
   UploadCompleteRequest,
   UploadCompleteResponse,
@@ -183,6 +184,19 @@ async function getFileSize(uri: string, providedSize: number): Promise<number> {
 }
 
 /**
+ * F-UPLOAD-DUP B: prepare 결과 재사용 옵션.
+ * - prepared: 이전 prepare의 영속 스냅샷 — 있으면 재-prepare 없이 같은 storage_key로
+ *   PUT+complete (서버 (user_id, storage_key) 멱등이 재개發 중복 Media를 흡수).
+ *   presigned 만료(PRESIGNED_EXPIRED)일 때만 아래 신규 prepare 경로로 폴백.
+ * - onPrepared: 신규 prepare 성공 시(PUT 전) 결과 영속 콜백 — 만료 폴백의 새 값이
+ *   manifest의 구 storage_key를 교체한다(고아 key 방지).
+ */
+export interface UploadReuseOptions {
+  prepared?: PreparedUploadInfo;
+  onPrepared?: (prepared: PreparedUploadInfo) => void | Promise<void>;
+}
+
+/**
  * 전체 업로드 프로세스
  * 1. SHA256 해시 계산 (중복 체크용)
  * 2. Presigned URL 발급
@@ -193,8 +207,37 @@ export async function uploadImage(
   image: SelectedImage,
   onProgress?: (progress: number) => void,
   onStatusChange?: (status: string) => void,
-  takenAt?: string  // 캘린더에서 선택한 날짜 (ISO 형식)
+  takenAt?: string,  // 캘린더에서 선택한 날짜 (ISO 형식)
+  reuse?: UploadReuseOptions,
 ): Promise<UploadCompleteResponse> {
+  // F-UPLOAD-DUP B: 저장된 prepare 결과가 있으면 해시/prepare 생략 — 같은 storage_key로
+  // PUT+complete. 만료(PRESIGNED_EXPIRED)만 신규 prepare로 계속, 그 외 에러는 그대로 throw.
+  if (reuse?.prepared) {
+    const p = reuse.prepared;
+    try {
+      onStatusChange?.('업로드 중...');
+      onProgress?.(15);
+      await uploadToS3(p.presigned_put_url, image.uri, image.mimeType, (s3Progress) => {
+        onProgress?.(15 + Math.round(s3Progress * 0.75));
+      });
+      onProgress?.(90);
+      onStatusChange?.('분석 요청 중...');
+      const result = await completeUpload({
+        upload_id: p.upload_id,
+        storage_key: p.storage_key,
+        analysis_mode: getCurrentAnalysisMode(),
+        taken_at: takenAt,
+      });
+      onProgress?.(100);
+      onStatusChange?.('완료!');
+      return result;
+    } catch (err) {
+      if (!(err instanceof Error && err.message === 'PRESIGNED_EXPIRED')) {
+        throw err;
+      }
+    }
+  }
+
   // 0. 파일 크기 확인
   const fileSize = await getFileSize(image.uri, image.fileSize);
 
@@ -252,6 +295,16 @@ export async function uploadImage(
 
   if (!uploadUrl) {
     throw new Error('No presigned URL received from server');
+  }
+
+  // F-UPLOAD-DUP B: PUT 전에 prepare 결과 영속 — 이후 중단돼도 재개가 같은 key 재사용
+  if (reuse?.onPrepared && prepareResponse.upload_id && prepareResponse.storage_key) {
+    await reuse.onPrepared({
+      upload_id: prepareResponse.upload_id,
+      storage_key: prepareResponse.storage_key,
+      sha256,
+      presigned_put_url: uploadUrl,
+    });
   }
 
   await uploadToS3(uploadUrl, image.uri, image.mimeType, (s3Progress) => {

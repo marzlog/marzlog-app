@@ -171,9 +171,14 @@ async function resumeSingle(job: uploadQueue.QueueJob): Promise<void> {
     return;
   }
 
-  // 신규: 코어 uploadImage 재실행(서버 멱등이 중복 Media를 막음)
+  // 신규: 코어 uploadImage 재실행.
+  // F-UPLOAD-DUP B: 1차 시도가 영속한 prepare 결과(qi.prepared)가 있으면 재-prepare 없이
+  // 같은 storage_key로 PUT+complete → 서버 (user_id, storage_key) 멱등이 중복 Media를 흡수.
+  // (구 코드는 매 재개마다 재-prepare해 새 storage_key를 받아 멱등이 무력화됐다.)
+  // presigned 만료 폴백의 새 prepare 결과는 onPrepared로 구 key를 교체한다.
   let firstMediaId: string | undefined;
-  for (const qi of job.items) {
+  for (let i = 0; i < job.items.length; i++) {
+    const qi = job.items[i];
     const selectedImage: SelectedImage = {
       uri: qi.persistedUri,
       filename: qi.filename,
@@ -183,7 +188,12 @@ async function resumeSingle(job: uploadQueue.QueueJob): Promise<void> {
       mimeType: qi.mimeType,
       clientExif: qi.clientExif,
     };
-    const result = await uploadImage(selectedImage, undefined, undefined, job.takenAt);
+    const itemIndex = i;
+    const result = await uploadImage(selectedImage, undefined, undefined, job.takenAt, {
+      prepared: qi.prepared,
+      onPrepared: (p) =>
+        safeQueue(() => uploadQueue.markItemPrepared(job.jobId, itemIndex, p)),
+    });
     if (!firstMediaId && result.media_id) firstMediaId = result.media_id;
   }
 
@@ -216,6 +226,9 @@ export async function resumeUploads(userId: string): Promise<void> {
   }
 
   for (const job of jobs) {
+    // F-UPLOAD-DUP C: 직접 업로드(useImageUpload)가 지금 처리 중인 job은 건너뜀 —
+    // 1차 업로드와 재개가 같은 job을 병렬 처리해 중복 Media를 만드는 race 차단
+    if (uploadQueue.isJobActive(job.jobId)) continue;
     try {
       if (job.kind === 'group') {
         await resumeGroup(job);
@@ -248,30 +261,37 @@ let resumeInFlight = false;
 
 export async function triggerResume(): Promise<void> {
   if (QUEUE_DISABLED) return;
+  // F-UPLOAD-DUP A: TOCTOU 차단 — 진입 체크와 세팅 사이 await 0줄(동기 연속).
+  // 구 구현은 세팅이 refreshPendingCount/NetInfo.fetch 두 await 뒤라, 근접 동시
+  // 트리거(포그라운드 복귀 시 AppState+NetInfo 등)가 모두 가드를 통과했다.
   if (resumeInFlight) return;
-  const { isAuthenticated: loggedIn, user } = useAuthStore.getState();
-  const uid = user?.id;
-  if (!loggedIn || !uid) return;
-  // 배너/주기 tick 게이팅용 카운트 동기화 — 오프라인 early-return보다 먼저
-  // (콜드스타트가 오프라인이어도 대기 건수는 배너에 노출돼야 함)
-  await useUploadQueueStore.getState().refreshPendingCount(uid);
-  // B-DN 대응1: 오프라인이면 재개 시도 안 함(헛된 attempts 소모/실패 방지)
-  try {
-    const net = await NetInfo.fetch();
-    const online =
-      net.isConnected === true &&
-      (net.isInternetReachable === true || net.isInternetReachable === null);
-    if (!online) return;
-  } catch {
-    // NetInfo.fetch 실패 시 보수적으로 진행(막아서 영영 재개 안 되는 것보다 시도가 나음)
-  }
   resumeInFlight = true;
   try {
-    await resumeUploads(uid);
-  } catch {
-    // resumeUploads 내부에서 job별 보존 처리됨 — 여기서는 크래시만 방지
-  } finally {
-    resumeInFlight = false;
+    const { isAuthenticated: loggedIn, user } = useAuthStore.getState();
+    const uid = user?.id;
+    if (!loggedIn || !uid) return;
+    // 배너/주기 tick 게이팅용 카운트 동기화 — 오프라인 early-return보다 먼저
+    // (콜드스타트가 오프라인이어도 대기 건수는 배너에 노출돼야 함)
     await useUploadQueueStore.getState().refreshPendingCount(uid);
+    // B-DN 대응1: 오프라인이면 재개 시도 안 함(헛된 attempts 소모/실패 방지)
+    try {
+      const net = await NetInfo.fetch();
+      const online =
+        net.isConnected === true &&
+        (net.isInternetReachable === true || net.isInternetReachable === null);
+      if (!online) return;
+    } catch {
+      // NetInfo.fetch 실패 시 보수적으로 진행(막아서 영영 재개 안 되는 것보다 시도가 나음)
+    }
+    try {
+      await resumeUploads(uid);
+    } catch {
+      // resumeUploads 내부에서 job별 보존 처리됨 — 여기서는 크래시만 방지
+    } finally {
+      await useUploadQueueStore.getState().refreshPendingCount(uid);
+    }
+  } finally {
+    // 미로그인/오프라인 조기 return 포함 모든 경로에서 해제(영구 잠김 방지)
+    resumeInFlight = false;
   }
 }
