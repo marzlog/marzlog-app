@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { colors } from '@/src/theme';
+import { getTheme } from '@/src/theme';
+import { useColorScheme } from '@/components/useColorScheme';
+import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 
 interface IntensitySliderProps {
@@ -11,9 +13,16 @@ interface IntensitySliderProps {
 
 export function IntensitySlider({ value, onChange }: IntensitySliderProps) {
   const { t } = useTranslation();
+  // F-DARKMODE-LABELS: 다크모드 결정 — ImageSelector 동형 (themeMode 'system'이면 시스템 설정)
+  const { themeMode } = useSettingsStore();
+  const systemColorScheme = useColorScheme();
+  const isDark = themeMode === 'system'
+    ? systemColorScheme === 'dark'
+    : themeMode === 'dark';
+  const theme = getTheme(isDark);
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{t('mediaDetail.intensityLabel')}</Text>
+    <View style={[styles.container, { backgroundColor: theme.background.tertiary }]}>
+      <Text style={[styles.title, { color: theme.text.primary }]}>{t('mediaDetail.intensityLabel')}</Text>
 
       <View style={styles.sliderContainer}>
         <Slider
@@ -23,16 +32,16 @@ export function IntensitySlider({ value, onChange }: IntensitySliderProps) {
           step={1}
           value={value}
           onValueChange={onChange}
-          minimumTrackTintColor={colors.brand.primary}
-          maximumTrackTintColor={colors.neutral[2]}
-          thumbTintColor={colors.brand.primary}
+          minimumTrackTintColor={theme.primary.default}
+          maximumTrackTintColor={theme.border.strong}
+          thumbTintColor={theme.primary.default}
         />
       </View>
 
       <View style={styles.labelsContainer}>
-        <Text style={styles.labelText}>1</Text>
-        <Text style={styles.labelText}>3</Text>
-        <Text style={styles.labelText}>5</Text>
+        <Text style={[styles.labelText, { color: theme.text.secondary }]}>1</Text>
+        <Text style={[styles.labelText, { color: theme.text.secondary }]}>3</Text>
+        <Text style={[styles.labelText, { color: theme.text.secondary }]}>5</Text>
       </View>
 
       <View style={styles.indicatorContainer}>
@@ -41,7 +50,7 @@ export function IntensitySlider({ value, onChange }: IntensitySliderProps) {
             key={level}
             style={[
               styles.dot,
-              level <= value && styles.dotActive,
+              { backgroundColor: level <= value ? theme.primary.default : theme.border.default },
             ]}
           />
         ))}
@@ -53,14 +62,14 @@ export function IntensitySlider({ value, onChange }: IntensitySliderProps) {
 const styles = StyleSheet.create({
   container: {
     marginBottom: 24,
-    backgroundColor: colors.neutral[2],
+    // backgroundColor는 인라인 theme.background.tertiary (F-DARKMODE-LABELS)
     borderRadius: 20,
     padding: 20,
   },
   title: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.text.primary,
+    // color는 인라인 theme.text.primary (F-DARKMODE-LABELS)
     marginBottom: 20,
   },
   sliderContainer: {
@@ -79,7 +88,7 @@ const styles = StyleSheet.create({
   labelText: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.text.secondary,
+    // color는 인라인 theme.text.secondary (F-DARKMODE-LABELS)
   },
   indicatorContainer: {
     flexDirection: 'row',
@@ -91,10 +100,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: colors.neutral['0.5'],
-  },
-  dotActive: {
-    backgroundColor: colors.brand.primary,
+    // backgroundColor는 인라인 theme.primary.default(활성)/theme.border.default(비활성) (F-DARKMODE-LABELS)
   },
 });
 

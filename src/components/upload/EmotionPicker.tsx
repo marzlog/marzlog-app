@@ -1,20 +1,28 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
-import { colors } from '@/src/theme';
+import { getTheme } from '@/src/theme';
+import { useColorScheme } from '@/components/useColorScheme';
+import { useSettingsStore } from '@/src/store/settingsStore';
 import { EMOTIONS as EMOTION_DATA, emotionLabel } from '@/constants/emotions';
 import { useTranslation } from '@/src/hooks/useTranslation';
 
 interface EmotionPickerProps {
   selectedEmotion: string;
   onSelect: (emotion: string) => void;
-  isDark?: boolean;
 }
 
-export function EmotionPicker({ selectedEmotion, onSelect, isDark = false }: EmotionPickerProps) {
+export function EmotionPicker({ selectedEmotion, onSelect }: EmotionPickerProps) {
   const { t } = useTranslation();
+  // F-DARKMODE-LABELS: 다크모드 결정 — ImageSelector 동형 (themeMode 'system'이면 시스템 설정)
+  const { themeMode } = useSettingsStore();
+  const systemColorScheme = useColorScheme();
+  const isDark = themeMode === 'system'
+    ? systemColorScheme === 'dark'
+    : themeMode === 'dark';
+  const theme = getTheme(isDark);
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, isDark && styles.titleDark]}>{t('mediaDetail.emotionQuestion')}</Text>
+      <Text style={[styles.title, { color: theme.text.primary }]}>{t('mediaDetail.emotionQuestion')}</Text>
       <View style={styles.grid}>
         {EMOTION_DATA.map((emotion) => {
           const isSelected = selectedEmotion === emotion.nameKo;
@@ -23,8 +31,8 @@ export function EmotionPicker({ selectedEmotion, onSelect, isDark = false }: Emo
               key={emotion.key}
               style={[
                 styles.emotionButton,
-                isDark && styles.emotionButtonDark,
-                isSelected && styles.emotionButtonSelected,
+                { backgroundColor: theme.surface.primary },
+                isSelected && { borderColor: theme.primary.default },
               ]}
               onPress={() => onSelect(emotion.nameKo)}
               activeOpacity={0.7}
@@ -36,7 +44,7 @@ export function EmotionPicker({ selectedEmotion, onSelect, isDark = false }: Emo
               <Text
                 style={[
                   styles.label,
-                  isDark && styles.labelDark,
+                  { color: isSelected ? theme.text.primary : theme.text.secondary },
                   isSelected && styles.labelSelected,
                 ]}
               >
@@ -57,11 +65,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.text.primary,
+    // color는 인라인 theme.text.primary (F-DARKMODE-LABELS)
     marginBottom: 16,
-  },
-  titleDark: {
-    color: '#F9FAFB',
   },
   grid: {
     flexDirection: 'row',
@@ -71,19 +76,13 @@ const styles = StyleSheet.create({
   emotionButton: {
     width: '23%',
     aspectRatio: 1,
-    backgroundColor: '#fff',
+    // backgroundColor는 인라인 theme.surface.primary, 선택 borderColor는 theme.primary.default (F-DARKMODE-LABELS)
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
     borderWidth: 3,
     borderColor: 'transparent',
-  },
-  emotionButtonDark: {
-    backgroundColor: '#1F2937',
-  },
-  emotionButtonSelected: {
-    borderColor: '#FF6B6B',
   },
   emotionIcon: {
     width: 32,
@@ -92,13 +91,9 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: '500',
-    color: colors.text.primary,
-  },
-  labelDark: {
-    color: '#9CA3AF',
+    // color는 인라인 theme.text.secondary, 선택 시 theme.text.primary (F-DARKMODE-LABELS)
   },
   labelSelected: {
-    color: colors.text.primary,
     fontWeight: '600',
   },
 });

@@ -369,6 +369,7 @@ export default function UploadScreen() {
           style={({ pressed }) => [
             styles.backButton,
             pressed && styles.buttonPressed,
+            pressed && isDark && styles.buttonPressedDark,
           ]}
         >
           <Ionicons name="chevron-back" size={28} color={isDark ? '#F9FAFB' : colors.text.primary} />
@@ -513,6 +514,7 @@ export default function UploadScreen() {
             styles.cancelButton,
             isDark && styles.cancelButtonDark,
             pressed && styles.cancelButtonPressed,
+            pressed && isDark && styles.cancelButtonPressedDark,
           ]}
         >
           <Text style={[styles.cancelButtonText, isDark && styles.textLight]}>{t('common.cancel')}</Text>
@@ -585,6 +587,9 @@ const styles = StyleSheet.create({
     opacity: 0.5,
     backgroundColor: colors.neutral[2],
     borderRadius: 24,
+  },
+  buttonPressedDark: {
+    backgroundColor: '#374151',
   },
   scrollView: {
     flex: 1,
@@ -694,6 +699,9 @@ const styles = StyleSheet.create({
   },
   cancelButtonPressed: {
     backgroundColor: colors.neutral[3],
+  },
+  cancelButtonPressedDark: {
+    backgroundColor: '#4B5563',
   },
   cancelButtonText: {
     fontSize: 16,
