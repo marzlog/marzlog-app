@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { forwardRef, useImperativeHandle, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
 import * as Google from 'expo-auth-session/providers/google';
@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import type { AuthResponse } from '../../types/auth';
+import type { LoginButtonHandle } from './LoginButtonHandle';
 import {
   EmailRecentlyWithdrawnError,
   AccountAlreadyExistsError,
@@ -46,7 +47,10 @@ function dispatchAuthError(
   onError?.(message);
 }
 
-function WebGoogleButtonInner({ onSuccess, onError, onTypedError, style }: Props) {
+const WebGoogleButtonInner = forwardRef<LoginButtonHandle, Props>(function WebGoogleButtonInner(
+  { onSuccess, onError, onTypedError, style },
+  ref,
+) {
   const { loginWithGoogle } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const { t } = useTranslation();
@@ -69,6 +73,9 @@ function WebGoogleButtonInner({ onSuccess, onError, onTypedError, style }: Props
     },
   });
 
+  // AccountConflictModal CTA용 — 버튼 탭과 동일 플로우
+  useImperativeHandle(ref, () => ({ trigger: () => login() }));
+
   if (isLoading) {
     return (
       <View style={styles.loading}>
@@ -88,17 +95,20 @@ function WebGoogleButtonInner({ onSuccess, onError, onTypedError, style }: Props
       <Text style={styles.googleBtnText}>{t('auth.continueWithGoogle')}</Text>
     </TouchableOpacity>
   );
-}
+});
 
-function WebGoogleButton(props: Props) {
+const WebGoogleButton = forwardRef<LoginButtonHandle, Props>(function WebGoogleButton(props, ref) {
   return (
     <GoogleOAuthProvider clientId={GOOGLE_WEB_CLIENT_ID}>
-      <WebGoogleButtonInner {...props} />
+      <WebGoogleButtonInner {...props} ref={ref} />
     </GoogleOAuthProvider>
   );
-}
+});
 
-function NativeGoogleButton({ onSuccess, onError, onTypedError, style }: Props) {
+const NativeGoogleButton = forwardRef<LoginButtonHandle, Props>(function NativeGoogleButton(
+  { onSuccess, onError, onTypedError, style },
+  ref,
+) {
   const { loginWithGoogle } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
   const { t } = useTranslation();
@@ -174,6 +184,9 @@ function NativeGoogleButton({ onSuccess, onError, onTypedError, style }: Props) 
     await promptAsync();
   };
 
+  // AccountConflictModal CTA용 — 버튼 탭과 동일 플로우 (request 미초기화 안내 포함)
+  useImperativeHandle(ref, () => ({ trigger: handlePress }));
+
   if (isLoading) {
     return (
       <View style={styles.loading}>
@@ -193,11 +206,15 @@ function NativeGoogleButton({ onSuccess, onError, onTypedError, style }: Props) 
       <Text style={styles.googleBtnText}>{t('auth.continueWithGoogle')}</Text>
     </TouchableOpacity>
   );
-}
+});
 
-export default function GoogleLoginButton(props: Props) {
-  return Platform.OS === 'web' ? <WebGoogleButton {...props} /> : <NativeGoogleButton {...props} />;
-}
+const GoogleLoginButton = forwardRef<LoginButtonHandle, Props>(function GoogleLoginButton(props, ref) {
+  return Platform.OS === 'web'
+    ? <WebGoogleButton {...props} ref={ref} />
+    : <NativeGoogleButton {...props} ref={ref} />;
+});
+
+export default GoogleLoginButton;
 
 const styles = StyleSheet.create({
   webGoogleWrapper: {

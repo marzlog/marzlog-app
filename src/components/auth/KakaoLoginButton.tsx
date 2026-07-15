@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { login } from '@react-native-kakao/user';
 import { useAuthStore } from '../../store/authStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import type { AuthResponse } from '../../types/auth';
+import type { LoginButtonHandle } from './LoginButtonHandle';
 import {
   EmailRecentlyWithdrawnError,
   AccountAlreadyExistsError,
@@ -18,13 +19,13 @@ interface Props {
   style?: object;
 }
 
-export default function KakaoLoginButton({ onSuccess, onError, onTypedError, style }: Props) {
+const KakaoLoginButton = forwardRef<LoginButtonHandle, Props>(function KakaoLoginButton(
+  { onSuccess, onError, onTypedError, style },
+  ref,
+) {
   const { loginWithKakao } = useAuthStore();
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
-
-  // 카카오 로그인은 네이티브 전용 (웹에서는 미노출)
-  if (Platform.OS === 'web') return null;
 
   const handleKakaoLogin = async () => {
     setIsLoading(true);
@@ -65,6 +66,12 @@ export default function KakaoLoginButton({ onSuccess, onError, onTypedError, sty
     }
   };
 
+  // AccountConflictModal CTA용 — 버튼 탭과 동일 플로우
+  useImperativeHandle(ref, () => ({ trigger: handleKakaoLogin }));
+
+  // 카카오 로그인은 네이티브 전용 (웹에서는 미노출)
+  if (Platform.OS === 'web') return null;
+
   return (
     <TouchableOpacity
       style={[styles.button, style]}
@@ -79,7 +86,9 @@ export default function KakaoLoginButton({ onSuccess, onError, onTypedError, sty
       )}
     </TouchableOpacity>
   );
-}
+});
+
+export default KakaoLoginButton;
 
 const styles = StyleSheet.create({
   button: {

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import { useAuthStore } from '../../store/authStore';
 import { useTranslation } from '../../hooks/useTranslation';
 import type { AuthResponse } from '../../types/auth';
+import type { LoginButtonHandle } from './LoginButtonHandle';
 import {
   EmailRecentlyWithdrawnError,
   AccountAlreadyExistsError,
@@ -18,13 +19,13 @@ interface Props {
   onTypedError?: (error: RegistrationTypedError) => void;
 }
 
-export default function AppleLoginButton({ onSuccess, onError, onTypedError }: Props) {
+const AppleLoginButton = forwardRef<LoginButtonHandle, Props>(function AppleLoginButton(
+  { onSuccess, onError, onTypedError },
+  ref,
+) {
   const { loginWithApple } = useAuthStore();
   const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
-
-  // iOS 전용
-  if (Platform.OS !== 'ios') return null;
 
   const handleAppleLogin = async () => {
     setIsLoading(true);
@@ -75,6 +76,12 @@ export default function AppleLoginButton({ onSuccess, onError, onTypedError }: P
     }
   };
 
+  // AccountConflictModal CTA용 — 버튼 탭과 동일 플로우 (nonce/스코프 포함)
+  useImperativeHandle(ref, () => ({ trigger: handleAppleLogin }));
+
+  // iOS 전용 (비-iOS에서 trigger 호출 시 signInAsync가 throw → 기존 catch가 안내)
+  if (Platform.OS !== 'ios') return null;
+
   if (isLoading) {
     return (
       <View style={styles.loading}>
@@ -92,7 +99,9 @@ export default function AppleLoginButton({ onSuccess, onError, onTypedError }: P
       onPress={handleAppleLogin}
     />
   );
-}
+});
+
+export default AppleLoginButton;
 
 const styles = StyleSheet.create({
   button: {

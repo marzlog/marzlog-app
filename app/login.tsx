@@ -31,6 +31,7 @@ import {
 } from '@src/api/auth';
 import { CoolingOffModal } from '@src/components/auth/CoolingOffModal';
 import { AccountConflictModal } from '@src/components/auth/AccountConflictModal';
+import type { LoginButtonHandle } from '@src/components/auth/LoginButtonHandle';
 
 // Floating Label 입력 컴포넌트
 interface FloatingInputProps {
@@ -201,6 +202,28 @@ export default function LoginScreen() {
   };
 
   const passwordRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  // B-CF: 충돌 모달 CTA → registered_provider 로그인 플로우 직접 트리거
+  const googleLoginRef = useRef<LoginButtonHandle>(null);
+  const kakaoLoginRef = useRef<LoginButtonHandle>(null);
+  const appleLoginRef = useRef<LoginButtonHandle>(null);
+
+  const triggerProviderLogin = (provider: string) => {
+    switch (provider) {
+      case 'apple':
+        appleLoginRef.current?.trigger();
+        break;
+      case 'google':
+        googleLoginRef.current?.trigger();
+        break;
+      case 'kakao':
+        kakaoLoginRef.current?.trigger();
+        break;
+      case 'email':
+        emailRef.current?.focus();
+        break;
+    }
+  };
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
@@ -276,16 +299,19 @@ export default function LoginScreen() {
         {/* 소셜 로그인 - 상단 */}
         <View style={styles.socialArea}>
           <KakaoLoginButton
+            ref={kakaoLoginRef}
             onSuccess={handleSuccess}
             onError={handleError}
             onTypedError={handleTypedAuthError}
           />
           <GoogleLoginButton
+            ref={googleLoginRef}
             onSuccess={handleSuccess}
             onError={handleError}
             onTypedError={handleTypedAuthError}
           />
           <AppleLoginButton
+            ref={appleLoginRef}
             onSuccess={handleSuccess}
             onError={handleError}
             onTypedError={handleTypedAuthError}
@@ -314,6 +340,7 @@ export default function LoginScreen() {
             returnKeyType="next"
             onSubmitEditing={() => passwordRef.current?.focus()}
             blurOnSubmit={false}
+            inputRef={emailRef}
           />
           <FloatingInput
             label={t('auth.passwordPlaceholder')}
@@ -406,7 +433,13 @@ export default function LoginScreen() {
           registeredProvider={conflictData.registeredProvider}
           emailMasked={conflictData.emailMasked}
           onClose={() => setConflictData(null)}
-          onLoginPress={() => setConflictData(null)}
+          onLoginPress={() => {
+            const provider = conflictData.registeredProvider;
+            setConflictData(null);
+            // 모달 fade-out과 네이티브 인증 시트(특히 Apple)가 겹치면 시트가 안 뜨는
+            // iOS 거동 방어 — dismiss 후 트리거
+            setTimeout(() => triggerProviderLogin(provider), 300);
+          }}
         />
       )}
     </SafeAreaView>
