@@ -18,7 +18,10 @@ export type SaveImageResult = 'success' | 'denied' | 'error';
  *
  * Web: 새 탭으로 열기 (download 트리거)
  * Native:
- *   1. 권한 요청 (denied 시 'denied' 반환)
+ *   1. iOS만 권한 요청 (denied 시 'denied' 반환)
+ *      — Android는 게이트 없이 직행: API 33+는 saveToLibraryAsync가 무권한 동작하고,
+ *        READ_MEDIA_* 부재 매니페스트에서는 requestPermissionsAsync가 승인될 수 없음.
+ *        API 29~32는 WRITE_EXTERNAL_STORAGE 잔존 경로로 동작.
  *   2. 임시 캐시 디렉토리에 다운로드
  *   3. MediaLibrary.saveToLibraryAsync (갤러리 저장)
  *   4. 임시 파일 정리
@@ -34,8 +37,10 @@ export async function saveImageToGallery(imageUrl: string): Promise<SaveImageRes
   }
 
   try {
-    const { status } = await MediaLibrary.requestPermissionsAsync();
-    if (status !== 'granted') return 'denied';
+    if (Platform.OS === 'ios') {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') return 'denied';
+    }
 
     const tempPath = `${cacheDirectory}marzlog_save_${Date.now()}.jpg`;
     try {
