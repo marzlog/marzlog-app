@@ -124,6 +124,37 @@ function ImageIcon({ color = palette.neutral[500] }: { color?: string }) {
   );
 }
 
+// 사진 추가 버튼 — 빈 상태(중앙)와 리스트 상단(compact)에서 공용.
+// compact=true면 좌측 정렬 + 여백/패딩만 축소, 라벨/아이콘/색은 동일 유지.
+function AddPhotoButton({
+  onPress,
+  disabled,
+  compact = false,
+}: {
+  onPress: () => void;
+  disabled?: boolean;
+  compact?: boolean;
+}) {
+  const { t } = useTranslation();
+  return (
+    <TouchableOpacity
+      style={[
+        styles.uploadButton,
+        { backgroundColor: palette.primary[500] },
+        compact && styles.uploadButtonCompact,
+        disabled && styles.uploadButtonDisabled,
+      ]}
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={t('home.addPhotos')}
+    >
+      <PlusIcon color={palette.neutral[0]} />
+      <Text style={[styles.uploadButtonText, { color: palette.neutral[0] }]}>{t('home.addPhotos')}</Text>
+    </TouchableOpacity>
+  );
+}
+
 // Grid2X2 아이콘 (Lucide)
 function GridIcon({ color = palette.neutral[500] }: { color?: string }) {
   return (
@@ -741,6 +772,13 @@ export default function HomeScreen() {
     }
   };
 
+  // 리스트가 실제로 있을 때만 filterBar 아래 compact 추가 버튼을 노출.
+  // (비어 있으면 중앙 빈 상태의 버튼이 그 역할을 하므로 중복 노출 방지)
+  const isDayPath = dayLoading || dayItems !== null;
+  const hasTimelineItems = isDayPath
+    ? (dayItems?.length ?? 0) > 0
+    : !loading && !error && schedules.length > 0;
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background.primary, paddingTop: insets.top }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.background.primary} />
@@ -864,6 +902,11 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* 리스트 상단 사진 추가 버튼 (항목이 있을 때만) */}
+        {hasTimelineItems && (
+          <AddPhotoButton compact onPress={handleAddPress} disabled={isUploading} />
+        )}
+
         {/* Schedule Cards / Day Items */}
         {dayLoading || dayItems !== null ? (
           /* 날짜 선택 시: viewMode에 따라 썸네일 그리드 또는 텍스트 리스트 */
@@ -874,7 +917,9 @@ export default function HomeScreen() {
               </View>
             ) : dayItems && dayItems.length === 0 ? (
               <View style={styles.emptyState}>
+                <ImageIcon color={theme.icon.secondary} />
                 <Text style={[styles.emptyText, { color: theme.text.secondary }]}>{t('home.emptyDay')}</Text>
+                <AddPhotoButton onPress={handleAddPress} disabled={isUploading} />
               </View>
             ) : viewMode === 'grid' ? (
               (dayItems ?? []).map((item) => (
@@ -953,13 +998,7 @@ export default function HomeScreen() {
               <View style={styles.emptyState}>
                 <ImageIcon color={theme.icon.secondary} />
                 <Text style={[styles.emptyText, { color: theme.text.secondary }]}>{t('home.noPhotosToday')}</Text>
-                <TouchableOpacity
-                  style={[styles.uploadButton, { backgroundColor: palette.primary[500] }]}
-                  onPress={handleAddPress}
-                >
-                  <PlusIcon color={palette.neutral[0]} />
-                  <Text style={[styles.uploadButtonText, { color: palette.neutral[0] }]}>{t('home.addPhotos')}</Text>
-                </TouchableOpacity>
+                <AddPhotoButton onPress={handleAddPress} disabled={isUploading} />
               </View>
             ) : (
               viewMode === 'grid' ? (
@@ -1224,6 +1263,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 360,
+  },
+  uploadButtonCompact: {
+    alignSelf: 'flex-start',
+    marginTop: 0,
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  uploadButtonDisabled: {
+    opacity: 0.5,
   },
   uploadButtonText: {
     fontSize: 14,
