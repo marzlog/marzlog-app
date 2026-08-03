@@ -9,8 +9,6 @@ import {
   TouchableOpacity,
   Pressable,
   Dimensions,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
   Linking,
   Modal,
   TextInput,
@@ -22,6 +20,16 @@ import {
   Keyboard,
 } from 'react-native';
 import { Image, type ImageLoadEventData } from 'expo-image';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,6 +65,19 @@ const CAROUSEL_IMAGE_HEIGHT = SCREEN_HEIGHT * 0.45; // 화면 높이의 45%
 const CAROUSEL_SINGLE_MAX_HEIGHT = SCREEN_HEIGHT * 0.7;
 const isWeb = Platform.OS === 'web';
 
+// ── 스택 카드 뷰어 파라미터 (그룹 2장 이상에서만 사용) ──
+// 카드 폭은 기존 CAROUSEL_IMAGE_WIDTH에서 뒤 카드 offset 만큼 여백을 남긴 값.
+const STACK_CARD_WIDTH = CAROUSEL_IMAGE_WIDTH - 56;
+const STACK_CARD_HEIGHT = CAROUSEL_IMAGE_HEIGHT;
+const STACK_VISIBLE = 3;        // 앞 카드 포함 최대 3장까지만 시각화
+const STACK_OFFSET = 18;        // 뒤 카드 1장당 우측 어긋남(px)
+const STACK_SCALE_STEP = 0.06;  // 뒤 카드 1장당 축소량
+const STACK_OPACITY_STEP = 0.18;// 뒤 카드 1장당 투명도 감소
+const SWIPE_THRESHOLD = STACK_CARD_WIDTH * 0.28; // 이 이상 끌면 확정
+const SWIPE_OUT_DURATION = 180;
+const RUBBER_BAND_FACTOR = 0.25; // 첫/마지막에서의 저항 계수
+const STACK_SPRING = { damping: 18, stiffness: 220 } as const;
+
 // 백엔드 diary_generator.py:31-40의 fallback 문구와 동기.
 // 백엔드 문구 변경 시 이 배열도 갱신 필요 (B-REGEN-FALLBACK-SYNC).
 const DIARY_FALLBACK_PREFIXES = [
@@ -79,6 +100,141 @@ function emotionWithIntensity(
   const label = data ? emotionLabel(data) : emotion;
   const adverbKey = intensityAdverbKey(intensity ?? 0);
   return adverbKey ? `${t(adverbKey)} ${label}` : label;
+}
+
+type StackImage = { id?: string | number; download_url?: string; thumbnail_url?: string };
+
+/**
+ * 스택 카드 뷰어 — 현재 사진이 맨 앞, 뒤 카드들이 우측으로 어긋나 겹쳐 남은 장수를 보여준다.
+ * - 좌 스와이프: 앞 카드가 좌측으로 빠지고 다음 카드가 앞으로 승격
+ * - 우 스와이프: 앞 카드가 우측으로 빠지고 이전 카드가 좌측에서 스프링으로 복귀
+ * - 첫/마지막에서 더 넘기면 rubber band 저항 후 복귀, 임계값 미달도 원위치 복귀
+ * 인덱스 확정은 runOnJS(onIndexChange) 1회만 — 나머지는 전부 워크릿.
+ */
+function ImageStackCarousel({
+  images,
+  index,
+  onIndexChange,
+  onPressCard,
+  enableGesture,
+}: {
+  images: StackImage[];
+  index: number;
+  onIndexChange: (next: number) => void;
+  onPressCard: () => void;
+  enableGesture: boolean;
+}) {
+  const dragX = useSharedValue(0);
+  const hasNext = index < images.length - 1;
+  const hasPrev = index > 0;
+
+  const commit = (next: number) => onIndexChange(next);
+
+  const pan = React.useMemo(
+    () =>
+      Gesture.Pan()
+        // 작은 움직임은 탭(전체화면 진입)에 양보
+        .activeOffsetX([-12, 12])
+        .failOffsetY([-16, 16])
+        .onUpdate((e) => {
+          const blocked = (e.translationX < 0 && !hasNext) || (e.translationX > 0 && !hasPrev);
+          dragX.value = blocked ? e.translationX * RUBBER_BAND_FACTOR : e.translationX;
+        })
+        .onEnd((e) => {
+          const goNext = hasNext && e.translationX < -SWIPE_THRESHOLD;
+          const goPrev = hasPrev && e.translationX > SWIPE_THRESHOLD;
+
+          if (goNext) {
+            // 앞 카드가 나가는 동안 뒤 카드가 이미 앞 위치까지 올라와 있어 교체가 이어져 보인다
+            dragX.value = withTiming(-STACK_CARD_WIDTH, { duration: SWIPE_OUT_DURATION }, (done) => {
+              if (done) {
+                runOnJS(commit)(index + 1);
+                dragX.value = 0;
+              }
+            });
+          } else if (goPrev) {
+            dragX.value = withTiming(STACK_CARD_WIDTH, { duration: SWIPE_OUT_DURATION }, (done) => {
+              if (done) {
+                runOnJS(commit)(index - 1);
+                dragX.value = -STACK_CARD_WIDTH; // 좌측에서
+                dragX.value = withSpring(0, STACK_SPRING); // 앞으로 복귀
+              }
+            });
+          } else {
+            dragX.value = withSpring(0, STACK_SPRING);
+          }
+        }),
+    [index, images.length, hasNext, hasPrev],
+  );
+
+  const frontStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: dragX.value }],
+  }));
+
+  // 뒤 카드는 앞 카드가 좌로 빠지는 진행도(p)에 맞춰 한 단계씩 앞으로 당겨진다.
+  // depth 1/2를 각각 별도 훅으로 선언 (훅 개수 고정 — 장수와 무관)
+  const back1Style = useAnimatedStyle(() => {
+    const p = interpolate(-dragX.value, [0, SWIPE_THRESHOLD], [0, 1], Extrapolation.CLAMP);
+    const d = 1 - p;
+    return {
+      transform: [{ translateX: STACK_OFFSET * d }, { scale: 1 - STACK_SCALE_STEP * d }],
+      opacity: 1 - STACK_OPACITY_STEP * d,
+    };
+  });
+
+  const back2Style = useAnimatedStyle(() => {
+    const p = interpolate(-dragX.value, [0, SWIPE_THRESHOLD], [0, 1], Extrapolation.CLAMP);
+    const d = 2 - p;
+    return {
+      transform: [{ translateX: STACK_OFFSET * d }, { scale: 1 - STACK_SCALE_STEP * d }],
+      opacity: 1 - STACK_OPACITY_STEP * d,
+    };
+  });
+
+  const backStyles = [back1Style, back2Style];
+
+  // 뒤에서 앞 순서로 렌더 (마지막 형제가 위로 온다)
+  const backCards = images
+    .slice(index + 1, index + STACK_VISIBLE)
+    .map((img, i) => ({ img, depth: i + 1 }))
+    .reverse();
+
+  const front = images[index];
+
+  const card = (
+    <Animated.View style={[styles.stackCard, frontStyle]}>
+      <Pressable style={styles.stackCardPress} onPress={onPressCard}>
+        <Image
+          source={front?.download_url || front?.thumbnail_url}
+          style={styles.stackCardImage}
+          contentFit="cover"
+          transition={200}
+          cachePolicy="memory-disk"
+        />
+      </Pressable>
+    </Animated.View>
+  );
+
+  return (
+    <View style={styles.stackArea}>
+      {backCards.map(({ img, depth }) => (
+        <Animated.View
+          key={img.id != null ? String(img.id) : `back-${depth}`}
+          pointerEvents="none"
+          style={[styles.stackCard, backStyles[depth - 1]]}
+        >
+          <Image
+            source={img.download_url || img.thumbnail_url}
+            style={styles.stackCardImage}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
+          />
+        </Animated.View>
+      ))}
+      {enableGesture ? <GestureDetector gesture={pan}>{card}</GestureDetector> : card}
+    </View>
+  );
 }
 
 export default function MediaDetailScreen() {
@@ -136,7 +292,6 @@ export default function MediaDetailScreen() {
   // 그룹 이미지 관련 상태
   const [groupImages, setGroupImages] = useState<GroupImageItem[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const carouselRef = useRef<ScrollView>(null);
   // 단일 이미지 비율(w/h) 런타임 취득값(onLoad). exif 비율이 없을 때만 사용.
   const [singleImageRatio, setSingleImageRatio] = useState<number | null>(null);
 
@@ -191,14 +346,8 @@ export default function MediaDetailScreen() {
             (img: GroupImageItem) => String(img.id) === id
           );
           if (targetIndex > 0) {
+            // 스택 뷰어는 index만으로 렌더되므로 별도 스크롤 동기화가 필요 없다
             setCurrentImageIndex(targetIndex);
-            // 렌더 후 캐러셀 스크롤
-            setTimeout(() => {
-              carouselRef.current?.scrollTo({
-                x: targetIndex * CAROUSEL_IMAGE_WIDTH,
-                animated: false,
-              });
-            }, 50);
           }
         } catch (groupErr) {
         }
@@ -288,36 +437,17 @@ export default function MediaDetailScreen() {
     router.back();
   };
 
-  // 캐러셀 스크롤 핸들러
-  const handleCarouselScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const offsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / CAROUSEL_IMAGE_WIDTH);
-    if (index !== currentImageIndex && index >= 0 && index < displayImages.length) {
-      setCurrentImageIndex(index);
-    }
-  };
-
-  // 이전 이미지로 이동
+  // 이전 이미지로 이동 (웹 화살표 — 스택은 index만 바뀌면 재배치된다)
   const goToPrevious = () => {
     if (currentImageIndex > 0) {
-      const newIndex = currentImageIndex - 1;
-      setCurrentImageIndex(newIndex);
-      carouselRef.current?.scrollTo({
-        x: newIndex * CAROUSEL_IMAGE_WIDTH,
-        animated: true,
-      });
+      setCurrentImageIndex(currentImageIndex - 1);
     }
   };
 
   // 다음 이미지로 이동
   const goToNext = () => {
     if (currentImageIndex < displayImages.length - 1) {
-      const newIndex = currentImageIndex + 1;
-      setCurrentImageIndex(newIndex);
-      carouselRef.current?.scrollTo({
-        x: newIndex * CAROUSEL_IMAGE_WIDTH,
-        animated: true,
-      });
+      setCurrentImageIndex(currentImageIndex + 1);
     }
   };
 
@@ -837,32 +967,30 @@ export default function MediaDetailScreen() {
       >
         {/* Image Carousel */}
         <View style={[useSingleAspect ? styles.carouselWrapperAuto : styles.carouselWrapper, isDark && styles.carouselWrapperDark]}>
-          <ScrollView
-            ref={carouselRef}
-            horizontal={true}
-            pagingEnabled={true}
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={handleCarouselScroll}
-            scrollEventThrottle={16}
-            style={{ width: CAROUSEL_IMAGE_WIDTH }}
-          >
-            {displayImages.map((img, index) => (
-              <Pressable
-                key={img.id || index}
-                style={useSingleAspect ? styles.carouselImageContainerAuto : styles.carouselImageContainer}
-                onPress={() => setViewerVisible(true)}
-              >
-                <Image
-                  source={img.download_url || img.thumbnail_url}
-                  style={useSingleAspect ? [styles.carouselImageAuto, { aspectRatio: singleAspectRatio }] : styles.carouselImage}
-                  contentFit="contain"
-                  transition={200}
-                  cachePolicy="memory-disk"
-                  onLoad={isSingleImage ? handleSingleImageLoad : undefined}
-                />
-              </Pressable>
-            ))}
-          </ScrollView>
+          {isSingleImage ? (
+            /* 단일 사진: 스택·제스처 없이 기존 비율 자동높이 경로 유지 */
+            <Pressable
+              style={useSingleAspect ? styles.carouselImageContainerAuto : styles.carouselImageContainer}
+              onPress={() => setViewerVisible(true)}
+            >
+              <Image
+                source={displayImages[0]?.download_url || displayImages[0]?.thumbnail_url}
+                style={useSingleAspect ? [styles.carouselImageAuto, { aspectRatio: singleAspectRatio }] : styles.carouselImage}
+                contentFit="contain"
+                transition={200}
+                cachePolicy="memory-disk"
+                onLoad={handleSingleImageLoad}
+              />
+            </Pressable>
+          ) : (
+            <ImageStackCarousel
+              images={displayImages}
+              index={currentImageIndex}
+              onIndexChange={setCurrentImageIndex}
+              onPressCard={() => setViewerVisible(true)}
+              enableGesture={!isWeb}
+            />
+          )}
 
           {/* 좌측 버튼 (이전) - 웹에서만 표시 */}
           {isWeb && displayImages.length > 1 && currentImageIndex > 0 && (
@@ -1784,6 +1912,29 @@ const styles = StyleSheet.create({
   carouselImageAuto: {
     width: CAROUSEL_IMAGE_WIDTH,
     maxHeight: CAROUSEL_SINGLE_MAX_HEIGHT,
+  },
+  // ── 스택 카드 뷰어 (그룹 2장 이상) ──
+  stackArea: {
+    width: CAROUSEL_IMAGE_WIDTH,
+    height: CAROUSEL_IMAGE_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stackCard: {
+    position: 'absolute',
+    width: STACK_CARD_WIDTH,
+    height: STACK_CARD_HEIGHT,
+    borderRadius: 20,
+    overflow: 'hidden',
+    backgroundColor: colors.neutral[1],
+  },
+  stackCardPress: {
+    width: '100%',
+    height: '100%',
+  },
+  stackCardImage: {
+    width: '100%',
+    height: '100%',
   },
   carouselButton: {
     position: 'absolute',
