@@ -27,8 +27,8 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -66,17 +66,35 @@ const CAROUSEL_SINGLE_MAX_HEIGHT = SCREEN_HEIGHT * 0.7;
 const isWeb = Platform.OS === 'web';
 
 // ── 스택 카드 뷰어 파라미터 (그룹 2장 이상에서만 사용) ──
-// 카드 폭은 기존 CAROUSEL_IMAGE_WIDTH에서 뒤 카드 offset 만큼 여백을 남긴 값.
-const STACK_CARD_WIDTH = CAROUSEL_IMAGE_WIDTH - 56;
+// 카드 폭은 기존 CAROUSEL_IMAGE_WIDTH에서 뒤 카드가 삐져나올 여백을 뺀 값.
+// 스택은 좌측 기준 정렬 — 남는 폭 전부를 우측 뒤 카드 노출에 쓴다.
+const STACK_CARD_WIDTH = CAROUSEL_IMAGE_WIDTH - 104;
 const STACK_CARD_HEIGHT = CAROUSEL_IMAGE_HEIGHT;
-const STACK_VISIBLE = 3;        // 앞 카드 포함 최대 3장까지만 시각화
-const STACK_OFFSET = 18;        // 뒤 카드 1장당 우측 어긋남(px)
-const STACK_SCALE_STEP = 0.06;  // 뒤 카드 1장당 축소량
-const STACK_OPACITY_STEP = 0.18;// 뒤 카드 1장당 투명도 감소
-const SWIPE_THRESHOLD = STACK_CARD_WIDTH * 0.28; // 이 이상 끌면 확정
+const STACK_PADDING_LEFT = 20;  // 앞 카드 좌측 여백
+const STACK_VISIBLE = 4;        // 앞 카드 포함 최대 4장(뒤 3장)까지만 시각화
+const STACK_MAX_DEPTH = STACK_VISIBLE - 1; // 뒤 스택 최대 depth (= 3)
+// zIndex 명시 — 렌더 순서 의존 금지. 진입하는 prev(rel -1)가 앞 카드를 덮는다.
+const STACK_Z_PREV = 100;
+const STACK_Z_FRONT = 90;
+const STACK_Z_STEP = 10;
+const STACK_OFFSET = 24;        // 뒤 카드 1장당 우측 어긋남(px)
+const STACK_SCALE_STEP = 0.065; // 뒤 카드 1장당 축소량
+const STACK_OPACITY_STEP = 0.14;// 뒤 카드 1장당 투명도 감소 (3장까지라 완만하게)
+// 우측 가용 폭 = SCREEN_WIDTH - (STACK_PADDING_LEFT + STACK_CARD_WIDTH) = 84px (화면폭 무관 상수).
+// transformOrigin 'right center' 로 축소가 우측 끝을 고정하므로 돌출량 = offset 그대로:
+// 24 / 48 / 72px < 84px → 3장 계단이 화면 안에 수납된다.
+const SWIPE_THRESHOLD = STACK_CARD_WIDTH * 0.25; // 이 이상 끌면 확정
+// 거리 미달이어도 이 속도(px/s) 이상으로 튕기면 방향대로 전환 (표준 플릭)
+const SWIPE_VELOCITY_THRESHOLD = 350;
+// 빠른 플릭은 나가는 시간을 줄여 손끝 속도와 어긋나지 않게 한다
+const FAST_FLICK_VELOCITY = 1200;
 const SWIPE_OUT_DURATION = 180;
+const SWIPE_OUT_DURATION_FAST = 120;
+const CANCEL_DURATION = 140;     // 임계 미달 원위치 복귀
 const RUBBER_BAND_FACTOR = 0.25; // 첫/마지막에서의 저항 계수
-const STACK_SPRING = { damping: 18, stiffness: 220 } as const;
+// 이전 카드가 화면 밖 좌측에서 대기하는 거리. dragX 가 이 값이 되면 정확히 앞자리(0)에 놓인다.
+const PREV_TRAVEL = STACK_CARD_WIDTH + STACK_PADDING_LEFT + 24;
+// 전환·복귀 전부 withTiming — 스프링 출렁임(overshoot) 제거
 
 // 백엔드 diary_generator.py:31-40의 fallback 문구와 동기.
 // 백엔드 문구 변경 시 이 배열도 갱신 필요 (B-REGEN-FALLBACK-SYNC).
@@ -106,11 +124,86 @@ type StackImage = { id?: string | number; download_url?: string; thumbnail_url?:
 
 /**
  * 스택 카드 뷰어 — 현재 사진이 맨 앞, 뒤 카드들이 우측으로 어긋나 겹쳐 남은 장수를 보여준다.
- * - 좌 스와이프: 앞 카드가 좌측으로 빠지고 다음 카드가 앞으로 승격
- * - 우 스와이프: 앞 카드가 우측으로 빠지고 이전 카드가 좌측에서 스프링으로 복귀
- * - 첫/마지막에서 더 넘기면 rubber band 저항 후 복귀, 임계값 미달도 원위치 복귀
- * 인덱스 확정은 runOnJS(onIndexChange) 1회만 — 나머지는 전부 워크릿.
+ *
+ * 구조: 슬롯(front/prev/back) 분리 렌더를 폐기하고 **단일 배열 + id 키**로 렌더한다.
+ * 각 카드는 자기 relIndex(= i - currentIndex)만 알면 pose가 결정되고, 커밋 후에는
+ * 같은 엘리먼트가 새 relIndex의 pose로 이동할 뿐이라 **리마운트가 0**이다
+ * (슬롯 분리 구조에서 같은 사진이 prev→front로 옮겨갈 때 발생하던 언마운트/크로스페이드 잔상 제거).
+ *
+ * pose 규약 (dragX 하나로 전 카드 보간):
+ *   rel = -1  좌측 화면 밖 대기 → dragX 따라 진입 (우 스와이프의 '이전 카드')
+ *   rel =  0  앞 카드. 좌 드래그는 손끝 추종, 우 드래그는 depth1로 후퇴
+ *   rel >= 1  뒤 스택. 좌 드래그(p)로 승격, 우 드래그(q)로 강등
+ *   d >= STACK_MAX_DEPTH+1 이면 opacity 0 (스택 밖 잔상 제거)
+ *
+ * 전환 확정 시 dragX 목표를 양방향 모두 ±PREV_TRAVEL 로 두어, 커밋 직전 그림과
+ * 커밋 직후(dragX=0, 새 index) 그림이 모든 카드에서 동일해진다 → 프레임 갭에도 화면 불변.
  */
+function StackCard({
+  img,
+  absIndex,
+  dragX,
+  indexSV,
+}: {
+  img: StackImage;
+  absIndex: number;
+  dragX: SharedValue<number>;
+  indexSV: SharedValue<number>;
+}) {
+  // pose 는 전적으로 UI 스레드 상태(indexSV, dragX)로만 계산한다.
+  // absIndex 는 커밋 때 바뀌지 않는 prop 이므로, React 리렌더 타이밍과 무관하게
+  // 항상 정합한 그림이 그려진다(리렌더-리셋 프레임 불일치 원천 소멸).
+  const animatedStyle = useAnimatedStyle(() => {
+    const rel = absIndex - indexSV.value;
+
+    // 좌측 밖 대기 카드: dragX 를 그대로 따라 들어온다.
+    // rel -2 는 우 커밋 시 rel -1 이 될 예비 카드 — 미리 마운트해 두되 완전 투명.
+    if (rel < 0) {
+      return {
+        transform: [{ translateX: dragX.value - PREV_TRAVEL * -rel }, { scale: 1 }],
+        opacity: rel < -1 ? 0 : 1,
+        zIndex: STACK_Z_PREV, // 진입하는 이전 카드가 앞 카드를 덮는다
+      };
+    }
+    // 앞 카드의 좌 드래그: 손끝 추종 (나가는 동작)
+    if (rel === 0 && dragX.value < 0) {
+      return {
+        transform: [{ translateX: dragX.value }, { scale: 1 }],
+        opacity: 1,
+        zIndex: STACK_Z_FRONT,
+      };
+    }
+    // 그 외: depth 보간. p(좌)와 q(우)는 dragX 부호로 배타 분기한다.
+    const p = interpolate(-dragX.value, [0, SWIPE_THRESHOLD], [0, 1], Extrapolation.CLAMP);
+    const q = interpolate(dragX.value, [0, PREV_TRAVEL], [0, 1], Extrapolation.CLAMP);
+    const d = rel - p + q;
+    const fade = interpolate(
+      d,
+      [STACK_MAX_DEPTH, STACK_MAX_DEPTH + 1],
+      [1, 0],
+      Extrapolation.CLAMP,
+    );
+    return {
+      transform: [{ translateX: STACK_OFFSET * d }, { scale: 1 - STACK_SCALE_STEP * d }],
+      opacity: (1 - STACK_OPACITY_STEP * d) * fade,
+      // zIndex 도 rel 기반이라 워크릿 안에서 계산 (렌더 순서 비의존)
+      zIndex: STACK_Z_FRONT - rel * STACK_Z_STEP,
+    };
+  });
+
+  return (
+    <Animated.View pointerEvents="none" style={[styles.stackCard, animatedStyle]}>
+      <Image
+        source={img.download_url || img.thumbnail_url}
+        style={styles.stackCardImage}
+        contentFit="cover"
+        transition={0}
+        cachePolicy="memory-disk"
+      />
+    </Animated.View>
+  );
+}
+
 function ImageStackCarousel({
   images,
   index,
@@ -125,116 +218,104 @@ function ImageStackCarousel({
   enableGesture: boolean;
 }) {
   const dragX = useSharedValue(0);
-  const hasNext = index < images.length - 1;
-  const hasPrev = index > 0;
+  // 전환의 단일 진실. pose 는 이 값만 보고 그려지며, React 의 currentImageIndex 는 뒤따라간다.
+  const indexSV = useSharedValue(index);
+  const count = images.length;
 
-  const commit = (next: number) => onIndexChange(next);
+  // 외부에서 인덱스가 바뀐 경우(웹 화살표, 딥링크 targetIndex 등) UI 스레드 값 동기화.
+  // 스와이프 경로에서는 워크릿이 이미 같은 값을 써둔 뒤라 no-op 이다.
+  useEffect(() => {
+    if (indexSV.value !== index) indexSV.value = index;
+  }, [index, indexSV]);
 
   const pan = React.useMemo(
     () =>
       Gesture.Pan()
         // 작은 움직임은 탭(전체화면 진입)에 양보
-        .activeOffsetX([-12, 12])
+        .activeOffsetX([-8, 8])
         .failOffsetY([-16, 16])
         .onUpdate((e) => {
-          const blocked = (e.translationX < 0 && !hasNext) || (e.translationX > 0 && !hasPrev);
+          const idx = indexSV.value;
+          const blocked =
+            (e.translationX < 0 && idx >= count - 1) || (e.translationX > 0 && idx <= 0);
           dragX.value = blocked ? e.translationX * RUBBER_BAND_FACTOR : e.translationX;
         })
         .onEnd((e) => {
-          const goNext = hasNext && e.translationX < -SWIPE_THRESHOLD;
-          const goPrev = hasPrev && e.translationX > SWIPE_THRESHOLD;
+          const idx = indexSV.value;
+          // 거리 OR 속도 — 둘 중 하나만 넘겨도 전환.
+          // 플릭은 방향이 뒤집힌 오작동을 막기 위해 이동 방향과 부호가 같을 때만 인정한다.
+          const flickNext = e.velocityX < -SWIPE_VELOCITY_THRESHOLD && e.translationX <= 0;
+          const flickPrev = e.velocityX > SWIPE_VELOCITY_THRESHOLD && e.translationX >= 0;
+          const goNext = idx < count - 1 && (e.translationX < -SWIPE_THRESHOLD || flickNext);
+          const goPrev = idx > 0 && (e.translationX > SWIPE_THRESHOLD || flickPrev);
 
-          if (goNext) {
-            // 앞 카드가 나가는 동안 뒤 카드가 이미 앞 위치까지 올라와 있어 교체가 이어져 보인다
-            dragX.value = withTiming(-STACK_CARD_WIDTH, { duration: SWIPE_OUT_DURATION }, (done) => {
+          const outDuration =
+            Math.abs(e.velocityX) > FAST_FLICK_VELOCITY
+              ? SWIPE_OUT_DURATION_FAST
+              : SWIPE_OUT_DURATION;
+
+          // 양방향 목표를 ±PREV_TRAVEL 로 대칭 — 커밋 전후 pose 가 정확히 일치한다
+          if (goNext || goPrev) {
+            const next = goNext ? idx + 1 : idx - 1;
+            const target = goNext ? -PREV_TRAVEL : PREV_TRAVEL;
+            dragX.value = withTiming(target, { duration: outDuration }, (done) => {
               if (done) {
-                runOnJS(commit)(index + 1);
+                // 같은 워크릿 프레임에서 인덱스 확정 + 오프셋 리셋 → 프레임 불일치 없음
+                indexSV.value = next;
                 dragX.value = 0;
-              }
-            });
-          } else if (goPrev) {
-            dragX.value = withTiming(STACK_CARD_WIDTH, { duration: SWIPE_OUT_DURATION }, (done) => {
-              if (done) {
-                runOnJS(commit)(index - 1);
-                dragX.value = -STACK_CARD_WIDTH; // 좌측에서
-                dragX.value = withSpring(0, STACK_SPRING); // 앞으로 복귀
+                // React 상태는 뒤따라가기만 (감정 카드/dots 용, 늦어도 시각 전환과 무관)
+                runOnJS(onIndexChange)(next);
               }
             });
           } else {
-            dragX.value = withSpring(0, STACK_SPRING);
+            dragX.value = withTiming(0, { duration: CANCEL_DURATION });
           }
         }),
-    [index, images.length, hasNext, hasPrev],
+    [count, dragX, indexSV, onIndexChange],
   );
 
-  const frontStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: dragX.value }],
-  }));
-
-  // 뒤 카드는 앞 카드가 좌로 빠지는 진행도(p)에 맞춰 한 단계씩 앞으로 당겨진다.
-  // depth 1/2를 각각 별도 훅으로 선언 (훅 개수 고정 — 장수와 무관)
-  const back1Style = useAnimatedStyle(() => {
-    const p = interpolate(-dragX.value, [0, SWIPE_THRESHOLD], [0, 1], Extrapolation.CLAMP);
-    const d = 1 - p;
-    return {
-      transform: [{ translateX: STACK_OFFSET * d }, { scale: 1 - STACK_SCALE_STEP * d }],
-      opacity: 1 - STACK_OPACITY_STEP * d,
-    };
-  });
-
-  const back2Style = useAnimatedStyle(() => {
-    const p = interpolate(-dragX.value, [0, SWIPE_THRESHOLD], [0, 1], Extrapolation.CLAMP);
-    const d = 2 - p;
-    return {
-      transform: [{ translateX: STACK_OFFSET * d }, { scale: 1 - STACK_SCALE_STEP * d }],
-      opacity: 1 - STACK_OPACITY_STEP * d,
-    };
-  });
-
-  const backStyles = [back1Style, back2Style];
-
-  // 뒤에서 앞 순서로 렌더 (마지막 형제가 위로 온다)
-  const backCards = images
-    .slice(index + 1, index + STACK_VISIBLE)
-    .map((img, i) => ({ img, depth: i + 1 }))
-    .reverse();
-
-  const front = images[index];
-
-  const card = (
-    <Animated.View style={[styles.stackCard, frontStyle]}>
-      <Pressable style={styles.stackCardPress} onPress={onPressCard}>
-        <Image
-          source={front?.download_url || front?.thumbnail_url}
-          style={styles.stackCardImage}
-          contentFit="cover"
-          transition={200}
-          cachePolicy="memory-disk"
-        />
-      </Pressable>
-    </Animated.View>
+  const tap = React.useMemo(
+    () => Gesture.Tap().onEnd((_e, success) => {
+      if (success) runOnJS(onPressCard)();
+    }),
+    [onPressCard],
   );
 
-  return (
+  const composed = React.useMemo(() => Gesture.Exclusive(pan, tap), [pan, tap]);
+
+  // rel -2(투명 예비) ~ STACK_MAX_DEPTH+1(페이드인 예비)까지 렌더.
+  // 양 끝을 opacity 0 예비 슬롯으로 두어 좌/우 커밋 모두 "신규 마운트가 보이지 않는" 상태로 대칭화.
+  const from = Math.max(0, index - 2);
+  const to = Math.min(images.length, index + STACK_MAX_DEPTH + 2);
+  const windowed = images.slice(from, to);
+
+  const stack = (
     <View style={styles.stackArea}>
-      {backCards.map(({ img, depth }) => (
-        <Animated.View
-          key={img.id != null ? String(img.id) : `back-${depth}`}
-          pointerEvents="none"
-          style={[styles.stackCard, backStyles[depth - 1]]}
-        >
-          <Image
-            source={img.download_url || img.thumbnail_url}
-            style={styles.stackCardImage}
-            contentFit="cover"
-            transition={200}
-            cachePolicy="memory-disk"
+      {windowed.map((img, i) => {
+        const absolute = from + i;
+        return (
+          <StackCard
+            key={img.id != null ? String(img.id) : `stack-${absolute}`}
+            img={img}
+            absIndex={absolute}
+            dragX={dragX}
+            indexSV={indexSV}
           />
-        </Animated.View>
-      ))}
-      {enableGesture ? <GestureDetector gesture={pan}>{card}</GestureDetector> : card}
+        );
+      })}
     </View>
   );
+
+  // 웹은 제스처 대신 화살표 버튼으로 이동 — 탭(전체화면)만 유지
+  if (!enableGesture) {
+    return (
+      <Pressable onPress={onPressCard} style={styles.stackPressArea}>
+        {stack}
+      </Pressable>
+    );
+  }
+
+  return <GestureDetector gesture={composed}>{stack}</GestureDetector>;
 }
 
 export default function MediaDetailScreen() {
@@ -1917,20 +1998,23 @@ const styles = StyleSheet.create({
   stackArea: {
     width: CAROUSEL_IMAGE_WIDTH,
     height: CAROUSEL_IMAGE_HEIGHT,
-    alignItems: 'center',
+    alignItems: 'flex-start', // 좌측 기준 — 우측 여백이 뒤 카드 노출 공간
     justifyContent: 'center',
   },
   stackCard: {
     position: 'absolute',
+    left: STACK_PADDING_LEFT,
     width: STACK_CARD_WIDTH,
     height: STACK_CARD_HEIGHT,
+    // 축소 기준점을 우측 끝에 고정 → 돌출량이 offset 그대로 유지된다
+    transformOrigin: 'right center',
     borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: colors.neutral[1],
   },
-  stackCardPress: {
-    width: '100%',
-    height: '100%',
+  stackPressArea: {
+    width: CAROUSEL_IMAGE_WIDTH,
+    height: CAROUSEL_IMAGE_HEIGHT,
   },
   stackCardImage: {
     width: '100%',
