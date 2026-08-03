@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme';
 import { EMOTIONS as EMOTION_DATA, emotionLabel } from '@/constants/emotions';
+import { IntensitySlider } from '@/src/components/upload/IntensitySlider';
 
 interface EditAnalysisModalProps {
   visible: boolean;
@@ -151,31 +152,10 @@ export function EditAnalysisModal({
               </View>
             </View>
 
-            {/* Intensity */}
+            {/* Intensity — 1-10 척도. IntensitySlider 가 라벨(mediaDetail.intensityLabel)·
+                값 표시·부사 미리보기를 자체 렌더하므로 별도 label 을 두지 않는다 */}
             <View style={styles.field}>
-              <Text style={styles.label}>강도</Text>
-              <View style={styles.intensityRow}>
-                {[1, 2, 3, 4, 5].map(n => (
-                  <TouchableOpacity
-                    key={n}
-                    style={[
-                      styles.intensityBtn,
-                      intensity >= n && styles.intensityBtnActive,
-                    ]}
-                    onPress={() => setIntensity(n)}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.intensityText,
-                        intensity >= n && styles.intensityTextActive,
-                      ]}
-                    >
-                      {n}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <IntensitySlider value={intensity} onChange={setIntensity} />
             </View>
           </ScrollView>
 
@@ -289,31 +269,6 @@ const styles = StyleSheet.create({
   emotionLabelActive: {
     color: '#1F2937',
     fontWeight: '600',
-  },
-  intensityRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  intensityBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-  },
-  intensityBtnActive: {
-    backgroundColor: '#FF6A5F',
-    borderColor: '#FF6A5F',
-  },
-  intensityText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  intensityTextActive: {
-    color: '#fff',
   },
   footer: {
     padding: 16,

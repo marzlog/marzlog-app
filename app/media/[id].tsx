@@ -29,7 +29,6 @@ import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, triggerOc
 import { runDeviceOcr } from '@/src/services/deviceOcr';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { copyText, saveImageToGallery } from '@/src/utils/copyUtils';
-import Slider from '@react-native-community/slider';
 import { timelineApi, GroupImageItem } from '@/src/api/timeline';
 import { colors } from '@/src/theme';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -44,6 +43,8 @@ import ErrorView from '@/src/components/common/ErrorView';
 import { AiNotice } from '@/src/components/common/AiNotice';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 import { EMOTIONS, getEmotionByName, getEmotionIcon, getEmotionIllustration, EMOTION_KEY_TO_NAME, emotionLabel } from '@/constants/emotions';
+import { intensityAdverbKey } from '@/src/utils/intensity';
+import { IntensitySlider } from '@/src/components/upload/IntensitySlider';
 import { ShareSheet } from '@/src/components/media/ShareSheet';
 import { ShareCardView } from '@/src/components/media/ShareCardView';
 import FullscreenImageViewer from '@/src/components/media/FullscreenImageViewer';
@@ -62,6 +63,23 @@ const DIARY_FALLBACK_PREFIXES = [
   'AI 일기를 생성하지 못했',
   'Could not generate the diary',
 ] as const;
+
+/**
+ * "부사 + 감정어" 표기 조합 (예: 꽤 기쁨 / quite Joy).
+ * - intensity 5-6(부사 없음)·범위 밖·null 이면 감정어만 반환
+ * - 감정어는 emotionLabel로 현재 언어에 맞게 표시(저장 정본은 한글 nameKo 유지)
+ * - EMOTION_NAME_TO_KEY 매핑에 없는 문자열은 원값 그대로 폴백
+ */
+function emotionWithIntensity(
+  emotion: string | null | undefined,
+  intensity: number | null | undefined,
+): string {
+  if (!emotion) return '';
+  const data = getEmotionByName(emotion);
+  const label = data ? emotionLabel(data) : emotion;
+  const adverbKey = intensityAdverbKey(intensity ?? 0);
+  return adverbKey ? `${t(adverbKey)} ${label}` : label;
+}
 
 export default function MediaDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -919,9 +937,7 @@ export default function MediaDetailScreen() {
                   />
                 )}
                 <Text style={[styles.emotionCardText, isDark && styles.emotionCardTextDark]}>
-                  {currentIntensity
-                    ? `${currentIntensity <= 2 ? t('mediaDetail.intensitySlight') : currentIntensity === 3 ? t('mediaDetail.intensityNormal') : t('mediaDetail.intensityVery')} ${currentEmotion}`
-                    : currentEmotion}
+                  {emotionWithIntensity(currentEmotion, currentIntensity)}
                 </Text>
               </View>
             </>
@@ -1553,23 +1569,8 @@ export default function MediaDetailScreen() {
                   );
                 })}
               </View>
-              <Text style={[styles.intensityLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityLabel')}</Text>
-              <Slider
-                style={styles.slider}
-                minimumValue={1}
-                maximumValue={5}
-                step={1}
-                value={editIntensity}
-                onValueChange={(value) => setEditIntensity(value)}
-                minimumTrackTintColor={colors.brand.primary}
-                maximumTrackTintColor={isDark ? '#374151' : '#ddd'}
-                thumbTintColor={colors.brand.primary}
-              />
-              <View style={styles.sliderLabels}>
-                <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityLow')}</Text>
-                <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityMid')}</Text>
-                <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityHigh')}</Text>
-              </View>
+              {/* 강도: 라벨·값 표시·부사 미리보기·dot 인디케이터를 컴포넌트가 자체 렌더 */}
+              <IntensitySlider value={editIntensity} onChange={setEditIntensity} embedded />
               <View style={styles.modalButtons}>
                 <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setEmotionModalVisible(false)}>
                   <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>{t('common.cancel')}</Text>
@@ -1605,23 +1606,8 @@ export default function MediaDetailScreen() {
                     );
                   })}
                 </View>
-                <Text style={[styles.intensityLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityLabel')}</Text>
-                <Slider
-                  style={styles.slider}
-                  minimumValue={1}
-                  maximumValue={5}
-                  step={1}
-                  value={editIntensity}
-                  onValueChange={(value) => setEditIntensity(value)}
-                  minimumTrackTintColor={colors.brand.primary}
-                  maximumTrackTintColor={isDark ? '#374151' : '#ddd'}
-                  thumbTintColor={colors.brand.primary}
-                />
-                <View style={styles.sliderLabels}>
-                  <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityLow')}</Text>
-                  <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityMid')}</Text>
-                  <Text style={[styles.sliderLabelText, isDark && styles.textSecondaryDark]}>{t('mediaDetail.intensityHigh')}</Text>
-                </View>
+                {/* 강도: 라벨·값 표시·부사 미리보기·dot 인디케이터를 컴포넌트가 자체 렌더 */}
+                <IntensitySlider value={editIntensity} onChange={setEditIntensity} embedded />
                 <View style={styles.modalButtons}>
                   <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setEmotionModalVisible(false)}>
                     <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>{t('common.cancel')}</Text>
@@ -2386,25 +2372,5 @@ const styles = StyleSheet.create({
   emotionOptionNameSelected: {
     color: '#1F2937',
     fontWeight: '600',
-  },
-  intensityLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text.secondary,
-    marginBottom: 8,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-    marginBottom: 16,
-  },
-  sliderLabelText: {
-    fontSize: 12,
-    color: colors.text.secondary,
   },
 });

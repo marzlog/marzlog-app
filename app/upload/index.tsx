@@ -53,7 +53,7 @@ export default function UploadScreen() {
   const [images, setImages] = useState<ImagePickerItem[]>([]);
   const [primaryImageIndex, setPrimaryImageIndex] = useState(0);
   const [selectedEmotion, setSelectedEmotion] = useState<string>('평온');
-  const [intensity, setIntensity] = useState(3);
+  const [intensity, setIntensity] = useState(6);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [showMemo, setShowMemo] = useState(false);
@@ -97,7 +97,7 @@ export default function UploadScreen() {
       setMemo(mediaDetail.memo || '');
       if (mediaDetail.memo) setShowMemo(true);
       setSelectedEmotion(mediaDetail.emotion || '평온');
-      setIntensity(mediaDetail.intensity || 3);
+      setIntensity(mediaDetail.intensity || 6);
 
       // 이미지 설정
       const loadedImages: ImagePickerItem[] = [];
