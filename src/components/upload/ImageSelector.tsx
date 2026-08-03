@@ -4,7 +4,9 @@ import {
   Text,
   Image as RNImage,
   TouchableOpacity,
+  ScrollView,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,9 +17,14 @@ import { useTranslation } from '@/src/hooks/useTranslation';
 import type { UploadItem } from '@/src/hooks/useImageUpload';
 
 // Figma MO_HOM_0102 기준
-const GRID_GAP = 12;
+const ROW_GAP = 12;
 const DEFAULT_ASPECT_RATIO = 4 / 3;
 const MAX_PRIMARY_HEIGHT = 350;
+
+// 가로 1행 레이아웃 치수: [대표(크게)] [추가(작게)] [+]
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const PRIMARY_WIDTH = Math.min(Math.round(SCREEN_WIDTH * 0.62), 260);
+const THUMB_SIZE = 104;
 
 interface ImageSelectorProps {
   images: UploadItem[];
@@ -46,8 +53,12 @@ export function ImageSelector({
     ? systemColorScheme === 'dark'
     : themeMode === 'dark';
   const theme = getTheme(isDark);
-  const primaryImage = images[primaryIndex];
-  const additionalImages = images.filter((_, i) => i !== primaryIndex);
+
+  // primaryIndex가 범위를 벗어나도 첫 장을 대표로 취급 (행 첫 슬롯이 비지 않게)
+  const resolvedPrimaryIndex = images[primaryIndex] ? primaryIndex : 0;
+  const primaryImage = images.length > 0 ? images[resolvedPrimaryIndex] : undefined;
+  const additionalImages = images.filter((_, i) => i !== resolvedPrimaryIndex);
+  const canAddMore = images.length < maxImages;
 
   // 대표 이미지 비율 동적 계산
   const [imageAspectRatio, setImageAspectRatio] = useState(DEFAULT_ASPECT_RATIO);
@@ -72,57 +83,58 @@ export function ImageSelector({
 
   return (
     <View style={styles.container}>
-      {/* Primary Image Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>{t('upload.primaryImageSection')}</Text>
-          <TouchableOpacity style={styles.aiButton}>
-            <Text style={styles.aiButtonText}>AI</Text>
-          </TouchableOpacity>
-        </View>
+      <View style={styles.sectionHeader}>
+        <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>{t('upload.primaryImageSection')}</Text>
+        <TouchableOpacity style={styles.aiButton}>
+          <Text style={styles.aiButtonText}>AI</Text>
+        </TouchableOpacity>
+      </View>
 
-        {primaryImage ? (
-          <View style={[styles.primaryImageContainer, { aspectRatio: imageAspectRatio }]}>
+      {primaryImage ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.rowContent}
+        >
+          {/* 첫 슬롯: 대표 이미지 (크게) — 대표 변경 시 자동으로 이 자리로 이동 */}
+          <View
+            style={[
+              styles.primaryImageContainer,
+              { aspectRatio: imageAspectRatio },
+            ]}
+          >
             <Image
               source={primaryImage.uri}
               style={styles.primaryImage}
               contentFit="cover"
               cachePolicy="memory-disk"
             />
+            {/* 썸네일 X 버튼과 동일 계열 — 대형 슬롯이라 한 치수 크게.
+                삭제 후 대표 승격은 호출부 + resolvedPrimaryIndex 방어에 위임 */}
+            <TouchableOpacity
+              style={styles.primaryRemoveButton}
+              onPress={() => onRemoveImage(resolvedPrimaryIndex)}
+            >
+              <Ionicons name="close" size={15} color={colors.text.inverse} />
+            </TouchableOpacity>
             {onEditImage && (
               <TouchableOpacity
                 style={styles.editButton}
-                onPress={() => onEditImage(primaryIndex)}
+                onPress={() => onEditImage(resolvedPrimaryIndex)}
               >
                 <Ionicons name="pencil" size={16} color={colors.text.inverse} />
               </TouchableOpacity>
             )}
           </View>
-        ) : (
-          <TouchableOpacity
-            style={[styles.primaryPlaceholder, { backgroundColor: theme.background.tertiary }]}
-            onPress={onAddImages}
-          >
-            <View style={[styles.addIconContainer, { backgroundColor: theme.surface.primary }]}>
-              <Ionicons name="add" size={32} color={theme.icon.secondary} />
-            </View>
-          </TouchableOpacity>
-        )}
-      </View>
 
-      {/* Additional Images Section */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.text.primary }]}>{t('upload.additionalImageSection')}</Text>
-
-        <View style={styles.imageGrid}>
-          {/* Show additional images */}
-          {additionalImages.map((image, index) => {
+          {/* 추가 이미지 (정사각 썸네일) */}
+          {additionalImages.map((image) => {
             const actualIndex = images.findIndex((img) => img.id === image.id);
             return (
-              <View key={image.id} style={styles.gridItem}>
+              <View key={image.id} style={styles.thumbItem}>
                 <Image
                   source={image.uri}
-                  style={styles.gridImage}
+                  style={styles.thumbImage}
                   contentFit="cover"
                   cachePolicy="memory-disk"
                 />
@@ -130,55 +142,55 @@ export function ImageSelector({
                   style={styles.removeButton}
                   onPress={() => onRemoveImage(actualIndex)}
                 >
-                  <Ionicons name="close" size={14} color={colors.text.inverse} />
+                  <Ionicons name="close" size={12} color={colors.text.inverse} />
                 </TouchableOpacity>
                 {onEditImage && (
                   <TouchableOpacity
-                    style={styles.gridEditButton}
+                    style={styles.thumbEditButton}
                     onPress={() => onEditImage(actualIndex)}
                   >
-                    <Ionicons name="pencil" size={12} color={colors.text.inverse} />
+                    <Ionicons name="pencil" size={11} color={colors.text.inverse} />
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
                   style={[styles.setPrimaryButton, { backgroundColor: theme.surface.elevated }]}
                   onPress={() => onSetPrimary(actualIndex)}
                 >
-                  <Ionicons name="star-outline" size={12} color={theme.text.primary} />
+                  <Ionicons name="star-outline" size={11} color={theme.text.primary} />
                 </TouchableOpacity>
               </View>
             );
           })}
 
-          {/* Add more button */}
-          {images.length < maxImages && (
+          {/* 항상 행의 마지막 — 한도 미만일 때만 */}
+          {canAddMore && (
             <TouchableOpacity
               style={[styles.addMoreButton, { backgroundColor: theme.background.tertiary }]}
               onPress={onAddImages}
             >
-              <Ionicons name="add" size={24} color={theme.icon.secondary} />
+              <Ionicons name="add" size={28} color={theme.icon.secondary} />
             </TouchableOpacity>
           )}
-
-          {/* Empty placeholders - 2열 그리드에 맞게 조정 */}
-          {Array.from({ length: Math.max(0, 3 - additionalImages.length - (images.length < maxImages ? 1 : 0)) }).map(
-            (_, index) => (
-              <View key={`empty-${index}`} style={[styles.emptyPlaceholder, { backgroundColor: theme.background.tertiary }]} />
-            )
-          )}
-        </View>
-      </View>
+        </ScrollView>
+      ) : (
+        /* 빈 상태: 전체 탭으로 onAddImages (기존 동작 유지) */
+        <TouchableOpacity
+          style={[styles.primaryPlaceholder, { backgroundColor: theme.background.tertiary }]}
+          onPress={onAddImages}
+        >
+          <View style={[styles.addIconContainer, { backgroundColor: theme.surface.primary }]}>
+            <Ionicons name="add" size={32} color={theme.icon.secondary} />
+          </View>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    gap: 24,
-    marginBottom: 24,
-  },
-  section: {
     gap: 12,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -201,8 +213,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text.inverse,
   },
+  rowContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: ROW_GAP,
+    paddingRight: 4, // 마지막 항목이 화면 끝에 붙지 않도록
+  },
   primaryImageContainer: {
-    width: '100%',
+    width: PRIMARY_WIDTH,
     // aspectRatio는 동적으로 적용됨 (이미지 원본 비율)
     maxHeight: MAX_PRIMARY_HEIGHT,
     borderRadius: 16,
@@ -228,9 +246,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  editButton: {
+  primaryRemoveButton: {
     position: 'absolute',
     top: 12,
+    right: 12,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.brand.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editButton: {
+    // 썸네일과 같은 배치 규칙: X는 우상단, 연필은 우하단 (대표 X 버튼과 겹치지 않게)
+    position: 'absolute',
+    bottom: 12,
     right: 12,
     width: 32,
     height: 32,
@@ -239,67 +269,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  imageGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: GRID_GAP,
-  },
-  gridItem: {
-    width: '48%', // Figma: 2열 그리드, 각 약 170x170
-    aspectRatio: 1, // 1:1 정사각형
+  thumbItem: {
+    width: THUMB_SIZE,
+    height: THUMB_SIZE,
     borderRadius: 12,
     overflow: 'hidden',
     position: 'relative',
   },
-  gridImage: {
+  thumbImage: {
     width: '100%',
     height: '100%',
   },
   removeButton: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    top: 5,
+    right: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: colors.brand.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  gridEditButton: {
+  thumbEditButton: {
     position: 'absolute',
-    bottom: 6,
-    right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    bottom: 5,
+    right: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   setPrimaryButton: {
     position: 'absolute',
-    bottom: 6,
-    left: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    bottom: 5,
+    left: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addMoreButton: {
-    width: '48%', // Figma: 2열 그리드
-    aspectRatio: 1,
+    width: THUMB_SIZE,
+    height: THUMB_SIZE,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  emptyPlaceholder: {
-    width: '48%', // Figma: 2열 그리드
-    aspectRatio: 1,
-    borderRadius: 12,
-    opacity: 0.5,
   },
 });
 

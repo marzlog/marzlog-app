@@ -18,7 +18,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { colors } from '@/src/theme';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
-import { useImageUpload, ImagePickerItem } from '@/src/hooks/useImageUpload';
+import { useImageUpload, ImagePickerItem, MAX_SELECTION } from '@/src/hooks/useImageUpload';
 import { ImageSelector, EmotionPicker, IntensitySlider } from '@/src/components/upload';
 import { getMediaDetail, updateMedia, setPrimaryImage } from '@/src/api/media';
 import { timelineApi } from '@/src/api/timeline';
@@ -193,7 +193,7 @@ export default function UploadScreen() {
   // ========== 이미지 핸들러 ==========
 
   const handleAddMoreImages = () => {
-    const remainingSlots = 5 - images.length;
+    const remainingSlots = MAX_SELECTION - images.length;
     if (remainingSlots <= 0) {
       showAlert(t('upload.maxImagesAlert'));
       return;
@@ -202,7 +202,7 @@ export default function UploadScreen() {
     const addFromGallery = async () => {
       const pickedItems = await pickFromGallery(true);
       if (pickedItems && pickedItems.length > 0) {
-        const newImages = [...images, ...pickedItems].slice(0, 5);
+        const newImages = [...images, ...pickedItems].slice(0, MAX_SELECTION);
         setImages(newImages);
       }
     };
@@ -210,7 +210,7 @@ export default function UploadScreen() {
     const addFromCamera = async () => {
       const item = await takePhoto();
       if (item) {
-        setImages(prev => [...prev, item].slice(0, 5));
+        setImages(prev => [...prev, item].slice(0, MAX_SELECTION));
       }
     };
 
@@ -233,10 +233,14 @@ export default function UploadScreen() {
   const handleRemoveImage = (index: number) => {
     const newImages = images.filter((_, i) => i !== index);
     setImages(newImages);
-    if (primaryImageIndex >= newImages.length) {
-      setPrimaryImageIndex(Math.max(0, newImages.length - 1));
-    } else if (primaryImageIndex === index) {
+    // 삭제 위치에 따라 대표 인덱스 재조정
+    // - 대표 자신이 삭제되면 첫 장 승격
+    // - 대표보다 앞이 빠지면 한 칸 당겨야 같은 사진을 계속 가리킨다
+    //   (이 보정이 없으면 [A,B,C,D]에서 대표 C일 때 A 삭제 시 대표가 D로 뒤바뀜)
+    if (index === primaryImageIndex) {
       setPrimaryImageIndex(0);
+    } else if (index < primaryImageIndex) {
+      setPrimaryImageIndex(Math.max(0, primaryImageIndex - 1));
     }
   };
 
@@ -428,7 +432,7 @@ export default function UploadScreen() {
           onAddImages={handleAddMoreImages}
           onRemoveImage={handleRemoveImage}
           onSetPrimary={handleSetPrimary}
-          maxImages={5}
+          maxImages={MAX_SELECTION}
         />
 
         {/* Emotion Picker */}

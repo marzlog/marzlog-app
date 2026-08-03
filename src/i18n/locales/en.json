@@ -460,7 +460,6 @@
     "reusedNote": "\n({{count}} reused existing file(s))",
     "analysisStarted": "\nAI analysis will begin.",
     "primaryImageSection": "Primary photo",
-    "additionalImageSection": "Additional photos",
     "pendingBanner": "{{count}} upload(s) waiting",
     "retryNow": "Retry now"
   },
