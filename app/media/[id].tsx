@@ -559,10 +559,17 @@ export default function MediaDetailScreen() {
     if (w && h && h > 0) setSingleImageRatio(w / h);
   };
 
-  // 현재 이미지의 감정/강도 (그룹 이미지별 독립)
   const currentImage = groupImages.length > 0 ? groupImages[currentImageIndex] : null;
-  const currentEmotion = currentImage?.emotion ?? media?.emotion;
-  const currentIntensity = currentImage?.intensity ?? media?.intensity;
+
+  // 대표 감정/강도 — 감정은 사진별이 아니라 게시물(그룹)당 1개다.
+  // 따라서 캐러셀 인덱스와 무관하게 항상 primary media 기준으로 읽는다(스와이프해도 안 바뀜).
+  // 그룹이면 is_primary 항목(없으면 첫 항목), 그룹이 없으면 media 폴백.
+  const primaryImage = groupImages.length > 0
+    ? (groupImages.find((img) => img.is_primary === true) ?? groupImages[0])
+    : null;
+  const primaryMediaId = primaryImage?.id ? String(primaryImage.id) : id!;
+  const groupEmotion = primaryImage ? primaryImage.emotion : media?.emotion;
+  const groupIntensity = primaryImage ? primaryImage.intensity : media?.intensity;
 
   // 현재 이미지가 메인인지 (스와이프 대응)
   const isCurrentImagePrimary = currentImage
@@ -889,20 +896,18 @@ export default function MediaDetailScreen() {
 
   // 감정 편집 모달 열기
   const openEmotionModal = () => {
-    setEditEmotion(currentEmotion || '');
-    setEditIntensity(currentIntensity || 3);
+    setEditEmotion(groupEmotion || '');
+    setEditIntensity(groupIntensity || 3);
     setEmotionModalVisible(true);
   };
 
-  // 감정 저장
+  // 감정 저장 — 대상은 항상 primary media (게시물당 감정 1개)
   const handleSaveEmotion = async () => {
-    const currentMediaId = groupImages.length > 0
-      ? String(groupImages[currentImageIndex]?.id)
-      : id!;
+    const targetMediaId = primaryMediaId;
 
     try {
       setIsSaving(true);
-      await updateMediaEmotion(currentMediaId, {
+      await updateMediaEmotion(targetMediaId, {
         emotion: editEmotion,
         intensity: editIntensity,
       });
@@ -910,16 +915,16 @@ export default function MediaDetailScreen() {
       // 다른 화면 (search/timeline/home)에 emotion 변경 broadcast
       // → 각 화면이 results/items 배열 in-place patch (스크롤 유지)
       useMediaUpdatesStore.getState().setEmotionUpdate(
-        currentMediaId, editEmotion, editIntensity,
+        targetMediaId, editEmotion, editIntensity,
       );
 
-      // 그룹 이미지 새로고침 (감정/강도 반영)
-      if (media?.group_id) {
+      // 로컬 상태 갱신 — 대표 감정은 primary에서 읽으므로 primary가 든 소스를 다시 받는다.
+      if (media?.group_id && groupImages.length > 0) {
         const groupData = await timelineApi.getGroupImages(media.group_id);
         setGroupImages(groupData.items || []);
       } else {
-        // 단일 이미지인 경우 미디어 새로고침
-        const mediaData = await getMediaDetail(id!);
+        // 단일 이미지(또는 그룹 목록 미확보)인 경우 저장 대상 미디어 새로고침
+        const mediaData = await getMediaDetail(targetMediaId);
         setMedia(mediaData);
       }
 
@@ -1127,26 +1132,26 @@ export default function MediaDetailScreen() {
           onPress={openEmotionModal}
           activeOpacity={0.8}
         >
-          {currentEmotion ? (
+          {groupEmotion ? (
             <>
               {/* 좌측: 일러스트 (카드 60% 꽉 채움) */}
               <View style={styles.emotionCardIllustWrap}>
                 <Image
-                  source={getEmotionIllustration(currentEmotion) || getEmotionIcon(currentEmotion, 'color')}
+                  source={getEmotionIllustration(groupEmotion) || getEmotionIcon(groupEmotion, 'color')}
                   style={styles.emotionCardIllustration}
                   contentFit="cover"
                 />
               </View>
               {/* 우측: 아이콘 + 텍스트 (세로 중앙) */}
               <View style={styles.emotionCardLabel}>
-                {getEmotionIcon(currentEmotion, 'color') && (
+                {getEmotionIcon(groupEmotion, 'color') && (
                   <Image
-                    source={getEmotionIcon(currentEmotion, 'color')}
+                    source={getEmotionIcon(groupEmotion, 'color')}
                     style={styles.emotionCardIcon}
                   />
                 )}
                 <Text style={[styles.emotionCardText, isDark && styles.emotionCardTextDark]}>
-                  {emotionWithIntensity(currentEmotion, currentIntensity)}
+                  {emotionWithIntensity(groupEmotion, groupIntensity)}
                 </Text>
               </View>
             </>
