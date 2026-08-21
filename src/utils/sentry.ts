@@ -39,3 +39,15 @@ export const captureError = (
 
   Sentry.captureException(error, { extra: context });
 };
+
+/**
+ * Report a non-exception signal (silent failure, unexpected flow exit) as a warning.
+ */
+export const captureMessage = (message: string, context?: Record<string, unknown>): void => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn('[Warn]', message, context);
+    return;
+  }
+
+  Sentry.captureMessage(message, { level: 'warning', extra: context });
+};

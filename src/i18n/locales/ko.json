@@ -53,6 +53,7 @@
     "loggingIn": "로그인 중...",
     "appleSignIn": "Apple로 계속하기",
     "appleNotSupported": "Apple 로그인은 현재 지원되지 않습니다. Google 계정을 이용해주세요.",
+    "googleLoginIncomplete": "구글 로그인이 완료되지 않았습니다. 다시 시도하거나 다른 로그인 방법을 이용해주세요.",
     "register": "회원가입",
     "forgotPassword": "비밀번호 찾기",
     "email": "이메일",

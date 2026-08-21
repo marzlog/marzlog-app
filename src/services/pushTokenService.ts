@@ -8,6 +8,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import apiClient from '../api/client';
+import { captureError } from '../utils/sentry';
 
 let _currentPushToken: string | null = null;
 
@@ -60,8 +61,12 @@ export async function registerPushToken(): Promise<void> {
 
     // 백엔드에 등록
     await apiClient.post('/push/register', { token, platform });
-  } catch {
-    // Push token registration failed — silently ignore
+  } catch (e: unknown) {
+    // 등록 실패는 앱 흐름을 막지 않되, 무증상으로 두지 않고 계측한다 (F-PUSH-OBSERVABILITY)
+    captureError(e instanceof Error ? e : new Error('Push token registration failed'), {
+      scope: 'registerPushToken',
+      platform: Platform.OS,
+    });
   }
 }
 

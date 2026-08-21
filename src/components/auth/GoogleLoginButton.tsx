@@ -6,6 +6,7 @@ import { makeRedirectUri } from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
+import { captureMessage } from '../../utils/sentry';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import type { AuthResponse } from '../../types/auth';
 import type { LoginButtonHandle } from './LoginButtonHandle';
@@ -139,10 +140,21 @@ const NativeGoogleButton = forwardRef<LoginButtonHandle, Props>(function NativeG
       }
     } else if (response?.type === 'error') {
       // console.log('[NativeGoogleLogin] Error:', response.error);
+      captureMessage('google_oauth_error', {
+        type: response.type,
+        error: response.error?.message,
+        platform: Platform.OS,
+      });
       onError?.(response.error?.message || 'Google 로그인 실패');
       setIsLoading(false);
     } else if (response?.type === 'cancel' || response?.type === 'dismiss') {
-      // console.log('[NativeGoogleLogin] Cancelled');
+      // 사용자 취소와 "브라우저에서 앱으로 못 돌아옴"이 구분되지 않으므로
+      // 무증상으로 두지 않고 안내 + 계측한다 (B-GOOGLE-OAUTH-RETURN 단기 완화)
+      captureMessage('google_oauth_return_failed', {
+        type: response.type,
+        platform: Platform.OS,
+      });
+      onError?.(t('auth.googleLoginIncomplete'));
       setIsLoading(false);
     }
   }, [response]);

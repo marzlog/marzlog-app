@@ -53,6 +53,7 @@
     "loggingIn": "Signing in...",
     "appleSignIn": "Continue with Apple",
     "appleNotSupported": "Apple Sign-In is not available yet. Please use your Google account.",
+    "googleLoginIncomplete": "Google sign-in didn't complete. Please try again or use another sign-in method.",
     "register": "Sign Up",
     "forgotPassword": "Forgot Password",
     "email": "Email",
