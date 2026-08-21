@@ -91,10 +91,11 @@ export default function RootLayout() {
         console.log('[OTA] checkForUpdate result, isAvailable=', update.isAvailable);
         try {
           const Sentry = require('@sentry/react-native');
-          Sentry.captureMessage('[OTA] check result', {
+          Sentry.addBreadcrumb({
+            category: 'ota-check',
+            message: '[OTA] check result',
             level: 'info',
-            tags: { area: 'ota-check' },
-            extra: {
+            data: {
               isAvailable: update.isAvailable,
               currentUpdateId: Updates.updateId ?? 'embedded',
               channel: Updates.channel ?? 'unknown',
