@@ -1,8 +1,12 @@
-import React, { forwardRef, useImperativeHandle, useState, useEffect } from 'react';
+import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Platform, TouchableOpacity } from 'react-native';
 import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
-import * as Google from 'expo-auth-session/providers/google';
-import { makeRedirectUri } from 'expo-auth-session';
+import {
+  GoogleSignin,
+  isSuccessResponse,
+  isErrorWithCode,
+  statusCodes,
+} from '@react-native-google-signin/google-signin';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
@@ -22,7 +26,16 @@ WebBrowser.maybeCompleteAuthSession();
 
 const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
-const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '';
+
+// 네이티브 Google Sign-In 설정 — 모듈 스코프 1회.
+// 브라우저 왕복 없이 네이티브 계정 선택기를 쓰므로 "앱으로 복귀 실패"가 구조적으로 발생하지 않는다
+// (B-GOOGLE-OAUTH-RETURN 근본 해결).
+if (Platform.OS !== 'web') {
+  GoogleSignin.configure({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+  });
+}
 
 interface Props {
   onSuccess?: (authResponse: AuthResponse) => void;
@@ -114,51 +127,7 @@ const NativeGoogleButton = forwardRef<LoginButtonHandle, Props>(function NativeG
   const [isLoading, setIsLoading] = useState(false);
   const { t } = useTranslation();
 
-  // expo-auth-session Google OAuth 설정
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId: GOOGLE_IOS_CLIENT_ID,
-    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-    webClientId: GOOGLE_WEB_CLIENT_ID,
-    // Android: AndroidManifest intent-filter와 일치하는 redirect URI 명시
-    // (iOS는 expo-auth-session이 iosClientId로부터 자동 생성)
-    ...(Platform.OS === 'android' && {
-      redirectUri: makeRedirectUri({
-        native: 'com.googleusercontent.apps.446583916256-ichiq3gh2mvsm01kftom6iji65i4ut1k:/oauth2redirect',
-      }),
-    }),
-  });
-
-  // OAuth 응답 처리
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { authentication } = response;
-      if (authentication?.idToken) {
-        handleGoogleLogin(authentication.idToken);
-      } else if (authentication?.accessToken) {
-        // ID Token이 없으면 Access Token으로 사용자 정보 조회 후 처리
-        fetchUserInfoAndLogin(authentication.accessToken);
-      }
-    } else if (response?.type === 'error') {
-      // console.log('[NativeGoogleLogin] Error:', response.error);
-      captureMessage('google_oauth_error', {
-        type: response.type,
-        error: response.error?.message,
-        platform: Platform.OS,
-      });
-      onError?.(response.error?.message || 'Google 로그인 실패');
-      setIsLoading(false);
-    } else if (response?.type === 'cancel' || response?.type === 'dismiss') {
-      // 사용자 취소와 "브라우저에서 앱으로 못 돌아옴"이 구분되지 않으므로
-      // 무증상으로 두지 않고 안내 + 계측한다 (B-GOOGLE-OAUTH-RETURN 단기 완화)
-      captureMessage('google_oauth_return_failed', {
-        type: response.type,
-        platform: Platform.OS,
-      });
-      onError?.(t('auth.googleLoginIncomplete'));
-      setIsLoading(false);
-    }
-  }, [response]);
-
+  // NOTE: 예외를 rethrow하지 말 것 — handlePress catch와 계측/로딩해제가 중복됨
   const handleGoogleLogin = async (idToken: string) => {
     try {
       const response = await loginWithGoogle(idToken);
@@ -170,33 +139,67 @@ const NativeGoogleButton = forwardRef<LoginButtonHandle, Props>(function NativeG
     }
   };
 
-  const fetchUserInfoAndLogin = async (accessToken: string) => {
+  const handlePress = async () => {
+    setIsLoading(true);
     try {
-      const userInfoResponse = await fetch('https://www.googleapis.com/userinfo/v2/me', {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const userInfo = await userInfoResponse.json();
-      void userInfo;
+      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+      const response = await GoogleSignin.signIn();
 
-      const response = await loginWithGoogle(accessToken);
-      onSuccess?.(response);
+      if (!isSuccessResponse(response)) {
+        // v16은 사용자 취소를 throw가 아니라 type:'cancelled'로 돌려준다.
+        // 네이티브 선택기라 이건 "복귀 실패"가 아니라 진짜 자발 취소 — 안내하지 않는다.
+        // 계측 이벤트명은 vc19(완화판) 대비 발생률 비교를 위해 유지한다.
+        captureMessage('google_oauth_return_failed', {
+          type: 'cancelled',
+          platform: Platform.OS,
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      const { idToken } = response.data;
+      if (!idToken) {
+        captureMessage('google_oauth_error', {
+          type: 'no_id_token',
+          platform: Platform.OS,
+        });
+        onError?.(t('auth.googleLoginIncomplete'));
+        setIsLoading(false);
+        return;
+      }
+
+      await handleGoogleLogin(idToken);
     } catch (e: unknown) {
+      if (isErrorWithCode(e) && e.code === statusCodes.SIGN_IN_CANCELLED) {
+        // 구형 경로 방어 — v16은 위 cancelled 분기로 처리되지만 코드로도 올 수 있다
+        captureMessage('google_oauth_return_failed', {
+          type: 'cancelled',
+          platform: Platform.OS,
+        });
+        setIsLoading(false);
+        return;
+      }
+      if (isErrorWithCode(e) && e.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        captureMessage('google_oauth_return_failed', {
+          type: 'play_services',
+          platform: Platform.OS,
+        });
+        onError?.(t('auth.googleLoginIncomplete'));
+        setIsLoading(false);
+        return;
+      }
+      captureMessage('google_oauth_error', {
+        type: 'error',
+        code: isErrorWithCode(e) ? e.code : undefined,
+        error: e instanceof Error ? e.message : undefined,
+        platform: Platform.OS,
+      });
       dispatchAuthError(e, onTypedError, onError);
-    } finally {
       setIsLoading(false);
     }
   };
 
-  const handlePress = async () => {
-    if (!request) {
-      onError?.('Google 로그인을 초기화하고 있습니다. 잠시 후 다시 시도해주세요.');
-      return;
-    }
-    setIsLoading(true);
-    await promptAsync();
-  };
-
-  // AccountConflictModal CTA용 — 버튼 탭과 동일 플로우 (request 미초기화 안내 포함)
+  // AccountConflictModal CTA용 — 버튼 탭과 동일 플로우
   useImperativeHandle(ref, () => ({ trigger: handlePress }));
 
   if (isLoading) {
@@ -210,9 +213,9 @@ const NativeGoogleButton = forwardRef<LoginButtonHandle, Props>(function NativeG
 
   return (
     <TouchableOpacity
-      style={[styles.googleBtn, !request && styles.btnDisabled, style]}
+      style={[styles.googleBtn, style]}
       onPress={handlePress}
-      disabled={!request}
+      activeOpacity={0.8}
     >
       <Ionicons name="logo-google" size={20} color="#4285F4" />
       <Text style={styles.googleBtnText}>{t('auth.continueWithGoogle')}</Text>
@@ -260,8 +263,5 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     fontSize: 16,
     fontWeight: '600',
-  },
-  btnDisabled: {
-    opacity: 0.5,
   },
 });
