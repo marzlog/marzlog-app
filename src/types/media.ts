@@ -2,6 +2,8 @@
  * Media Types - 백엔드 API 응답과 일치
  */
 
+import type { SupportedLocale } from '../i18n';
+
 export interface MediaAnalysis {
   card_id: string | null;
   caption: string | null;
@@ -67,6 +69,6 @@ export interface MediaDetail {
   intensity?: number | null;
   // AI 일기 생성 필드
   mood?: string | null;
-  diary_lang?: 'ko' | 'en';
+  diary_lang?: SupportedLocale;
   ai_provider?: string | null;
 }

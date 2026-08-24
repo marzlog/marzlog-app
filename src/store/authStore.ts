@@ -10,7 +10,7 @@ import type { User, AuthState, AuthResponse } from '../types/auth';
 import { extractErrorMessage } from '../utils/errorMessages';
 import { secureStorage as storage, SECURE_KEYS } from '../utils/secureStorage';
 import { useSettingsStore, backendToAiMode } from './settingsStore';
-import { setLanguage as setI18nLanguage } from '../i18n';
+import { setLanguage as setI18nLanguage, isSupportedLocale, type SupportedLocale } from '../i18n';
 import { registerPushToken, unregisterPushToken } from '../services/pushTokenService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -18,8 +18,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // i18n 표시언어와 settingsStore.language(로컬 persist)를 거기에 맞춘다.
 // app_lang이 NULL이면 skip → _layout 게이트(language-select)가 처리.
 // 서버→로컬 단방향 동기화이므로 서버 push는 하지 않는다(이중 push/루프 방지).
-function syncLanguageFromUser(appLang?: 'ko' | 'en' | null) {
-  if (appLang !== 'ko' && appLang !== 'en') return;
+function syncLanguageFromUser(appLang?: SupportedLocale | null) {
+  if (!isSupportedLocale(appLang)) return;
   setI18nLanguage(appLang);
   if (useSettingsStore.getState().language !== appLang) {
     // setLanguage는 로컬 persist만(서버 push 없음) → 서버 값으로 안전하게 수렴

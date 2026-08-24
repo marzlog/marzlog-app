@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import i18n, { setLanguage as setI18nLanguage } from '../i18n';
+import i18n, { setLanguage as setI18nLanguage, type SupportedLocale } from '../i18n';
 import { useSettingsStore } from '../store/settingsStore';
 import { authApi } from '../api/auth';
 import { useAuthStore } from '../store/authStore';
@@ -23,7 +23,7 @@ export function useTranslation() {
   };
 
   // 언어 변경 함수 (settingsStore와 i18n 모두 업데이트)
-  const changeLanguage = useCallback(async (lang: 'ko' | 'en') => {
+  const changeLanguage = useCallback(async (lang: SupportedLocale) => {
     setI18nLanguage(lang);
     await setStoreLanguage(lang);
     // 서버 push (단일 진실 = users.app_lang). 실패해도 UI 언어는 이미 반영됨.

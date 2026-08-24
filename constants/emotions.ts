@@ -3,7 +3,7 @@
  * Figma 디자인 기반 커스텀 아이콘 사용
  */
 
-import { getLanguage } from '@/src/i18n';
+import { getLanguage, type SupportedLocale } from '@/src/i18n';
 
 // 감정 키 타입
 export type EmotionKey =
@@ -267,9 +267,10 @@ export function getEmotionIllustration(nameOrKey: string): any {
 
 // 헬퍼 함수: 현재 언어에 맞는 감정 표시 라벨 (저장 정본은 nameKo 유지 — 표시만 분기)
 // lang 미지정 시 현재 앱 언어(getLanguage)를 사용. nameEn 없으면 nameKo 폴백.
+// ko만 nameKo, 그 외(en/vi)는 nameEn 폴백 — 감정 라벨은 아직 vi 정본이 없다.
 export function emotionLabel(
   e: EmotionData,
-  lang: 'ko' | 'en' = getLanguage()
+  lang: SupportedLocale = getLanguage()
 ): string {
-  return lang === 'en' ? e.nameEn || e.nameKo : e.nameKo;
+  return lang === 'ko' ? e.nameKo : e.nameEn || e.nameKo;
 }

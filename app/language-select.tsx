@@ -12,6 +12,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { Logo } from '@/src/components/common/Logo';
+import type { SupportedLocale } from '@/src/i18n';
 
 export default function LanguageSelectScreen() {
   const systemColorScheme = useColorScheme();
@@ -21,7 +22,7 @@ export default function LanguageSelectScreen() {
   const { from } = useLocalSearchParams<{ from?: string }>();
   const insets = useSafeAreaInsets();
 
-  const [selected, setSelected] = useState<'ko' | 'en'>(language);
+  const [selected, setSelected] = useState<SupportedLocale>(language);
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
@@ -87,6 +88,24 @@ export default function LanguageSelectScreen() {
             {t('language.english')}
           </Text>
           {selected === 'en' && (
+            <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+          )}
+        </TouchableOpacity>
+
+        {/* Vietnamese */}
+        <TouchableOpacity
+          style={[
+            styles.langCard,
+            selected === 'vi' && styles.langCardSelected,
+            isDark && selected !== 'vi' && styles.langCardDark,
+          ]}
+          onPress={() => setSelected('vi')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.langText, isDark && selected !== 'vi' && styles.langTextDark, selected === 'vi' && styles.langTextSelected]}>
+            {t('language.vietnamese')}
+          </Text>
+          {selected === 'vi' && (
             <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
           )}
         </TouchableOpacity>

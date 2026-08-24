@@ -3,9 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLocales } from 'expo-localization';
 import { authApi } from '../api/auth';
 import { secureStorage } from '../utils/secureStorage';
+import { isSupportedLocale, type SupportedLocale } from '../i18n';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
-export type Language = 'ko' | 'en';
+// 지원 언어 단일 진실은 src/i18n의 SUPPORTED_LOCALES — 여기서는 별칭만 유지
+export type Language = SupportedLocale;
 export type AIMode = 'fast' | 'precise';
 
 // Frontend ↔ Backend mode mapping
@@ -59,10 +61,11 @@ type SettingsStore = SettingsState & SettingsActions;
 
 const STORAGE_KEY = 'marzlog_settings';
 
-// F-DEFAULT-LANG: persist 부재 시 초기 언어 = 기기 로케일 (ko 외 전부 en 폴백).
+// F-DEFAULT-LANG: persist 부재 시 초기 언어 = 기기 로케일 (지원 목록 밖은 전부 en 폴백).
 // persist 값이 있으면 loadSettings가 덮어쓰므로 유저 명시 선택이 항상 우선.
 function deviceLanguage(): Language {
-  return getLocales()[0]?.languageCode === 'ko' ? 'ko' : 'en';
+  const code = getLocales()[0]?.languageCode;
+  return isSupportedLocale(code) ? code : 'en';
 }
 
 const defaultSettings: SettingsState = {

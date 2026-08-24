@@ -107,6 +107,7 @@ interface PageSizeProps {
 const VIDEO_SOURCES = {
   ko: require('@/assets/videos/onboarding_intro.mp4'),
   en: require('@/assets/videos/onboarding_intro.mp4'),
+  vi: require('@/assets/videos/onboarding_intro.mp4'),
 };
 
 interface VideoPageProps extends PageSizeProps {
