@@ -108,6 +108,8 @@ const VIDEO_SOURCES = {
   ko: require('@/assets/videos/onboarding_intro.mp4'),
   en: require('@/assets/videos/onboarding_intro.mp4'),
   vi: require('@/assets/videos/onboarding_intro.mp4'),
+  // th 전용 영상은 없으므로 en 과 동일 에셋을 쓴다 (현재 4개 모두 같은 파일)
+  th: require('@/assets/videos/onboarding_intro.mp4'),
 };
 
 interface VideoPageProps extends PageSizeProps {

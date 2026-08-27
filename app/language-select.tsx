@@ -12,7 +12,22 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { Logo } from '@/src/components/common/Logo';
-import type { SupportedLocale } from '@/src/i18n';
+import { SUPPORTED_LOCALES, type SupportedLocale } from '@/src/i18n';
+
+/** 선택지 렌더 정본. 언어 추가 시 여기 1행만 더하면 카드가 늘어난다. */
+const LANGUAGE_OPTIONS: ReadonlyArray<{ code: SupportedLocale; labelKey: string }> = [
+  { code: 'ko', labelKey: 'language.korean' },
+  { code: 'en', labelKey: 'language.english' },
+  { code: 'vi', labelKey: 'language.vietnamese' },
+  { code: 'th', labelKey: 'language.thai' },
+];
+
+// SUPPORTED_LOCALES 에 언어가 늘었는데 위 배열을 안 고치면 개발 중에 바로 드러난다.
+if (__DEV__ && LANGUAGE_OPTIONS.length !== SUPPORTED_LOCALES.length) {
+  console.warn(
+    `[language-select] LANGUAGE_OPTIONS(${LANGUAGE_OPTIONS.length}) != SUPPORTED_LOCALES(${SUPPORTED_LOCALES.length})`
+  );
+}
 
 export default function LanguageSelectScreen() {
   const systemColorScheme = useColorScheme();
@@ -56,59 +71,34 @@ export default function LanguageSelectScreen() {
       </View>
 
       <View style={styles.content}>
-        {/* Korean */}
-        <TouchableOpacity
-          style={[
-            styles.langCard,
-            selected === 'ko' && styles.langCardSelected,
-            isDark && selected !== 'ko' && styles.langCardDark,
-          ]}
-          onPress={() => setSelected('ko')}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.langText, isDark && selected !== 'ko' && styles.langTextDark, selected === 'ko' && styles.langTextSelected]}>
-            {t('language.korean')}
-          </Text>
-          {selected === 'ko' && (
-            <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
-          )}
-        </TouchableOpacity>
-
-        {/* English */}
-        <TouchableOpacity
-          style={[
-            styles.langCard,
-            selected === 'en' && styles.langCardSelected,
-            isDark && selected !== 'en' && styles.langCardDark,
-          ]}
-          onPress={() => setSelected('en')}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.langText, isDark && selected !== 'en' && styles.langTextDark, selected === 'en' && styles.langTextSelected]}>
-            {t('language.english')}
-          </Text>
-          {selected === 'en' && (
-            <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
-          )}
-        </TouchableOpacity>
-
-        {/* Vietnamese */}
-        <TouchableOpacity
-          style={[
-            styles.langCard,
-            selected === 'vi' && styles.langCardSelected,
-            isDark && selected !== 'vi' && styles.langCardDark,
-          ]}
-          onPress={() => setSelected('vi')}
-          activeOpacity={0.7}
-        >
-          <Text style={[styles.langText, isDark && selected !== 'vi' && styles.langTextDark, selected === 'vi' && styles.langTextSelected]}>
-            {t('language.vietnamese')}
-          </Text>
-          {selected === 'vi' && (
-            <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
-          )}
-        </TouchableOpacity>
+        {LANGUAGE_OPTIONS.map(({ code, labelKey }) => {
+          const isSelected = selected === code;
+          return (
+            <TouchableOpacity
+              key={code}
+              style={[
+                styles.langCard,
+                isSelected && styles.langCardSelected,
+                isDark && !isSelected && styles.langCardDark,
+              ]}
+              onPress={() => setSelected(code)}
+              activeOpacity={0.7}
+            >
+              <Text
+                style={[
+                  styles.langText,
+                  isDark && !isSelected && styles.langTextDark,
+                  isSelected && styles.langTextSelected,
+                ]}
+              >
+                {t(labelKey)}
+              </Text>
+              {isSelected && (
+                <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+              )}
+            </TouchableOpacity>
+          );
+        })}
 
         {/* Confirm button */}
         <TouchableOpacity
