@@ -85,7 +85,9 @@ export default function WithdrawScreen() {
   const authProvider = user?.auth_provider ?? null;
   const isAppleUser = authProvider === 'apple';
 
-  const confirmPhrase = language === 'en' ? CONFIRM_PHRASE_EN : CONFIRM_PHRASE_KO;
+  // ko 기준 반전: 한국어일 때만 한국어 문구, 그 외 언어는 영어 문구.
+  // (기존 `=== 'en'` 기준은 vi/th 사용자에게 한국어 '계정 삭제' 를 타이핑하게 만들었다)
+  const confirmPhrase = language === 'ko' ? CONFIRM_PHRASE_KO : CONFIRM_PHRASE_EN;
 
   // ─── Fetch plan on mount (mirror backend 409 ACTIVE_SUBSCRIPTION guard) ──
   useEffect(() => {
