@@ -120,6 +120,16 @@ function emotionWithIntensity(
   return adverbKey ? `${t(adverbKey)} ${label}` : label;
 }
 
+/**
+ * mood 선택 상태 비교. 대소문자를 무시한다.
+ * 저장 정본은 워커 프롬프트 어휘(소문자: 'peaceful' / 'bình yên')이지만,
+ * 앱 선택지가 한때 대문자('Peaceful')였던 시기에 저장된 레코드가 남아 있어
+ * 정확 비교로는 기존 일기의 mood 가 미선택으로 보인다. (B-MOOD-VOCAB-DRIFT)
+ */
+function isSameMood(a: string, b: string): boolean {
+  return a.toLocaleLowerCase() === b.toLocaleLowerCase();
+}
+
 type StackImage = { id?: string | number; download_url?: string; thumbnail_url?: string };
 
 /**
@@ -1619,11 +1629,11 @@ export default function MediaDetailScreen() {
                     style={[
                       styles.moodOption,
                       isDark && styles.moodOptionDark,
-                      editMood === mood && styles.moodOptionSelected,
+                      isSameMood(editMood, mood) && styles.moodOptionSelected,
                     ]}
                     onPress={() => setEditMood(mood)}
                   >
-                    <Text style={[styles.moodOptionText, isDark && styles.textSecondaryDark, editMood === mood && styles.moodOptionTextSelected]}>
+                    <Text style={[styles.moodOptionText, isDark && styles.textSecondaryDark, isSameMood(editMood, mood) && styles.moodOptionTextSelected]}>
                       #{mood}
                     </Text>
                   </TouchableOpacity>
@@ -1669,10 +1679,10 @@ export default function MediaDetailScreen() {
                   {MOOD_OPTIONS.map((mood) => (
                     <TouchableOpacity
                       key={mood}
-                      style={[styles.moodOption, isDark && styles.moodOptionDark, editMood === mood && styles.moodOptionSelected]}
+                      style={[styles.moodOption, isDark && styles.moodOptionDark, isSameMood(editMood, mood) && styles.moodOptionSelected]}
                       onPress={() => setEditMood(mood)}
                     >
-                      <Text style={[styles.moodOptionText, isDark && styles.textSecondaryDark, editMood === mood && styles.moodOptionTextSelected]}>
+                      <Text style={[styles.moodOptionText, isDark && styles.textSecondaryDark, isSameMood(editMood, mood) && styles.moodOptionTextSelected]}>
                         #{mood}
                       </Text>
                     </TouchableOpacity>

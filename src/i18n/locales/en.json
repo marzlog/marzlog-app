@@ -494,13 +494,13 @@
     "analysisPending": "Waiting for AI analysis...",
     "titleLabel": "Title",
     "contentLabel": "Content",
-    "moodHappy": "Happy",
-    "moodPeace": "Peaceful",
-    "moodExcited": "Excited",
-    "moodNostalgia": "Nostalgic",
-    "moodGratitude": "Grateful",
-    "moodEnergy": "Energetic",
-    "moodComfy": "Cozy"
+    "moodHappy": "happy",
+    "moodPeace": "peaceful",
+    "moodExcited": "excited",
+    "moodNostalgia": "wistful",
+    "moodGratitude": "grateful",
+    "moodEnergy": "lively",
+    "moodComfy": "relaxed"
   },
   "albums": {
     "aiAutoClassify": "AI Auto-Classified",

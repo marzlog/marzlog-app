@@ -494,13 +494,13 @@
     "analysisPending": "Đang chờ AI phân tích...",
     "titleLabel": "Tiêu đề",
     "contentLabel": "Nội dung",
-    "moodHappy": "Hạnh phúc",
-    "moodPeace": "Bình yên",
-    "moodExcited": "Hào hứng",
-    "moodNostalgia": "Hoài niệm",
-    "moodGratitude": "Biết ơn",
-    "moodEnergy": "Tràn đầy năng lượng",
-    "moodComfy": "Thoải mái"
+    "moodHappy": "vui vẻ",
+    "moodPeace": "bình yên",
+    "moodExcited": "háo hức",
+    "moodNostalgia": "hoài niệm",
+    "moodGratitude": "biết ơn",
+    "moodEnergy": "tràn đầy sức sống",
+    "moodComfy": "thư thái"
   },
   "albums": {
     "aiAutoClassify": "AI Auto-Classified",
