@@ -133,7 +133,6 @@ marzlog-app/
 | `home/` | `DateSelector`, `WeekSelector`, `CalendarModal` | 날짜 선택 UI |
 | `auth/` | `GoogleLoginButton` | Google OAuth (웹/네이티브 분기) |
 | `auth/` | `BiometricLock`, `PinInput`, `PinSetup` | 앱 잠금 (생체인증/PIN) |
-| `media/` | `EditAnalysisModal` | 캡션/태그 수정 모달 |
 | `media/` | `ShareCardView`, `ShareSheet` | 공유 카드 + 공유 시트 |
 | `upload/` | `ImageSelector` | 카메라/갤러리 이미지 선택 |
 | `upload/` | `EmotionPicker`, `IntensitySlider` | 감정 선택 (12개) + 강도 조절 |

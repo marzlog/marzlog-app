@@ -717,7 +717,7 @@ export default function HomeScreen() {
 
         // 지원하지 않는 형식 경고
         if (invalidFiles.length > 0) {
-          showAlert(`지원하지 않는 형식이 제외되었습니다:\n${invalidFiles.join(', ')}\n\nJPG, PNG, WebP, HEIC만 업로드 가능합니다.`);
+          showAlert(t('home.unsupportedFormatExcluded', { files: invalidFiles.join(', ') }));
         }
 
         // 유효한 이미지가 있으면 업로드 화면으로 이동
@@ -734,7 +734,7 @@ export default function HomeScreen() {
       }
     } catch (error) {
       captureError(error instanceof Error ? error : new Error(String(error)), { context: 'Gallery.pickFromGallery' });
-      showAlert('이미지를 선택하는 중 오류가 발생했습니다.');
+      showAlert(t('home.imagePickError'));
     }
   };
 

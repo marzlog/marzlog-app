@@ -305,7 +305,9 @@
     "privacySection": "Privacy",
     "appInfoSection": "App Info",
     "version": "Version",
-    "pushNotification": "Push Notifications"
+    "pushNotification": "Push Notifications",
+    "aiModeWarningTitle": "Change AI analysis mode",
+    "aiModeWarningMessage": "AI diaries are not generated in Fast mode. Continue?"
   },
   "consent": {
     "errorAgeRequired": "Age 14+ confirmation is required.",
@@ -346,7 +348,9 @@
     "totalCount": "ทั้งหมด {{count}} รายการ",
     "emptyDay": "วันนี้ยังไม่มีบันทึก",
     "viewListLabel": "บันทึกของฉัน",
-    "viewGridLabel": "มุมมองภาพขนาดย่อ"
+    "viewGridLabel": "มุมมองภาพขนาดย่อ",
+    "unsupportedFormatExcluded": "Unsupported formats were excluded:\n{{files}}\n\nOnly JPG, PNG, WebP and HEIC can be uploaded.",
+    "imagePickError": "An error occurred while selecting images."
   },
   "timeline": {
     "title": "ช่วงเวลาประจำวัน",
@@ -367,7 +371,9 @@
     "filter_month": "เดือน",
     "filter_3month": "3 เดือน",
     "filter_all": "ทั้งหมด",
-    "totalCount": "{{count}} รายการ"
+    "totalCount": "{{count}} รายการ",
+    "noOcrPhotos": "No photos with OCR text",
+    "checkImagesTab": "Check the Images tab for photos"
   },
   "search": {
     "bookmarkFilter": "บุ๊กมาร์กแล้ว",
@@ -596,7 +602,8 @@
     "photoUploadFailed": "Failed to upload profile photo",
     "photoDeleted": "Profile photo removed",
     "photoDeleteFailed": "Delete failed: {{detail}}",
-    "deleting": "Deleting..."
+    "deleting": "Deleting...",
+    "avatarHint": "Tap the photo to change"
   },
   "onboarding": {
     "skip": "ข้าม",

@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import { palette, lightTheme, darkTheme } from '../../../theme/colors';
 import { typography } from '../../../theme/typography';
+import { useTranslation } from '../../../hooks/useTranslation';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DIALOG_WIDTH = Math.min(343, SCREEN_WIDTH - 32);
@@ -56,8 +57,8 @@ export function Dialog({
   visible,
   title,
   description,
-  confirmText = '확인',
-  cancelText = '취소',
+  confirmText,
+  cancelText,
   destructiveText,
   onConfirm,
   onCancel,
@@ -65,6 +66,9 @@ export function Dialog({
   variant = 'confirm',
   isDark = false,
 }: DialogProps) {
+  const { t } = useTranslation();
+  const confirmLabel = confirmText ?? t('common.confirm');
+  const cancelLabel = cancelText ?? t('common.cancel');
   const theme = isDark ? darkTheme : lightTheme;
   const hasCancel = !!onCancel;
   const hasDestructive = !!onDestructive && !!destructiveText;
@@ -126,7 +130,7 @@ export function Dialog({
                 onPress={(e) => { e.stopPropagation(); onConfirm(); }}
               >
                 <Text style={[styles.buttonText, styles.confirmButtonText]}>
-                  {confirmText}
+                  {confirmLabel}
                 </Text>
               </Pressable>
 
@@ -155,7 +159,7 @@ export function Dialog({
                   styles.buttonText,
                   { color: isDark ? palette.neutral[100] : palette.neutral[900] }
                 ]}>
-                  {cancelText}
+                  {cancelLabel}
                 </Text>
               </Pressable>
             </View>
@@ -178,7 +182,7 @@ export function Dialog({
                   styles.buttonText,
                   { color: isDark ? palette.neutral[100] : palette.neutral[900] }
                 ]}>
-                  {cancelText}
+                  {cancelLabel}
                 </Text>
               </Pressable>
             )}
@@ -194,7 +198,7 @@ export function Dialog({
               onPress={(e) => { e.stopPropagation(); onConfirm(); }}
             >
               <Text style={[styles.buttonText, styles.confirmButtonText]}>
-                {confirmText}
+                {confirmLabel}
               </Text>
             </Pressable>
           </View>

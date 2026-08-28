@@ -18,7 +18,7 @@ let _currentPushToken: string | null = null;
 async function setupAndroidNotificationChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
   await Notifications.setNotificationChannelAsync('default', {
-    name: 'MarZlog 알림',
+    name: 'MarZlog',
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#8B5CF6',

@@ -1287,60 +1287,6 @@ export default function MediaDetailScreen() {
           </Text>
         </View>
 
-        {/* AI Caption */}
-        {analysis?.caption && (
-          <View style={styles.section}>
-            <View style={[styles.sectionHeader, { justifyContent: 'space-between' }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={styles.sectionIcon}>✨</Text>
-                <Text style={[styles.sectionTitle, isDark && styles.textLight]}>AI Caption</Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => handleCopy(analysis.caption_ko || analysis.caption, 'copy.captionCopied')}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="copy-outline" size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
-              </TouchableOpacity>
-            </View>
-            <Text style={[styles.captionText, isDark && styles.captionTextDark]}>{analysis.caption_ko || analysis.caption}</Text>
-            <AiNotice text={t('ai.captionNotice')} isDark={isDark} />
-          </View>
-        )}
-
-        {/* Scene Type */}
-        {analysis?.scene_type && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionIcon}>📋</Text>
-              <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Scene Type</Text>
-            </View>
-            <View style={styles.chipContainer}>
-              <View style={[styles.chip, isDark && styles.chipDark]}>
-                <Text style={[styles.chipText, isDark && styles.textLight]}>
-                  {analysis.scene_type.charAt(0).toUpperCase() + analysis.scene_type.slice(1)}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
-
-        {/* Tags */}
-        {analysis?.tags && analysis.tags.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionIcon}>🏷️</Text>
-              <Text style={[styles.sectionTitle, isDark && styles.textLight]}>Tags</Text>
-            </View>
-            <View style={styles.tagsContainer}>
-              {(analysis.tags_ko && analysis.tags_ko.length > 0 ? analysis.tags_ko : analysis.tags).map((tag, index) => (
-                <View key={index} style={[styles.tagChip, isDark && styles.chipDark]}>
-                  <Text style={[styles.tagText, isDark && styles.textLight]}>{tag}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
         {/* OCR Text */}
         {analysis?.ocr_text ? (
           <View style={styles.section}>
@@ -2132,57 +2078,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text.primary,
   },
-  captionText: {
-    fontSize: 15,
-    fontWeight: '400',
-    color: colors.text.primary,
-    lineHeight: 22,
-    backgroundColor: colors.neutral[2],
-    padding: 16,
-    borderRadius: 16,
-  },
-  captionTextDark: {
-    backgroundColor: '#1F2937',
-    color: '#F9FAFB',
-  },
-  chipDark: {
-    backgroundColor: '#1F2937',
-  },
   boxDark: {
     backgroundColor: '#1F2937',
   },
   sectionBorderDark: {
     borderBottomColor: '#374151',
-  },
-  chipContainer: {
-    flexDirection: 'row',
-  },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: colors.neutral[2],
-    borderRadius: 20,
-  },
-  chipText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.text.primary,
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tagChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: colors.neutral[2],
-    borderRadius: 16,
-  },
-  tagText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.text.primary,
   },
   ocrBox: {
     padding: 16,

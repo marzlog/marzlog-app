@@ -305,7 +305,9 @@
     "appSettingsSection": "앱 설정",
     "privacySection": "개인정보",
     "appInfoSection": "앱 정보",
-    "version": "버전"
+    "version": "버전",
+    "aiModeWarningTitle": "AI 분석 모드 변경",
+    "aiModeWarningMessage": "빠름 모드에서는 AI 일기가 생성되지 않습니다. 계속하시겠습니까?"
   },
   "consent": {
     "errorAgeRequired": "만 14세 이상 확인이 필요합니다.",
@@ -346,7 +348,9 @@
     "totalCount": "총 {{count}}건",
     "emptyDay": "이 날은 기록이 없어요",
     "viewListLabel": "나의 기록",
-    "viewGridLabel": "썸네일 보기"
+    "viewGridLabel": "썸네일 보기",
+    "unsupportedFormatExcluded": "지원하지 않는 형식이 제외되었습니다:\n{{files}}\n\nJPG, PNG, WebP, HEIC만 업로드 가능합니다.",
+    "imagePickError": "이미지를 선택하는 중 오류가 발생했습니다."
   },
   "timeline": {
     "title": "일상 모아보기",
@@ -367,7 +371,9 @@
     "filter_month": "월",
     "filter_3month": "3개월",
     "filter_all": "전체",
-    "totalCount": "총 {{count}}건"
+    "totalCount": "총 {{count}}건",
+    "noOcrPhotos": "OCR 텍스트가 있는 사진이 없습니다",
+    "checkImagesTab": "이미지 탭에서 사진을 확인하세요"
   },
   "search": {
     "bookmarkFilter": "즐겨찾기만",
@@ -596,7 +602,8 @@
     "photoUploadFailed": "프로필 사진 업로드에 실패했습니다",
     "photoDeleted": "프로필 사진이 삭제되었습니다",
     "photoDeleteFailed": "삭제 실패: {{detail}}",
-    "deleting": "삭제 중..."
+    "deleting": "삭제 중...",
+    "avatarHint": "사진을 눌러 변경"
   },
   "onboarding": {
     "skip": "건너뛰기",

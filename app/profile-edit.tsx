@@ -264,7 +264,7 @@ export default function ProfileEditScreen() {
               </Text>
             ) : (
               <Text style={[styles.avatarHintText, isDark && { color: '#6B7280' }]}>
-                사진을 눌러 변경
+                {t('profileEdit.avatarHint')}
               </Text>
             )}
 

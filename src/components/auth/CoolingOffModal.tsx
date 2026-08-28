@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { t } from '@/src/i18n';
+import { t, getLanguage } from '@/src/i18n';
 
 interface CoolingOffModalProps {
   visible: boolean;
@@ -15,14 +15,15 @@ interface CoolingOffModalProps {
   onClose: () => void;
 }
 
-function formatKoreanDate(isoString: string): string {
+// ko 는 한글 표기, 그 외 로케일은 ISO(YYYY-MM-DD) 중립 표기
+function formatDate(isoString: string): string {
   try {
     const d = new Date(isoString);
     if (Number.isNaN(d.getTime())) return isoString;
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}년 ${mm}월 ${dd}일`;
+    return getLanguage() === 'ko' ? `${yyyy}년 ${mm}월 ${dd}일` : `${yyyy}-${mm}-${dd}`;
   } catch {
     return isoString;
   }
@@ -47,11 +48,11 @@ export function CoolingOffModal({
           <Text style={styles.message}>{t('auth.coolingOffMessage')}</Text>
           <View style={styles.dateBlock}>
             <Text style={styles.dateLabel}>{t('auth.coolingOffWithdrawnAt')}</Text>
-            <Text style={styles.dateValue}>{formatKoreanDate(withdrawnAt)}</Text>
+            <Text style={styles.dateValue}>{formatDate(withdrawnAt)}</Text>
           </View>
           <View style={styles.dateBlock}>
             <Text style={styles.dateLabel}>{t('auth.coolingOffRejoinAvailableAt')}</Text>
-            <Text style={styles.dateValue}>{formatKoreanDate(rejoinAvailableAt)}</Text>
+            <Text style={styles.dateValue}>{formatDate(rejoinAvailableAt)}</Text>
           </View>
           <TouchableOpacity style={styles.button} onPress={onClose}>
             <Text style={styles.buttonText}>{t('auth.coolingOffConfirm')}</Text>

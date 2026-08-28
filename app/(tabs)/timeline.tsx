@@ -636,8 +636,8 @@ export default function TimelineScreen() {
     const title = localized || item.caption_ko || item.caption;
     if (title) return title;
     const status = item.analysis_status;
-    if (status === 'queued' || status === 'running') return 'AI 분석 중...';
-    if (status === 'failed') return '분석 실패';
+    if (status === 'queued' || status === 'running') return t('home.analyzing');
+    if (status === 'failed') return t('home.analysisFailed');
     return t('common.noTitle');
   };
 
@@ -951,10 +951,10 @@ export default function TimelineScreen() {
           <View style={styles.emptyContainer}>
             <ImageIcon color={theme.icon.secondary} />
             <Text style={[styles.emptyText, { color: theme.text.primary }]}>
-              {activeTab === 'text' ? 'OCR 텍스트가 있는 사진이 없습니다' : t('timeline.noPhotos')}
+              {activeTab === 'text' ? t('timeline.noOcrPhotos') : t('timeline.noPhotos')}
             </Text>
             <Text style={[styles.emptySubtext, { color: theme.text.tertiary }]}>
-              {activeTab === 'text' ? '이미지 탭에서 사진을 확인하세요' : t('timeline.uploadPrompt')}
+              {activeTab === 'text' ? t('timeline.checkImagesTab') : t('timeline.uploadPrompt')}
             </Text>
           </View>
         }
