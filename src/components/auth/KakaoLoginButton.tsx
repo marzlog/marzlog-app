@@ -55,11 +55,11 @@ const KakaoLoginButton = forwardRef<LoginButtonHandle, Props>(function KakaoLogi
       // 서버 에러 분기
       const status = err?.response?.status;
       if (status === 403) {
-        onError?.('사용이 정지된 계정입니다.');
+        onError?.(t('error.accountSuspended'));
       } else if (status === 400) {
-        onError?.('카카오 로그인 처리 중 오류가 발생했습니다.');
+        onError?.(t('error.kakaoLoginError'));
       } else {
-        onError?.('카카오 로그인에 실패했습니다. 다시 시도해 주세요.');
+        onError?.(t('error.kakaoLoginFailed'));
       }
     } finally {
       setIsLoading(false);

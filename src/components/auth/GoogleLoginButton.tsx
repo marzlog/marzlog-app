@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { captureMessage } from '../../utils/sentry';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { t as i18nT } from '../../i18n';
 import type { AuthResponse } from '../../types/auth';
 import type { LoginButtonHandle } from './LoginButtonHandle';
 import {
@@ -57,7 +58,7 @@ function dispatchAuthError(
     onTypedError?.(e);
     return;
   }
-  const message = e instanceof Error ? e.message : 'Google 로그인 실패';
+  const message = e instanceof Error ? e.message : i18nT('error.googleLoginFailed');
   onError?.(message);
 }
 
@@ -82,7 +83,7 @@ const WebGoogleButtonInner = forwardRef<LoginButtonHandle, Props>(function WebGo
       }
     },
     onError: () => {
-      onError?.('Google 로그인 실패');
+      onError?.(t('error.googleLoginFailed'));
       setIsLoading(false);
     },
   });
