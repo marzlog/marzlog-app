@@ -1230,14 +1230,9 @@ export default function MediaDetailScreen() {
 
         {/* 편집 버튼 영역 */}
         <View style={[styles.editButtonsSection, isDark && styles.sectionBorderDark]}>
-          {/* 캡션 편집 - 항상 가능 */}
-          <TouchableOpacity
-            style={[styles.editActionButton, isDark && styles.editActionButtonDark]}
-            onPress={openCaptionEditModal}
-          >
-            <Ionicons name="chatbubble-outline" size={16} color={isDark ? '#F9FAFB' : colors.text.primary} />
-            <Text style={[styles.editActionButtonText, isDark && styles.textLight]}>{t('mediaDetail.captionEdit')}</Text>
-          </TouchableOpacity>
+          {/* 캡션 편집 버튼 렌더 제거 — 편집 대상이 표시 제거된 AI Caption(analysis.caption_ko)
+              과 동일 필드이기 때문. 편집 모달·openCaptionEditModal·handleSaveCaption·
+              updateCaption 은 보존됨 [F-CAPTION-TAGS-I18N 재론 시 복구] */}
 
           {/* 일기 편집 - 메인 또는 개별 이미지만 */}
           {isCurrentImagePrimary ? (
