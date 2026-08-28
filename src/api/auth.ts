@@ -1,6 +1,7 @@
 
 import { AxiosError } from 'axios';
 import apiClient from './client';
+import { t } from '../i18n';
 import type {
   AuthResponse,
   GoogleAuthRequest,
@@ -425,7 +426,7 @@ export const authApi = {
         const mapped = mapDeletionErrorCode(status, code);
         throw new AccountDeletionError(
           mapped,
-          message ?? '계정 삭제 처리 중 오류가 발생했습니다.',
+          message ?? t('error.accountDeletionFailed'),
           status,
           details,
           err,

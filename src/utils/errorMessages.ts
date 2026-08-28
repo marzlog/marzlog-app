@@ -33,33 +33,35 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
- * Translate English backend/Pydantic error messages to Korean.
+ * Map English backend/Pydantic error messages to i18n keys.
  * Uses partial matching so "value is not a valid email address: ..." still matches.
+ * ★ 값은 번역문이 아니라 키다 — 실제 번역은 translateErrorMessage 호출 시점에
+ *   t()로 평가되므로 언어 전환이 즉시 반영된다 (모듈 로드 시점 고정 금지).
  */
-const ERROR_TRANSLATIONS: [string, string][] = [
+const ERROR_TRANSLATION_KEYS: [string, string][] = [
   // Email validation (Pydantic)
-  ['value is not a valid email address', '올바른 이메일 형식이 아닙니다'],
-  ['an email address must have an @-sign', '이메일에 @가 포함되어야 합니다'],
+  ['value is not a valid email address', 'error.emailInvalidFormat'],
+  ['an email address must have an @-sign', 'error.emailMissingAtSign'],
   // Login
-  ['invalid email or password', '이메일 또는 비밀번호가 올바르지 않습니다'],
-  ['user not found', '일치하는 계정이 존재하지 않습니다'],
-  ['email not found', '등록되지 않은 이메일입니다'],
-  ['incorrect password', '비밀번호가 올바르지 않습니다'],
+  ['invalid email or password', 'error.invalidCredentials'],
+  ['user not found', 'error.userNotFound'],
+  ['email not found', 'error.emailNotRegistered'],
+  ['incorrect password', 'error.incorrectPassword'],
   // Register
-  ['email already registered', '이미 가입된 이메일입니다'],
-  ['email already exists', '이미 사용 중인 이메일입니다'],
+  ['email already registered', 'error.emailAlreadyRegistered'],
+  ['email already exists', 'error.emailAlreadyInUse'],
   // Token
-  ['invalid or expired', '유효하지 않거나 만료된 요청입니다'],
+  ['invalid or expired', 'error.invalidOrExpiredRequest'],
   // Generic
-  ['login failed', '로그인에 실패했습니다'],
-  ['registration failed', '회원가입에 실패했습니다'],
+  ['login failed', 'error.loginFailed'],
+  ['registration failed', 'error.registrationFailed'],
 ];
 
 export function translateErrorMessage(msg: string): string {
   const lower = msg.toLowerCase();
-  for (const [eng, kor] of ERROR_TRANSLATIONS) {
+  for (const [eng, key] of ERROR_TRANSLATION_KEYS) {
     if (lower.includes(eng)) {
-      return kor;
+      return t(key);
     }
   }
   return msg;
@@ -68,7 +70,7 @@ export function translateErrorMessage(msg: string): string {
 /**
  * Extract a string error message from axios error responses.
  * Handles: string detail, Pydantic validation error array, object with msg, plain Error.
- * Automatically translates English messages to Korean.
+ * Automatically translates known English messages via i18n.
  */
 export function extractErrorMessage(error: any, fallback: string): string {
   // B-AF: CONSENT_REQUIRED는 Phase 4 interceptor가 router.replace를 트리거하므로

@@ -11,6 +11,7 @@
  */
 import { AxiosError } from 'axios';
 import apiClient from './client';
+import { t } from '../i18n';
 
 /**
  * Current withdrawal-terms.html version.
@@ -95,7 +96,7 @@ export async function postWithdrawalConsent(
       const code = extractErrorCode(err.response.data);
       const message = extractErrorMessage(
         err.response.data,
-        '탈퇴 약관 동의 처리 중 오류가 발생했습니다.',
+        t('error.withdrawalConsentFailed'),
       );
 
       if (status === 404 || code === 'USER_NOT_FOUND') {
@@ -170,7 +171,7 @@ export async function postAppleRevokeToken(authorizationCode: string): Promise<v
       const code = extractErrorCode(err.response.data);
       const message = extractErrorMessage(
         err.response.data,
-        'Apple 재인증 처리 중 오류가 발생했습니다.',
+        t('error.appleReAuthFailed'),
       );
 
       if (status === 400 && code === 'INVALID_AUTHORIZATION_CODE') {
