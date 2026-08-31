@@ -8,7 +8,8 @@ import authApi, {
 import { setOnSessionExpired } from '../api/client';
 import type { User, AuthState, AuthResponse } from '../types/auth';
 import { extractErrorMessage } from '../utils/errorMessages';
-import { secureStorage as storage, SECURE_KEYS } from '../utils/secureStorage';
+import { secureStorage as storage, SECURE_KEYS, isKeychainUnavailableError } from '../utils/secureStorage';
+import { captureError } from '../utils/sentry';
 import { useSettingsStore, backendToAiMode } from './settingsStore';
 import { setLanguage as setI18nLanguage, isSupportedLocale, type SupportedLocale } from '../i18n';
 import { registerPushToken, unregisterPushToken } from '../services/pushTokenService';
@@ -28,6 +29,12 @@ function syncLanguageFromUser(appLang?: SupportedLocale | null) {
 }
 
 interface AuthStore extends AuthState {
+  /**
+   * B-SECURESTORE-LOCKED: 기기 잠금으로 checkAuth가 토큰을 못 읽어 판정이 보류됐음.
+   * true인 동안 "미인증"은 확정이 아니다 — 해제 후 재시도로 세션이 되살아날 수 있다.
+   */
+  authCheckDeferred: boolean;
+
   // Actions
   setUser: (user: User | null) => void;
   setTokens: (accessToken: string, refreshToken: string) => void;
@@ -56,6 +63,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   isAuthenticated: false,
   isLoading: true,
   error: null,
+  authCheckDeferred: false,
 
   // Setters
   setUser: (user) => set({ user, isAuthenticated: !!user }),
@@ -348,7 +356,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   // Check auth on app start
   checkAuth: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, authCheckDeferred: false });
     try {
       const token = await storage.getItem('access_token');
 
@@ -383,7 +391,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       //     useSettingsStore.getState().syncAIModeFromServer(localMode);
       //   }
       // }
-    } catch {
+    } catch (e) {
+      // B-SECURESTORE-LOCKED: 기기 잠금 중 Keychain 읽기 실패는 "토큰 무효"가 아니다.
+      // 여기서 지우면 일시적 잠금이 영구 로그아웃으로 굳는다(deleteValueWithKeyAsync는
+      // 네이티브에서 상태를 무시하므로 실패해도 성공처럼 통과한다) → 보존 후 재시도.
+      if (isKeychainUnavailableError(e)) {
+        set({ isLoading: false, authCheckDeferred: true });
+        captureError(e instanceof Error ? e : new Error(String(e)), {
+          scope: 'checkAuth.keychainUnavailable',
+        });
+        return;
+      }
       // Clear invalid tokens
       await storage.removeItem('access_token');
       await storage.removeItem('refresh_token');

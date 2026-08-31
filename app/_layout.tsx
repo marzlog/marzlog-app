@@ -4,7 +4,7 @@ import { useFonts } from 'expo-font';
 import { Stack, router, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Platform } from 'react-native';
+import { ActivityIndicator, AppState, Platform, View } from 'react-native';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -13,7 +13,7 @@ import * as Updates from 'expo-updates';
 
 import { initializeKakaoSDK } from '@react-native-kakao/core';
 import { useColorScheme } from '@/components/useColorScheme';
-import { initSentry } from '../src/utils/sentry';
+import { initSentry, captureError } from '../src/utils/sentry';
 import { setOnConsentRequired } from '../src/api/client';
 import { useAuthStore } from '@src/store/authStore';
 import { useSettingsStore } from '@src/store/settingsStore';
@@ -58,13 +58,14 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
 
-  const { isAuthenticated, checkAuth } = useAuthStore();
+  const { isAuthenticated, checkAuth, authCheckDeferred } = useAuthStore();
   const pathname = usePathname();
   const { loadSettings } = useSettingsStore();
   const { isLocked, isEnabled: appLockEnabled, initialize: initAppLock, lock: lockApp } = useAppLockStore();
   const [initialReady, setInitialReady] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const backgroundTimestamp = useRef<number | null>(null);
+  const deferredRetryInFlight = useRef(false);
   const LOCK_THRESHOLD_MS = 30_000;
 
   // B-DN: 영속 업로드 큐 재개 트리거는 src/services/resumeUploads.ts의 triggerResume으로
@@ -123,7 +124,9 @@ export default function RootLayout() {
   // Check auth status, load settings, app lock, and onboarding state on app start
   useEffect(() => {
     const init = async () => {
-      await Promise.all([
+      // B-SECURESTORE-LOCKED: allSettled — 한 갈래(예: 잠금 중 appLock initialize)의 reject가
+      // 아래 setInitialReady(true)를 건너뛰게 만들면 앱이 blank 화면으로 영구 정지한다.
+      await Promise.allSettled([
         checkAuth(),
         loadSettings(),
         initAppLock(),
@@ -136,7 +139,11 @@ export default function RootLayout() {
       }
       setInitialReady(true);
     };
-    init();
+    init().catch((e) => {
+      // 최후 방어: 여기까지 온 실패도 부트를 막지 않는다(계측만).
+      captureError(e instanceof Error ? e : new Error(String(e)), { scope: 'rootInit' });
+      setInitialReady(true);
+    });
   }, []);
 
   // Register consent-required callback: backend 403 + code === 'CONSENT_REQUIRED'
@@ -163,6 +170,34 @@ export default function RootLayout() {
     });
     return () => sub.remove();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // B-SECURESTORE-LOCKED: 잠금 중 Keychain 실패로 보류된 부트 작업을 포그라운드 복귀 시 회수.
+  // 기기가 잠긴 동안(prewarming / 잠금 직후)에는 access_token·앱락 플래그를 읽을 수 없어
+  // checkAuth와 appLock.initialize가 보류로 끝난다. 'active' 전이는 잠금 해제 직후이므로 여기서 재시도한다.
+  // 업로드 재개 리스너(위)와 분리된 별도 리스너 — 재시도 실패가 triggerResume을 막지 않게 한다.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active') return;
+      if (deferredRetryInFlight.current) return;
+
+      const needAuth = useAuthStore.getState().authCheckDeferred;
+      const needLock = useAppLockStore.getState().initDeferred;
+      if (!needAuth && !needLock) return;
+
+      deferredRetryInFlight.current = true;
+      (async () => {
+        try {
+          if (needAuth) await useAuthStore.getState().checkAuth();
+          if (needLock) await useAppLockStore.getState().retryInitialize();
+        } catch (e) {
+          captureError(e instanceof Error ? e : new Error(String(e)), { scope: 'deferredRetry' });
+        } finally {
+          deferredRetryInFlight.current = false;
+        }
+      })();
+    });
+    return () => sub.remove();
   }, []);
 
   // B-DN: 네트워크 online 이벤트 시 재개
@@ -257,15 +292,32 @@ export default function RootLayout() {
       return; // 선택됨 → tabs
     }
 
+    // B-SECURESTORE-LOCKED: Keychain 보류 중에는 "미인증"이 확정이 아니다. 토큰을 보존해 뒀으므로
+    // 잠금 해제 후 재시도가 세션을 되살린다 — 여기서 /login으로 밀면 복귀 경로가 없어진다.
+    // 보류가 풀리면 authCheckDeferred 변화로 이 effect가 다시 돌아 정상 분기한다.
+    if (authCheckDeferred) return;
+
     if (!onboardingCompleted) {
       router.replace('/onboarding');
     } else {
       router.replace('/login');
     }
-  }, [isAuthenticated, initialReady, loaded, onboardingCompleted]);
+  }, [isAuthenticated, initialReady, loaded, onboardingCompleted, authCheckDeferred]);
 
   if (!loaded || !initialReady) {
     return null;
+  }
+
+  // B-SECURESTORE-LOCKED: 인증 판정이 보류된 동안에는 Stack을 마운트하지 않는다.
+  // initialRouteName이 '(tabs)'라 그대로 두면 홈 탭이 미인증 상태로 마운트되어
+  // loadAllItems()와 폴링이 계속 실패 호출을 돈다(app/(tabs)/index.tsx:463,584,616).
+  // 잠금 해제 → AppState 'active' 재시도가 보류를 풀면 정상 분기로 이어진다.
+  if (authCheckDeferred && !isAuthenticated) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
   }
 
   return (

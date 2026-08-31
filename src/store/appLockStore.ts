@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { Platform } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
-import { secureStorage, SECURE_KEYS } from '../utils/secureStorage';
+import { secureStorage, SECURE_KEYS, isKeychainUnavailableError } from '../utils/secureStorage';
+import { captureError } from '../utils/sentry';
 
 interface AppLockState {
   isEnabled: boolean;
@@ -10,8 +11,11 @@ interface AppLockState {
   failCount: number;
   lockoutUntil: number | null;
   biometricType: 'face' | 'fingerprint' | 'iris' | 'none';
+  /** B-SECURESTORE-LOCKED: 잠금 중 Keychain 실패로 initialize가 보류됐음 → 해제 후 재시도 대상 */
+  initDeferred: boolean;
 
   initialize: () => Promise<void>;
+  retryInitialize: () => Promise<void>;
   enableLock: (pin: string) => Promise<void>;
   disableLock: (pin: string) => Promise<boolean>;
   lock: () => void;
@@ -38,14 +42,29 @@ export const useAppLockStore = create<AppLockState>((set, get) => ({
   failCount: 0,
   lockoutUntil: null,
   biometricType: 'none',
+  initDeferred: false,
 
   initialize: async () => {
-    const enabled = await secureStorage.getItem(SECURE_KEYS.APP_LOCK_ENABLED);
-    const isEnabled = enabled === 'true';
-    set({ isEnabled, isLocked: isEnabled });
-    if (isEnabled) {
-      await get().checkBiometric();
+    // B-SECURESTORE-LOCKED: 여기서 throw가 새어나가면 _layout의 부트 Promise가 깨져
+    // setInitialReady가 영영 서지 않고 화면이 blank로 정지한다. checkBiometric(아래)과
+    // 동일하게 안전 폴백으로 흡수하고, 잠금 원인이면 재시도 대상으로 표시한다.
+    try {
+      const enabled = await secureStorage.getItem(SECURE_KEYS.APP_LOCK_ENABLED);
+      const isEnabled = enabled === 'true';
+      set({ isEnabled, isLocked: isEnabled, initDeferred: false });
+      if (isEnabled) {
+        await get().checkBiometric();
+      }
+    } catch (e) {
+      set({ isEnabled: false, isLocked: false, initDeferred: isKeychainUnavailableError(e) });
+      captureError(e instanceof Error ? e : new Error(String(e)), { scope: 'appLock.initialize' });
     }
+  },
+
+  /** 보류된 initialize만 1회 재실행 (해제 직후 포그라운드 복귀 시 호출) */
+  retryInitialize: async () => {
+    if (!get().initDeferred) return;
+    await get().initialize();
   },
 
   enableLock: async (pin: string) => {
