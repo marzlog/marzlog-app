@@ -4,7 +4,7 @@ import { useFonts } from 'expo-font';
 import { Stack, router, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
-import { AppState, Platform } from 'react-native';
+import { ActivityIndicator, AppState, Platform, View } from 'react-native';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -306,6 +306,18 @@ export default function RootLayout() {
 
   if (!loaded || !initialReady) {
     return null;
+  }
+
+  // B-SECURESTORE-LOCKED: 인증 판정이 보류된 동안에는 Stack을 마운트하지 않는다.
+  // initialRouteName이 '(tabs)'라 그대로 두면 홈 탭이 미인증 상태로 마운트되어
+  // loadAllItems()와 폴링이 계속 실패 호출을 돈다(app/(tabs)/index.tsx:463,584,616).
+  // 잠금 해제 → AppState 'active' 재시도가 보류를 풀면 정상 분기로 이어진다.
+  if (authCheckDeferred && !isAuthenticated) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
   }
 
   return (
