@@ -477,7 +477,6 @@
     "titlePlaceholder": "ใส่ชื่อเรื่อง",
     "contentPlaceholder": "เขียนบันทึกไดอารี่ของคุณ",
     "captionPlaceholder": "อธิบายรูปนี้",
-    "mood": "อารมณ์",
     "emotionQuestion": "ตอนนี้รู้สึกอย่างไร",
     "intensityLabel": "เลือกระดับความเข้มข้น",
     "intensitySlight": "เล็กน้อย",
@@ -499,14 +498,7 @@
     "openInMap": "เปิดในแผนที่",
     "analysisPending": "กำลังรอการวิเคราะห์ด้วย AI...",
     "titleLabel": "ชื่อเรื่อง",
-    "contentLabel": "เนื้อหา",
-    "moodHappy": "มีความสุข",
-    "moodPeace": "สงบ",
-    "moodExcited": "ตื่นเต้น",
-    "moodNostalgia": "คิดถึง",
-    "moodGratitude": "ซาบซึ้งใจ",
-    "moodEnergy": "มีชีวิตชีวา",
-    "moodComfy": "ผ่อนคลาย"
+    "contentLabel": "เนื้อหา"
   },
   "albums": {
     "aiAutoClassify": "AI Auto-Classified",

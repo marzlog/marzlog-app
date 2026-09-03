@@ -135,20 +135,22 @@ export async function updateCaption(
 }
 
 /**
- * 일기 수정 (제목/내용/분위기)
+ * 일기 수정 (제목/내용)
+ *
+ * ★F-MOOD-DIMENSION P3: `mood` 를 요청·응답 타입에서 제거했다.
+ * 서버가 mood 기록을 중단했고(ADR-2026-09-02-01 ①) 신규 카드는 항상 NULL 이라
+ * 보낼 값도 읽을 값도 없다. 감정은 `updateMediaEmotion` 이 담당한다.
  */
 export async function updateDiary(
   mediaId: string,
   diary: {
     title?: string;
     content?: string;
-    mood?: string;
   }
 ): Promise<{
   success: boolean;
   title: string;
   content: string;
-  mood: string;
 }> {
   const response = await apiClient.patch(`/media/${mediaId}/diary`, diary);
   return response.data;

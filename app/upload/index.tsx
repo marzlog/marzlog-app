@@ -20,6 +20,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload, ImagePickerItem, MAX_SELECTION } from '@/src/hooks/useImageUpload';
 import { ImageSelector, EmotionPicker, IntensitySlider } from '@/src/components/upload';
+import { DEFAULT_EMOTION_KEY, resolveEmotion } from '@/constants/emotions';
 import { getMediaDetail, updateMedia, setPrimaryImage } from '@/src/api/media';
 import { timelineApi } from '@/src/api/timeline';
 import { useDialog } from '@/src/components/ui/Dialog';
@@ -52,7 +53,7 @@ export default function UploadScreen() {
 
   const [images, setImages] = useState<ImagePickerItem[]>([]);
   const [primaryImageIndex, setPrimaryImageIndex] = useState(0);
-  const [selectedEmotion, setSelectedEmotion] = useState<string>('평온');
+  const [selectedEmotion, setSelectedEmotion] = useState<string>(DEFAULT_EMOTION_KEY);
   const [intensity, setIntensity] = useState(6);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -96,7 +97,8 @@ export default function UploadScreen() {
       setContent(mediaDetail.content || '');
       setMemo(mediaDetail.memo || '');
       if (mediaDetail.memo) setShowMemo(true);
-      setSelectedEmotion(mediaDetail.emotion || '평온');
+      // 서버 값은 중립 키가 정본. 과도기 데이터(한국어 라벨) 대비 resolve 경유.
+      setSelectedEmotion(resolveEmotion(mediaDetail.emotion)?.key ?? DEFAULT_EMOTION_KEY);
       setIntensity(mediaDetail.intensity || 6);
 
       // 이미지 설정

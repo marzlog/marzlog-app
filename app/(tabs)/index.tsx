@@ -328,7 +328,6 @@ function itemSignature(item: TimelineItem): string {
     item.title ?? '',
     item.title_en ?? '',
     item.content ?? '',
-    item.mood ?? '',
     item.caption ?? '',
     item.caption_ko ?? '',
     m?.emotion ?? '',

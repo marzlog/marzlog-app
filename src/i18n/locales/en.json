@@ -477,7 +477,6 @@
     "titlePlaceholder": "Enter a title",
     "contentPlaceholder": "Write your diary entry",
     "captionPlaceholder": "Describe this photo",
-    "mood": "Mood",
     "emotionQuestion": "How are you feeling?",
     "intensityLabel": "Select the intensity",
     "intensitySlight": "slightly",
@@ -499,14 +498,7 @@
     "openInMap": "Open in Maps",
     "analysisPending": "Waiting for AI analysis...",
     "titleLabel": "Title",
-    "contentLabel": "Content",
-    "moodHappy": "happy",
-    "moodPeace": "peaceful",
-    "moodExcited": "excited",
-    "moodNostalgia": "wistful",
-    "moodGratitude": "grateful",
-    "moodEnergy": "lively",
-    "moodComfy": "relaxed"
+    "contentLabel": "Content"
   },
   "albums": {
     "aiAutoClassify": "AI Auto-Classified",

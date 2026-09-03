@@ -1,33 +1,38 @@
 /**
  * 감정 시스템 상수 및 에셋 매핑
  * Figma 디자인 기반 커스텀 아이콘 사용
+ *
+ * ★F-MOOD-DIMENSION P3 (ADR-2026-09-02-01)
+ * 키·라벨·해석 로직의 정본은 `src/constants/emotionKeys.ts` 로 분리됐다
+ * (에셋 require 가 없어 jest 단위 테스트가 가능한 모듈). 이 파일은 그 위에
+ * 아이콘·일러스트를 붙여 화면이 쓰는 표를 조립하는 역할만 한다.
+ *
+ * 서버는 감정을 **언어 중립 키**로 저장·반환한다. 표시 라벨은 nameKo/nameEn 이며
+ * 저장값이 아니다 — 비교·전송은 전부 키로 한다.
  */
 
 import { getLanguage, type SupportedLocale } from '@/src/i18n';
+import {
+  EMOTION_LABELS,
+  DEFAULT_EMOTION_KEY,
+  resolveEmotionKey,
+  type EmotionKey,
+  type EmotionLabels,
+} from '@/src/constants/emotionKeys';
 
-// 감정 키 타입
-export type EmotionKey =
-  | 'joy'
-  | 'calm'
-  | 'love'
-  | 'gratitude'
-  | 'surprise'
-  | 'anxiety'
-  | 'sadness'
-  | 'focus'
-  | 'anger'
-  | 'thoughtful'
-  | 'tired'
-  | 'hurt';
+export {
+  EMOTION_KEYS,
+  DEFAULT_EMOTION_KEY,
+  resolveEmotionKey,
+  resolveEmotionLabels,
+} from '@/src/constants/emotionKeys';
+export type { EmotionKey } from '@/src/constants/emotionKeys';
 
 // 감정 아이콘 상태
 export type EmotionIconState = 'color' | 'gray' | 'disabled';
 
 // 감정 데이터 인터페이스
-export interface EmotionData {
-  key: EmotionKey;
-  nameKo: string;
-  nameEn: string;
+export interface EmotionData extends EmotionLabels {
   icons: {
     color: any;
     gray: any;
@@ -83,7 +88,8 @@ const icons = {
     gray: require('@/assets/images/emotions/icons/anger_gray.png'),
     disabled: require('@/assets/images/emotions/icons/anger_disabled.png'),
   },
-  thoughtful: {
+  // ★키는 thought, 파일명은 thoughtful_* 유지 (에셋 리네임은 별건)
+  thought: {
     color: require('@/assets/images/emotions/icons/thoughtful_color.png'),
     gray: require('@/assets/images/emotions/icons/thoughtful_gray.png'),
     disabled: require('@/assets/images/emotions/icons/thoughtful_disabled.png'),
@@ -93,7 +99,8 @@ const icons = {
     gray: require('@/assets/images/emotions/icons/tired_gray.png'),
     disabled: require('@/assets/images/emotions/icons/tired_disabled.png'),
   },
-  hurt: {
+  // ★키는 pain, 파일명은 hurt_* 유지 (에셋 리네임은 별건)
+  pain: {
     color: require('@/assets/images/emotions/icons/hurt_color.png'),
     gray: require('@/assets/images/emotions/icons/hurt_gray.png'),
     disabled: require('@/assets/images/emotions/icons/hurt_disabled.png'),
@@ -111,166 +118,63 @@ const illustrations = {
   sadness: require('@/assets/images/emotions/illustrations/sadness.png'),
   focus: require('@/assets/images/emotions/illustrations/focus.png'),
   anger: require('@/assets/images/emotions/illustrations/anger.png'),
-  thoughtful: require('@/assets/images/emotions/illustrations/thoughtful.png'),
+  thought: require('@/assets/images/emotions/illustrations/thoughtful.png'),
   tired: require('@/assets/images/emotions/illustrations/tired.png'),
-  hurt: require('@/assets/images/emotions/illustrations/hurt.png'),
+  pain: require('@/assets/images/emotions/illustrations/hurt.png'),
 };
 
-// 감정 목록 (순서 유지)
-export const EMOTIONS: EmotionData[] = [
-  {
-    key: 'joy',
-    nameKo: '기쁨',
-    nameEn: 'Joy',
-    icons: icons.joy,
-    illustration: illustrations.joy,
-  },
-  {
-    key: 'calm',
-    nameKo: '평온',
-    nameEn: 'Calm',
-    icons: icons.calm,
-    illustration: illustrations.calm,
-  },
-  {
-    key: 'love',
-    nameKo: '사랑',
-    nameEn: 'Love',
-    icons: icons.love,
-    illustration: illustrations.love,
-  },
-  {
-    key: 'gratitude',
-    nameKo: '감사',
-    nameEn: 'Gratitude',
-    icons: icons.gratitude,
-    illustration: illustrations.gratitude,
-  },
-  {
-    key: 'surprise',
-    nameKo: '놀람',
-    nameEn: 'Surprise',
-    icons: icons.surprise,
-    illustration: illustrations.surprise,
-  },
-  {
-    key: 'anxiety',
-    nameKo: '불안',
-    nameEn: 'Anxiety',
-    icons: icons.anxiety,
-    illustration: illustrations.anxiety,
-  },
-  {
-    key: 'sadness',
-    nameKo: '슬픔',
-    nameEn: 'Sadness',
-    icons: icons.sadness,
-    illustration: illustrations.sadness,
-  },
-  {
-    key: 'focus',
-    nameKo: '몰입',
-    nameEn: 'Focus',
-    icons: icons.focus,
-    illustration: illustrations.focus,
-  },
-  {
-    key: 'anger',
-    nameKo: '분노',
-    nameEn: 'Anger',
-    icons: icons.anger,
-    illustration: illustrations.anger,
-  },
-  {
-    key: 'thoughtful',
-    nameKo: '생각',
-    nameEn: 'Thoughtful',
-    icons: icons.thoughtful,
-    illustration: illustrations.thoughtful,
-  },
-  {
-    key: 'tired',
-    nameKo: '피곤',
-    nameEn: 'Tired',
-    icons: icons.tired,
-    illustration: illustrations.tired,
-  },
-  {
-    key: 'hurt',
-    nameKo: '아픔',
-    nameEn: 'Hurt',
-    icons: icons.hurt,
-    illustration: illustrations.hurt,
-  },
-];
+// 감정 목록 — 정본(EMOTION_LABELS)에 에셋을 붙여 조립. 순서도 정본을 따른다.
+export const EMOTIONS: EmotionData[] = EMOTION_LABELS.map((e) => ({
+  ...e,
+  icons: icons[e.key],
+  illustration: illustrations[e.key],
+}));
 
-// 한글 이름 → 감정 키 매핑
-export const EMOTION_NAME_TO_KEY: Record<string, EmotionKey> = {
-  '기쁨': 'joy',
-  '평온': 'calm',
-  '사랑': 'love',
-  '감사': 'gratitude',
-  '놀람': 'surprise',
-  '불안': 'anxiety',
-  '슬픔': 'sadness',
-  '몰입': 'focus',
-  '분노': 'anger',
-  '생각': 'thoughtful',
-  '피곤': 'tired',
-  '아픔': 'hurt',
-};
+const BY_KEY: Record<EmotionKey, EmotionData> = Object.fromEntries(
+  EMOTIONS.map((e) => [e.key, e]),
+) as Record<EmotionKey, EmotionData>;
 
-// 감정 키 → 한글 이름 매핑
-export const EMOTION_KEY_TO_NAME: Record<EmotionKey, string> = {
-  joy: '기쁨',
-  calm: '평온',
-  love: '사랑',
-  gratitude: '감사',
-  surprise: '놀람',
-  anxiety: '불안',
-  sadness: '슬픔',
-  focus: '몰입',
-  anger: '분노',
-  thoughtful: '생각',
-  tired: '피곤',
-  hurt: '아픔',
-};
+/** 키 → 감정 데이터(아이콘 포함) 룩업. */
+export const EMOTION_BY_KEY: Readonly<Record<EmotionKey, EmotionData>> = BY_KEY;
 
-// 헬퍼 함수: 감정 이름(한글)으로 감정 데이터 찾기
-export function getEmotionByName(name: string): EmotionData | undefined {
-  const key = EMOTION_NAME_TO_KEY[name];
-  if (!key) return undefined;
-  return EMOTIONS.find((e) => e.key === key);
+/**
+ * 화면이 쓰는 단일 해석 지점 — 서버 값/구 캐시/한국어 라벨을 모두 받아 EmotionData 로.
+ * 해석 불가면 null → 호출부는 **아이콘 자리를 비우고 원문을 노출하지 않는다**.
+ */
+export function resolveEmotion(value: string | null | undefined): EmotionData | null {
+  const key = resolveEmotionKey(value);
+  return key ? BY_KEY[key] : null;
 }
 
-// 헬퍼 함수: 감정 키로 감정 데이터 찾기
-export function getEmotionByKey(key: EmotionKey): EmotionData | undefined {
-  return EMOTIONS.find((e) => e.key === key);
-}
+/** 기본 감정 데이터 (업로드 초기값 등). */
+export const DEFAULT_EMOTION: EmotionData = BY_KEY[DEFAULT_EMOTION_KEY];
 
-// 헬퍼 함수: 감정 아이콘 가져오기
+// 헬퍼: 감정 아이콘. 해석 불가면 null.
 export function getEmotionIcon(
-  nameOrKey: string,
+  value: string | null | undefined,
   state: EmotionIconState = 'color'
 ): any {
-  const key = EMOTION_NAME_TO_KEY[nameOrKey] || (nameOrKey as EmotionKey);
-  const emotion = EMOTIONS.find((e) => e.key === key);
-  return emotion?.icons[state] || null;
+  return resolveEmotion(value)?.icons[state] ?? null;
 }
 
-// 헬퍼 함수: 감정 일러스트 가져오기
-export function getEmotionIllustration(nameOrKey: string): any {
-  const key = EMOTION_NAME_TO_KEY[nameOrKey] || (nameOrKey as EmotionKey);
-  const emotion = EMOTIONS.find((e) => e.key === key);
-  return emotion?.illustration || null;
+// 헬퍼: 감정 일러스트. 해석 불가면 null.
+export function getEmotionIllustration(value: string | null | undefined): any {
+  return resolveEmotion(value)?.illustration ?? null;
 }
 
-// 헬퍼 함수: 현재 언어에 맞는 감정 표시 라벨 (저장 정본은 nameKo 유지 — 표시만 분기)
-// lang 미지정 시 현재 앱 언어(getLanguage)를 사용. nameEn 없으면 nameKo 폴백.
-// ko만 nameKo, 그 외(en/vi)는 nameEn 폴백 — 감정 라벨은 아직 vi 정본이 없다.
+/**
+ * 현재 언어에 맞는 표시 라벨. 해석 불가면 null(원문 노출 금지).
+ *
+ * ko 는 nameKo, 그 외(en/vi/th)는 nameEn 폴백이다.
+ * TODO(F-EMOTION-VI-LABELS): vi/th 실번역이 들어오면 여기서 분기를 늘린다.
+ * 백엔드 `app/core/emotions.py` 의 name_vi/name_th 도 현재 en 임시값이라 양쪽을
+ * 함께 교체해야 한다.
+ */
 export function emotionLabel(
-  e: EmotionData,
+  value: EmotionData | string | null | undefined,
   lang: SupportedLocale = getLanguage()
-): string {
-  return lang === 'ko' ? e.nameKo : e.nameEn || e.nameKo;
+): string | null {
+  const data = typeof value === 'string' || value == null ? resolveEmotion(value) : value;
+  if (!data) return null;
+  return lang === 'ko' ? data.nameKo : data.nameEn || data.nameKo;
 }
