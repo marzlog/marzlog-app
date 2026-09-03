@@ -52,6 +52,9 @@ export interface TimelineItem {
   title?: string | null;
   title_en?: string | null;
   content?: string | null;
+  /** @deprecated F-MOOD-DIMENSION P3 — 서버가 기록을 중단해 항상 null.
+   *  응답 스키마에는 남아 있어 타입만 유지한다. 화면에서 참조 금지.
+   *  컬럼 자체의 제거는 백엔드 P4. */
   mood?: string | null;
   ai_provider?: string | null;
   // Job status

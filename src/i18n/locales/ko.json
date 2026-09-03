@@ -477,7 +477,6 @@
     "titlePlaceholder": "제목을 입력하세요",
     "contentPlaceholder": "일기 내용을 입력하세요",
     "captionPlaceholder": "이 사진에 대한 설명을 입력하세요",
-    "mood": "분위기",
     "emotionQuestion": "현재 기분은 어떤가요?",
     "intensityLabel": "기분의 강도를 선택하세요",
     "intensitySlight": "살짝",
@@ -499,14 +498,7 @@
     "openInMap": "지도에서 보기",
     "analysisPending": "AI 분석 대기 중...",
     "titleLabel": "제목",
-    "contentLabel": "내용",
-    "moodHappy": "행복",
-    "moodPeace": "평화",
-    "moodExcited": "설렘",
-    "moodNostalgia": "그리움",
-    "moodGratitude": "감사",
-    "moodEnergy": "활기",
-    "moodComfy": "편안"
+    "contentLabel": "내용"
   },
   "albums": {
     "aiAutoClassify": "AI 자동 분류",

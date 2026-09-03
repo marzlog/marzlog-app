@@ -7,7 +7,9 @@ import { EMOTIONS as EMOTION_DATA, emotionLabel } from '@/constants/emotions';
 import { useTranslation } from '@/src/hooks/useTranslation';
 
 interface EmotionPickerProps {
+  /** 선택된 감정 **키**(joy/calm/…). ★F-MOOD-DIMENSION P3에서 nameKo → key 전환. */
   selectedEmotion: string;
+  /** 선택 시 감정 키를 돌려준다. 서버 전송값도 이 키 그대로다. */
   onSelect: (emotion: string) => void;
 }
 
@@ -25,7 +27,7 @@ export function EmotionPicker({ selectedEmotion, onSelect }: EmotionPickerProps)
       <Text style={[styles.title, { color: theme.text.primary }]}>{t('mediaDetail.emotionQuestion')}</Text>
       <View style={styles.grid}>
         {EMOTION_DATA.map((emotion) => {
-          const isSelected = selectedEmotion === emotion.nameKo;
+          const isSelected = selectedEmotion === emotion.key;
           return (
             <TouchableOpacity
               key={emotion.key}
@@ -34,7 +36,7 @@ export function EmotionPicker({ selectedEmotion, onSelect }: EmotionPickerProps)
                 { backgroundColor: theme.surface.primary },
                 isSelected && { borderColor: theme.primary.default },
               ]}
-              onPress={() => onSelect(emotion.nameKo)}
+              onPress={() => onSelect(emotion.key)}
               activeOpacity={0.7}
             >
               <Image

@@ -50,7 +50,7 @@ import { captureError } from '@/src/utils/sentry';
 import ErrorView from '@/src/components/common/ErrorView';
 import { AiNotice } from '@/src/components/common/AiNotice';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
-import { EMOTIONS, getEmotionByName, getEmotionIcon, getEmotionIllustration, EMOTION_KEY_TO_NAME, emotionLabel } from '@/constants/emotions';
+import { EMOTIONS, resolveEmotion, getEmotionIcon, getEmotionIllustration, emotionLabel } from '@/constants/emotions';
 import { intensityAdverbKey } from '@/src/utils/intensity';
 import { IntensitySlider } from '@/src/components/upload/IntensitySlider';
 import { ShareSheet } from '@/src/components/media/ShareSheet';
@@ -106,28 +106,19 @@ const DIARY_FALLBACK_PREFIXES = [
 /**
  * "부사 + 감정어" 표기 조합 (예: 꽤 기쁨 / quite Joy).
  * - intensity 5-6(부사 없음)·범위 밖·null 이면 감정어만 반환
- * - 감정어는 emotionLabel로 현재 언어에 맞게 표시(저장 정본은 한글 nameKo 유지)
- * - EMOTION_NAME_TO_KEY 매핑에 없는 문자열은 원값 그대로 폴백
+ * - 감정어는 emotionLabel로 현재 언어에 맞게 표시(서버 저장 정본은 중립 키)
+ * - ★F-MOOD-DIMENSION P3: 해석 불가한 값은 **빈 문자열**을 돌려준다.
+ *   이전에는 원값을 그대로 폴백해 서버가 키로 전환된 뒤 화면에 'thought' 가
+ *   그대로 노출됐다(실기 확인). 사용자에게 내부 키를 보여주지 않는다.
  */
 function emotionWithIntensity(
   emotion: string | null | undefined,
   intensity: number | null | undefined,
 ): string {
-  if (!emotion) return '';
-  const data = getEmotionByName(emotion);
-  const label = data ? emotionLabel(data) : emotion;
+  const label = emotionLabel(emotion);
+  if (!label) return '';
   const adverbKey = intensityAdverbKey(intensity ?? 0);
   return adverbKey ? `${t(adverbKey)} ${label}` : label;
-}
-
-/**
- * mood 선택 상태 비교. 대소문자를 무시한다.
- * 저장 정본은 워커 프롬프트 어휘(소문자: 'peaceful' / 'bình yên')이지만,
- * 앱 선택지가 한때 대문자('Peaceful')였던 시기에 저장된 레코드가 남아 있어
- * 정확 비교로는 기존 일기의 mood 가 미선택으로 보인다. (B-MOOD-VOCAB-DRIFT)
- */
-function isSameMood(a: string, b: string): boolean {
-  return a.toLocaleLowerCase() === b.toLocaleLowerCase();
 }
 
 type StackImage = { id?: string | number; download_url?: string; thumbnail_url?: string };
@@ -355,16 +346,8 @@ export default function MediaDetailScreen() {
   const [captionEditModalVisible, setCaptionEditModalVisible] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
-  const [editMood, setEditMood] = useState('');
   const [editCaption, setEditCaption] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-
-  // 분위기 옵션
-  const MOOD_OPTIONS = [
-    t('mediaDetail.moodHappy'), t('mediaDetail.moodPeace'), t('mediaDetail.moodExcited'),
-    t('mediaDetail.moodNostalgia'), t('mediaDetail.moodGratitude'), t('mediaDetail.moodEnergy'),
-    t('mediaDetail.moodComfy'),
-  ];
 
   // 감정 편집 모달 상태
   const [emotionModalVisible, setEmotionModalVisible] = useState(false);
@@ -838,15 +821,12 @@ export default function MediaDetailScreen() {
   };
 
   // 일기 편집 모달 열기
+  // ★F-MOOD-DIMENSION P3: 분위기(mood)는 폐기됐다(ADR-2026-09-02-01 ①).
+  //   워커가 더 이상 기록하지 않아 신규 카드는 항상 NULL 이고, 편집 대상도 아니다.
+  //   감정은 별도의 감정 편집 모달(12종 선택기)에서 다룬다.
   const openDiaryEditModal = () => {
-    // 현재 미디어의 일기 정보 가져오기
-    const currentTitle = media?.title || '';
-    const currentContent = media?.content || '';
-    const currentMood = media?.mood || '';
-
-    setEditTitle(currentTitle);
-    setEditContent(currentContent);
-    setEditMood(currentMood);
+    setEditTitle(media?.title || '');
+    setEditContent(media?.content || '');
     setDiaryEditModalVisible(true);
   };
 
@@ -863,7 +843,6 @@ export default function MediaDetailScreen() {
       await updateDiary(id!, {
         title: editTitle,
         content: editContent,
-        mood: editMood,
       });
 
       // 미디어 새로고침
@@ -906,7 +885,9 @@ export default function MediaDetailScreen() {
 
   // 감정 편집 모달 열기
   const openEmotionModal = () => {
-    setEditEmotion(groupEmotion || '');
+    // 서버 값은 중립 키가 정본이지만 과도기 데이터(한국어 라벨)가 올 수 있어
+    // resolveEmotion 으로 키를 확정한다 — 선택 상태가 비어 보이는 것을 막는다.
+    setEditEmotion(resolveEmotion(groupEmotion)?.key ?? '');
     setEditIntensity(groupIntensity || 3);
     setEmotionModalVisible(true);
   };
@@ -1175,14 +1156,20 @@ export default function MediaDetailScreen() {
           )}
         </TouchableOpacity>
 
-        {/* AI 일기 제목 + mood 배지 */}
+        {/* AI 일기 제목 + 감정 배지
+            ★F-MOOD-DIMENSION P3: 구 mood 배지를 감정 배지로 대체했다.
+            mood 는 폐기돼 신규 카드에서 항상 NULL 이고, 남아 있던 옛 값을 그대로
+            렌더하면 언어가 뒤섞인다(한국어 카드에 'peaceful' 등). 게시물의 감정은
+            위 감정 카드가 이미 보여주므로 여기서는 라벨만 간결히 반복한다. */}
         {media.title && (
           <View style={[styles.userSection, isDark && styles.sectionBorderDark]}>
             <View style={styles.titleRow}>
               <Text style={[styles.titleText, isDark && styles.textLight, { flex: 1 }]}>{media.title}</Text>
-              {media.mood && (
-                <View style={[styles.moodBadge, isDark && styles.moodBadgeDark]}>
-                  <Text style={[styles.moodBadgeText, isDark && styles.moodBadgeTextDark]}>{media.mood}</Text>
+              {emotionLabel(groupEmotion) && (
+                <View style={[styles.titleEmotionBadge, isDark && styles.titleEmotionBadgeDark]}>
+                  <Text style={[styles.titleEmotionBadgeText, isDark && styles.titleEmotionBadgeTextDark]}>
+                    {emotionLabel(groupEmotion)}
+                  </Text>
                 </View>
               )}
             </View>
@@ -1562,24 +1549,6 @@ export default function MediaDetailScreen() {
                 numberOfLines={4}
                 textAlignVertical="top"
               />
-              <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.mood')}</Text>
-              <View style={styles.moodSelector}>
-                {MOOD_OPTIONS.map((mood) => (
-                  <TouchableOpacity
-                    key={mood}
-                    style={[
-                      styles.moodOption,
-                      isDark && styles.moodOptionDark,
-                      isSameMood(editMood, mood) && styles.moodOptionSelected,
-                    ]}
-                    onPress={() => setEditMood(mood)}
-                  >
-                    <Text style={[styles.moodOptionText, isDark && styles.textSecondaryDark, isSameMood(editMood, mood) && styles.moodOptionTextSelected]}>
-                      #{mood}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
               <View style={styles.modalButtons}>
                 <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setDiaryEditModalVisible(false)}>
                   <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>{t('common.cancel')}</Text>
@@ -1615,20 +1584,6 @@ export default function MediaDetailScreen() {
                   numberOfLines={4}
                   textAlignVertical="top"
                 />
-                <Text style={[styles.inputLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.mood')}</Text>
-                <View style={styles.moodSelector}>
-                  {MOOD_OPTIONS.map((mood) => (
-                    <TouchableOpacity
-                      key={mood}
-                      style={[styles.moodOption, isDark && styles.moodOptionDark, isSameMood(editMood, mood) && styles.moodOptionSelected]}
-                      onPress={() => setEditMood(mood)}
-                    >
-                      <Text style={[styles.moodOptionText, isDark && styles.textSecondaryDark, isSameMood(editMood, mood) && styles.moodOptionTextSelected]}>
-                        #{mood}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
                 <View style={styles.modalButtons}>
                   <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setDiaryEditModalVisible(false)}>
                     <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>{t('common.cancel')}</Text>
@@ -1716,12 +1671,12 @@ export default function MediaDetailScreen() {
               <Text style={[styles.modalTitle, isDark && styles.textLight]}>{t('mediaDetail.emotionQuestion')}</Text>
               <View style={styles.emotionGrid}>
                 {EMOTIONS.map((emotion) => {
-                  const isSelected = editEmotion === emotion.nameKo;
+                  const isSelected = editEmotion === emotion.key;
                   return (
                     <TouchableOpacity
                       key={emotion.key}
                       style={[styles.emotionOption, isDark && styles.emotionOptionDark, isSelected && styles.emotionOptionSelected]}
-                      onPress={() => setEditEmotion(emotion.nameKo)}
+                      onPress={() => setEditEmotion(emotion.key)}
                     >
                       <Image
                         source={emotion.icons.color}
@@ -1753,12 +1708,12 @@ export default function MediaDetailScreen() {
                 <Text style={[styles.modalTitle, isDark && styles.textLight]}>{t('mediaDetail.emotionQuestion')}</Text>
                 <View style={styles.emotionGrid}>
                   {EMOTIONS.map((emotion) => {
-                    const isSelected = editEmotion === emotion.nameKo;
+                    const isSelected = editEmotion === emotion.key;
                     return (
                       <TouchableOpacity
                         key={emotion.key}
                         style={[styles.emotionOption, isDark && styles.emotionOptionDark, isSelected && styles.emotionOptionSelected]}
-                        onPress={() => setEditEmotion(emotion.nameKo)}
+                        onPress={() => setEditEmotion(emotion.key)}
                       >
                         <Image
                           source={emotion.icons.color}
@@ -2236,22 +2191,22 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 8,
   },
-  moodBadge: {
+  titleEmotionBadge: {
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
     marginTop: 4,
   },
-  moodBadgeDark: {
+  titleEmotionBadgeDark: {
     backgroundColor: 'rgba(99, 102, 241, 0.2)',
   },
-  moodBadgeText: {
+  titleEmotionBadgeText: {
     fontSize: 12,
     fontWeight: '500',
     color: '#6366F1',
   },
-  moodBadgeTextDark: {
+  titleEmotionBadgeTextDark: {
     color: '#A5B4FC',
   },
   aiProviderRow: {
@@ -2409,32 +2364,6 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
-  },
-  moodSelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
-  },
-  moodOption: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: colors.neutral[2],
-  },
-  moodOptionDark: {
-    backgroundColor: '#374151',
-  },
-  moodOptionSelected: {
-    backgroundColor: colors.brand.primary,
-  },
-  moodOptionText: {
-    fontSize: 13,
-    color: colors.text.secondary,
-  },
-  moodOptionTextSelected: {
-    color: '#fff',
-    fontWeight: '600',
   },
   modalButtons: {
     flexDirection: 'row',

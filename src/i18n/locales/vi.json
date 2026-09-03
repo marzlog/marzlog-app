@@ -477,7 +477,6 @@
     "titlePlaceholder": "Nhập tiêu đề",
     "contentPlaceholder": "Nhập nội dung nhật ký",
     "captionPlaceholder": "Nhập mô tả cho ảnh này",
-    "mood": "Tâm trạng",
     "emotionQuestion": "Bạn đang cảm thấy thế nào?",
     "intensityLabel": "Chọn mức độ cảm xúc",
     "intensitySlight": "Hơi",
@@ -499,14 +498,7 @@
     "openInMap": "Xem trên bản đồ",
     "analysisPending": "Đang chờ AI phân tích...",
     "titleLabel": "Tiêu đề",
-    "contentLabel": "Nội dung",
-    "moodHappy": "vui vẻ",
-    "moodPeace": "bình yên",
-    "moodExcited": "háo hức",
-    "moodNostalgia": "hoài niệm",
-    "moodGratitude": "biết ơn",
-    "moodEnergy": "tràn đầy sức sống",
-    "moodComfy": "thư thái"
+    "contentLabel": "Nội dung"
   },
   "albums": {
     "aiAutoClassify": "AI Auto-Classified",
