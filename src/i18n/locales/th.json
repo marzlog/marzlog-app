@@ -349,8 +349,8 @@
     "emptyDay": "วันนี้ยังไม่มีบันทึก",
     "viewListLabel": "บันทึกของฉัน",
     "viewGridLabel": "มุมมองภาพขนาดย่อ",
-    "unsupportedFormatExcluded": "Unsupported formats were excluded:\n{{files}}\n\nOnly JPG, PNG, WebP and HEIC can be uploaded.",
-    "imagePickError": "An error occurred while selecting images."
+    "unsupportedFormatExcluded": "รูปแบบที่ไม่รองรับถูกยกเว้น:\n{{files}}\n\nอัปโหลดได้เฉพาะ JPG, PNG, WebP และ HEIC เท่านั้น",
+    "imagePickError": "เกิดข้อผิดพลาดขณะเลือกรูปภาพ"
   },
   "timeline": {
     "title": "ช่วงเวลาประจำวัน",
@@ -372,8 +372,8 @@
     "filter_3month": "3 เดือน",
     "filter_all": "ทั้งหมด",
     "totalCount": "{{count}} รายการ",
-    "noOcrPhotos": "No photos with OCR text",
-    "checkImagesTab": "Check the Images tab for photos"
+    "noOcrPhotos": "ไม่มีรูปภาพที่มีข้อความ OCR",
+    "checkImagesTab": "ดูรูปภาพได้ที่แท็บรูปภาพ"
   },
   "search": {
     "bookmarkFilter": "บุ๊กมาร์กแล้ว",

@@ -349,8 +349,8 @@
     "emptyDay": "Ngày này chưa có ghi chép nào",
     "viewListLabel": "Ghi chép của tôi",
     "viewGridLabel": "Xem dạng lưới",
-    "unsupportedFormatExcluded": "Unsupported formats were excluded:\n{{files}}\n\nOnly JPG, PNG, WebP and HEIC can be uploaded.",
-    "imagePickError": "An error occurred while selecting images."
+    "unsupportedFormatExcluded": "Định dạng không được hỗ trợ đã bị loại trừ:\n{{files}}\n\nChỉ có thể tải lên JPG, PNG, WebP và HEIC.",
+    "imagePickError": "Đã xảy ra lỗi khi chọn ảnh."
   },
   "timeline": {
     "title": "Xem lại đời thường",
@@ -372,8 +372,8 @@
     "filter_3month": "3 tháng",
     "filter_all": "Tất cả",
     "totalCount": "Tổng {{count}} mục",
-    "noOcrPhotos": "No photos with OCR text",
-    "checkImagesTab": "Check the Images tab for photos"
+    "noOcrPhotos": "Không có ảnh nào chứa văn bản OCR",
+    "checkImagesTab": "Xem ảnh trong tab Hình ảnh"
   },
   "search": {
     "bookmarkFilter": "Chỉ mục yêu thích",
