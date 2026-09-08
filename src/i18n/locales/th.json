@@ -533,8 +533,8 @@
     "new": "NEW"
   },
   "date": {
-    "today": "Today",
-    "yesterday": "Yesterday",
+    "today": "วันนี้",
+    "yesterday": "เมื่อวาน",
     "yearMonth": "{{month}} {{year}}",
     "weekdaysShort": [
       "อา",

@@ -533,8 +533,8 @@
     "new": "NEW"
   },
   "date": {
-    "today": "Today",
-    "yesterday": "Yesterday",
+    "today": "Hôm nay",
+    "yesterday": "Hôm qua",
     "yearMonth": "{{month}} {{year}}",
     "weekdaysShort": [
       "CN",

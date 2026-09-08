@@ -23,7 +23,7 @@ import timelineApi, { TimelineItem } from '@/src/api/timeline';
 import { patchBookmark } from '@/src/api/media';
 import { palette, lightTheme, darkTheme, Theme } from '@/src/theme/colors';
 import { useAuthStore } from '@/src/store/authStore';
-import { useSettingsStore } from '@/src/store/settingsStore';
+import { useSettingsStore, type Language } from '@/src/store/settingsStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useNetworkResume } from '@/src/hooks/useNetworkResume';
@@ -37,6 +37,16 @@ import notificationsApi from '@/src/api/notifications';
 import announcementsApi from '@/src/api/announcements';
 import { getErrorMessage } from '@/src/utils/errorMessages';
 import ErrorView from '@/src/components/common/ErrorView';
+
+// 날짜 표시용 BCP-47 로케일 — 앱 언어에서 직접 파생한다.
+// ★ 번역문 값(t('date.today'))으로 언어를 역추론하지 말 것: 번역이 바뀌면 조용히 깨진다.
+//   Record<Language, …> 이므로 지원 언어를 늘리고 여기 등록을 빠뜨리면 tsc 가 실패한다.
+const DATE_LOCALES: Record<Language, string> = {
+  ko: 'ko-KR',
+  en: 'en-US',
+  vi: 'vi-VN',
+  th: 'th-TH',
+};
 
 // 다크 그린 색상
 const DARK_GREEN = '#2D3A35';
@@ -525,7 +535,7 @@ export default function TimelineScreen() {
     if (dateStr === todayStr) return t('date.today');
     if (dateStr === yesterdayStr) return t('date.yesterday');
     // 언어에 따라 날짜 형식 변경
-    const locale = (t('date.today') === 'Today') ? 'en-US' : 'ko-KR';
+    const locale = DATE_LOCALES[language];
     return date.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
   };
 
