@@ -637,6 +637,8 @@
     "invalidCredentials": "Email hoặc mật khẩu không đúng",
     "userNotFound": "Không tìm thấy tài khoản phù hợp",
     "emailNotRegistered": "Email này chưa được đăng ký",
+    "socialEmailMissing": "Không nhận được thông tin email từ tài khoản mạng xã hội của bạn. Vui lòng cho phép chia sẻ email rồi thử lại.",
+    "socialVerifyFailed": "Xác thực đăng nhập bằng tài khoản mạng xã hội thất bại. Vui lòng thử lại sau giây lát.",
     "incorrectPassword": "Mật khẩu không đúng",
     "emailAlreadyRegistered": "Email này đã được đăng ký",
     "emailAlreadyInUse": "Email này đã được sử dụng",

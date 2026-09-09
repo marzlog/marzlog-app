@@ -70,7 +70,20 @@ const AppleLoginButton = forwardRef<LoginButtonHandle, Props>(function AppleLogi
         onTypedError?.(err);
         return;
       }
-      onError?.(err?.message || t('auth.appleNotSupported'));
+      // B-AUTH-ERROR-CONFLATION: code가 붙어 오는 건 전부 Apple SDK 실패다
+      // (서버 왕복 실패는 authStore가 code 없는 Error로 감싸 던지고, typed 409/410은 위에서 처리됨).
+      // SDK 실패를 "Apple 로그인 미지원"으로 단정하면 네트워크/일시 장애를 계정·지원 여부 문제로
+      // 오표시하고, err.message를 그대로 쓰면 영문 SDK 원문이 노출된다.
+      if (typeof err?.code === 'string') {
+        onError?.(
+          err.code.startsWith('ERR_REQUEST_')
+            ? t('error.network')
+            : t('error.socialVerifyFailed'),
+        );
+        return;
+      }
+      // 서버 왕복 실패는 authStore가 이미 분류·번역한 메시지를 담아 던진다.
+      onError?.(err?.message || t('error.loginFailed'));
     } finally {
       setIsLoading(false);
     }

@@ -195,7 +195,10 @@ const NativeGoogleButton = forwardRef<LoginButtonHandle, Props>(function NativeG
         error: e instanceof Error ? e.message : undefined,
         platform: Platform.OS,
       });
-      dispatchAuthError(e, onTypedError, onError);
+      // B-AUTH-ERROR-CONFLATION: 이 catch에 도달하는 건 SDK 실패뿐이다
+      // (서버 왕복은 handleGoogleLogin이 자체 catch, rethrow 없음 — 위 NOTE 참조).
+      // e.message는 영문 SDK 원문이라 노출 금지 — 네트워크 계열로 안내한다.
+      onError?.(t('error.network'));
       setIsLoading(false);
     }
   };

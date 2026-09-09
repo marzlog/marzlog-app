@@ -58,6 +58,10 @@ const KakaoLoginButton = forwardRef<LoginButtonHandle, Props>(function KakaoLogi
         onError?.(t('error.accountSuspended'));
       } else if (status === 400) {
         onError?.(t('error.kakaoLoginError'));
+      } else if (!status) {
+        // B-AUTH-ERROR-CONFLATION: 응답 자체가 없음 = 네트워크/타임아웃 또는 SDK 실패.
+        // 카카오 계정·가입 문제로 단정하지 않는다.
+        onError?.(t('error.network'));
       } else {
         onError?.(t('error.kakaoLoginFailed'));
       }

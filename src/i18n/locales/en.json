@@ -637,6 +637,8 @@
     "invalidCredentials": "Incorrect email or password",
     "userNotFound": "No matching account was found",
     "emailNotRegistered": "This email is not registered",
+    "socialEmailMissing": "We could not get your email from your social account. Please allow email sharing and try again.",
+    "socialVerifyFailed": "Social sign-in verification failed. Please try again in a moment.",
     "incorrectPassword": "Incorrect password",
     "emailAlreadyRegistered": "This email is already registered",
     "emailAlreadyInUse": "This email is already in use",

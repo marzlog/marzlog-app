@@ -102,7 +102,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         set({ isLoading: false });
         throw error;
       }
-      const message = extractErrorMessage(error, 'Login failed');
+      // B-AUTH-ERROR-CONFLATION: 3번째 인자 = 매핑 무매칭 시 영문 원문 대신 쓸 키.
+      // 로그인 경로 한정 안전망 — register/verify는 서버 원문이 유용하므로 넘기지 않는다.
+      const message = extractErrorMessage(error, 'Login failed', 'error.loginFailed');
       set({ error: message, isLoading: false });
       throw new Error(message);
     }
@@ -138,7 +140,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         set({ isLoading: false });
         throw error;
       }
-      const message = extractErrorMessage(error, 'Login failed');
+      // B-AUTH-ERROR-CONFLATION: 3번째 인자 = 매핑 무매칭 시 영문 원문 대신 쓸 키.
+      // 로그인 경로 한정 안전망 — register/verify는 서버 원문이 유용하므로 넘기지 않는다.
+      const message = extractErrorMessage(error, 'Login failed', 'error.loginFailed');
       set({ error: message, isLoading: false });
       throw error;
     }
@@ -174,7 +178,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         set({ isLoading: false });
         throw error;
       }
-      const message = extractErrorMessage(error, 'Login failed');
+      // B-AUTH-ERROR-CONFLATION: 3번째 인자 = 매핑 무매칭 시 영문 원문 대신 쓸 키.
+      // 로그인 경로 한정 안전망 — register/verify는 서버 원문이 유용하므로 넘기지 않는다.
+      const message = extractErrorMessage(error, 'Login failed', 'error.loginFailed');
       set({ error: message, isLoading: false });
       throw new Error(message);
     }
@@ -209,7 +215,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         set({ isLoading: false });
         throw error;
       }
-      const message = extractErrorMessage(error, 'Login failed');
+      // B-AUTH-ERROR-CONFLATION: 3번째 인자 = 매핑 무매칭 시 영문 원문 대신 쓸 키.
+      // 로그인 경로 한정 안전망 — register/verify는 서버 원문이 유용하므로 넘기지 않는다.
+      const message = extractErrorMessage(error, 'Login failed', 'error.loginFailed');
       set({ error: message, isLoading: false });
       throw new Error(message);
     }
