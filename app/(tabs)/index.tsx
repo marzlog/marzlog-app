@@ -32,7 +32,7 @@ import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useNetworkResume } from '@/src/hooks/useNetworkResume';
 import i18nInstance from '@/src/i18n';
-import { getLocalizedTitle } from '@/src/utils/i18n';
+import { getLocalizedTitle, resolveDisplayTitle } from '@/src/utils/i18n';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useDialog } from '@/src/components/ui/Dialog';
 import notificationsApi from '@/src/api/notifications';
@@ -548,19 +548,18 @@ export default function HomeScreen() {
       return isSameDay(takenAt, selectedDate);
     });
     const mapped: ScheduleItem[] = filtered.map((item) => {
-      const status = item.analysis_status;
-      // content 가 없으면 title 은 워커 enrich 가 넣은 임시 제목이다(캡션 언어 기준 ko/en
-      // 고정 — 사용자 언어가 아니다). 일기 본문이 생기기 전까지 원문을 노출하지 않는다.
-      let displayTitle: string;
-      if (!item.content) {
-        displayTitle = status === 'failed' ? t('home.analysisFailed') : t('home.analyzing');
-      } else {
-        displayTitle =
-          getLocalizedTitle(item.title, item.title_en, language) ||
-          item.caption_ko ||
-          item.caption ||
-          t('common.noTitle');
-      }
+      const displayTitle = resolveDisplayTitle(
+        {
+          title: item.title,
+          titleEn: item.title_en,
+          content: item.content,
+          captionKo: item.caption_ko,
+          caption: item.caption,
+          analysisStatus: item.analysis_status,
+          language,
+        },
+        t,
+      );
       return {
         id: item.id,
         title: displayTitle,

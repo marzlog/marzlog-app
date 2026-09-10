@@ -27,7 +27,7 @@ import { useSettingsStore, type Language } from '@/src/store/settingsStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useNetworkResume } from '@/src/hooks/useNetworkResume';
-import { getLocalizedTitle } from '@/src/utils/i18n';
+import { resolveDisplayTitle } from '@/src/utils/i18n';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
@@ -641,18 +641,19 @@ export default function TimelineScreen() {
   }
 
   // analysis_status 기반 제목 결정
-  const getDisplayTitle = (item: TimelineItem): string => {
-    // content 없음 = 워커 enrich 임시 제목(ko/en 고정) → 일기 완성 전까지 표시하지 않는다
-    if (!item.content) {
-      return item.analysis_status === 'failed' ? t('home.analysisFailed') : t('home.analyzing');
-    }
-    return (
-      getLocalizedTitle(item.title, item.title_en, language) ||
-      item.caption_ko ||
-      item.caption ||
-      t('common.noTitle')
+  const getDisplayTitle = (item: TimelineItem): string =>
+    resolveDisplayTitle(
+      {
+        title: item.title,
+        titleEn: item.title_en,
+        content: item.content,
+        captionKo: item.caption_ko,
+        caption: item.caption,
+        analysisStatus: item.analysis_status,
+        language,
+      },
+      t,
     );
-  };
 
   // 그리드 뷰 카드
   const renderGridCard = (photo: TimelineItem & { _featured?: boolean }) => {

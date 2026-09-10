@@ -49,6 +49,7 @@ import { getErrorMessage } from '@/src/utils/errorMessages';
 import { captureError } from '@/src/utils/sentry';
 import ErrorView from '@/src/components/common/ErrorView';
 import { AiNotice } from '@/src/components/common/AiNotice';
+import { isEnrichPlaceholderTitle } from '@/src/utils/i18n';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 import { EMOTIONS, resolveEmotion, getEmotionIcon, getEmotionIllustration, emotionLabel } from '@/constants/emotions';
 import { intensityAdverbKey } from '@/src/utils/intensity';
@@ -980,14 +981,17 @@ export default function MediaDetailScreen() {
     }
   };
 
-  // content 가 없으면 title 은 워커 enrich 임시 제목(ko/en 고정)이라 사용자 언어가 아니다.
+  // 제목은 있는데 본문이 없으면 워커 enrich 임시 제목(ko/en 고정)이라 사용자 언어가 아니다.
   // 일기 본문이 생기기 전까지 원문 대신 진행 상태를 보여준다.
+  // ★제목 자체가 없는 카드는 대상이 아니다 — 그 경우까지 가로채면 일기가 끝내 생성되지
+  //   않은 카드가 영구히 "분석 중" 으로 남는다(2026-09-10 회귀).
   const diaryReady = !!media?.content;
-  const detailTitle = diaryReady
-    ? media?.title
-    : media?.analysis_status === 'failed'
+  const titleIsPlaceholder = isEnrichPlaceholderTitle(media?.title, media?.content);
+  const detailTitle = titleIsPlaceholder
+    ? media?.analysis_status === 'failed'
       ? t('home.analysisFailed')
-      : t('home.analyzing');
+      : t('home.analyzing')
+    : media?.title;
 
   return (
     <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
