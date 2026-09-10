@@ -642,13 +642,16 @@ export default function TimelineScreen() {
 
   // analysis_status 기반 제목 결정
   const getDisplayTitle = (item: TimelineItem): string => {
-    const localized = getLocalizedTitle(item.title, item.title_en, language);
-    const title = localized || item.caption_ko || item.caption;
-    if (title) return title;
-    const status = item.analysis_status;
-    if (status === 'queued' || status === 'running') return t('home.analyzing');
-    if (status === 'failed') return t('home.analysisFailed');
-    return t('common.noTitle');
+    // content 없음 = 워커 enrich 임시 제목(ko/en 고정) → 일기 완성 전까지 표시하지 않는다
+    if (!item.content) {
+      return item.analysis_status === 'failed' ? t('home.analysisFailed') : t('home.analyzing');
+    }
+    return (
+      getLocalizedTitle(item.title, item.title_en, language) ||
+      item.caption_ko ||
+      item.caption ||
+      t('common.noTitle')
+    );
   };
 
   // 그리드 뷰 카드

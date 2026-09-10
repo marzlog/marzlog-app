@@ -549,12 +549,17 @@ export default function HomeScreen() {
     });
     const mapped: ScheduleItem[] = filtered.map((item) => {
       const status = item.analysis_status;
-      const localizedTitle = getLocalizedTitle(item.title, item.title_en, language);
-      let displayTitle = localizedTitle || item.caption_ko || item.caption;
-      if (!displayTitle) {
-        if (status === 'queued' || status === 'running') displayTitle = t('home.analyzing');
-        else if (status === 'failed') displayTitle = t('home.analysisFailed');
-        else displayTitle = t('common.noTitle');
+      // content 가 없으면 title 은 워커 enrich 가 넣은 임시 제목이다(캡션 언어 기준 ko/en
+      // 고정 — 사용자 언어가 아니다). 일기 본문이 생기기 전까지 원문을 노출하지 않는다.
+      let displayTitle: string;
+      if (!item.content) {
+        displayTitle = status === 'failed' ? t('home.analysisFailed') : t('home.analyzing');
+      } else {
+        displayTitle =
+          getLocalizedTitle(item.title, item.title_en, language) ||
+          item.caption_ko ||
+          item.caption ||
+          t('common.noTitle');
       }
       return {
         id: item.id,

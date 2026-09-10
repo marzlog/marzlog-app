@@ -980,6 +980,15 @@ export default function MediaDetailScreen() {
     }
   };
 
+  // content 가 없으면 title 은 워커 enrich 임시 제목(ko/en 고정)이라 사용자 언어가 아니다.
+  // 일기 본문이 생기기 전까지 원문 대신 진행 상태를 보여준다.
+  const diaryReady = !!media?.content;
+  const detailTitle = diaryReady
+    ? media?.title
+    : media?.analysis_status === 'failed'
+      ? t('home.analysisFailed')
+      : t('home.analyzing');
+
   return (
     <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       {/* Header */}
@@ -1164,7 +1173,7 @@ export default function MediaDetailScreen() {
         {media.title && (
           <View style={[styles.userSection, isDark && styles.sectionBorderDark]}>
             <View style={styles.titleRow}>
-              <Text style={[styles.titleText, isDark && styles.textLight, { flex: 1 }]}>{media.title}</Text>
+              <Text style={[styles.titleText, isDark && styles.textLight, { flex: 1 }]}>{detailTitle}</Text>
               {emotionLabel(groupEmotion) && (
                 <View style={[styles.titleEmotionBadge, isDark && styles.titleEmotionBadgeDark]}>
                   <Text style={[styles.titleEmotionBadgeText, isDark && styles.titleEmotionBadgeTextDark]}>
@@ -1173,7 +1182,7 @@ export default function MediaDetailScreen() {
                 </View>
               )}
             </View>
-            {media.ai_provider && (
+            {diaryReady && media.ai_provider && (
               <View style={styles.aiProviderRow}>
                 <Ionicons name="sparkles" size={12} color={isDark ? '#9CA3AF' : colors.neutral[5]} />
                 <Text style={[styles.aiProviderText, isDark && styles.textTertiaryDark]}>
@@ -1181,7 +1190,7 @@ export default function MediaDetailScreen() {
                 </Text>
               </View>
             )}
-            <AiNotice text={t('ai.draftNotice')} fontSize={12} isDark={isDark} />
+            {diaryReady && <AiNotice text={t('ai.draftNotice')} fontSize={12} isDark={isDark} />}
           </View>
         )}
 
