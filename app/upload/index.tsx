@@ -397,9 +397,11 @@ export default function UploadScreen() {
           <Ionicons name="chevron-back" size={28} color={isDark ? '#F9FAFB' : colors.text.primary} />
         </Pressable>
         <View style={styles.headerSpacer} />
-        <Pressable style={styles.headerButton}>
-          <Ionicons name="pencil-outline" size={20} color={isDark ? '#F9FAFB' : colors.text.primary} />
-        </Pressable>
+        {/* 연필 아이콘 숨김 — `onPress` 가 없어 눌러도 아무 일이 일어나지 않았다(거짓 어포던스).
+            `Pressable` 이라 press 스타일만 반응해 "눌리는데 안 된다" 로 읽혔다(VN 테스터 실보고).
+            자리는 남겨 headerSpacer 와의 좌우 균형을 보존한다 — 기능이 확정되면
+            핸들러와 함께 되살릴 것(B-UPLOAD-DEAD-PENCIL). */}
+        <View style={styles.headerButton} />
       </View>
 
       {/* 로딩 중일 때 */}
