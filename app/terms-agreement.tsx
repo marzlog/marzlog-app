@@ -19,6 +19,8 @@ export default function TermsAgreementScreen() {
   const { themeMode } = useSettingsStore();
   const { t } = useTranslation();
   const params = useLocalSearchParams<{ from?: string }>();
+  // 소셜 자동 가입자 동의 경로(B-U Phase 2). 이 경로는 동의 후 곧장 메인이며 가입 폼 단계가 없다.
+  const isSocialConsent = params.from === 'login';
 
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
@@ -51,7 +53,7 @@ export default function TermsAgreementScreen() {
   const handleNext = async () => {
     if (!allRequired) return;
 
-    if (params.from === 'login') {
+    if (isSocialConsent) {
       // B-U Phase 2: 소셜 자동 가입자 consent 기록 후 메인 진입.
       // 실패해도 redirect — B-H 미들웨어가 다음 API 호출 시 재redirect로 잡음.
       await recordConsentSafe({
@@ -83,15 +85,23 @@ export default function TermsAgreementScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Step Tabs */}
-      <View style={styles.tabRow}>
-        <View style={styles.tabActive}>
-          <Text style={styles.tabActiveText}>{t('auth.tabTerms')}</Text>
+      {/* 스텝 표기 (탭 아님 — 눌리지 않는다).
+          ★소셜 경로(`from=login`)에는 2단계(가입 폼)가 존재하지 않는다 — 동의 후 바로 메인으로
+            간다(handleNext) — 그래서 그 경로에서는 렌더하지 않는다. 2단계를 보여주면서
+            누를 수 없게 두면 "Đăng ký 가 안 눌린다"는 오인을 부른다(VN 테스터 실보고).
+          ★밑줄(borderBottom)을 걷어내고 숫자 접두 + 비활성 투명도로 표기 — 탭으로 읽히지 않게. */}
+      {!isSocialConsent && (
+        <View style={styles.tabRow}>
+          <View style={styles.stepActive}>
+            <Text style={styles.stepActiveText}>{`1 · ${t('auth.tabTerms')}`}</Text>
+          </View>
+          <View style={styles.stepInactive}>
+            <Text style={[styles.stepInactiveText, { color: subtextColor }]}>
+              {`2 · ${t('auth.tabRegister')}`}
+            </Text>
+          </View>
         </View>
-        <View style={[styles.tabInactive, { borderBottomColor: borderColor }]}>
-          <Text style={[styles.tabInactiveText, { color: subtextColor }]}>{t('auth.tabRegister')}</Text>
-        </View>
-      </View>
+      )}
 
       <View style={styles.content}>
         <Text style={[styles.title, { color: textColor }]}>{t('terms.title')}</Text>
@@ -216,25 +226,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 24,
   },
-  tabActive: {
+  // 스텝 표기 — 밑줄 없음(탭 오인 방지), 현재 단계는 색, 다음 단계는 투명도로 구분한다.
+  stepActive: {
     flex: 1,
     paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: '#FF6A5F',
     alignItems: 'center',
   },
-  tabActiveText: {
+  stepActiveText: {
     fontSize: 15,
     fontWeight: '600',
     color: '#FF6A5F',
   },
-  tabInactive: {
+  stepInactive: {
     flex: 1,
     paddingVertical: 12,
-    borderBottomWidth: 1,
     alignItems: 'center',
+    opacity: 0.45,
   },
-  tabInactiveText: {
+  stepInactiveText: {
     fontSize: 15,
     fontWeight: '500',
   },
