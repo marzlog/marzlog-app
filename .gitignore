@@ -57,3 +57,6 @@ ios/**/GoogleService-Info.plist
 
 # Firebase service account (server-side)
 firebase-service-account.json
+
+# Claude Code local settings (machine-local; global ignore is not portable)
+.claude/settings.local.json
