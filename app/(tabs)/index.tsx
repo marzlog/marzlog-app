@@ -33,6 +33,7 @@ import { useTranslation } from '@/src/hooks/useTranslation';
 import { useNetworkResume } from '@/src/hooks/useNetworkResume';
 import i18nInstance from '@/src/i18n';
 import { getLocalizedTitle, resolveDisplayTitle } from '@/src/utils/i18n';
+import { shouldKeepPolling } from '@/src/utils/analysisPolling';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useDialog } from '@/src/components/ui/Dialog';
 import notificationsApi from '@/src/api/notifications';
@@ -424,6 +425,11 @@ export default function HomeScreen() {
   const PAGE_SIZE = 20;
   const MAX_TIMELINE_LIMIT = 200; // 백엔드 /timeline limit le=200 상한 (폴링 전체 fetch 캡)
   const POLL_INTERVAL_MS = 10000; // AI 분석 결과 폴링 주기 (B-DK)
+  // 안전 상한 (B-TIMELINE-POLL-CONTENT-GATE 신설 — 기존 상한 없음).
+  // 지속 조건이 content 기준으로 넓어졌으므로, 서버가 끝내 본문을 만들지 못한 카드가
+  // 남아 있으면 10초마다 전체 fetch 를 영원히 돌게 된다. 대기 시작 시점부터 5분까지만
+  // 따라간다 — 오늘 실측한 그룹 창(26초)과 cold 잡(72초)을 충분히 덮는다.
+  const POLL_MAX_WAIT_MS = 5 * 60 * 1000;
 
   // 미디어 emotion 변경 broadcast 구독 → allItems in-place patch
   const lastEmotionUpdate = useMediaUpdatesStore(s => s.lastEmotionUpdate);
@@ -468,6 +474,7 @@ export default function HomeScreen() {
   const loadingRef = useRef(false);
   const knownTotalRef = useRef(0);     // 폴링 전체 fetch용 total 캐시 (B-DK-CAL v3)
   const hasPendingRef = useRef(false); // 폴링 게이팅용 분석중 플래그 미러 (setInterval deps=[] 유지)
+  const pollStartedAtRef = useRef<number | null>(null); // 대기 시작 시각 (안전 상한 계산용)
   const loadAllItems = useCallback(async (isPolling = false) => {
     if (!accessToken) {
       setLoading(false);
@@ -521,17 +528,32 @@ export default function HomeScreen() {
     }
   }, []);
 
-  // B-1: 분석 중(queued/running) 아이템이 하나라도 있으면 10초 간격 폴링.
-  // 모두 done/failed로 전이하면 즉시 중단. push 채널이 없어 폴링만 가능.
+  // B-1: 분석 결과를 기다리는 아이템이 하나라도 있으면 10초 간격 폴링.
+  // ★판정은 표시 게이트와 같은 순수 함수를 쓴다 (B-TIMELINE-POLL-CONTENT-GATE) —
+  //   구 조건은 analysis_status 만 봤는데, 그룹 선행 멤버는 그룹 일기 전에 이미 done 이
+  //   되므로 그 창에서 폴링이 멈추고 화면이 "분석 중"에 고착됐다(2026-09-11 실측 26초 창).
+  //   failed / 영구 미생성은 shouldKeepPolling 안에서 탈출한다. push 채널이 없어 폴링만 가능.
   const hasPendingAnalysis = useMemo(
-    () => allItems.some(
-      (it) => it.analysis_status === 'queued' || it.analysis_status === 'running',
+    () => shouldKeepPolling(
+      allItems.map((it) => ({
+        title: it.title,
+        content: it.content,
+        analysisStatus: it.analysis_status,
+      })),
     ),
     [allItems],
   );
 
   // 폴링 게이팅용 ref 미러 — setInterval deps=[] 유지(재등록 시 iOS 폴링 사망)를 위해 ref로만 읽음. B-DK-CAL v3
-  useEffect(() => { hasPendingRef.current = hasPendingAnalysis; }, [hasPendingAnalysis]);
+  useEffect(() => {
+    hasPendingRef.current = hasPendingAnalysis;
+    // 대기가 시작된 시각을 기록하고, 대기가 풀리면 초기화한다(다음 업로드가 상한을 새로 받도록).
+    if (hasPendingAnalysis) {
+      if (pollStartedAtRef.current === null) pollStartedAtRef.current = Date.now();
+    } else {
+      pollStartedAtRef.current = null;
+    }
+  }, [hasPendingAnalysis]);
 
   // 선택된 날짜의 타임라인 필터링 (group_dates 기준 - 그룹 내 아무 이미지라도 해당 날짜면 표시)
   // 파생값이므로 useMemo. (B-DK 근본원인: 과거 useEffect+setState 구조에 t가 deps로 들어가
@@ -619,6 +641,8 @@ export default function HomeScreen() {
   useEffect(() => {
     const id = setInterval(() => {
       if (!hasPendingRef.current) return; // 분석중 항목 없으면 폴링 no-op (전체 fetch 비용 절감)
+      const startedAt = pollStartedAtRef.current;
+      if (startedAt !== null && Date.now() - startedAt > POLL_MAX_WAIT_MS) return; // 안전 상한
       loadAllItemsRef.current(true);
     }, POLL_INTERVAL_MS);
     return () => clearInterval(id);
