@@ -85,6 +85,9 @@ export default function RootLayout() {
   // Check for OTA updates on app start
   useEffect(() => {
     if (Platform.OS === 'web') return;
+    // B-EXPO-UPDATE-DEV-NOISE: dev/Expo Go 빌드는 Updates가 비활성 — 호출하면 매번 throw해
+    // Sentry로 자기 노이즈만 쌓인다. 호출 자체를 건너뛴다(프로덕션 빌드는 isEnabled=true).
+    if (!Updates.isEnabled) return;
     (async () => {
       try {
         console.log('[OTA] check start, channel/runtime check');
