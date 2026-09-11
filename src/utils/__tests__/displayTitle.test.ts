@@ -80,12 +80,52 @@ describe('resolveDisplayTitle — 부수 계약', () => {
     ).toBe('common.noTitle');
   });
 
-  it('ko 캡션이 있으면 영문 캡션보다 우선한다', () => {
+  // ★B-CAPTION-FALLBACK-LANG 으로 계약이 정정된 지점이다. 구 계약은 `base`(language='vi')
+  //   로 "ko 캡션이 영문보다 우선"을 단언했는데, 그것이 바로 비ko 사용자에게 한국어 캡션을
+  //   띄우던 결함이었다. 이제 우선순위는 **사용자 언어**가 정한다.
+  it('ko 사용자에게는 ko 캡션이 영문 캡션보다 우선한다', () => {
     expect(
       resolveDisplayTitle(
-        { ...base, title: null, content: null, captionKo: '커피와 모니터', caption: 'monitor', analysisStatus: 'done' },
+        { title: null, content: null, captionKo: '커피와 모니터', caption: 'monitor', analysisStatus: 'done', language: 'ko' },
         t,
       ),
     ).toBe('커피와 모니터');
+  });
+});
+
+describe('resolveDisplayTitle — 캡션 폴백의 언어 인지 (B-CAPTION-FALLBACK-LANG)', () => {
+  // 배경: title 이 아직 NULL 인 창(카드 기록 ~ enrich 기록)에는 게이트가 걸리지 않아
+  // 캡션으로 폴백한다. 그 폴백이 언어를 보지 않아 비ko 사용자에게 한국어 캡션이 떴다
+  // (2026-09-11 demo en 실기 확증: "책상 위에 놓인 컴퓨터 모니터와 커피 한 잔").
+  const both = {
+    title: null,
+    content: null,
+    captionKo: '책상 위에 놓인 컴퓨터 모니터와 커피 한 잔',
+    caption: 'a computer monitor and a cup of coffee on a desk',
+    analysisStatus: 'done',
+  };
+
+  it('(a) 비ko 사용자는 원문 캡션을 받는다 — 한국어 캡션이 있어도', () => {
+    expect(resolveDisplayTitle({ ...both, language: 'en' }, t)).toBe(
+      'a computer monitor and a cup of coffee on a desk',
+    );
+    expect(resolveDisplayTitle({ ...both, language: 'vi' }, t)).toBe(
+      'a computer monitor and a cup of coffee on a desk',
+    );
+  });
+
+  it('(b) ko 사용자는 한국어 캡션을 먼저 받는다 — 기존 동작 보존', () => {
+    expect(resolveDisplayTitle({ ...both, language: 'ko' }, t)).toBe(
+      '책상 위에 놓인 컴퓨터 모니터와 커피 한 잔',
+    );
+  });
+
+  it('한쪽만 있으면 언어와 무관하게 있는 쪽을 쓴다', () => {
+    expect(resolveDisplayTitle({ ...both, captionKo: null, language: 'ko' }, t)).toBe(
+      'a computer monitor and a cup of coffee on a desk',
+    );
+    expect(resolveDisplayTitle({ ...both, caption: null, language: 'en' }, t)).toBe(
+      '책상 위에 놓인 컴퓨터 모니터와 커피 한 잔',
+    );
   });
 });

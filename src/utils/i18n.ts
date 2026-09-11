@@ -26,6 +26,21 @@ export const isEnrichPlaceholderTitle = (
   content: string | null | undefined,
 ): boolean => !!title && !content;
 
+/**
+ * 캡션 폴백을 사용자 언어 순서로 고른다.
+ *
+ * `caption_ko` 는 사용자 언어와 무관하게 워커가 항상 생성한다(캡션 한글 번역 훅).
+ * 그래서 언어를 보지 않고 `captionKo || caption` 으로 폴백하면, 제목이 아직 없는
+ * 창(카드 기록 ~ enrich 기록)에 **비ko 사용자에게 한국어 캡션**이 뜬다.
+ * bookmarks / timeline / search 가 이미 쓰는 관용구와 같은 순서다.
+ */
+const resolveCaption = (
+  captionKo: string | null | undefined,
+  caption: string | null | undefined,
+  language: string,
+): string | null | undefined =>
+  language === 'ko' ? captionKo || caption : caption || captionKo;
+
 export type DisplayTitleInput = {
   title?: string | null;
   titleEn?: string | null;
@@ -51,7 +66,7 @@ export const resolveDisplayTitle = (
     return analysisStatus === 'failed' ? t('home.analysisFailed') : t('home.analyzing');
   }
 
-  const resolved = getLocalizedTitle(title, titleEn, language) || captionKo || caption;
+  const resolved = getLocalizedTitle(title, titleEn, language) || resolveCaption(captionKo, caption, language);
   if (resolved) return resolved;
 
   if (analysisStatus === 'queued' || analysisStatus === 'running') return t('home.analyzing');
