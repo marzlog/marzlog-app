@@ -537,8 +537,12 @@ export default function UploadScreen() {
           style={({ pressed }) => [
             styles.cancelButton,
             isDark && styles.cancelButtonDark,
-            pressed && styles.cancelButtonPressed,
-            pressed && isDark && styles.cancelButtonPressedDark,
+            // 업로드 중에는 이미 disabled 였으나 **시각 피드백이 없어** 눌리지 않는 이유를
+            // 알 수 없었다(VN 테스터 실보고 — "회색이라 못 누른다"). 등록 버튼의
+            // submitButtonDisabled 패턴을 준용한다. 동작 조건은 무접촉.
+            isSubmitting && styles.cancelButtonDisabled,
+            pressed && !isSubmitting && styles.cancelButtonPressed,
+            pressed && !isSubmitting && isDark && styles.cancelButtonPressedDark,
           ]}
         >
           <Text style={[styles.cancelButtonText, isDark && styles.textLight]}>{t('common.cancel')}</Text>
@@ -720,6 +724,11 @@ const styles = StyleSheet.create({
   },
   cancelButtonDark: {
     backgroundColor: '#374151',
+  },
+  // 업로드 진행 중 비활성 표시 — 라이트/다크 공통으로 투명도만 낮춘다.
+  // (배경색을 바꾸면 다크 모드에서 cancelButtonDark 와 충돌한다.)
+  cancelButtonDisabled: {
+    opacity: 0.5,
   },
   cancelButtonPressed: {
     backgroundColor: colors.neutral[3],
