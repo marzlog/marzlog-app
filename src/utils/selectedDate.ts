@@ -18,6 +18,25 @@ export const toLocalDateKey = (date: Date): string =>
  * @param selectedByUserOn 사용자가 날짜를 명시 선택한 날의 로컬 키(없으면 null)
  *   — 오늘 고른 선택만 보존한다. 어제 고른 선택은 자정을 넘기면 보존하지 않는다.
  */
+/**
+ * 홈 목록이 dayItems 스냅샷 경로를 타는가. handleDateSelect 가 /timeline/day 결과를 담으면
+ * 그 스냅샷이 allItems(오늘 버킷 포함) 대신 렌더된다.
+ */
+export const isDayListPath = <T>(dayItems: T[] | null, dayLoading: boolean): boolean =>
+  dayLoading || dayItems !== null;
+
+/**
+ * 리셋 결과를 홈 상태에 적용한다. 리셋되면 날짜와 함께 dayItems 스냅샷도 비워야
+ * 목록이 오늘 버킷으로 돌아온다 — 날짜만 바꾸면 헤더=오늘 / 목록=이전 날짜로 갇힌다.
+ *
+ * @param resetDate resetToTodayIfStale 의 반환값(리셋 안 됐으면 null)
+ */
+export const applyDateReset = <T>(
+  resetDate: Date | null,
+  current: { selectedDate: Date; dayItems: T[] | null },
+): { selectedDate: Date; dayItems: T[] | null } =>
+  resetDate ? { selectedDate: resetDate, dayItems: null } : current;
+
 export const shouldResetSelectedDate = (
   selected: Date,
   now: Date,

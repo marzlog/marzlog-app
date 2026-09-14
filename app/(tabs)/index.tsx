@@ -35,6 +35,7 @@ import { useNetworkResume } from '@/src/hooks/useNetworkResume';
 import i18nInstance from '@/src/i18n';
 import { getLocalizedTitle, resolveDisplayTitle } from '@/src/utils/i18n';
 import { shouldKeepPolling } from '@/src/utils/analysisPolling';
+import { applyDateReset, isDayListPath } from '@/src/utils/selectedDate';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useDialog } from '@/src/components/ui/Dialog';
 import notificationsApi from '@/src/api/notifications';
@@ -625,6 +626,16 @@ export default function HomeScreen() {
     setStoreSelectedDate(date, byUser);
   }, [setStoreSelectedDate]);
 
+  // 리셋은 "헤더 날짜 + 목록 소스"를 한 동작으로 바꾼다. 날짜만 바꾸면 handleDateSelect 가 채운
+  // dayItems 스냅샷이 남아 화면이 dayItems 경로(isDayListPath)에 갇힌다 — 헤더=오늘 / 목록=이전 날짜.
+  // setState 함수만 쓰므로 참조가 안정적이다(deps=[] 인 AppState 이펙트에서도 안전).
+  const applyStaleReset = useCallback((resetDate: Date | null): boolean => {
+    if (!resetDate) return false;
+    setSelectedDateLocal((prev) => applyDateReset(resetDate, { selectedDate: prev, dayItems: null }).selectedDate);
+    setDayItems((prev) => applyDateReset(resetDate, { selectedDate: resetDate, dayItems: prev }).dayItems);
+    return true;
+  }, []);
+
   // 화면 포커스 시 데이터 갱신 (상세에서 돌아올 때 새 데이터 반영)
   const isFirstFocus = useRef(true);
   useFocusEffect(
@@ -636,14 +647,13 @@ export default function HomeScreen() {
           setSelectedDateLocal(restoredDate);
         } else {
           // 앱 프로세스에 남은 옛 날짜(어제)를 오늘로 되돌린다 — 오늘 명시 선택한 날짜는 보존.
-          const today = resetToTodayIfStale();
-          if (today) setSelectedDateLocal(today);
+          applyStaleReset(resetToTodayIfStale());
         }
         loadAllItems();
       } else {
         isFirstFocus.current = false;
       }
-    }, [loadAllItems, restoreFromLastViewed, resetToTodayIfStale])
+    }, [loadAllItems, restoreFromLastViewed, resetToTodayIfStale, applyStaleReset])
   );
 
   // 홈 이탈 시 명시 선택 해제 — deps 없는 별도 이펙트라 focus/blur 에만 반응한다.
@@ -656,11 +666,13 @@ export default function HomeScreen() {
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {
       if (nextState !== 'active') return;
-      const today = useTimelineStore.getState().resetToTodayIfStale();
-      if (today) setSelectedDateLocal(today);
+      // 리셋됐으면 오늘 버킷을 새로 받는다 — focus 경로와 달리 여기선 재로드가 없다.
+      if (applyStaleReset(useTimelineStore.getState().resetToTodayIfStale())) {
+        loadAllItemsRef.current();
+      }
     });
     return () => sub.remove();
-  }, []);
+  }, [applyStaleReset]);
 
   // AI 분석 폴링: deps 무관 단일 setInterval. store 참조 재생성에 영향받지 않음.
   // (B-DK: 기존엔 useFocusEffect 안에 있어 restoreFromLastViewed 참조 불안정 →
@@ -828,7 +840,7 @@ export default function HomeScreen() {
 
   // 리스트가 실제로 있을 때만 filterBar 아래 compact 추가 버튼을 노출.
   // (비어 있으면 중앙 빈 상태의 버튼이 그 역할을 하므로 중복 노출 방지)
-  const isDayPath = dayLoading || dayItems !== null;
+  const isDayPath = isDayListPath(dayItems, dayLoading);
   const hasTimelineItems = isDayPath
     ? (dayItems?.length ?? 0) > 0
     : !loading && !error && schedules.length > 0;
@@ -962,7 +974,7 @@ export default function HomeScreen() {
         )}
 
         {/* Schedule Cards / Day Items */}
-        {dayLoading || dayItems !== null ? (
+        {isDayPath ? (
           /* 날짜 선택 시: viewMode에 따라 썸네일 그리드 또는 텍스트 리스트 */
           <View style={viewMode === 'grid' ? styles.schedulesContainerGrid : styles.schedulesContainer}>
             {dayLoading ? (

@@ -25,6 +25,7 @@ import { getMediaDetail, updateMedia, setPrimaryImage } from '@/src/api/media';
 import { timelineApi } from '@/src/api/timeline';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { toLocalDateKey } from '@/src/utils/selectedDate';
+import { MEMO_HINT_DEFAULT_ON, shouldFocusMemoInput } from '@/src/utils/memoHint';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { captureError } from '@/src/utils/sentry';
 
@@ -58,8 +59,23 @@ export default function UploadScreen() {
   const [intensity, setIntensity] = useState(6);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [showMemo, setShowMemo] = useState(false);
+  // AI 일기 힌트: 기본 on (JJ 2026-09-15). 로컬 state 라 persist 된 사용자 선택은 없다.
+  const [showMemo, setShowMemo] = useState(MEMO_HINT_DEFAULT_ON);
   const [memo, setMemo] = useState('');
+  const memoInputRef = useRef<TextInput>(null);
+  // 사용자가 토글을 켰을 때만 포커스 — 첫 진입(기본 on)에 키보드가 올라오면 사진 확인을 가린다.
+  const memoToggledOnByUserRef = useRef(false);
+  const handleMemoToggle = (value: boolean) => {
+    memoToggledOnByUserRef.current = value;
+    setShowMemo(value);
+  };
+  useEffect(() => {
+    if (!shouldFocusMemoInput(showMemo, memoToggledOnByUserRef.current)) return;
+    memoToggledOnByUserRef.current = false;
+    // 토글 on 으로 입력창이 이번 렌더에 마운트되므로, 마운트 후 ref 가 잡힌 다음 포커스한다.
+    const id = setTimeout(() => memoInputRef.current?.focus(), 0);
+    return () => clearTimeout(id);
+  }, [showMemo]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   // F-UPLOAD-DUP D: 이중 탭 차단용 동기 가드 — isSubmitting state는 re-render가
@@ -473,7 +489,7 @@ export default function UploadScreen() {
           <Text style={[styles.memoToggleText, isDark && styles.textLight]}>{t('upload.memoToggle')}</Text>
           <Switch
             value={showMemo}
-            onValueChange={setShowMemo}
+            onValueChange={handleMemoToggle}
             trackColor={{ false: isDark ? '#374151' : colors.neutral[2], true: colors.brand.primary }}
             thumbColor={isDark ? '#F9FAFB' : colors.background}
           />
@@ -482,6 +498,7 @@ export default function UploadScreen() {
         {showMemo && (
           <View style={styles.memoContainer}>
             <TextInput
+              ref={memoInputRef}
               style={[styles.memoInput, isDark && styles.inputDark]}
               placeholder={t('upload.memoPlaceholder')}
               placeholderTextColor={isDark ? '#6B7280' : colors.neutral[5]}
@@ -495,7 +512,7 @@ export default function UploadScreen() {
         )}
 
         {/* 직접 쓰기 — 작성하면 AI 일기 대신 이 글이 표시된다 (B-USER-CONTENT-DISPLAY) */}
-        <Text style={[styles.inputLabel, isDark && styles.textLight]}>{t('upload.directWriteLabel')}</Text>
+        <Text style={[styles.directWriteLabel, isDark && styles.textSecondaryDark]}>{t('upload.directWriteLabel')}</Text>
 
         {/* Title Input */}
         <View style={styles.inputSection}>
@@ -666,6 +683,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text.primary,
     marginBottom: 10,
+  },
+  // "직접 쓰기" 구분 라벨 — 입력 라벨이 아니라 섹션 헤더로 읽히게 위 여백 + 작은 보조색
+  directWriteLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.text.secondary,
+    marginTop: 20,
+    marginBottom: 12,
   },
   titleInput: {
     backgroundColor: colors.neutral[2],

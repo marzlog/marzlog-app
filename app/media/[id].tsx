@@ -1259,9 +1259,8 @@ export default function MediaDetailScreen() {
             <TouchableOpacity
               style={[styles.editActionButton, isDark && styles.editActionButtonDark, diaryEditLocked && { opacity: 0.4 }]}
               onPress={diaryEditLocked
-                ? () => alert(t('mediaDetail.diaryEdit'), t('mediaDetail.diaryEditLocked'))
+                ? () => alert(t('mediaDetail.diaryEdit'), t('home.analyzing'))
                 : openDiaryEditModal}
-              accessibilityState={{ disabled: diaryEditLocked }}
             >
               <Ionicons name="create-outline" size={16} color={isDark ? '#F9FAFB' : colors.text.primary} />
               <Text style={[styles.editActionButtonText, isDark && styles.textLight]}>{t('mediaDetail.diaryEdit')}</Text>
