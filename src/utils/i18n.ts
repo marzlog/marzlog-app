@@ -45,6 +45,11 @@ export type DisplayTitleInput = {
   title?: string | null;
   titleEn?: string | null;
   content?: string | null;
+  /** 'user' 면 사용자가 직접 쓴 제목 — 분석 중 게이트를 우회한다 (B-USER-CONTENT-DISPLAY) */
+  titleSource?: string | null;
+  /** AI 원값. 구 API 응답엔 없어(undefined) 표시값으로 폴백한다 */
+  aiTitle?: string | null;
+  aiContent?: string | null;
   captionKo?: string | null;
   caption?: string | null;
   analysisStatus?: string | null;
@@ -52,17 +57,35 @@ export type DisplayTitleInput = {
 };
 
 /**
+ * 게이트 판정용 AI 원값. API 가 사용자 입력을 표시값(title/content)에 우선 싣게 되면서
+ * 표시값만으로는 "AI 일기가 아직 없음"을 알 수 없다 — 본문을 사용자가 썼어도 AI 는 생성 중일 수 있다.
+ */
+export const aiDiaryValues = (input: {
+  title?: string | null;
+  content?: string | null;
+  aiTitle?: string | null;
+  aiContent?: string | null;
+}): { title: string | null | undefined; content: string | null | undefined } => ({
+  title: input.aiTitle !== undefined ? input.aiTitle : input.title,
+  content: input.aiContent !== undefined ? input.aiContent : input.content,
+});
+
+/**
  * 카드 목록에 표시할 제목을 결정한다(순수 함수).
  *
- * 우선순위: enrich 임시 제목 차단 → 제목 → 캡션 → 분석 상태 → 제목 없음
+ * 우선순위: 사용자 제목 → enrich 임시 제목 차단 → 제목 → 캡션 → 분석 상태 → 제목 없음
  */
 export const resolveDisplayTitle = (
   input: DisplayTitleInput,
   t: (key: string) => string,
 ): string => {
-  const { title, titleEn, content, captionKo, caption, analysisStatus, language } = input;
+  const { title, titleEn, captionKo, caption, analysisStatus, language, titleSource } = input;
 
-  if (isEnrichPlaceholderTitle(title, content)) {
+  // 사용자가 쓴 제목은 분석 중이어도 그대로 보인다.
+  if (titleSource === 'user' && title) return title;
+
+  const ai = aiDiaryValues(input);
+  if (isEnrichPlaceholderTitle(ai.title, ai.content)) {
     return analysisStatus === 'failed' ? t('home.analysisFailed') : t('home.analyzing');
   }
 

@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Image,
+  AppState,
 } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
@@ -367,6 +368,7 @@ export default function HomeScreen() {
     getSelectedDate,
     setSelectedDate: setStoreSelectedDate,
     restoreFromLastViewed,
+    resetToTodayIfStale,
   } = useTimelineStore();
 
   // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
@@ -538,6 +540,8 @@ export default function HomeScreen() {
       allItems.map((it) => ({
         title: it.title,
         content: it.content,
+        aiTitle: it.ai_title,
+        aiContent: it.ai_content,
         analysisStatus: it.analysis_status,
       })),
     ),
@@ -575,6 +579,9 @@ export default function HomeScreen() {
           title: item.title,
           titleEn: item.title_en,
           content: item.content,
+          titleSource: item.title_source,
+          aiTitle: item.ai_title,
+          aiContent: item.ai_content,
           captionKo: item.caption_ko,
           caption: item.caption,
           analysisStatus: item.analysis_status,
@@ -613,9 +620,9 @@ export default function HomeScreen() {
   useNetworkResume(loadAllItems);
 
   // 선택된 날짜 변경 시 스토어에도 동기화
-  const setSelectedDate = useCallback((date: Date) => {
+  const setSelectedDate = useCallback((date: Date, byUser = false) => {
     setSelectedDateLocal(date);
-    setStoreSelectedDate(date);
+    setStoreSelectedDate(date, byUser);
   }, [setStoreSelectedDate]);
 
   // 화면 포커스 시 데이터 갱신 (상세에서 돌아올 때 새 데이터 반영)
@@ -627,13 +634,33 @@ export default function HomeScreen() {
         const restoredDate = restoreFromLastViewed();
         if (restoredDate) {
           setSelectedDateLocal(restoredDate);
+        } else {
+          // 앱 프로세스에 남은 옛 날짜(어제)를 오늘로 되돌린다 — 오늘 명시 선택한 날짜는 보존.
+          const today = resetToTodayIfStale();
+          if (today) setSelectedDateLocal(today);
         }
         loadAllItems();
       } else {
         isFirstFocus.current = false;
       }
-    }, [loadAllItems, restoreFromLastViewed])
+    }, [loadAllItems, restoreFromLastViewed, resetToTodayIfStale])
   );
+
+  // 홈 이탈 시 명시 선택 해제 — deps 없는 별도 이펙트라 focus/blur 에만 반응한다.
+  // (위 이펙트의 cleanup 에 두면 deps 재생성마다 선택이 풀린다 — B-DK 재등록 함정)
+  useFocusEffect(
+    useCallback(() => () => useTimelineStore.getState().clearUserSelection(), [])
+  );
+
+  // 백그라운드에서 돌아올 때도 날짜가 넘어갔으면 오늘로 (리마인더 진입 포함)
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active') return;
+      const today = useTimelineStore.getState().resetToTodayIfStale();
+      if (today) setSelectedDateLocal(today);
+    });
+    return () => sub.remove();
+  }, []);
 
   // AI 분석 폴링: deps 무관 단일 setInterval. store 참조 재생성에 영향받지 않음.
   // (B-DK: 기존엔 useFocusEffect 안에 있어 restoreFromLastViewed 참조 불안정 →
@@ -655,7 +682,7 @@ export default function HomeScreen() {
   }, [loadAllItems]);
 
   const handleDateSelect = (date: Date) => {
-    setSelectedDate(date);
+    setSelectedDate(date, true);
     // 새 날짜 선택 시 /timeline/day 호출
     const dateKey = formatDateKey(date);
     setDayLoading(true);

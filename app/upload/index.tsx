@@ -24,6 +24,7 @@ import { DEFAULT_EMOTION_KEY, resolveEmotion } from '@/constants/emotions';
 import { getMediaDetail, updateMedia, setPrimaryImage } from '@/src/api/media';
 import { timelineApi } from '@/src/api/timeline';
 import { useDialog } from '@/src/components/ui/Dialog';
+import { toLocalDateKey } from '@/src/utils/selectedDate';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { captureError } from '@/src/utils/sentry';
 
@@ -331,10 +332,24 @@ export default function UploadScreen() {
       return;
     }
 
+    // 선택한 날짜 (캘린더에서 전달받은 날짜). 오늘이 아니면 그 날짜로 기록할지 묻는다 —
+    // 홈에 남은 옛 날짜가 taken_at 으로 새어 새 사진이 과거에 기록되던 경로를 막되,
+    // 과거 날짜를 골라 올리는 의도적 사용은 살린다. 리마인더 진입은 날짜가 없어 묻지 않는다.
+    let takenAt = params.selectedDate || undefined;
+    if (takenAt && toLocalDateKey(new Date(takenAt)) !== toLocalDateKey(new Date())) {
+      const picked = new Date(takenAt);
+      const useSelectedDate = await confirm({
+        title: t('upload.pastDateTitle'),
+        description: t('upload.pastDateMessage', { month: picked.getMonth() + 1, day: picked.getDate() }),
+        confirmText: t('upload.pastDateConfirm'),
+        cancelText: t('upload.pastDateToday'),
+        variant: 'confirm',
+      });
+      if (!useSelectedDate) takenAt = undefined;
+    }
+
     setIsSubmitting(true);
     try {
-      // 선택한 날짜 (캘린더에서 전달받은 날짜)
-      const takenAt = params.selectedDate || undefined;
 
       const metadata = {
         title: title || undefined,
@@ -453,6 +468,35 @@ export default function UploadScreen() {
           />
         )}
 
+        {/* Memo (AI 일기 힌트) — AI 가 일기를 쓸 때 참고하는 입력이라 직접 쓰기보다 위에 둔다 (F-MEMO-ROLE-CLARITY) */}
+        <View style={[styles.memoToggleContainer, isDark && styles.memoToggleContainerDark]}>
+          <Text style={[styles.memoToggleText, isDark && styles.textLight]}>{t('upload.memoToggle')}</Text>
+          <Switch
+            value={showMemo}
+            onValueChange={setShowMemo}
+            trackColor={{ false: isDark ? '#374151' : colors.neutral[2], true: colors.brand.primary }}
+            thumbColor={isDark ? '#F9FAFB' : colors.background}
+          />
+        </View>
+
+        {showMemo && (
+          <View style={styles.memoContainer}>
+            <TextInput
+              style={[styles.memoInput, isDark && styles.inputDark]}
+              placeholder={t('upload.memoPlaceholder')}
+              placeholderTextColor={isDark ? '#6B7280' : colors.neutral[5]}
+              value={memo}
+              onChangeText={setMemo}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+          </View>
+        )}
+
+        {/* 직접 쓰기 — 작성하면 AI 일기 대신 이 글이 표시된다 (B-USER-CONTENT-DISPLAY) */}
+        <Text style={[styles.inputLabel, isDark && styles.textLight]}>{t('upload.directWriteLabel')}</Text>
+
         {/* Title Input */}
         <View style={styles.inputSection}>
           <Text style={[styles.inputLabel, isDark && styles.textLight]}>{t('upload.titleLabel')}</Text>
@@ -480,33 +524,6 @@ export default function UploadScreen() {
             textAlignVertical="top"
           />
         </View>
-
-        {/* Memo Toggle */}
-        <View style={[styles.memoToggleContainer, isDark && styles.memoToggleContainerDark]}>
-          <Text style={[styles.memoToggleText, isDark && styles.textLight]}>{t('upload.memoToggle')}</Text>
-          <Switch
-            value={showMemo}
-            onValueChange={setShowMemo}
-            trackColor={{ false: isDark ? '#374151' : colors.neutral[2], true: colors.brand.primary }}
-            thumbColor={isDark ? '#F9FAFB' : colors.background}
-          />
-        </View>
-
-        {/* Memo Input */}
-        {showMemo && (
-          <View style={styles.memoContainer}>
-            <TextInput
-              style={[styles.memoInput, isDark && styles.inputDark]}
-              placeholder={t('upload.memoPlaceholder')}
-              placeholderTextColor={isDark ? '#6B7280' : colors.neutral[5]}
-              value={memo}
-              onChangeText={setMemo}
-              multiline
-              numberOfLines={3}
-              textAlignVertical="top"
-            />
-          </View>
-        )}
       </KeyboardAwareScrollView>
 
       {/* Quota Exceeded Banner */}

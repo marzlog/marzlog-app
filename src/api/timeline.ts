@@ -57,6 +57,12 @@ export interface TimelineItem {
    *  컬럼 자체의 제거는 백엔드 P4. */
   mood?: string | null;
   ai_provider?: string | null;
+  // B-USER-CONTENT-DISPLAY: title/content 는 사용자 입력 우선 표시값.
+  // 분석 중 게이트·폴링은 AI 원값(ai_*)으로 판정한다. 구 API 응답에는 없다(undefined).
+  title_source?: 'user' | 'ai' | null;
+  content_source?: 'user' | 'ai' | null;
+  ai_title?: string | null;
+  ai_content?: string | null;
   // Job status
   analysis_status?: string | null;  // queued, running, done, failed
 }
@@ -88,6 +94,12 @@ export interface GroupImageItem {
   tags?: string[];
   emotion?: string | null;
   intensity?: number | null;
+  title?: string | null;
+  content?: string | null;
+  title_source?: 'user' | 'ai' | null;
+  content_source?: 'user' | 'ai' | null;
+  ai_title?: string | null;
+  ai_content?: string | null;
 }
 
 export interface GroupImagesResponse {

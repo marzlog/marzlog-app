@@ -28,6 +28,7 @@ import { useImageUpload } from '@/src/hooks/useImageUpload';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useNetworkResume } from '@/src/hooks/useNetworkResume';
 import { resolveDisplayTitle } from '@/src/utils/i18n';
+import { toLocalDateKey } from '@/src/utils/selectedDate';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
@@ -530,8 +531,9 @@ export default function TimelineScreen() {
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    const todayStr = today.toISOString().split('T')[0];
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    // 그룹 키(groupByDate)는 로컬 날짜다 — toISOString(UTC)으로 비교하면 KST 00~09시에 하루 어긋난다.
+    const todayStr = toLocalDateKey(today);
+    const yesterdayStr = toLocalDateKey(yesterday);
     if (dateStr === todayStr) return t('date.today');
     if (dateStr === yesterdayStr) return t('date.yesterday');
     // 언어에 따라 날짜 형식 변경
@@ -647,6 +649,9 @@ export default function TimelineScreen() {
         title: item.title,
         titleEn: item.title_en,
         content: item.content,
+        titleSource: item.title_source,
+        aiTitle: item.ai_title,
+        aiContent: item.ai_content,
         captionKo: item.caption_ko,
         caption: item.caption,
         analysisStatus: item.analysis_status,

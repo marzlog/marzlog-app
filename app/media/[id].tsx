@@ -50,6 +50,7 @@ import { captureError } from '@/src/utils/sentry';
 import ErrorView from '@/src/components/common/ErrorView';
 import { AiNotice } from '@/src/components/common/AiNotice';
 import { isEnrichPlaceholderTitle } from '@/src/utils/i18n';
+import { isDiaryEditLocked } from '@/src/utils/analysisPolling';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 import { EMOTIONS, resolveEmotion, getEmotionIcon, getEmotionIllustration, emotionLabel } from '@/constants/emotions';
 import { intensityAdverbKey } from '@/src/utils/intensity';
@@ -985,8 +986,27 @@ export default function MediaDetailScreen() {
   // 일기 본문이 생기기 전까지 원문 대신 진행 상태를 보여준다.
   // ★제목 자체가 없는 카드는 대상이 아니다 — 그 경우까지 가로채면 일기가 끝내 생성되지
   //   않은 카드가 영구히 "분석 중" 으로 남는다(2026-09-10 회귀).
+  // B-USER-CONTENT-DISPLAY: title/content 는 사용자 입력 우선 표시값이다. 게이트는 AI 원값으로
+  // 판정하고(구 응답엔 ai_* 가 없어 표시값으로 폴백), 사용자 제목이면 게이트를 우회한다.
   const diaryReady = !!media?.content;
-  const titleIsPlaceholder = isEnrichPlaceholderTitle(media?.title, media?.content);
+  const aiDiaryShown = diaryReady && media?.content_source !== 'user';
+  const titleIsPlaceholder =
+    media?.title_source !== 'user' &&
+    isEnrichPlaceholderTitle(
+      media?.ai_title !== undefined ? media?.ai_title : media?.title,
+      media?.ai_content !== undefined ? media?.ai_content : media?.content,
+    );
+  // B-② 편집 잠금: AI 일기가 아직 생성 중인 창에서 편집하면 뒤이어 도착한 워커가 덮어쓴다.
+  // 사용자 글이 있는 카드는 잠그지 않는다(자기 글 편집).
+  const diaryEditLocked = isDiaryEditLocked({
+    title: media?.title,
+    content: media?.content,
+    aiTitle: media?.ai_title,
+    aiContent: media?.ai_content,
+    titleSource: media?.title_source,
+    contentSource: media?.content_source,
+    analysisStatus: media?.analysis_status,
+  });
   const detailTitle = titleIsPlaceholder
     ? media?.analysis_status === 'failed'
       ? t('home.analysisFailed')
@@ -1186,7 +1206,7 @@ export default function MediaDetailScreen() {
                 </View>
               )}
             </View>
-            {diaryReady && media.ai_provider && (
+            {aiDiaryShown && media.ai_provider && (
               <View style={styles.aiProviderRow}>
                 <Ionicons name="sparkles" size={12} color={isDark ? '#9CA3AF' : colors.neutral[5]} />
                 <Text style={[styles.aiProviderText, isDark && styles.textTertiaryDark]}>
@@ -1194,7 +1214,7 @@ export default function MediaDetailScreen() {
                 </Text>
               </View>
             )}
-            {diaryReady && <AiNotice text={t('ai.draftNotice')} fontSize={12} isDark={isDark} />}
+            {aiDiaryShown && <AiNotice text={t('ai.draftNotice')} fontSize={12} isDark={isDark} />}
           </View>
         )}
 
@@ -1237,8 +1257,11 @@ export default function MediaDetailScreen() {
           {/* 일기 편집 - 메인 또는 개별 이미지만 */}
           {isCurrentImagePrimary ? (
             <TouchableOpacity
-              style={[styles.editActionButton, isDark && styles.editActionButtonDark]}
-              onPress={openDiaryEditModal}
+              style={[styles.editActionButton, isDark && styles.editActionButtonDark, diaryEditLocked && { opacity: 0.4 }]}
+              onPress={diaryEditLocked
+                ? () => alert(t('mediaDetail.diaryEdit'), t('mediaDetail.diaryEditLocked'))
+                : openDiaryEditModal}
+              accessibilityState={{ disabled: diaryEditLocked }}
             >
               <Ionicons name="create-outline" size={16} color={isDark ? '#F9FAFB' : colors.text.primary} />
               <Text style={[styles.editActionButtonText, isDark && styles.textLight]}>{t('mediaDetail.diaryEdit')}</Text>

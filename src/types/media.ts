@@ -74,4 +74,10 @@ export interface MediaDetail {
   mood?: string | null;
   diary_lang?: SupportedLocale;
   ai_provider?: string | null;
+  // B-USER-CONTENT-DISPLAY: title/content 는 사용자 입력 우선 표시값.
+  // 분석 중 게이트·편집 잠금은 AI 원값(ai_*)과 출처로 판정한다. 구 API 응답에는 없다(undefined).
+  title_source?: 'user' | 'ai' | null;
+  content_source?: 'user' | 'ai' | null;
+  ai_title?: string | null;
+  ai_content?: string | null;
 }
