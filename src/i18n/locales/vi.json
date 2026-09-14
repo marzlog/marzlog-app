@@ -493,7 +493,7 @@
     "regenerateDiary": "Tạo lại nhật ký AI",
     "groupDiaryHint": "Nhật ký nhóm có thể tạo lại từ ảnh đại diện",
     "diaryEditHint": "Nhật ký có thể chỉnh sửa từ ảnh đại diện",
-    "diaryEditLocked": "AI đang viết nhật ký. Bạn có thể chỉnh sửa khi nhật ký hoàn tất.",
+    "aiDiaryHeader": "Nhật ký AI",
     "content": "Nội dung",
     "aiReused": "AI (dùng lại)",
     "aiBadge": "AI",

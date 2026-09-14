@@ -499,7 +499,7 @@ export default function UploadScreen() {
           <View style={styles.memoContainer}>
             <TextInput
               ref={memoInputRef}
-              style={[styles.memoInput, isDark && styles.inputDark]}
+              style={[styles.memoInput, isDark && styles.memoInputDark]}
               placeholder={t('upload.memoPlaceholder')}
               placeholderTextColor={isDark ? '#6B7280' : colors.neutral[5]}
               value={memo}
@@ -733,14 +733,24 @@ const styles = StyleSheet.create({
   memoContainer: {
     marginTop: 12,
   },
+  // AI 일기 힌트 입력란 — 옅은 코랄 틴트로 제목/내용 입력란과 위계를 구분한다(JJ 2026-09-15).
+  // ★채도를 올리지 말 것 — 진한 붉은 계열은 에러 필드로 오독된다.
   memoInput: {
-    backgroundColor: colors.neutral[2],
+    backgroundColor: '#FFF1F0',
+    borderWidth: 1,
+    borderColor: '#FFD6D2',
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 14,
     color: colors.text.primary,
     minHeight: 80,
+  },
+  // 다크: 기존 다크 입력란(#1F2937) 톤에 코랄을 소량 섞고 테두리는 저채도
+  memoInputDark: {
+    backgroundColor: '#2A2226',
+    borderColor: '#4B3437',
+    color: '#F9FAFB',
   },
   // Bottom Buttons - position: absolute 제거!
   bottomButtons: {

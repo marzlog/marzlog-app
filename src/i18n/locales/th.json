@@ -493,7 +493,7 @@
     "regenerateDiary": "สร้างไดอารี่ AI ใหม่",
     "groupDiaryHint": "ไดอารี่กลุ่มสร้างใหม่ได้จากรูปภาพหลัก",
     "diaryEditHint": "ไดอารี่แก้ไขได้จากรูปภาพหลัก",
-    "diaryEditLocked": "AI กำลังเขียนไดอารี่ แก้ไขได้เมื่อเสร็จแล้ว",
+    "aiDiaryHeader": "ไดอารี่ AI",
     "content": "เนื้อหา",
     "aiReused": "AI (ใช้ซ้ำ)",
     "aiBadge": "AI",

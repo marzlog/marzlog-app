@@ -493,7 +493,7 @@
     "regenerateDiary": "Regenerate AI Diary",
     "groupDiaryHint": "Group diary can be regenerated from the primary photo",
     "diaryEditHint": "Diary can be edited from the primary photo",
-    "diaryEditLocked": "Your AI diary is still being written. You can edit it once it's ready.",
+    "aiDiaryHeader": "AI Diary",
     "content": "Content",
     "aiReused": "AI (reused)",
     "aiBadge": "AI",

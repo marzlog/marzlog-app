@@ -51,6 +51,7 @@ import ErrorView from '@/src/components/common/ErrorView';
 import { AiNotice } from '@/src/components/common/AiNotice';
 import { isEnrichPlaceholderTitle } from '@/src/utils/i18n';
 import { isDiaryEditLocked } from '@/src/utils/analysisPolling';
+import { resolveDetailContent } from '@/src/utils/detailContent';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 import { EMOTIONS, resolveEmotion, getEmotionIcon, getEmotionIllustration, emotionLabel } from '@/constants/emotions';
 import { intensityAdverbKey } from '@/src/utils/intensity';
@@ -1007,6 +1008,16 @@ export default function MediaDetailScreen() {
     contentSource: media?.content_source,
     analysisStatus: media?.analysis_status,
   });
+  // F-DUAL-CONTENT-DISPLAY: 사용자 글 + AI 일기 병기 (판정은 content_source/ai_content 원값)
+  const detailContent = resolveDetailContent({
+    content: media?.content,
+    contentSource: media?.content_source,
+    title: media?.title,
+    aiTitle: media?.ai_title,
+    aiContent: media?.ai_content,
+    aiProvider: media?.ai_provider,
+    analysisStatus: media?.analysis_status,
+  });
   const detailTitle = titleIsPlaceholder
     ? media?.analysis_status === 'failed'
       ? t('home.analysisFailed')
@@ -1272,19 +1283,33 @@ export default function MediaDetailScreen() {
           )}
         </View>
 
-        {/* 내용 */}
-        {media.content && (
+        {/* 내용 — 사용자 글이 있으면 그 아래 AI 일기를 병기한다 (F-DUAL-CONTENT-DISPLAY, 상세 한정) */}
+        {detailContent.primaryText && (
           <View style={[styles.userSection, isDark && styles.sectionBorderDark]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text style={[styles.userSectionLabel, isDark && styles.textSecondaryDark]}>{t('mediaDetail.content')}</Text>
               <TouchableOpacity
-                onPress={() => handleCopy(media.content, 'copy.diaryCopied')}
+                onPress={() => handleCopy(detailContent.primaryText, 'copy.diaryCopied')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
                 <Ionicons name="copy-outline" size={18} color={isDark ? '#9CA3AF' : '#6B7280'} />
               </TouchableOpacity>
             </View>
-            <Text style={[styles.contentText, isDark && styles.textLight]}>{media.content}</Text>
+            <Text style={[styles.contentText, isDark && styles.textLight]}>{detailContent.primaryText}</Text>
+
+            {detailContent.aiSection && (
+              <View style={[styles.aiDiarySection, isDark && styles.aiDiarySectionDark]}>
+                {/* 구분 헤더 — AI 일기가 아직 생성 중이면 헤더 자리에 진행 상태를 보인다 */}
+                <Text style={[styles.userSectionLabel, isDark && styles.textSecondaryDark]}>
+                  {detailContent.aiSection.kind === 'ready' ? t('mediaDetail.aiDiaryHeader') : t('home.analyzing')}
+                </Text>
+                {detailContent.aiSection.kind === 'ready' && (
+                  <Text style={[styles.aiContentText, isDark && styles.textSecondaryDark]}>
+                    {detailContent.aiSection.text}
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
         )}
 
@@ -2288,6 +2313,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text.primary,
     lineHeight: 24,
+  },
+  // F-DUAL-CONTENT-DISPLAY: 사용자 글 아래 병기하는 AI 일기 — 구분선 + 보조 톤
+  aiDiarySection: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[2],
+  },
+  aiDiarySectionDark: {
+    borderTopColor: '#374151',
+  },
+  aiContentText: {
+    fontSize: 15,
+    color: colors.text.secondary,
+    lineHeight: 23,
   },
   memoText: {
     fontSize: 16,
