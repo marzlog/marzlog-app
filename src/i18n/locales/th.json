@@ -289,7 +289,7 @@
     "aiModePrecise": "ละเอียด",
     "aiModeFastDesc": "มีเฉพาะคำบรรยายและการค้นหา (5-10 วินาที)",
     "aiModePreciseDesc": "คำบรรยาย การค้นหา และสร้างไดอารี่ AI อัตโนมัติ (20-30 วินาที)",
-    "darkMode": "โหมดมืด",
+    "darkMode": "โหมดกลางคืน",
     "darkModeSystem": "ตามระบบ",
     "darkModeLight": "สว่าง",
     "darkModeDark": "มืด",
@@ -310,7 +310,7 @@
     "aiModeWarningMessage": "ในโหมดเร็วจะไม่มีการสร้างไดอารี่ AI ต้องการดำเนินการต่อไหม"
   },
   "consent": {
-    "errorAgeRequired": "ต้องยืนยันว่ามีอายุ 14 ปีขึ้นไป",
+    "errorAgeRequired": "ยืนยันว่ามีอายุ 14 ปีขึ้นไป",
     "errorVersionMismatch": "กรุณายอมรับข้อกำหนดฉบับล่าสุด",
     "errorNetwork": "บันทึกการยอมรับไม่สำเร็จ ระบบจะลองใหม่ในการเข้าสู่ระบบครั้งถัดไป"
   },
@@ -689,8 +689,8 @@
     "iconNotSupported": "เปลี่ยนไอคอนแอป",
     "iconNotSupportedDesc": "ฟีเจอร์นี้ใช้ได้เฉพาะในแอปที่บิลด์แล้วเท่านั้น",
     "iconDefault": "ค่าเริ่มต้น",
-    "iconCoral": "ปะการัง",
-    "iconRed": "แดง",
+    "iconCoral": "สีปะการัง",
+    "iconRed": "สีแดง",
     "version": "ข้อมูลเวอร์ชัน",
     "deleteAccount": "ยกเลิกบัญชี"
   },
