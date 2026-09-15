@@ -54,8 +54,8 @@ import { buildDiaryEditPayload, resolveDiaryEditTarget, type DiaryDraft } from '
 import { resolveDetailContent } from '@/src/utils/detailContent';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 import { EMOTIONS, resolveEmotion, getEmotionIcon, getEmotionIllustration, emotionLabel } from '@/constants/emotions';
-import { intensityAdverbKey } from '@/src/utils/intensity';
-import { IntensitySlider } from '@/src/components/upload/IntensitySlider';
+import { emotionBadgeKey, initialIntensity, toggleEmotion } from '@/src/utils/emotionIntensity';
+import { IntensityChips } from '@/src/components/upload/IntensityChips';
 import { ShareSheet } from '@/src/components/media/ShareSheet';
 import { ShareCardView } from '@/src/components/media/ShareCardView';
 import FullscreenImageViewer from '@/src/components/media/FullscreenImageViewer';
@@ -107,21 +107,17 @@ const DIARY_FALLBACK_PREFIXES = [
 ] as const;
 
 /**
- * "부사 + 감정어" 표기 조합 (예: 꽤 기쁨 / quite Joy).
- * - intensity 5-6(부사 없음)·범위 밖·null 이면 감정어만 반환
- * - 감정어는 emotionLabel로 현재 언어에 맞게 표시(서버 저장 정본은 중립 키)
- * - ★F-MOOD-DIMENSION P3: 해석 불가한 값은 **빈 문자열**을 돌려준다.
- *   이전에는 원값을 그대로 폴백해 서버가 키로 전환된 뒤 화면에 'thought' 가
- *   그대로 노출됐다(실기 확인). 사용자에게 내부 키를 보여주지 않는다.
+ * 감정 카드 라벨 — "{감정}" / "매우 {감정}" (F-EMOTION-REVAMP, 명시 i18n 키).
+ * - 사용자가 고른 감정('user')만 intensity ≥ 8 을 "매우"로 보인다. 'ai'·'default'·출처 없음은 감정어만.
+ * - ★F-MOOD-DIMENSION P3: 해석 불가한 값은 **빈 문자열** — 내부 키('thought')를 화면에 노출하지 않는다.
  */
-function emotionWithIntensity(
+function emotionBadgeLabel(
   emotion: string | null | undefined,
   intensity: number | null | undefined,
+  source: string | null | undefined,
 ): string {
-  const label = emotionLabel(emotion);
-  if (!label) return '';
-  const adverbKey = intensityAdverbKey(intensity ?? 0);
-  return adverbKey ? `${t(adverbKey)} ${label}` : label;
+  const key = emotionBadgeKey(emotion, intensity, source);
+  return key ? t(key) : '';
 }
 
 type StackImage = { id?: string | number; download_url?: string; thumbnail_url?: string };
@@ -357,8 +353,10 @@ export default function MediaDetailScreen() {
 
   // 감정 편집 모달 상태
   const [emotionModalVisible, setEmotionModalVisible] = useState(false);
-  const [editEmotion, setEditEmotion] = useState('');
-  const [editIntensity, setEditIntensity] = useState(3);
+  // 미선택은 null. 서버에 감정을 지울 계약이 없어(편집 해제 보류) 해제 상태면 저장 버튼을 막는다.
+  const [editEmotion, setEditEmotion] = useState<string | null>(null);
+  // 서버 intensity 원값 — 칩을 누르지 않으면 그대로 저장된다(ⓕ 기존 값 보존)
+  const [editIntensity, setEditIntensity] = useState(6);
 
   // 공유 관련 상태
   const [showShareSheet, setShowShareSheet] = useState(false);
@@ -569,6 +567,8 @@ export default function MediaDetailScreen() {
   const primaryMediaId = primaryImage?.id ? String(primaryImage.id) : id!;
   const groupEmotion = primaryImage ? primaryImage.emotion : media?.emotion;
   const groupIntensity = primaryImage ? primaryImage.intensity : media?.intensity;
+  // 감정 출처 — 'user' 만 "매우" 배지를 보인다. 그룹 응답의 emotion_source 는 API additive(구 서버엔 없음 → 감정어만).
+  const groupEmotionSource = primaryImage ? primaryImage.emotion_source : media?.emotion_source;
 
   // 현재 이미지가 메인인지 (스와이프 대응)
   const isCurrentImagePrimary = currentImage
@@ -905,14 +905,17 @@ export default function MediaDetailScreen() {
   const openEmotionModal = () => {
     // 서버 값은 중립 키가 정본이지만 과도기 데이터(한국어 라벨)가 올 수 있어
     // resolveEmotion 으로 키를 확정한다 — 선택 상태가 비어 보이는 것을 막는다.
-    setEditEmotion(resolveEmotion(groupEmotion)?.key ?? '');
-    setEditIntensity(groupIntensity || 3);
+    setEditEmotion(resolveEmotion(groupEmotion)?.key ?? null);
+    // 기존 원값 보존 — ≥8 이면 "매우" 칩이 선택된 상태로 열린다. 값이 없으면 보통(6).
+    setEditIntensity(initialIntensity(groupIntensity));
     setEmotionModalVisible(true);
   };
 
   // 감정 저장 — 대상은 항상 primary media (게시물당 감정 1개)
   const handleSaveEmotion = async () => {
     const targetMediaId = primaryMediaId;
+    // 해제 상태는 저장하지 않는다 — 서버에 감정을 지울 계약이 없다(편집 해제 보류). 버튼도 비활성.
+    if (!editEmotion) return;
 
     try {
       setIsSaving(true);
@@ -1190,7 +1193,7 @@ export default function MediaDetailScreen() {
                   />
                 )}
                 <Text style={[styles.emotionCardText, isDark && styles.emotionCardTextDark]}>
-                  {emotionWithIntensity(groupEmotion, groupIntensity)}
+                  {emotionBadgeLabel(groupEmotion, groupIntensity, groupEmotionSource)}
                 </Text>
               </View>
             </>
@@ -1738,7 +1741,7 @@ export default function MediaDetailScreen() {
                     <TouchableOpacity
                       key={emotion.key}
                       style={[styles.emotionOption, isDark && styles.emotionOptionDark, isSelected && styles.emotionOptionSelected]}
-                      onPress={() => setEditEmotion(emotion.key)}
+                      onPress={() => setEditEmotion(toggleEmotion(editEmotion, emotion.key))}
                     >
                       <Image
                         source={emotion.icons.color}
@@ -1751,13 +1754,15 @@ export default function MediaDetailScreen() {
                   );
                 })}
               </View>
-              {/* 강도: 라벨·값 표시·부사 미리보기·dot 인디케이터를 컴포넌트가 자체 렌더 */}
-              <IntensitySlider value={editIntensity} onChange={setEditIntensity} embedded />
+              {/* 강도 칩 "{감정}" / "매우 {감정}" — 감정 미선택이면 표시하지 않는다 (F-EMOTION-REVAMP) */}
+              {editEmotion && (
+                <IntensityChips emotion={editEmotion} value={editIntensity} onChange={setEditIntensity} embedded />
+              )}
               <View style={styles.modalButtons}>
                 <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setEmotionModalVisible(false)}>
                   <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSaveEmotion} disabled={isSaving}>
+                <TouchableOpacity style={[styles.saveButton, (isSaving || !editEmotion) && styles.buttonDisabled]} onPress={handleSaveEmotion} disabled={isSaving || !editEmotion}>
                   <Text style={styles.saveButtonText}>{isSaving ? t('mediaDetail.saving') : t('common.save')}</Text>
                 </TouchableOpacity>
               </View>
@@ -1775,7 +1780,7 @@ export default function MediaDetailScreen() {
                       <TouchableOpacity
                         key={emotion.key}
                         style={[styles.emotionOption, isDark && styles.emotionOptionDark, isSelected && styles.emotionOptionSelected]}
-                        onPress={() => setEditEmotion(emotion.key)}
+                        onPress={() => setEditEmotion(toggleEmotion(editEmotion, emotion.key))}
                       >
                         <Image
                           source={emotion.icons.color}
@@ -1788,13 +1793,15 @@ export default function MediaDetailScreen() {
                     );
                   })}
                 </View>
-                {/* 강도: 라벨·값 표시·부사 미리보기·dot 인디케이터를 컴포넌트가 자체 렌더 */}
-                <IntensitySlider value={editIntensity} onChange={setEditIntensity} embedded />
+                {/* 강도 칩 "{감정}" / "매우 {감정}" — 감정 미선택이면 표시하지 않는다 (F-EMOTION-REVAMP) */}
+                {editEmotion && (
+                  <IntensityChips emotion={editEmotion} value={editIntensity} onChange={setEditIntensity} embedded />
+                )}
                 <View style={styles.modalButtons}>
                   <TouchableOpacity style={[styles.cancelButton, isDark && styles.cancelButtonDark]} onPress={() => setEmotionModalVisible(false)}>
                     <Text style={[styles.cancelButtonText, isDark && styles.textSecondaryDark]}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.saveButton, isSaving && styles.buttonDisabled]} onPress={handleSaveEmotion} disabled={isSaving}>
+                  <TouchableOpacity style={[styles.saveButton, (isSaving || !editEmotion) && styles.buttonDisabled]} onPress={handleSaveEmotion} disabled={isSaving || !editEmotion}>
                     <Text style={styles.saveButtonText}>{isSaving ? t('mediaDetail.saving') : t('common.save')}</Text>
                   </TouchableOpacity>
                 </View>

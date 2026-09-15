@@ -7,11 +7,11 @@
  * (에셋 require 가 없어 jest 단위 테스트가 가능한 모듈). 이 파일은 그 위에
  * 아이콘·일러스트를 붙여 화면이 쓰는 표를 조립하는 역할만 한다.
  *
- * 서버는 감정을 **언어 중립 키**로 저장·반환한다. 표시 라벨은 nameKo/nameEn 이며
+ * 서버는 감정을 **언어 중립 키**로 저장·반환한다. 표시 라벨은 i18n `emotions.<key>` 이며
  * 저장값이 아니다 — 비교·전송은 전부 키로 한다.
  */
 
-import { getLanguage, type SupportedLocale } from '@/src/i18n';
+import i18n, { getLanguage, type SupportedLocale } from '@/src/i18n';
 import {
   EMOTION_LABELS,
   DEFAULT_EMOTION_KEY,
@@ -146,7 +146,7 @@ export function resolveEmotion(value: string | null | undefined): EmotionData | 
   return key ? BY_KEY[key] : null;
 }
 
-/** 기본 감정 데이터 (업로드 초기값 등). */
+/** 기본 감정 데이터. ★업로드 초기값으로는 쓰지 않는다 — 기본 선택 없음(F-EMOTION-REVAMP). */
 export const DEFAULT_EMOTION: EmotionData = BY_KEY[DEFAULT_EMOTION_KEY];
 
 // 헬퍼: 감정 아이콘. 해석 불가면 null.
@@ -165,16 +165,16 @@ export function getEmotionIllustration(value: string | null | undefined): any {
 /**
  * 현재 언어에 맞는 표시 라벨. 해석 불가면 null(원문 노출 금지).
  *
- * ko 는 nameKo, 그 외(en/vi/th)는 nameEn 폴백이다.
- * TODO(F-EMOTION-VI-LABELS): vi/th 실번역이 들어오면 여기서 분기를 늘린다.
- * 백엔드 `app/core/emotions.py` 의 name_vi/name_th 도 현재 en 임시값이라 양쪽을
- * 함께 교체해야 한다.
+ * ★F-EMOTION-REVAMP: 라벨 정본은 i18n `emotions.<key>` (4언어 명시 키)다.
+ * 이전의 nameKo/nameEn 분기(vi/th 는 en 폴백)는 여기서 폐기했다 — F-EMOTION-VI-LABELS 해소.
+ * EMOTION_LABELS 의 nameKo 는 구 저장값(한국어 라벨) 해석용으로만 남는다.
+ * "매우 {감정}" 은 `emotions.<key>Intense` — 조합하지 않는다(`src/utils/emotionIntensity.ts`).
  */
 export function emotionLabel(
   value: EmotionData | string | null | undefined,
   lang: SupportedLocale = getLanguage()
 ): string | null {
-  const data = typeof value === 'string' || value == null ? resolveEmotion(value) : value;
-  if (!data) return null;
-  return lang === 'ko' ? data.nameKo : data.nameEn || data.nameKo;
+  const key = typeof value === 'string' || value == null ? resolveEmotionKey(value) : value.key;
+  if (!key) return null;
+  return i18n.t(`emotions.${key}`, { locale: lang });
 }

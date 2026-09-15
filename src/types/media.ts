@@ -67,6 +67,8 @@ export interface MediaDetail {
   memo?: string | null;
   emotion?: string | null;
   intensity?: number | null;
+  /** 감정 출처 — 'user'만 강도("매우")를 배지에 반영한다 (F-EMOTION-REVAMP). 미선택 업로드는 null. */
+  emotion_source?: 'user' | 'ai' | 'default' | null;
   // AI 일기 생성 필드
   /** @deprecated F-MOOD-DIMENSION P3 — 서버가 기록을 중단해 항상 null.
    *  응답 스키마에는 남아 있어 타입만 유지한다. 화면에서 참조 금지.

@@ -94,6 +94,8 @@ export interface GroupImageItem {
   tags?: string[];
   emotion?: string | null;
   intensity?: number | null;
+  /** 감정 출처 — GET /timeline/group 에 additive 로 추가됨(F-EMOTION-REVAMP). 구 서버 응답에는 없다. */
+  emotion_source?: 'user' | 'ai' | 'default' | null;
   title?: string | null;
   content?: string | null;
   title_source?: 'user' | 'ai' | null;

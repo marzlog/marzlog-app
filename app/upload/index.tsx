@@ -19,8 +19,9 @@ import { colors } from '@/src/theme';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload, ImagePickerItem, MAX_SELECTION } from '@/src/hooks/useImageUpload';
-import { ImageSelector, EmotionPicker, IntensitySlider } from '@/src/components/upload';
-import { DEFAULT_EMOTION_KEY, resolveEmotion } from '@/constants/emotions';
+import { ImageSelector, EmotionPicker, IntensityChips } from '@/src/components/upload';
+import { resolveEmotion } from '@/constants/emotions';
+import { INTENSITY_NORMAL, initialIntensity } from '@/src/utils/emotionIntensity';
 import { getMediaDetail, updateMedia, setPrimaryImage } from '@/src/api/media';
 import { timelineApi } from '@/src/api/timeline';
 import { useDialog } from '@/src/components/ui/Dialog';
@@ -55,8 +56,12 @@ export default function UploadScreen() {
 
   const [images, setImages] = useState<ImagePickerItem[]>([]);
   const [primaryImageIndex, setPrimaryImageIndex] = useState(0);
-  const [selectedEmotion, setSelectedEmotion] = useState<string>(DEFAULT_EMOTION_KEY);
-  const [intensity, setIntensity] = useState(6);
+  // F-EMOTION-REVAMP: 기본 선택 없음 — 미선택이면 emotion·intensity 모두 보내지 않고 서버 NULL 시드가 남는다.
+  const [selectedEmotion, setSelectedEmotion] = useState<string | null>(null);
+  // 서버 intensity 원값(1~10). 칩은 이 값을 임계 8로 접어 보여주고, 누를 때만 6/9 로 바꾼다.
+  const [intensity, setIntensity] = useState(INTENSITY_NORMAL);
+  // 편집 화면에서 이미 감정이 저장된 게시물 — 서버에 지울 계약이 없어 재탭 해제를 막는다(편집 해제 보류).
+  const [emotionDeselectLocked, setEmotionDeselectLocked] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   // AI 일기 힌트: 기본 on (JJ 2026-09-15). 로컬 state 라 persist 된 사용자 선택은 없다.
@@ -115,8 +120,11 @@ export default function UploadScreen() {
       setMemo(mediaDetail.memo || '');
       if (mediaDetail.memo) setShowMemo(true);
       // 서버 값은 중립 키가 정본. 과도기 데이터(한국어 라벨) 대비 resolve 경유.
-      setSelectedEmotion(resolveEmotion(mediaDetail.emotion)?.key ?? DEFAULT_EMOTION_KEY);
-      setIntensity(mediaDetail.intensity || 6);
+      const loadedEmotion = resolveEmotion(mediaDetail.emotion)?.key ?? null;
+      setSelectedEmotion(loadedEmotion);
+      setEmotionDeselectLocked(loadedEmotion !== null);
+      // 기존 원값 보존(ⓕ) — 칩을 누르지 않으면 받은 값을 그대로 돌려보낸다.
+      setIntensity(initialIntensity(mediaDetail.intensity));
 
       // 이미지 설정
       const loadedImages: ImagePickerItem[] = [];
@@ -318,7 +326,8 @@ export default function UploadScreen() {
         content: content || undefined,
         memo: memo || undefined,
         emotion: selectedEmotion || undefined,
-        intensity: intensity,
+        // 감정이 없으면 강도도 보내지 않는다 — 감정 없는 intensity 는 의미가 없다.
+        intensity: selectedEmotion ? intensity : undefined,
       };
 
       const result = await updateMedia(mediaId, updateData);
@@ -474,11 +483,14 @@ export default function UploadScreen() {
         <EmotionPicker
           selectedEmotion={selectedEmotion}
           onSelect={setSelectedEmotion}
+          allowDeselect={!emotionDeselectLocked}
+          hint={selectedEmotion ? undefined : t('upload.emotionAiHint')}
         />
 
-        {/* Intensity Slider */}
+        {/* 강도 칩 "{감정}" / "매우 {감정}" — 감정 미선택이면 표시하지 않는다 (F-EMOTION-REVAMP) */}
         {selectedEmotion && (
-          <IntensitySlider
+          <IntensityChips
+            emotion={selectedEmotion}
             value={intensity}
             onChange={setIntensity}
           />

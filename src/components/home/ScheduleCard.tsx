@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image as RNImage, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { palette, lightTheme, darkTheme, Theme } from '@/src/theme/colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
@@ -11,22 +11,7 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 24; // Figma: 풀 너비에 가깝게
 const CARD_HEIGHT = 437;
 
-// Figma 기반 이모티콘 아이콘 (감정 표시용)
-function EmotionIcon({ color = palette.neutral[900] }: { color?: string }) {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-      <Circle cx="10" cy="10" r="8" stroke={color} strokeWidth={1.5} />
-      <Circle cx="7" cy="8" r="1" fill={color} />
-      <Circle cx="13" cy="8" r="1" fill={color} />
-      <Path
-        d="M7 12C7.5 13.5 8.5 14 10 14C11.5 14 12.5 13.5 13 12"
-        stroke={color}
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      />
-    </Svg>
-  );
-}
+// (구 EmotionIcon — 감정 없는 카드의 기본 아이콘. F-EMOTION-REVAMP 에서 NULL 은 숨김으로 바뀌어 제거)
 
 // 복사(그룹) 아이콘
 function CopyIcon({ color = '#FFFFFF' }: { color?: string }) {
@@ -167,17 +152,15 @@ function ScheduleCardBase({
 
         {/* Overlay Buttons */}
         <View style={styles.overlayContainer}>
-          {/* Emotion Icon (실제 감정 아이콘 또는 기본 아이콘) */}
-          <View style={styles.emojiButton}>
-            {emotion && getEmotionIcon(emotion, 'color') ? (
+          {/* Emotion Icon — 감정이 없으면(미선택 NULL) 숨긴다. compact 뷰와 같은 규칙 (F-EMOTION-REVAMP) */}
+          {emotion && getEmotionIcon(emotion, 'color') && (
+            <View style={styles.emojiButton}>
               <Image
                 source={getEmotionIcon(emotion, 'color')}
                 style={styles.emotionIconImage}
               />
-            ) : (
-              <EmotionIcon color={palette.neutral[900]} />
-            )}
-          </View>
+            </View>
+          )}
 
           {/* Time Badge (Figma: 반투명 배경 + 시간 텍스트) */}
           <View style={styles.timeBadge}>

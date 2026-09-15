@@ -35,9 +35,11 @@ describe('정본 세트', () => {
     expect(new Set(EMOTION_LABELS.map((e) => e.nameKo)).size).toBe(12);
   });
 
-  it('기본 감정은 유효한 키다', () => {
+  it('기본 감정 상수는 존치하고 유효한 키다', () => {
+    // F-EMOTION-REVAMP: 업로드 초기값으로는 더 이상 쓰지 않는다(기본 선택 없음 → 서버 NULL 시드).
+    // 상수는 서버 core DEFAULT_EMOTION('calm')과의 대응을 위해 남긴다.
     expect(EMOTION_KEYS).toContain(DEFAULT_EMOTION_KEY);
-    expect(DEFAULT_EMOTION_KEY).toBe('calm'); // 서버 DEFAULT_EMOTION 과 동일
+    expect(DEFAULT_EMOTION_KEY).toBe('calm');
   });
 
   it('모든 항목이 ko/en 라벨을 갖는다', () => {
