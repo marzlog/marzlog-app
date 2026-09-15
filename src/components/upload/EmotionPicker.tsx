@@ -31,7 +31,9 @@ export function EmotionPicker({ selectedEmotion, onSelect, allowDeselect = true,
     : themeMode === 'dark';
   const theme = getTheme(isDark);
   return (
-    <View style={styles.container}>
+    // 13차: 안내 문구가 없으면(= 업로드 화면에서 감정 선택 → 바로 아래 강도 칩) 하단 여백을 8 로 줄여
+    // 칩을 그리드 직하로 붙인다. 안내 문구가 보이는 미선택 상태는 기존 24 그대로.
+    <View style={[styles.container, !hint && styles.containerBeforeChips]}>
       <Text style={[styles.title, { color: theme.text.primary }]}>{t('mediaDetail.emotionQuestion')}</Text>
       <View style={styles.grid}>
         {EMOTION_DATA.map((emotion) => {
@@ -76,6 +78,10 @@ export function EmotionPicker({ selectedEmotion, onSelect, allowDeselect = true,
 const styles = StyleSheet.create({
   container: {
     marginBottom: 24,
+  },
+  containerBeforeChips: {
+    // 13차: 감정 선택 상태 — 바로 아래 강도 칩을 그리드 직하로 (24 → 8)
+    marginBottom: 8,
   },
   title: {
     fontSize: 16,
