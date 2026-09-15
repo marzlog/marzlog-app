@@ -31,6 +31,12 @@ export interface UploadCompleteRequest {
     latitude?: number;
     longitude?: number;
   };
+  // B-UPLOAD-METADATA-RACE (12차): 메타 동봉 — 그룹 complete 와 대칭 (서버 additive)
+  title?: string;
+  content?: string;
+  memo?: string;
+  emotion?: string;
+  intensity?: number;
 }
 
 export interface UploadCompleteResponse {
@@ -38,6 +44,8 @@ export interface UploadCompleteResponse {
   job_id?: string;
   status: string;
   message: string;
+  /** 요청 메타가 이 호출로 행에 반영됐는가. 멱등 재호출·구 서버는 false/없음 → PUT 폴백 (12차) */
+  metadata_applied?: boolean;
 }
 
 export interface SelectedImage {

@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     // color는 인라인 theme.text.primary (F-DARKMODE-LABELS)
-    marginBottom: 16,
+    marginBottom: 8, // 12차: 그리드 상단 여백 축소 (16 → 8)
   },
   grid: {
     flexDirection: 'row',
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 12,
-    marginTop: 12,
+    marginTop: 4, // 12차: 안내 문구를 그리드 직하로 당김 (12 → 4)
     // color는 인라인 theme.text.secondary (F-DARKMODE-LABELS)
   },
 });

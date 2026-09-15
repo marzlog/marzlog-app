@@ -25,6 +25,7 @@ import { useUploadQueueStore } from '../store/uploadQueueStore';
 import * as uploadQueue from '../services/uploadQueue';
 import { UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS } from '../constants/upload';
 import { withRetry } from '../utils/retry';
+import { needsMetadataPut } from '../utils/uploadMetadata';
 
 function isQuotaExceededError(err: unknown): boolean {
   if (err instanceof AxiosError) {
@@ -294,6 +295,9 @@ export function useImageUpload() {
                     safeQueue(() => uploadQueue.markItemPrepared(id, itemIndex, p)),
                 }
               : undefined,
+            // B-UPLOAD-METADATA-RACE (12차): 메타를 complete 에 동봉 — 워커가 읽기 전에 행에 반영된다.
+            // 메타 대상은 첫 media 뿐이다(아래 PUT 폴백도 results[0] 기준).
+            i === 0 ? metadata : undefined,
           );
 
           updateItem(item.id, {
@@ -336,7 +340,9 @@ export function useImageUpload() {
           await safeQueue(() => uploadQueue.markSingleUploaded(id, firstMediaId));
         }
         let metaOk = true;
-        if (metadata) {
+        // 12차: complete 가 메타 반영을 확인했으면(metadata_applied) 이중 전송하지 않는다.
+        // 멱등 재호출·구 서버처럼 확인이 없으면 기존대로 PUT 으로 보낸다(PUT 계약 무변경).
+        if (metadata && needsMetadataPut(metadata, results[0])) {
           try {
             await withRetry(() => updateMedia(firstMediaId, metadata), UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS);
           } catch (e) {

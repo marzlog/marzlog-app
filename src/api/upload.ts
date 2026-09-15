@@ -19,6 +19,7 @@ import type {
 import { apiClient } from './client';
 import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
 import { UPLOAD_PUT_TIMEOUT_MS } from '../constants/upload';
+import { toCompleteMetadata, type UploadMetadata } from '../utils/uploadMetadata';
 
 function getCurrentAnalysisMode(): 'light' | 'precision' {
   return aiModeToBackend(useSettingsStore.getState().aiMode);
@@ -209,7 +210,10 @@ export async function uploadImage(
   onStatusChange?: (status: string) => void,
   takenAt?: string,  // 캘린더에서 선택한 날짜 (ISO 형식)
   reuse?: UploadReuseOptions,
+  metadata?: UploadMetadata,  // B-UPLOAD-METADATA-RACE (12차): complete 에 동봉할 메타
 ): Promise<UploadCompleteResponse> {
+  // 세 complete 경로(재사용·중복·신규) 모두 같은 메타를 싣는다. 값 없는 필드는 빠진다.
+  const completeMeta = toCompleteMetadata(metadata);
   // F-UPLOAD-DUP B: 저장된 prepare 결과가 있으면 해시/prepare 생략 — 같은 storage_key로
   // PUT+complete. 만료(PRESIGNED_EXPIRED)만 신규 prepare로 계속, 그 외 에러는 그대로 throw.
   if (reuse?.prepared) {
@@ -227,6 +231,7 @@ export async function uploadImage(
         storage_key: p.storage_key,
         analysis_mode: getCurrentAnalysisMode(),
         taken_at: takenAt,
+        ...completeMeta,
       });
       onProgress?.(100);
       onStatusChange?.('완료!');
@@ -281,6 +286,7 @@ export async function uploadImage(
       storage_key: prepareResponse.storage_key!,
       analysis_mode: getCurrentAnalysisMode(),
       taken_at: takenAt,
+      ...completeMeta,
     };
 
     const result = await completeUpload(requestBody);
@@ -324,6 +330,7 @@ export async function uploadImage(
     storage_key: prepareResponse.storage_key,
     analysis_mode: getCurrentAnalysisMode(),
     taken_at: takenAt,  // 캘린더에서 선택한 날짜
+    ...completeMeta,
   };
 
   const result = await completeUpload(requestBody);
