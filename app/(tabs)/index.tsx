@@ -35,7 +35,7 @@ import { useNetworkResume } from '@/src/hooks/useNetworkResume';
 import i18nInstance from '@/src/i18n';
 import { getLocalizedTitle, resolveDisplayTitle } from '@/src/utils/i18n';
 import { shouldKeepPolling } from '@/src/utils/analysisPolling';
-import { applyDateReset, isDayListPath } from '@/src/utils/selectedDate';
+import { applyDateReset, isDayListPath, nextDaySnapshot } from '@/src/utils/selectedDate';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useDialog } from '@/src/components/ui/Dialog';
 import notificationsApi from '@/src/api/notifications';
@@ -353,6 +353,15 @@ function itemsEqual(a: TimelineItem[], b: TimelineItem[]): boolean {
   return true;
 }
 
+/** 날짜 탭 목록 정렬 — 등록일 최신순 (없으면 촬영일) */
+function sortDayItems<T extends { created_at?: string | null; taken_at?: string | null }>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const ta = a.created_at ? new Date(a.created_at).getTime() : a.taken_at ? new Date(a.taken_at).getTime() : 0;
+    const tb = b.created_at ? new Date(b.created_at).getTime() : b.taken_at ? new Date(b.taken_at).getTime() : 0;
+    return tb - ta;
+  });
+}
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -478,6 +487,22 @@ export default function HomeScreen() {
   const knownTotalRef = useRef(0);     // 폴링 전체 fetch용 total 캐시 (B-DK-CAL v3)
   const hasPendingRef = useRef(false); // 폴링 게이팅용 분석중 플래그 미러 (setInterval deps=[] 유지)
   const pollStartedAtRef = useRef<number | null>(null); // 대기 시작 시각 (안전 상한 계산용)
+  const dayKeyRef = useRef<string | null>(null); // dayItems 스냅샷의 날짜 키 (없으면 null)
+
+  // 날짜 탭 스냅샷 재조회 — loadAllItems 는 allItems 만 갱신하므로, 열람 중인 날짜 목록이
+  // 분석 완료·편집 결과를 못 받았다(10차 recon 3). 참조 안정(deps=[]) — 폴링 타이머 무영향.
+  const refreshDayItems = useCallback(async () => {
+    const key = dayKeyRef.current;
+    if (!key) return;
+    try {
+      const res = await cardsApi.getTimelineDay(key);
+      const fresh = sortDayItems(res.items);
+      setDayItems((prev) => nextDaySnapshot(prev, dayKeyRef.current, key, fresh));
+    } catch (err) {
+      // 스냅샷 유지 — 다음 refetch 에서 다시 받는다
+    }
+  }, []);
+
   const loadAllItems = useCallback(async (isPolling = false) => {
     if (!accessToken) {
       setLoading(false);
@@ -497,6 +522,7 @@ export default function HomeScreen() {
       knownTotalRef.current = response.total;
       setAllItems(prev => itemsEqual(prev, response.items) ? prev : response.items);
       setHasMore(response.has_more);
+      void refreshDayItems();
 
       // 폴링은 첫 페이지만 가드 비교로 갱신. 페이지네이션 append는 초기/명시 로드 시에만.
       // (분석중 항목은 최신=첫 페이지에 위치하므로 폴링 갱신으로 충분. append 경로는 무가드라
@@ -511,7 +537,7 @@ export default function HomeScreen() {
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, refreshDayItems]);
 
   // 폴링 타이머가 deps 재생성에 영향받지 않도록 loadAllItems를 ref로 최신 유지.
   const loadAllItemsRef = useRef(loadAllItems);
@@ -631,6 +657,7 @@ export default function HomeScreen() {
   // setState 함수만 쓰므로 참조가 안정적이다(deps=[] 인 AppState 이펙트에서도 안전).
   const applyStaleReset = useCallback((resetDate: Date | null): boolean => {
     if (!resetDate) return false;
+    dayKeyRef.current = null;
     setSelectedDateLocal((prev) => applyDateReset(resetDate, { selectedDate: prev, dayItems: null }).selectedDate);
     setDayItems((prev) => applyDateReset(resetDate, { selectedDate: resetDate, dayItems: prev }).dayItems);
     return true;
@@ -697,17 +724,16 @@ export default function HomeScreen() {
     setSelectedDate(date, true);
     // 새 날짜 선택 시 /timeline/day 호출
     const dateKey = formatDateKey(date);
+    dayKeyRef.current = dateKey;
     setDayLoading(true);
     cardsApi.getTimelineDay(dateKey)
       .then((res) => {
-        const sorted = [...res.items].sort((a, b) => {
-          const ta = a.created_at ? new Date(a.created_at).getTime() : a.taken_at ? new Date(a.taken_at).getTime() : 0;
-          const tb = b.created_at ? new Date(b.created_at).getTime() : b.taken_at ? new Date(b.taken_at).getTime() : 0;
-          return tb - ta;
-        });
-        setDayItems(sorted);
+        setDayItems(sortDayItems(res.items));
       })
-      .catch(() => setDayItems(null))
+      .catch(() => {
+        if (dayKeyRef.current === dateKey) dayKeyRef.current = null;
+        setDayItems(null);
+      })
       .finally(() => setDayLoading(false));
   };
 

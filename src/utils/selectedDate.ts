@@ -31,6 +31,20 @@ export const isDayListPath = <T>(dayItems: T[] | null, dayLoading: boolean): boo
  *
  * @param resetDate resetToTodayIfStale 의 반환값(리셋 안 됐으면 null)
  */
+/**
+ * 날짜 탭 스냅샷 재조회 결과를 적용한다 (10차). 재조회는 비동기라 도중에 리셋(null)되거나
+ * 다른 날짜가 선택될 수 있다 — 살아 있는 같은 날짜 스냅샷일 때만 갈아끼운다.
+ *
+ * @param snapshotKey 응답 도착 시점의 스냅샷 날짜 키
+ * @param fetchedKey 재조회에 쓴 날짜 키
+ */
+export const nextDaySnapshot = <T>(
+  prev: T[] | null,
+  snapshotKey: string | null,
+  fetchedKey: string,
+  fetched: T[],
+): T[] | null => (prev !== null && snapshotKey === fetchedKey ? fetched : prev);
+
 export const applyDateReset = <T>(
   resetDate: Date | null,
   current: { selectedDate: Date; dayItems: T[] | null },

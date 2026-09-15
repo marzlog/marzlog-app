@@ -140,6 +140,9 @@ export async function updateCaption(
  * ★F-MOOD-DIMENSION P3: `mood` 를 요청·응답 타입에서 제거했다.
  * 서버가 mood 기록을 중단했고(ADR-2026-09-02-01 ①) 신규 카드는 항상 NULL 이라
  * 보낼 값도 읽을 값도 없다. 감정은 `updateMediaEmotion` 이 담당한다.
+ *
+ * ★미사용 (10차 B-DIARY-EDIT-PATH-MISMATCH): 상세 편집은 `updateMedia`(사용자 글)로 저장한다.
+ *   이 함수는 recall_cards(AI 일기)를 직접 덮으므로 편집 경로에 다시 결선하지 말 것.
  */
 export async function updateDiary(
   mediaId: string,

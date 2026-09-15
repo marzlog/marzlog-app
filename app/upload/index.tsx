@@ -746,10 +746,10 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     minHeight: 80,
   },
-  // 다크: 기존 다크 입력란(#1F2937) 톤에 코랄을 소량 섞고 테두리는 저채도
+  // 다크: 배경은 기존 다크 입력란(inputDark)과 같게 두고 코랄은 테두리로만 구분한다(JJ 2026-09-15)
   memoInputDark: {
-    backgroundColor: '#2A2226',
-    borderColor: '#4B3437',
+    backgroundColor: '#1F2937',
+    borderColor: 'rgba(255,106,95,0.35)',
     color: '#F9FAFB',
   },
   // Bottom Buttons - position: absolute 제거!

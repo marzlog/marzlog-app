@@ -33,7 +33,7 @@ import Animated, {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, triggerOcr, submitDeviceOcr, updateCaption, updateDiary, updateMediaEmotion, patchBookmark } from '@/src/api/media';
+import { getMediaDetail, getMediaAnalysis, deleteMedia, generateDiary, triggerOcr, submitDeviceOcr, updateCaption, updateMedia, updateMediaEmotion, patchBookmark } from '@/src/api/media';
 import { runDeviceOcr } from '@/src/services/deviceOcr';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { copyText, saveImageToGallery } from '@/src/utils/copyUtils';
@@ -50,7 +50,7 @@ import { captureError } from '@/src/utils/sentry';
 import ErrorView from '@/src/components/common/ErrorView';
 import { AiNotice } from '@/src/components/common/AiNotice';
 import { isEnrichPlaceholderTitle } from '@/src/utils/i18n';
-import { isDiaryEditLocked } from '@/src/utils/analysisPolling';
+import { buildDiaryEditPayload, resolveDiaryEditTarget, type DiaryDraft } from '@/src/utils/diaryEdit';
 import { resolveDetailContent } from '@/src/utils/detailContent';
 import type { MediaDetail, MediaAnalysis } from '@/src/types/media';
 import { EMOTIONS, resolveEmotion, getEmotionIcon, getEmotionIllustration, emotionLabel } from '@/constants/emotions';
@@ -349,6 +349,9 @@ export default function MediaDetailScreen() {
   const [captionEditModalVisible, setCaptionEditModalVisible] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
+  // 편집 dirty-check 기준(모달 open 시 시드)과 저장 대상 id
+  const [diaryEditInitial, setDiaryEditInitial] = useState<DiaryDraft>({ title: '', content: '' });
+  const [diaryEditTargetId, setDiaryEditTargetId] = useState('');
   const [editCaption, setEditCaption] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -827,9 +830,13 @@ export default function MediaDetailScreen() {
   // ★F-MOOD-DIMENSION P3: 분위기(mood)는 폐기됐다(ADR-2026-09-02-01 ①).
   //   워커가 더 이상 기록하지 않아 신규 카드는 항상 NULL 이고, 편집 대상도 아니다.
   //   감정은 별도의 감정 편집 모달(12종 선택기)에서 다룬다.
+  // B-DIARY-EDIT-PATH-MISMATCH: 편집은 사용자 글(media)을 쓴다 — 그룹이면 표시 중 대표 이미지 기준.
   const openDiaryEditModal = () => {
-    setEditTitle(media?.title || '');
-    setEditContent(media?.content || '');
+    const { targetId, seed } = resolveDiaryEditTarget(id!, media, currentImage);
+    setDiaryEditTargetId(targetId);
+    setDiaryEditInitial(seed);
+    setEditTitle(seed.title);
+    setEditContent(seed.content);
     setDiaryEditModalVisible(true);
   };
 
@@ -841,16 +848,24 @@ export default function MediaDetailScreen() {
 
   // 일기 저장
   const handleSaveDiary = async () => {
+    // 바뀐 필드만 보낸다 — 무변경이면 AI 시드가 사용자 글로 복제되지 않게 호출 자체를 생략
+    const payload = buildDiaryEditPayload(diaryEditInitial, { title: editTitle, content: editContent });
+    if (!payload) {
+      setDiaryEditModalVisible(false);
+      return;
+    }
     try {
       setIsSaving(true);
-      await updateDiary(id!, {
-        title: editTitle,
-        content: editContent,
-      });
+      await updateMedia(diaryEditTargetId, payload);
 
-      // 미디어 새로고침
+      // 미디어 새로고침 — 사용자 글 우선 표시(content_source='user')가 이 응답으로 반영된다
       const mediaData = await getMediaDetail(id!);
       setMedia(mediaData);
+      // 그룹이면 다음 편집 시드가 옛 값이 되지 않게 이미지 목록도 갱신 (실패해도 저장은 성공)
+      if (mediaData.group_id) {
+        const groupData = await timelineApi.getGroupImages(mediaData.group_id).catch(() => null);
+        if (groupData?.items) setGroupImages(groupData.items);
+      }
 
       setDiaryEditModalVisible(false);
       await alert(t('common.done'), t('media.diaryUpdated'));
@@ -997,17 +1012,6 @@ export default function MediaDetailScreen() {
       media?.ai_title !== undefined ? media?.ai_title : media?.title,
       media?.ai_content !== undefined ? media?.ai_content : media?.content,
     );
-  // B-② 편집 잠금: AI 일기가 아직 생성 중인 창에서 편집하면 뒤이어 도착한 워커가 덮어쓴다.
-  // 사용자 글이 있는 카드는 잠그지 않는다(자기 글 편집).
-  const diaryEditLocked = isDiaryEditLocked({
-    title: media?.title,
-    content: media?.content,
-    aiTitle: media?.ai_title,
-    aiContent: media?.ai_content,
-    titleSource: media?.title_source,
-    contentSource: media?.content_source,
-    analysisStatus: media?.analysis_status,
-  });
   // F-DUAL-CONTENT-DISPLAY: 사용자 글 + AI 일기 병기 (판정은 content_source/ai_content 원값)
   const detailContent = resolveDetailContent({
     content: media?.content,
@@ -1268,10 +1272,8 @@ export default function MediaDetailScreen() {
           {/* 일기 편집 - 메인 또는 개별 이미지만 */}
           {isCurrentImagePrimary ? (
             <TouchableOpacity
-              style={[styles.editActionButton, isDark && styles.editActionButtonDark, diaryEditLocked && { opacity: 0.4 }]}
-              onPress={diaryEditLocked
-                ? () => alert(t('mediaDetail.diaryEdit'), t('home.analyzing'))
-                : openDiaryEditModal}
+              style={[styles.editActionButton, isDark && styles.editActionButtonDark]}
+              onPress={openDiaryEditModal}
             >
               <Ionicons name="create-outline" size={16} color={isDark ? '#F9FAFB' : colors.text.primary} />
               <Text style={[styles.editActionButtonText, isDark && styles.textLight]}>{t('mediaDetail.diaryEdit')}</Text>
