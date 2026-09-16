@@ -22,6 +22,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { FloatingInput } from '@/src/components/common/FloatingInput';
+import { NICKNAME_MAX_LENGTH, nicknameCounter } from '@/src/utils/nickname';
 
 export default function ProfileEditScreen() {
   const insets = useSafeAreaInsets();
@@ -285,7 +286,12 @@ export default function ProfileEditScreen() {
             onChangeText={setNickname}
             isDark={isDark}
             autoCapitalize="none"
+            maxLength={NICKNAME_MAX_LENGTH}
           />
+          {/* F-NICKNAME-LENGTH-UX(14차): 서버 정본 20자 — 잘림을 사후에 알던 문제 */}
+          <Text style={[styles.nicknameCounter, isDark && styles.nicknameCounterDark]}>
+            {nicknameCounter(nickname)}
+          </Text>
 
           {/* Save Button */}
           <TouchableOpacity
@@ -420,6 +426,15 @@ export default function ProfileEditScreen() {
 }
 
 const styles = StyleSheet.create({
+  nicknameCounter: {
+    alignSelf: 'flex-end',
+    marginTop: 6,
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  nicknameCounterDark: {
+    color: '#9CA3AF',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',

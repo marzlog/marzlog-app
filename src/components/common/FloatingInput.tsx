@@ -16,6 +16,7 @@ interface FloatingInputProps {
   inputRef?: React.RefObject<TextInput | null>;
   rightIcon?: React.ReactNode;
   editable?: boolean;
+  maxLength?: number;
 }
 
 export function FloatingInput({
@@ -33,6 +34,7 @@ export function FloatingInput({
   inputRef,
   rightIcon,
   editable = true,
+  maxLength,
 }: FloatingInputProps) {
   const [isFocused, setIsFocused] = useState(false);
   const animValue = useRef(new Animated.Value(value ? 1 : 0)).current;
@@ -83,6 +85,7 @@ export function FloatingInput({
           onSubmitEditing={onSubmitEditing}
           blurOnSubmit={blurOnSubmit}
           editable={editable}
+          maxLength={maxLength}
         />
         {rightIcon}
       </View>
