@@ -279,7 +279,7 @@ export default function ProfileEditScreen() {
             editable={false}
           />
 
-          {/* Nickname */}
+          {/* Nickname — F-NICKNAME-LENGTH-UX(14차): 서버 정본 20자, 카운터는 입력란 직하 */}
           <FloatingInput
             label={t('profileEdit.nickname')}
             value={nickname}
@@ -287,11 +287,8 @@ export default function ProfileEditScreen() {
             isDark={isDark}
             autoCapitalize="none"
             maxLength={NICKNAME_MAX_LENGTH}
+            counterText={nicknameCounter(nickname)}
           />
-          {/* F-NICKNAME-LENGTH-UX(14차): 서버 정본 20자 — 잘림을 사후에 알던 문제 */}
-          <Text style={[styles.nicknameCounter, isDark && styles.nicknameCounterDark]}>
-            {nicknameCounter(nickname)}
-          </Text>
 
           {/* Save Button */}
           <TouchableOpacity
@@ -426,15 +423,6 @@ export default function ProfileEditScreen() {
 }
 
 const styles = StyleSheet.create({
-  nicknameCounter: {
-    alignSelf: 'flex-end',
-    marginTop: 6,
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  nicknameCounterDark: {
-    color: '#9CA3AF',
-  },
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',

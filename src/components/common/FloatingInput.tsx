@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Animated, StyleSheet, TextInput, View, TextInputProps } from 'react-native';
+import { Animated, StyleSheet, Text, TextInput, View, TextInputProps } from 'react-native';
 
 interface FloatingInputProps {
   label: string;
@@ -17,6 +17,8 @@ interface FloatingInputProps {
   rightIcon?: React.ReactNode;
   editable?: boolean;
   maxLength?: number;
+  /** 밑줄 바로 아래 우측에 붙는 보조 표기(예: 닉네임 "3/20") */
+  counterText?: string;
 }
 
 export function FloatingInput({
@@ -35,6 +37,7 @@ export function FloatingInput({
   rightIcon,
   editable = true,
   maxLength,
+  counterText,
 }: FloatingInputProps) {
   const [isFocused, setIsFocused] = useState(false);
   const animValue = useRef(new Animated.Value(value ? 1 : 0)).current;
@@ -90,11 +93,19 @@ export function FloatingInput({
         {rightIcon}
       </View>
       <View style={[floatStyles.line, { backgroundColor: lineColor }]} />
+      {counterText ? (
+        <Text style={[floatStyles.counter, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>{counterText}</Text>
+      ) : null}
     </View>
   );
 }
 
 const floatStyles = StyleSheet.create({
+  counter: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+    fontSize: 11,
+  },
   wrapper: {
     paddingTop: 18,
     paddingBottom: 4,
