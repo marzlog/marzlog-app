@@ -474,7 +474,7 @@
     "primaryImageSection": "Primary photo",
     "pendingBanner": "{{count}} upload(s) waiting",
     "retryNow": "Retry now",
-    "emotionAiHint": "If you don't choose, AI will estimate the emotion from your photo and hint"
+    "emotionAiHint": "Leave the emotion unselected and write a hint — AI will infer the emotion from your hint"
   },
   "mediaDetail": {
     "pageTitle": "Photo Detail",

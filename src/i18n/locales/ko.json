@@ -474,7 +474,7 @@
     "primaryImageSection": "대표 이미지",
     "pendingBanner": "업로드 대기 중 {{count}}건",
     "retryNow": "지금 재시도",
-    "emotionAiHint": "선택하지 않으면 AI가 사진과 힌트로 감정을 추정해요"
+    "emotionAiHint": "감정을 선택하지 않고 힌트를 적으면 AI가 힌트를 보고 감정을 추정해요"
   },
   "mediaDetail": {
     "pageTitle": "상세보기",
