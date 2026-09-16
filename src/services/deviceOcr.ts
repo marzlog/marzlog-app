@@ -15,6 +15,7 @@
 import TextRecognition, { TextRecognitionScript } from '@react-native-ml-kit/text-recognition';
 
 import { reconstructLayout } from './ocrLayout';
+import { isGarbageOcrText } from '../utils/ocrGarbage';
 
 const OCR_TEXT_BYTE_LIMIT = 50_000;
 
@@ -34,7 +35,9 @@ export async function runDeviceOcr(imageUri: string): Promise<DeviceOcrResult> {
     }
     rawText = rawText.trim();
 
-    if (rawText.length === 0) {
+    // F-OCR-GARBAGE-FILTER(14차): 기울어진 서체에서 나온 무의미 문자열(예: IIIIIIIW)은
+    // 텍스트로 저장하지 않는다 — 인식 결과가 없는 것과 같게 다룬다.
+    if (rawText.length === 0 || isGarbageOcrText(rawText)) {
       return { status: 'no_text', text: '' };
     }
 
