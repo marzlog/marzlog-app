@@ -474,7 +474,7 @@
     "primaryImageSection": "Ảnh đại diện",
     "pendingBanner": "{{count}} mục đang chờ tải lên",
     "retryNow": "Thử lại ngay",
-    "emotionAiHint": "Không chọn cảm xúc và viết gợi ý — AI sẽ suy ra cảm xúc từ gợi ý của bạn"
+    "emotionAiHint": "Bạn không cần chọn cảm xúc. Hãy viết một gợi ý và AI sẽ suy ra cảm xúc cho bạn"
   },
   "mediaDetail": {
     "pageTitle": "Chi tiết",
