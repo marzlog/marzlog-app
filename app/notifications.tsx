@@ -381,19 +381,11 @@ export default function NotificationsScreen() {
           <Ionicons name="chevron-back" size={24} color={textColor} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: textColor }]}>{t('notification.title')}</Text>
-        {activeTab === 'announcements' ? (
-          // B-NOTIF-TRASH-SCOPE(14차): 공지는 사용자가 지울 수 없다(서버 DELETE 는 admin 전용) —
-          // 삭제 모드에서 선택조차 되지 않아 눌러도 아무 일이 없었다. 자리만 남겨 헤더 균형 유지.
-          <View style={styles.headerBtn} />
-        ) : (
-          <TouchableOpacity onPress={toggleDeleteMode} style={styles.headerBtn}>
-            <Ionicons
-              name={deleteMode ? 'close' : 'trash-outline'}
-              size={22}
-              color={deleteMode ? '#FF6A5F' : textColor}
-            />
-          </TouchableOpacity>
-        )}
+        {/* B-NOTIF-TRASH-SCOPE(14차 재수리): 휴지통을 **탭 무관 전면 숨김**한다(JJ 결정).
+            공지는 사용자가 지울 수 없고(서버 DELETE 는 admin 전용) "전체" 탭에서도 공지는 선택되지
+            않아 지울 수 있어 보이는 UI 만 남았다. 자리는 남겨 헤더 좌우 균형을 유지한다.
+            ⚠️ 삭제 모드 진입 경로가 없어지므로 개인 알림 삭제도 화면에서 사라진다 — 의도된 범위다. */}
+        <View style={styles.headerBtn} />
       </View>
 
       {/* Tabs */}
