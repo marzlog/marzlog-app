@@ -12,6 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
+// B-ANDROID-EDGE-INSET(14차): edge-to-edge 에서 이 화면만 inset 미적용이었다
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 48) / 2;
@@ -25,6 +27,7 @@ export default function AlbumsScreen() {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   // 다크모드 결정: themeMode가 'system'이면 시스템 설정, 아니면 직접 설정값 사용
   const isDark = themeMode === 'system'
@@ -54,7 +57,7 @@ export default function AlbumsScreen() {
   );
 
   return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
+    <View style={[styles.container, isDark && styles.containerDark, { paddingTop: insets.top }]}>
       {/* AI Generated Albums Section */}
       <View style={styles.sectionHeader}>
         <View style={styles.sectionTitleRow}>
@@ -74,7 +77,7 @@ export default function AlbumsScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderAlbumItem}
         numColumns={2}
-        contentContainerStyle={styles.albumsContainer}
+        contentContainerStyle={[styles.albumsContainer, { paddingBottom: insets.bottom + 24 }]}
         columnWrapperStyle={styles.albumsRow}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={

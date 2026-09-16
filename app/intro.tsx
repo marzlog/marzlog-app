@@ -3,12 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Platform,
   Image,
   TouchableOpacity,
 } from 'react-native';
+// B-ANDROID-EDGE-INSET(14차): react-native 의 SafeAreaView 는 iOS 전용(Android 패딩 0) — context 판으로 교체.
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
 import { router } from 'expo-router';

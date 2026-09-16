@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Platform,
   Image,
@@ -11,6 +10,8 @@ import {
   ActivityIndicator,
   Animated,
 } from 'react-native';
+// B-ANDROID-EDGE-INSET(14차): react-native 의 SafeAreaView 는 iOS 전용(Android 패딩 0) — context 판으로 교체.
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';

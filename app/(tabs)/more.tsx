@@ -86,7 +86,8 @@ export default function MoreScreen() {
       </View>
 
       {/* Version at bottom */}
-      <View style={styles.versionArea}>
+      {/* B-ANDROID-EDGE-INSET(14차): edge-to-edge 에서 내비바에 가리지 않게 하단 inset 반영 */}
+      <View style={[styles.versionArea, { paddingBottom: insets.bottom }]}>
         <Text style={[styles.versionText, isDark && styles.versionTextDark]}>
           MarZlog v{appVersion}
         </Text>
