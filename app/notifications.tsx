@@ -3,14 +3,17 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   FlatList,
   TouchableOpacity,
   Image,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  ScrollView,
 } from 'react-native';
+// B-ANDROID-EDGE-INSET(14차): react-native 의 SafeAreaView 는 iOS 전용(Android 패딩 0) — context 판으로 교체.
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -49,6 +52,8 @@ export default function NotificationsScreen() {
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<TabType>('all');
+  // F-NOTIF-DETAIL-VIEW(14차): 목록은 본문 2줄 말줄임이라 전문을 볼 수 없었다 → 탭하면 전문 모달
+  const [detailItem, setDetailItem] = useState<UnifiedItem | null>(null);
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
@@ -159,6 +164,7 @@ export default function NotificationsScreen() {
         // silently fail on mark as read
       }
     }
+    setDetailItem(item);
   };
 
   const toggleSelect = (id: string) => {
@@ -375,13 +381,19 @@ export default function NotificationsScreen() {
           <Ionicons name="chevron-back" size={24} color={textColor} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: textColor }]}>{t('notification.title')}</Text>
-        <TouchableOpacity onPress={toggleDeleteMode} style={styles.headerBtn}>
-          <Ionicons
-            name={deleteMode ? 'close' : 'trash-outline'}
-            size={22}
-            color={deleteMode ? '#FF6A5F' : textColor}
-          />
-        </TouchableOpacity>
+        {activeTab === 'announcements' ? (
+          // B-NOTIF-TRASH-SCOPE(14차): 공지는 사용자가 지울 수 없다(서버 DELETE 는 admin 전용) —
+          // 삭제 모드에서 선택조차 되지 않아 눌러도 아무 일이 없었다. 자리만 남겨 헤더 균형 유지.
+          <View style={styles.headerBtn} />
+        ) : (
+          <TouchableOpacity onPress={toggleDeleteMode} style={styles.headerBtn}>
+            <Ionicons
+              name={deleteMode ? 'close' : 'trash-outline'}
+              size={22}
+              color={deleteMode ? '#FF6A5F' : textColor}
+            />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Tabs */}
@@ -404,6 +416,33 @@ export default function NotificationsScreen() {
         }
       />
 
+      {/* Detail (full text) — F-NOTIF-DETAIL-VIEW */}
+      <Modal
+        visible={detailItem !== null}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setDetailItem(null)}
+      >
+        <View style={styles.detailOverlay}>
+          <View style={[styles.detailCard, { backgroundColor: cardBg }]}>
+            <View style={styles.detailHeader}>
+              <Text style={[styles.detailTitle, { color: textColor }]}>{detailItem?.title}</Text>
+              <TouchableOpacity onPress={() => setDetailItem(null)} style={styles.detailClose}>
+                <Ionicons name="close" size={22} color={subtextColor} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.detailDate, { color: subtextColor }]}>
+              {detailItem ? formatDate(detailItem.created_at) : ''}
+            </Text>
+            <ScrollView style={styles.detailBodyScroll} showsVerticalScrollIndicator={false}>
+              <Text style={[styles.detailBody, { color: textColor }]}>
+                {detailItem?.body || ''}
+              </Text>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Delete Button (delete mode) */}
       {deleteMode && selectedIds.size > 0 && (
         <View style={styles.deleteBar}>
@@ -423,6 +462,41 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
+  detailOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  detailCard: {
+    borderRadius: 16,
+    padding: 20,
+    maxHeight: '75%',
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  detailTitle: {
+    flex: 1,
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  detailClose: {
+    padding: 2,
+  },
+  detailDate: {
+    fontSize: 12,
+    marginTop: 6,
+  },
+  detailBodyScroll: {
+    marginTop: 14,
+  },
+  detailBody: {
+    fontSize: 14,
+    lineHeight: 22,
+  },
   container: {
     flex: 1,
   },
