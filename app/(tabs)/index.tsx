@@ -409,7 +409,8 @@ export default function HomeScreen() {
     takePhoto,
   } = useImageUpload();
 
-  // 날짜별 대표 감정 매핑 (첫 번째 그룹의 감정)
+  // 날짜별 대표 감정 매핑 — 그날 감정이 있는 항목 중 **최신 등록분**이 대표다
+  // (타임라인이 created_at DESC 로 오고, 감정 없는 항목은 건너뛴다. B-CALENDAR-EMOTION-PICK = 사양)
   const dateEmotions = useMemo(() => {
     const map = new Map<string, string>();
     allItems.forEach((item) => {
