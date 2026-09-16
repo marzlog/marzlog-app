@@ -9,6 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, lightTheme, darkTheme } from '@/src/theme/colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
+// B-ANDROID-EDGE-INSET(14차): 탭바 기하를 화면과 공유한다 (하드코딩 금지)
+import { TAB_BAR_HEIGHT, TAB_BAR_MIN_BOTTOM, TAB_BAR_SIDE_GAP } from '@/src/constants/layout';
 
 // --- Tab Icons ---
 
@@ -122,7 +124,7 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const visibleRoutes = state.routes.filter((route) => VISIBLE_TABS.includes(route.name));
 
   return (
-    <View style={[styles.tabBarContainer, { bottom: Math.max(insets.bottom, 16) }]}>
+    <View style={[styles.tabBarContainer, { bottom: Math.max(insets.bottom, TAB_BAR_MIN_BOTTOM) }]}>
       <View style={[styles.tabBar, { backgroundColor: isDark ? palette.neutral[800] : palette.neutral[200] }]}>
         {visibleRoutes.map((route) => {
           const { options } = descriptors[route.key];
@@ -190,12 +192,12 @@ export default function TabLayout() {
 const styles = StyleSheet.create({
   tabBarContainer: {
     position: 'absolute',
-    bottom: 16, // fallback, overridden by insets.bottom inline
-    left: 16,
-    right: 16,
+    bottom: TAB_BAR_MIN_BOTTOM, // fallback, overridden by insets.bottom inline
+    left: TAB_BAR_SIDE_GAP,
+    right: TAB_BAR_SIDE_GAP,
   },
   tabBar: {
-    height: 64,
+    height: TAB_BAR_HEIGHT,
     borderRadius: 32,
     flexDirection: 'row',
     alignItems: 'center',

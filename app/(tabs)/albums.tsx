@@ -14,6 +14,7 @@ import { useSettingsStore } from '@/src/store/settingsStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
 // B-ANDROID-EDGE-INSET(14차): edge-to-edge 에서 이 화면만 inset 미적용이었다
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { tabBarClearance } from '@/src/constants/layout';
 
 const { width } = Dimensions.get('window');
 const ITEM_SIZE = (width - 48) / 2;
@@ -77,7 +78,7 @@ export default function AlbumsScreen() {
         keyExtractor={(item) => item.id}
         renderItem={renderAlbumItem}
         numColumns={2}
-        contentContainerStyle={[styles.albumsContainer, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[styles.albumsContainer, { paddingBottom: tabBarClearance(insets.bottom) }]}
         columnWrapperStyle={styles.albumsRow}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={

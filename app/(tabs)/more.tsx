@@ -13,6 +13,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useStorageStore } from '@/src/store/storageStore';
 import { useTranslation } from '@/src/hooks/useTranslation';
+import { tabBarClearance } from '@/src/constants/layout';
 import { Logo } from '@/src/components/common/Logo';
 import { StorageUsageBar } from '@/src/components/common/StorageUsageBar';
 import { AppTouchable } from '@/src/components/common/AppTouchable';
@@ -86,8 +87,9 @@ export default function MoreScreen() {
       </View>
 
       {/* Version at bottom */}
-      {/* B-ANDROID-EDGE-INSET(14차): edge-to-edge 에서 내비바에 가리지 않게 하단 inset 반영 */}
-      <View style={[styles.versionArea, { paddingBottom: insets.bottom }]}>
+      {/* B-ANDROID-EDGE-INSET(14차 재수리): 탭바가 absolute 로 떠 있어 insets.bottom 만으로는
+          여전히 가렸다 — 탭바 높이까지 비운다(상수 공유, tabBarClearance). */}
+      <View style={[styles.versionArea, { bottom: tabBarClearance(insets.bottom) }]}>
         <Text style={[styles.versionText, isDark && styles.versionTextDark]}>
           MarZlog v{appVersion}
         </Text>

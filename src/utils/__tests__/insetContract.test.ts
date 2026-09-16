@@ -34,8 +34,17 @@ it("app/ 어느 화면도 react-native 의 SafeAreaView 를 쓰지 않는다", (
 describe('하단 inset 적용 (내비바 가림 방지)', () => {
   const read = (rel: string) => fs.readFileSync(path.join(APP_DIR, rel), 'utf8');
 
-  it('(tabs)/more.tsx 버전 워터마크가 insets.bottom 을 반영한다', () => {
-    expect(read('(tabs)/more.tsx')).toMatch(/insets\.bottom/);
+  it('(tabs)/more.tsx 버전 워터마크가 떠 있는 탭바 높이까지 비운다(공유 상수)', () => {
+    const src = read('(tabs)/more.tsx');
+    expect(src).toMatch(/tabBarClearance\(insets\.bottom\)/);
+    // 탭바 높이를 화면에 하드코딩하지 않는다
+    expect(src).not.toMatch(/bottom:\s*(64|80|88)\b/);
+  });
+
+  it('(tabs)/_layout.tsx 이 같은 상수를 공유한다', () => {
+    const src = read('(tabs)/_layout.tsx');
+    expect(src).toMatch(/TAB_BAR_HEIGHT/);
+    expect(src).toMatch(/TAB_BAR_MIN_BOTTOM/);
   });
 
   it('(tabs)/albums.tsx 가 insets 를 쓴다', () => {
