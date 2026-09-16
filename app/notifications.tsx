@@ -21,6 +21,7 @@ import { useSettingsStore } from '@src/store/settingsStore';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { useDialog } from '@/src/components/ui/Dialog';
 import notificationsApi, { Notification } from '@src/api/notifications';
+import { canSelectForDelete, removeDeleted, shouldShowTrash } from '@/src/utils/notificationsUi';
 import announcementsApi, { Announcement } from '@src/api/announcements';
 import { getErrorMessage } from '@/src/utils/errorMessages';
 import ErrorView from '@/src/components/common/ErrorView';
@@ -141,7 +142,7 @@ export default function NotificationsScreen() {
 
   const handleItemPress = async (item: UnifiedItem) => {
     if (deleteMode) {
-      if (item.source === 'notification') {
+      if (canSelectForDelete(item.source)) {
         toggleSelect(item.id);
       }
       return;
@@ -191,7 +192,7 @@ export default function NotificationsScreen() {
       try {
         const realIds = Array.from(selectedIds).map(id => id.replace(/^notif_/, ''));
         await notificationsApi.deleteNotifications(realIds);
-        setNotifications(prev => prev.filter(n => !realIds.includes(n.id)));
+        setNotifications(prev => removeDeleted(prev, realIds));
         setSelectedIds(new Set());
         setDeleteMode(false);
       } catch (err) {
@@ -285,7 +286,7 @@ export default function NotificationsScreen() {
         onPress={() => handleItemPress(item)}
         activeOpacity={0.7}
       >
-        {deleteMode && !isAnn && (
+        {deleteMode && canSelectForDelete(item.source) && (
           <View style={[styles.checkbox, selectedIds.has(item.id) && styles.checkboxSelected]}>
             {selectedIds.has(item.id) && (
               <Ionicons name="checkmark" size={14} color="#FFFFFF" />
@@ -381,11 +382,20 @@ export default function NotificationsScreen() {
           <Ionicons name="chevron-back" size={24} color={textColor} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: textColor }]}>{t('notification.title')}</Text>
-        {/* B-NOTIF-TRASH-SCOPE(14차 재수리): 휴지통을 **탭 무관 전면 숨김**한다(JJ 결정).
-            공지는 사용자가 지울 수 없고(서버 DELETE 는 admin 전용) "전체" 탭에서도 공지는 선택되지
-            않아 지울 수 있어 보이는 UI 만 남았다. 자리는 남겨 헤더 좌우 균형을 유지한다.
-            ⚠️ 삭제 모드 진입 경로가 없어지므로 개인 알림 삭제도 화면에서 사라진다 — 의도된 범위다. */}
-        <View style={styles.headerBtn} />
+        {/* B-NOTIF-TRASH-SCOPE(14차 재수리 2): 개인 알림 삭제는 서버와 결선돼 실동작한다 —
+            죽은 버튼이 아니라 **노출 범위**가 문제였다. 공지 행은 선택 불가 사양이므로
+            휴지통은 개인 알림 탭에서만 보인다(전체·공지 탭은 자리만 남겨 헤더 균형 유지). */}
+        {shouldShowTrash(activeTab) ? (
+          <TouchableOpacity onPress={toggleDeleteMode} style={styles.headerBtn}>
+            <Ionicons
+              name={deleteMode ? 'close' : 'trash-outline'}
+              size={22}
+              color={deleteMode ? '#FF6A5F' : textColor}
+            />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerBtn} />
+        )}
       </View>
 
       {/* Tabs */}
