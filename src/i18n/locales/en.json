@@ -811,5 +811,17 @@
     "deleteConfirmTitle": "Delete this item?",
     "deleteConfirmDesc": "Deleted items cannot be recovered.",
     "deleteConfirmDescWithName": "\"{{name}}\" will be deleted.\nDeleted items cannot be recovered."
+  },
+  "paywall": {
+    "title": "Marzlog Plus",
+    "monthly": "Monthly",
+    "annual": "Yearly",
+    "restore": "Restore purchases",
+    "active": "You're on Plus",
+    "activeUntil": "Until {{date}}",
+    "unavailable": "Subscriptions can't be loaded right now.",
+    "processing": "Your purchase will be reflected once payment is confirmed. Please check again shortly.",
+    "restoreChecked": "We checked your purchases. It may take a moment to be reflected.",
+    "failed": "Couldn't complete this. Please try again shortly."
   }
 }

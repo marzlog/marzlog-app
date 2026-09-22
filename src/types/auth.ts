@@ -12,6 +12,9 @@ export interface User {
   role: 'user' | 'admin';
   analysis_mode?: 'light' | 'precision';
   app_lang?: SupportedLocale | null;
+  // Plus entitlement SSOT = 서버 /auth/me (get_user_plan). 클라 판정은 plan === 'plus' 만(ADR-2026-09-18-01 ②).
+  plan?: string;
+  plan_expires_at?: string | null;
   created_at: string;
   updated_at: string;
 }

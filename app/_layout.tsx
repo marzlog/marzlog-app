@@ -364,6 +364,7 @@ function RootLayoutNav() {
           <Stack.Screen name="language-select" options={{ headerShown: false }} />
           <Stack.Screen name="bookmarks" options={{ headerShown: false }} />
           <Stack.Screen name="labs" options={{ headerShown: false }} />
+          <Stack.Screen name="paywall" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>
       </DialogProvider>

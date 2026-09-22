@@ -53,6 +53,11 @@ interface AuthStore extends AuthState {
   forceLogout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  /**
+   * /auth/me 재조회로 user 만 갱신(plan 등 서버 SSOT 반영). 실패는 throw — 토큰을 지우지 않는다.
+   * checkAuth 는 비-Keychain 오류(일시적 네트워크 포함)에 토큰을 지우므로 결제 직후 재조회에 쓰지 않는다.
+   */
+  refreshUser: () => Promise<User>;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -415,6 +420,12 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       await storage.removeItem('refresh_token');
       set({ isLoading: false });
     }
+  },
+
+  refreshUser: async () => {
+    const user = await authApi.getCurrentUser();
+    set({ user });
+    return user;
   },
 
 }));

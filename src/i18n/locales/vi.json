@@ -811,5 +811,17 @@
     "deleteConfirmTitle": "Bạn có muốn xóa không?",
     "deleteConfirmDesc": "Nội dung đã xóa không thể khôi phục.",
     "deleteConfirmDescWithName": "Sẽ xóa \"{{name}}\".\nNội dung đã xóa không thể khôi phục."
+  },
+  "paywall": {
+    "title": "Marzlog Plus",
+    "monthly": "Hằng tháng",
+    "annual": "Hằng năm",
+    "restore": "Khôi phục giao dịch",
+    "active": "Bạn đang dùng Plus",
+    "activeUntil": "Đến {{date}}",
+    "unavailable": "Hiện chưa thể tải các gói đăng ký.",
+    "processing": "Giao dịch sẽ được cập nhật sau khi thanh toán được xác nhận. Vui lòng kiểm tra lại sau ít phút.",
+    "restoreChecked": "Đã kiểm tra lịch sử mua. Có thể mất một lúc để cập nhật.",
+    "failed": "Không thể hoàn tất. Vui lòng thử lại sau ít phút."
   }
 }
