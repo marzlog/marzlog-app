@@ -235,6 +235,8 @@ marzlog-app/
 | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google OAuth (웹) |
 | `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` | Google OAuth (iOS) |
 | `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` | Google OAuth (Android) |
+| `EXPO_PUBLIC_RC_API_KEY_IOS` | RevenueCat public SDK key (iOS, `appl_…`) — RC 대시보드 API keys, 하드코딩 금지 |
+| `EXPO_PUBLIC_RC_API_KEY_ANDROID` | RevenueCat public SDK key (Android, `goog_…`) — 동일 |
 
 ## 11. 네비게이션 구조
 

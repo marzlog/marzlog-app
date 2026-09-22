@@ -25,6 +25,7 @@ import { triggerResume } from '@src/services/resumeUploads';
 import { RESUME_INTERVAL_MS } from '@src/constants/upload';
 import { useUploadQueueStore } from '@src/store/uploadQueueStore';
 import NetInfo from '@react-native-community/netinfo';
+import { initPurchases } from '@src/services/purchases';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -41,6 +42,9 @@ if (kakaoKey && Platform.OS !== 'web') {
     // Kakao SDK init failed — silently ignore
   }
 }
+
+// RC SDK: 모듈 최상위 1회 configure. 네이티브 모듈/키 부재 시 no-op + 관측(purchases.ts 가드).
+initPurchases();
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
