@@ -25,7 +25,7 @@ import { triggerResume } from '@src/services/resumeUploads';
 import { RESUME_INTERVAL_MS } from '@src/constants/upload';
 import { useUploadQueueStore } from '@src/store/uploadQueueStore';
 import NetInfo from '@react-native-community/netinfo';
-import { initPurchases } from '@src/services/purchases';
+import { initPurchases, syncPurchasesIdentity } from '@src/services/purchases';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -45,6 +45,8 @@ if (kakaoKey && Platform.OS !== 'web') {
 
 // RC SDK: 모듈 최상위 1회 configure. 네이티브 모듈/키 부재 시 no-op + 관측(purchases.ts 가드).
 initPurchases();
+// RC 식별: 로그인/로그아웃 경로를 각각 건드리지 않고 user.id 전이 한 지점에서 logIn/logOut.
+useAuthStore.subscribe((state, prev) => syncPurchasesIdentity(prev.user?.id, state.user?.id));
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
