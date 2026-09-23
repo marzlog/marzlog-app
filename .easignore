@@ -48,3 +48,6 @@ apk-download-qr.png
 google-services.json
 firebase-service-account.json
 assets/videos/*_backup.mp4
+
+# F-EASIGNORE-AAB: stray local bundles
+*.aab
