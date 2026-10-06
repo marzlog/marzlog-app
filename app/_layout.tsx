@@ -87,11 +87,12 @@ export default function RootLayout() {
     if (error) throw error;
   }, [error]);
 
+  // 스플래시는 init까지 끝난 뒤 숨긴다 — 폰트만 보고 숨기면 initialReady 전 return null 구간이 흰 화면으로 보인다
   useEffect(() => {
-    if (loaded) {
+    if (loaded && initialReady) {
       SplashScreen.hideAsync();
     }
-  }, [loaded]);
+  }, [loaded, initialReady]);
 
   // Check for OTA updates on app start
   useEffect(() => {
