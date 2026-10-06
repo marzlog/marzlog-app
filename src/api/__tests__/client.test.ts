@@ -22,6 +22,7 @@ jest.mock('../../utils/secureStorage', () => ({
 
 import axios, { AxiosError, AxiosResponse, HttpStatusCode, InternalAxiosRequestConfig } from 'axios';
 import apiClient, { setOnSessionExpired } from '../client';
+import { AUTH_STORE_UNAVAILABLE_CODE } from '../authErrors';
 
 type Reply = { status: number; data?: unknown };
 
@@ -131,6 +132,38 @@ describe('apiClient 401 refresh — /auth/me (D4)', () => {
 
     await expect(apiClient.get(path)).rejects.toBeInstanceOf(AxiosError);
 
+    expect(mockKeychain.access_token).toBe('expired-access');
+    expect(mockKeychain.refresh_token).toBe('valid-refresh');
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('refresh가 401 + AUTH_STORE_UNAVAILABLE이면 인증 실패가 아니다 → 토큰 유지', async () => {
+    postSpy.mockImplementation(
+      refreshReply(refreshConfig, {
+        status: HttpStatusCode.Unauthorized,
+        data: { detail: { code: AUTH_STORE_UNAVAILABLE_CODE } },
+      })
+    );
+    mockServer(() => ({ status: HttpStatusCode.Unauthorized }));
+
+    await expect(apiClient.get('/auth/me')).rejects.toBeInstanceOf(AxiosError);
+
+    expect(mockKeychain.access_token).toBe('expired-access');
+    expect(mockKeychain.refresh_token).toBe('valid-refresh');
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it('refresh 요청은 전용 타임아웃(10초)으로 나가고, 타임아웃 시 토큰 유지·세션 만료 처리 없음', async () => {
+    postSpy.mockRejectedValue(new AxiosError('timeout of 10000ms exceeded', AxiosError.ECONNABORTED, refreshConfig));
+    mockServer(() => ({ status: HttpStatusCode.Unauthorized }));
+
+    await expect(apiClient.get('/auth/me')).rejects.toBeInstanceOf(AxiosError);
+
+    expect(postSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/\/auth\/refresh$/),
+      { refresh_token: 'valid-refresh' },
+      expect.objectContaining({ timeout: 10_000 })
+    );
     expect(mockKeychain.access_token).toBe('expired-access');
     expect(mockKeychain.refresh_token).toBe('valid-refresh');
     expect(onSessionExpired).not.toHaveBeenCalled();

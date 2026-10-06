@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosError, HttpStatusCode, InternalAxiosRequestConfig } from 'axios';
 import { secureStorage as storage } from '../utils/secureStorage';
+import { MissingRefreshTokenError, isAuthStoreUnavailable } from './authErrors';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://api.marzlog.com';
 
@@ -34,18 +35,18 @@ function notifyConsentRequired() {
 // 세션 조회의 401은 access token 만료이므로 refresh 1회 후 원 요청을 재시도한다.
 const REFRESHABLE_AUTH_PATHS: ReadonlySet<string> = new Set(['/auth/me']);
 
-class MissingRefreshTokenError extends Error {
-  constructor() {
-    super('No refresh token');
-    this.name = 'MissingRefreshTokenError';
-  }
-}
-
-// refresh가 "인증 실패"로 끝났는지. 네트워크·타임아웃·5xx·Keychain 잠금은 여기에 해당하지 않는다.
+// refresh가 "인증 실패"로 끝났는지. 네트워크·타임아웃·5xx·Keychain 잠금·인증 저장소 장애(401)는 해당하지 않는다.
 function isRefreshAuthFailure(error: unknown): boolean {
   if (error instanceof MissingRefreshTokenError) return true;
-  return axios.isAxiosError(error) && error.response?.status === HttpStatusCode.Unauthorized;
+  return (
+    axios.isAxiosError(error) &&
+    error.response?.status === HttpStatusCode.Unauthorized &&
+    !isAuthStoreUnavailable(error)
+  );
 }
+
+// refresh는 인터셉터 밖의 기본 axios로 나가 전역 timeout이 없다 — 응답 없는 refresh가 부트를 무기한 붙잡지 않게
+const REFRESH_TIMEOUT_MS = 10_000;
 
 // Refresh 동시성 단일화: 진행 중이면 동일 Promise를 공유 (race 방지)
 let _refreshPromise: Promise<string> | null = null;
@@ -55,9 +56,11 @@ async function performRefresh(): Promise<string> {
   if (!refreshToken) {
     throw new MissingRefreshTokenError();
   }
-  const response = await axios.post(`${API_URL}/auth/refresh`, {
-    refresh_token: refreshToken,
-  });
+  const response = await axios.post(
+    `${API_URL}/auth/refresh`,
+    { refresh_token: refreshToken },
+    { timeout: REFRESH_TIMEOUT_MS }
+  );
   const { access_token, refresh_token: newRefresh } = response.data;
   await storage.setItem('access_token', access_token);
   if (newRefresh) {
