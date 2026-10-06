@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { isAxiosError } from 'axios';
 import authApi, {
   EmailRecentlyWithdrawnError,
   AccountAlreadyExistsError,
@@ -13,7 +14,26 @@ import { captureError } from '../utils/sentry';
 import { useSettingsStore, backendToAiMode } from './settingsStore';
 import { setLanguage as setI18nLanguage, isSupportedLocale, type SupportedLocale } from '../i18n';
 import { registerPushToken, unregisterPushToken } from '../services/pushTokenService';
+import { classifyAuthCheckError } from '../api/authErrors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
+
+// D6: 부트 인증 확인(/auth/me) 전용 타임아웃. 전역 30초를 그대로 기다리면 응답 없는
+// 네트워크에서 콜드스타트가 흰 화면으로 길게 정지한다(전역 apiClient timeout은 불변).
+const AUTH_CHECK_TIMEOUT_MS = 10_000;
+
+/** 보류 화면 문구 분기용 — offline: NetInfo가 연결 없음을 확인 / unavailable: 그 외 일시 장애·Keychain 잠금 */
+export type AuthCheckDeferredReason = 'offline' | 'unavailable';
+
+// NetInfo가 "연결 없음"을 확정한 경우만 true. 판정 불가(null)·조회 실패는 온라인으로 보고 진행한다.
+async function isConfirmedOffline(): Promise<boolean> {
+  try {
+    const state = await NetInfo.fetch();
+    return state.isConnected === false;
+  } catch {
+    return false;
+  }
+}
 
 // B-EN-LANG-SYNC: 서버 users.app_lang을 단일 진실로 삼아 로그인/checkAuth 시
 // i18n 표시언어와 settingsStore.language(로컬 persist)를 거기에 맞춘다.
@@ -34,6 +54,8 @@ interface AuthStore extends AuthState {
    * true인 동안 "미인증"은 확정이 아니다 — 해제 후 재시도로 세션이 되살아날 수 있다.
    */
   authCheckDeferred: boolean;
+  /** authCheckDeferred가 true일 때만 의미가 있다 */
+  authCheckDeferredReason: AuthCheckDeferredReason | null;
 
   // Actions
   setUser: (user: User | null) => void;
@@ -64,6 +86,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   isLoading: true,
   error: null,
   authCheckDeferred: false,
+  authCheckDeferredReason: null,
 
   // Setters
   setUser: (user) => set({ user, isAuthenticated: !!user }),
@@ -364,16 +387,24 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
   // Check auth on app start
   checkAuth: async () => {
-    set({ isLoading: true, authCheckDeferred: false });
+    // authCheckDeferred는 결과가 나올 때까지 유지한다 — 재시도 중에 false로 내리면
+    // _layout이 보류 화면 대신 미인증 Stack을 마운트해 로그인으로 밀려난다.
+    set({ isLoading: true });
     try {
       const token = await storage.getItem('access_token');
 
       if (!token) {
-        set({ isLoading: false });
+        set({ isLoading: false, authCheckDeferred: false, authCheckDeferredReason: null });
         return;
       }
 
-      const user = await authApi.getCurrentUser();
+      // D6: 연결 없음이 확정이면 /auth/me 타임아웃을 기다리지 않고 즉시 보류
+      if (await isConfirmedOffline()) {
+        set({ isLoading: false, authCheckDeferred: true, authCheckDeferredReason: 'offline' });
+        return;
+      }
+
+      const user = await authApi.getCurrentUser({ timeout: AUTH_CHECK_TIMEOUT_MS });
       const refreshToken = await storage.getItem('refresh_token');
 
       set({
@@ -382,6 +413,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         refreshToken,
         isAuthenticated: true,
         isLoading: false,
+        authCheckDeferred: false,
+        authCheckDeferredReason: null,
       });
 
       syncLanguageFromUser(user.app_lang);
@@ -404,16 +437,31 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       // 여기서 지우면 일시적 잠금이 영구 로그아웃으로 굳는다(deleteValueWithKeyAsync는
       // 네이티브에서 상태를 무시하므로 실패해도 성공처럼 통과한다) → 보존 후 재시도.
       if (isKeychainUnavailableError(e)) {
-        set({ isLoading: false, authCheckDeferred: true });
+        set({ isLoading: false, authCheckDeferred: true, authCheckDeferredReason: 'unavailable' });
         captureError(e instanceof Error ? e : new Error(String(e)), {
           scope: 'checkAuth.keychainUnavailable',
+        });
+        return;
+      }
+      // D8: 토큰 삭제는 확정 인증 실패에서만. 응답 없음·5xx·인증 저장소 장애는 보존 후 보류.
+      const failure = classifyAuthCheckError(e);
+      if (failure !== 'auth_failed') {
+        const reason: AuthCheckDeferredReason = (await isConfirmedOffline()) ? 'offline' : 'unavailable';
+        set({ isLoading: false, authCheckDeferred: true, authCheckDeferredReason: reason });
+        // 원 오류 대신 분류값만 싣는다 — 요청 헤더(토큰)·응답 본문이 이벤트에 섞이지 않게
+        captureError(new Error(`checkAuth deferred: ${failure}`), {
+          scope: 'checkAuth.deferred',
+          failure,
+          reason,
+          status: isAxiosError(e) ? e.response?.status : undefined,
+          code: isAxiosError(e) ? e.code : undefined,
         });
         return;
       }
       // Clear invalid tokens
       await storage.removeItem('access_token');
       await storage.removeItem('refresh_token');
-      set({ isLoading: false });
+      set({ isLoading: false, authCheckDeferred: false, authCheckDeferredReason: null });
     }
   },
 

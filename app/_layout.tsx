@@ -3,7 +3,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { useFonts } from 'expo-font';
 import { Stack, router, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Platform, View } from 'react-native';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -25,6 +25,10 @@ import { triggerResume } from '@src/services/resumeUploads';
 import { RESUME_INTERVAL_MS } from '@src/constants/upload';
 import { useUploadQueueStore } from '@src/store/uploadQueueStore';
 import NetInfo from '@react-native-community/netinfo';
+import ErrorView from '@/src/components/common/ErrorView';
+import { useNetworkResume } from '@src/hooks/useNetworkResume';
+import { t } from '@src/i18n';
+import { darkTheme, lightTheme, palette } from '@src/theme/colors';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -58,7 +62,14 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
 
-  const { isAuthenticated, checkAuth, authCheckDeferred } = useAuthStore();
+  const {
+    isAuthenticated,
+    checkAuth,
+    authCheckDeferred,
+    authCheckDeferredReason,
+    isLoading: authCheckInFlight,
+  } = useAuthStore();
+  const colorScheme = useColorScheme();
   const pathname = usePathname();
   const { loadSettings } = useSettingsStore();
   const { isLocked, isEnabled: appLockEnabled, initialize: initAppLock, lock: lockApp } = useAppLockStore();
@@ -179,29 +190,37 @@ export default function RootLayout() {
   // 기기가 잠긴 동안(prewarming / 잠금 직후)에는 access_token·앱락 플래그를 읽을 수 없어
   // checkAuth와 appLock.initialize가 보류로 끝난다. 'active' 전이는 잠금 해제 직후이므로 여기서 재시도한다.
   // 업로드 재개 리스너(위)와 분리된 별도 리스너 — 재시도 실패가 triggerResume을 막지 않게 한다.
+  // D6: 같은 재시도를 네트워크 복구(offline→online)와 보류 화면의 "다시 시도" 버튼도 공유한다.
+  // deferredRetryInFlight 가드로 근접 트리거가 겹쳐도 1회만 실행된다.
+  const runDeferredRetry = useCallback(() => {
+    if (deferredRetryInFlight.current) return;
+
+    const needAuth = useAuthStore.getState().authCheckDeferred;
+    const needLock = useAppLockStore.getState().initDeferred;
+    if (!needAuth && !needLock) return;
+
+    deferredRetryInFlight.current = true;
+    (async () => {
+      try {
+        if (needAuth) await useAuthStore.getState().checkAuth();
+        if (needLock) await useAppLockStore.getState().retryInitialize();
+      } catch (e) {
+        captureError(e instanceof Error ? e : new Error(String(e)), { scope: 'deferredRetry' });
+      } finally {
+        deferredRetryInFlight.current = false;
+      }
+    })();
+  }, []);
+
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {
       if (nextState !== 'active') return;
-      if (deferredRetryInFlight.current) return;
-
-      const needAuth = useAuthStore.getState().authCheckDeferred;
-      const needLock = useAppLockStore.getState().initDeferred;
-      if (!needAuth && !needLock) return;
-
-      deferredRetryInFlight.current = true;
-      (async () => {
-        try {
-          if (needAuth) await useAuthStore.getState().checkAuth();
-          if (needLock) await useAppLockStore.getState().retryInitialize();
-        } catch (e) {
-          captureError(e instanceof Error ? e : new Error(String(e)), { scope: 'deferredRetry' });
-        } finally {
-          deferredRetryInFlight.current = false;
-        }
-      })();
+      runDeferredRetry();
     });
     return () => sub.remove();
-  }, []);
+  }, [runDeferredRetry]);
+
+  useNetworkResume(runDeferredRetry);
 
   // B-DN: 네트워크 online 이벤트 시 재개
   // (앱을 foreground에 켜둔 채 Wi-Fi/데이터만 끊겼다 붙는 경우 — AppState active 공백 보완)
@@ -315,10 +334,33 @@ export default function RootLayout() {
   // initialRouteName이 '(tabs)'라 그대로 두면 홈 탭이 미인증 상태로 마운트되어
   // loadAllItems()와 폴링이 계속 실패 호출을 돈다(app/(tabs)/index.tsx:463,584,616).
   // 잠금 해제 → AppState 'active' 재시도가 보류를 풀면 정상 분기로 이어진다.
+  // D6: 보류 사유별 안내 + "다시 시도". 재시도(checkAuth) 진행 중에는 스피너만 보인다.
   if (authCheckDeferred && !isAuthenticated) {
+    const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" />
+      <View
+        style={{
+          flex: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.background.primary,
+        }}
+      >
+        {authCheckInFlight ? (
+          <ActivityIndicator size="large" color={theme.text.secondary} />
+        ) : (
+          <ErrorView
+            message={t(
+              authCheckDeferredReason === 'offline'
+                ? 'error.authCheckOffline'
+                : 'error.authCheckUnavailable'
+            )}
+            onRetry={runDeferredRetry}
+            textColor={theme.text.primary}
+            subTextColor={theme.text.secondary}
+            buttonColor={palette.primary[500]}
+          />
+        )}
       </View>
     );
   }

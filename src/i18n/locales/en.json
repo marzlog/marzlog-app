@@ -648,6 +648,8 @@
   },
   "error": {
     "network": "Please check your internet connection",
+    "authCheckOffline": "You're not connected to the internet. Please check your connection and try again.",
+    "authCheckUnavailable": "The connection isn't stable right now. Please try again in a moment.",
     "timeout": "Request timed out. Please try again",
     "server": "Server error occurred. Please try again later",
     "sessionExpired": "Session expired. Please log in again",

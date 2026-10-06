@@ -648,6 +648,8 @@
   },
   "error": {
     "network": "Vui lòng kiểm tra kết nối internet",
+    "authCheckOffline": "Bạn chưa kết nối internet. Vui lòng kiểm tra kết nối rồi thử lại.",
+    "authCheckUnavailable": "Kết nối hiện chưa ổn định. Vui lòng thử lại sau giây lát.",
     "timeout": "Yêu cầu đã hết thời gian chờ. Vui lòng thử lại",
     "server": "Đã xảy ra sự cố với máy chủ. Vui lòng thử lại sau",
     "sessionExpired": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại",
