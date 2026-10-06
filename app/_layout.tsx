@@ -29,6 +29,7 @@ import ErrorView from '@/src/components/common/ErrorView';
 import { useNetworkResume } from '@src/hooks/useNetworkResume';
 import { t } from '@src/i18n';
 import { darkTheme, lightTheme, palette } from '@src/theme/colors';
+import { ensureInstallMarker } from '@src/utils/installMarker';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -145,6 +146,8 @@ export default function RootLayout() {
         checkAuth(),
         loadSettings(),
         initAppLock(),
+        // D1 1단계: 설치 표식 기록만(실패는 내부에서 삼킴) — 동작 변경 없음
+        ensureInstallMarker(),
       ]);
       try {
         const value = await AsyncStorage.getItem(ONBOARDING_KEY);
