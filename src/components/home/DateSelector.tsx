@@ -16,6 +16,9 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { getEmotionIcon } from '@/constants/emotions';
 
+// 100/7(14.2857…%)은 기기 폭에 따라 7칸 반올림 합이 부모 폭을 넘어 토요일 칸이 다음 줄로 밀린다
+const DAY_CELL_WIDTH = '14.28%';
+
 // Android requires LayoutAnimation flag
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -390,7 +393,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   dayCell: {
-    width: `${100 / 7}%`,
+    width: DAY_CELL_WIDTH,
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',

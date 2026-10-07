@@ -1,5 +1,5 @@
 
-import { AxiosError } from 'axios';
+import { AxiosError, AxiosRequestConfig } from 'axios';
 import apiClient from './client';
 import { t } from '../i18n';
 import type {
@@ -390,8 +390,8 @@ export const authApi = {
   /**
    * 현재 사용자 정보 조회
    */
-  async getCurrentUser(): Promise<User> {
-    const response = await apiClient.get<User>('/auth/me');
+  async getCurrentUser(options?: Pick<AxiosRequestConfig, 'timeout'>): Promise<User> {
+    const response = await apiClient.get<User>('/auth/me', options);
     return response.data;
   },
 
