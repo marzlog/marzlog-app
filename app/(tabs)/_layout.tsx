@@ -9,6 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { palette, lightTheme, darkTheme } from '@/src/theme/colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
+import { useAuthStore } from '@/src/store/authStore';
+import { canShowTabs } from '@/src/utils/bootRoute';
 // B-ANDROID-EDGE-INSET(14차): 탭바 기하를 화면과 공유한다 (하드코딩 금지)
 import { TAB_BAR_HEIGHT, TAB_BAR_MIN_BOTTOM, TAB_BAR_SIDE_GAP } from '@/src/constants/layout';
 
@@ -173,6 +175,18 @@ function CustomTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 const renderTabBar = (props: BottomTabBarProps) => <CustomTabBar {...props} />;
 
 export default function TabLayout() {
+  const colorScheme = useColorScheme();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
+
+  // B-HOME-PREMOUNT: Stack 이 '(tabs)'부터 마운트되므로(unstable_settings) 미인증·언어 미선택
+  // 상태에서는 탭(홈)을 그리지 않는다 — 데이터 로드·폴링도 시작하지 않는다.
+  // 이동은 루트 _layout 의 이동 effect 한 곳에서만 한다(<Redirect> 미사용 — 이중 이동 방지).
+  if (!canShowTabs(isAuthenticated, user)) {
+    const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+    return <View style={{ flex: 1, backgroundColor: theme.background.primary }} />;
+  }
+
   return (
     <Tabs
       tabBar={renderTabBar}

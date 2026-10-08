@@ -13,7 +13,7 @@ import * as Updates from 'expo-updates';
 
 import { initializeKakaoSDK } from '@react-native-kakao/core';
 import { useColorScheme } from '@/components/useColorScheme';
-import { initSentry, captureError } from '../src/utils/sentry';
+import { initSentry, captureError, captureMessage } from '../src/utils/sentry';
 import { setOnConsentRequired } from '../src/api/client';
 import { useAuthStore } from '@src/store/authStore';
 import { useSettingsStore } from '@src/store/settingsStore';
@@ -31,6 +31,8 @@ import { useNetworkResume } from '@src/hooks/useNetworkResume';
 import { t } from '@src/i18n';
 import { darkTheme, lightTheme, palette } from '@src/theme/colors';
 import { ensureInstallMarker } from '@src/utils/installMarker';
+import { BOOT_ROUTE_PATHS, isBootRouteReached, resolveBootRoute } from '@src/utils/bootRoute';
+import { BOOT_SPLASH_MAX_WAIT_MS } from '@src/constants/boot';
 import { resolveOtaCheckFailure } from '@src/utils/otaCheckFailure';
 
 export {
@@ -72,6 +74,7 @@ export default function RootLayout() {
 
   const {
     isAuthenticated,
+    user,
     checkAuth,
     authCheckDeferred,
     authCheckDeferredReason,
@@ -84,6 +87,7 @@ export default function RootLayout() {
   const [initialReady, setInitialReady] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
   const backgroundTimestamp = useRef<number | null>(null);
+  const splashHidden = useRef(false);
   const deferredRetryInFlight = useRef(false);
   const LOCK_THRESHOLD_MS = 30_000;
 
@@ -95,11 +99,42 @@ export default function RootLayout() {
     if (error) throw error;
   }, [error]);
 
-  // 스플래시는 init까지 끝난 뒤 숨긴다 — 폰트만 보고 숨기면 initialReady 전 return null 구간이 흰 화면으로 보인다
+  // B-HOME-PREMOUNT: 부트 판정(아래 이동 effect 와 같은 함수). Stack 은 '(tabs)'부터 마운트되므로
+  // 판정된 첫 화면에 도착하기 전에 스플래시를 내리면 홈이 한 프레임 이상 보인다.
+  const bootTarget = resolveBootRoute({
+    ready: loaded && initialReady,
+    onboardingCompleted,
+    isAuthenticated,
+    authCheckDeferred,
+    user,
+  });
+  const bootTargetRef = useRef(bootTarget);
+  bootTargetRef.current = bootTarget;
+
+  // 스플래시는 init까지 끝나고 판정된 화면에 도착한 뒤 숨긴다(1회) —
+  // 폰트만 보고 숨기면 initialReady 전 return null 구간이 흰 화면으로, init 만 보고 숨기면 홈이 보인다
   useEffect(() => {
-    if (loaded && initialReady) {
+    if (splashHidden.current) return;
+    if (isBootRouteReached(bootTarget, pathname)) {
+      splashHidden.current = true;
       SplashScreen.hideAsync();
     }
+  }, [bootTarget, pathname]);
+
+  // 안전장치: 준비 후 BOOT_SPLASH_MAX_WAIT_MS 안에 도착하지 못하면 그래도 내린다(스플래시 갇힘 방지)
+  useEffect(() => {
+    if (!loaded || !initialReady) return;
+    const timer = setTimeout(() => {
+      if (splashHidden.current) return;
+      splashHidden.current = true;
+      SplashScreen.hideAsync();
+      captureMessage('boot splash hidden by timeout', undefined, {
+        level: 'warning',
+        fingerprint: ['boot-splash-timeout'],
+        tags: { target: bootTargetRef.current },
+      });
+    }, BOOT_SPLASH_MAX_WAIT_MS);
+    return () => clearTimeout(timer);
   }, [loaded, initialReady]);
 
   // Check for OTA updates on app start
@@ -323,29 +358,26 @@ export default function RootLayout() {
   }, []);
 
   // Single navigation effect: handles initial routing + logout redirect
+  // 분기는 resolveBootRoute(src/utils/bootRoute.ts)가 맡고 여기서는 replace 만 한다.
+  // - tabs: 그대로 / pending: 대기
+  // - deferred(B-SECURESTORE-LOCKED): Keychain 보류 중에는 "미인증"이 확정이 아니다. 토큰을 보존해 뒀으므로
+  //   잠금 해제 후 재시도가 세션을 되살린다 — 여기서 /login으로 밀면 복귀 경로가 없어진다.
+  //   보류가 풀리면 authCheckDeferred 변화로 이 effect가 다시 돌아 정상 분기한다.
   useEffect(() => {
-    if (!initialReady || !loaded || onboardingCompleted === null) return;
-
-    if (isAuthenticated) {
-      const u = useAuthStore.getState().user;
-      if (u && (u.app_lang === null || u.app_lang === undefined)) {
-        // B-EN-GATE(안 A): 이미 language-select면 재replace 금지 → 재진입 루프 차단
-        if (!pathname.startsWith('/language-select')) {
-          router.replace('/language-select?from=login');  // 언어 미선택 → 1회 선택
-        }
+    const target = resolveBootRoute({
+      ready: initialReady && loaded,
+      onboardingCompleted,
+      isAuthenticated,
+      authCheckDeferred,
+      user: useAuthStore.getState().user,
+    });
+    if (target === 'language-select') {
+      // B-EN-GATE(안 A): 이미 language-select면 재replace 금지 → 재진입 루프 차단
+      if (!pathname.startsWith('/language-select')) {
+        router.replace(BOOT_ROUTE_PATHS['language-select']);  // 언어 미선택 → 1회 선택
       }
-      return; // 선택됨 → tabs
-    }
-
-    // B-SECURESTORE-LOCKED: Keychain 보류 중에는 "미인증"이 확정이 아니다. 토큰을 보존해 뒀으므로
-    // 잠금 해제 후 재시도가 세션을 되살린다 — 여기서 /login으로 밀면 복귀 경로가 없어진다.
-    // 보류가 풀리면 authCheckDeferred 변화로 이 effect가 다시 돌아 정상 분기한다.
-    if (authCheckDeferred) return;
-
-    if (!onboardingCompleted) {
-      router.replace('/onboarding');
-    } else {
-      router.replace('/login');
+    } else if (target === 'onboarding' || target === 'login') {
+      router.replace(BOOT_ROUTE_PATHS[target]);
     }
   }, [isAuthenticated, initialReady, loaded, onboardingCompleted, authCheckDeferred]);
 
@@ -403,9 +435,10 @@ function RootLayoutNav() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <DialogProvider>
         <Stack>
-          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+          {/* B-HOME-PREMOUNT: 부트 replace 가 빈 (tabs) 위로 미끄러져 들어오는 전환을 없앤다 */}
+          <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="intro" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="login" options={{ headerShown: false, animation: 'none' }} />
           <Stack.Screen name="register" options={{ headerShown: false }} />
           <Stack.Screen name="terms-agreement" options={{ headerShown: false }} />
           <Stack.Screen name="policy/terms" options={{ headerShown: false }} />
