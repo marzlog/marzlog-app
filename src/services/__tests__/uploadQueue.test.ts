@@ -14,6 +14,7 @@
  *  5) single 2단계: uploadedMediaId 보존 시 재개가 재업로드 없이 메타만 재시도
  *  6) listResumable: userId 일치 + state in (pending,failed)만, 불일치 job 보존
  *  7) clearAll: QUEUE_DIR deleteAsync(idempotent)
+ *  8) B-UPLOAD-FAIL-AS-PENDING: discardJob(markDone 과 같은 정리) + settleFailedJob(분류 → 큐 반영 → 관측)
  */
 
 // ── expo-file-system/legacy in-memory mock ──────────────────────────────────
@@ -49,8 +50,15 @@ jest.mock('expo-file-system/legacy', () => ({
   }),
 }));
 
+jest.mock('@sentry/react-native', () => ({ addBreadcrumb: jest.fn() }));
+jest.mock('../../utils/sentry', () => ({ captureMessage: jest.fn(), captureError: jest.fn() }));
+
+import * as Sentry from '@sentry/react-native';
+import { AxiosError } from 'axios';
 import * as uploadQueue from '../uploadQueue';
-import { QUEUE_MANIFEST, QUEUE_DIR } from '../../constants/upload';
+import { captureMessage } from '../../utils/sentry';
+import { S3UploadError, UploadOversizeError } from '../../utils/uploadFailure';
+import { QUEUE_MANIFEST, QUEUE_DIR, MAX_RESUME_ATTEMPTS } from '../../constants/upload';
 
 const SOURCE = {
   uri: 'file:///cache/photo.jpg',
@@ -64,7 +72,23 @@ const SOURCE = {
 beforeEach(() => {
   memFiles.clear();
   memDirs.clear();
+  (Sentry.addBreadcrumb as jest.Mock).mockClear();
+  (captureMessage as jest.Mock).mockClear();
 });
+
+const axiosConfig = { headers: {} };
+function httpError(status, data) {
+  return new AxiosError(`HTTP ${status}`, AxiosError.ERR_BAD_RESPONSE, axiosConfig, null, {
+    data,
+    status,
+    statusText: '',
+    headers: {},
+    config: axiosConfig,
+  });
+}
+const QUOTA_413 = () => httpError(413, { detail: { error_code: 'STORAGE_QUOTA_EXCEEDED', detail: { used_bytes: 1, limit_bytes: 1 } } });
+const NETWORK = () => new AxiosError('Network Error', AxiosError.ERR_NETWORK, axiosConfig);
+const CTX = { path: 'single', source: 'direct' };
 
 describe('uploadQueue state transitions', () => {
   it('enqueue creates a pending job with a persisted copy', async () => {
@@ -165,3 +189,155 @@ describe('uploadQueue clearAll', () => {
 
 // 403 재발급 분기는 uploadToS3('PRESIGNED_EXPIRED') + withRetry no-retry 동작에 대한 것으로,
 // useImageUpload 통합 테스트(B-DD 이후)에서 검증한다. 여기서는 큐 영속 계층만 다룬다.
+
+describe('uploadQueue discardJob / settleFailedJob (B-UPLOAD-FAIL-AS-PENDING)', () => {
+  async function enqueueJob(items = [SOURCE]) {
+    return uploadQueue.enqueue({ kind: 'single', userId: 'u1', items, primaryIndex: 0 });
+  }
+
+  it('discardJob 은 markDone 과 같이 manifest 항목과 로컬 사본을 지운다', async () => {
+    memFiles.set(SOURCE.uri, 'bytes');
+    const job = await enqueueJob();
+    const copy = job.items[0].persistedUri;
+    expect(memFiles.has(copy)).toBe(true);
+
+    await uploadQueue.discardJob(job.jobId);
+
+    expect(await uploadQueue.readManifest()).toEqual([]);
+    expect(memFiles.has(copy)).toBe(false);
+    expect(await uploadQueue.listResumable('u1')).toEqual([]);
+  });
+
+  it('없는 jobId 로 discardJob 을 불러도 다른 작업은 그대로', async () => {
+    memFiles.set(SOURCE.uri, 'bytes');
+    const job = await enqueueJob();
+    await uploadQueue.discardJob('nope');
+    expect((await uploadQueue.readManifest()).map((j) => j.jobId)).toEqual([job.jobId]);
+  });
+
+  it('quota → 버림(대기 건수에서 제외) + breadcrumb 만, warning 0회', async () => {
+    memFiles.set(SOURCE.uri, 'bytes');
+    const job = await enqueueJob();
+
+    const action = await uploadQueue.settleFailedJob(job.jobId, 0, [QUOTA_413()], CTX);
+
+    expect(action).toEqual({ type: 'discard', reason: 'quota' });
+    expect(await uploadQueue.listResumable('u1')).toEqual([]);
+    expect(memFiles.has(job.items[0].persistedUri)).toBe(false);
+    expect(Sentry.addBreadcrumb).toHaveBeenCalledTimes(1);
+    expect(Sentry.addBreadcrumb).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'upload', level: 'info', data: { path: 'single', source: 'direct' } }),
+    );
+    expect(captureMessage).not.toHaveBeenCalled();
+  });
+
+  it('rejected → 버림 + warning 1회(fingerprint upload-rejected, 상태 코드·경로 종류만)', async () => {
+    memFiles.set(SOURCE.uri, 'bytes');
+    const job = await enqueueJob();
+
+    const action = await uploadQueue.settleFailedJob(job.jobId, 2, [httpError(422)], { path: 'group', source: 'resume' });
+
+    expect(action).toEqual({ type: 'discard', reason: 'rejected' });
+    expect(await uploadQueue.listResumable('u1')).toEqual([]);
+    expect(captureMessage).toHaveBeenCalledTimes(1);
+    expect(captureMessage).toHaveBeenCalledWith('upload job discarded: rejected', undefined, {
+      level: 'warning',
+      fingerprint: ['upload-rejected'],
+      tags: { status: '422', path: 'group', source: 'resume' },
+    });
+    // 파일명·사용자 식별값은 싣지 않는다
+    expect(JSON.stringify((captureMessage as jest.Mock).mock.calls)).not.toMatch(/photo\.jpg|u1|persist/);
+    expect(Sentry.addBreadcrumb).not.toHaveBeenCalled();
+  });
+
+  it('transient → 보존, 재시도 횟수 불변(listResumable 유지)', async () => {
+    memFiles.set(SOURCE.uri, 'bytes');
+    const job = await enqueueJob();
+
+    const action = await uploadQueue.settleFailedJob(job.jobId, 3, [NETWORK()], CTX);
+
+    expect(action).toEqual({ type: 'keep', incrementAttempts: false });
+    const [kept] = await uploadQueue.listResumable('u1');
+    expect(kept.state).toBe('failed');
+    expect(kept.attempts).toBe(3);
+    expect(captureMessage).not.toHaveBeenCalled();
+    expect(Sentry.addBreadcrumb).not.toHaveBeenCalled();
+  });
+
+  it('auth(401) → 보존, 재시도 횟수 불변', async () => {
+    memFiles.set(SOURCE.uri, 'bytes');
+    const job = await enqueueJob();
+    await uploadQueue.settleFailedJob(job.jobId, 1, [httpError(401)], CTX);
+    const [kept] = await uploadQueue.listResumable('u1');
+    expect(kept.attempts).toBe(1);
+  });
+
+  it('local → 보존, 재시도 횟수 +1 (5회 상한에서 재개 제외·보존)', async () => {
+    memFiles.set(SOURCE.uri, 'bytes');
+    const job = await enqueueJob();
+
+    await uploadQueue.settleFailedJob(job.jobId, 0, [new Error('File does not exist')], CTX);
+    expect((await uploadQueue.listResumable('u1'))[0].attempts).toBe(1);
+
+    await uploadQueue.settleFailedJob(job.jobId, MAX_RESUME_ATTEMPTS - 1, [new Error('x')], CTX);
+    expect(await uploadQueue.listResumable('u1')).toEqual([]);
+    expect(await uploadQueue.readManifest()).toHaveLength(1); // 5회 초과 작업의 정리는 범위 밖(보존)
+  });
+
+  it('재발급 후에도 S3 403 → local(+1), 첫 S3 403 → transient(불변)', async () => {
+    memFiles.set(SOURCE.uri, 'bytes');
+    const job = await enqueueJob();
+
+    await uploadQueue.settleFailedJob(job.jobId, 0, [new S3UploadError(403, 'PRESIGNED_EXPIRED')], CTX);
+    expect((await uploadQueue.listResumable('u1'))[0].attempts).toBe(0);
+
+    await uploadQueue.settleFailedJob(job.jobId, 0, [new S3UploadError(403, 'PRESIGNED_EXPIRED', true)], CTX);
+    expect((await uploadQueue.listResumable('u1'))[0].attempts).toBe(1);
+  });
+
+  it('사진 여러 장: rejected + transient → 보존 / rejected 만 → 버림 / quota 섞임 → 버림', async () => {
+    memFiles.set(SOURCE.uri, 'bytes');
+    const a = await enqueueJob([SOURCE, SOURCE]);
+    expect(await uploadQueue.settleFailedJob(a.jobId, 0, [httpError(400), NETWORK()], CTX)).toEqual({
+      type: 'keep',
+      incrementAttempts: false,
+    });
+    expect(await uploadQueue.settleFailedJob(a.jobId, 0, [httpError(400), httpError(422)], CTX)).toEqual({
+      type: 'discard',
+      reason: 'rejected',
+    });
+    const b = await enqueueJob([SOURCE, SOURCE]);
+    expect(await uploadQueue.settleFailedJob(b.jobId, 0, [NETWORK(), QUOTA_413()], CTX)).toEqual({
+      type: 'discard',
+      reason: 'quota',
+    });
+    expect(await uploadQueue.readManifest()).toEqual([]);
+  });
+
+  it('oversize(크기 사전 검사 초과) → 즉시 버림 + breadcrumb 만, warning 0회', async () => {
+    memFiles.set(SOURCE.uri, 'bytes');
+    const job = await enqueueJob();
+
+    const action = await uploadQueue.settleFailedJob(job.jobId, 0, [new UploadOversizeError()], CTX);
+
+    expect(action).toEqual({ type: 'discard', reason: 'oversize' });
+    expect(await uploadQueue.listResumable('u1')).toEqual([]);
+    expect(Sentry.addBreadcrumb).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'upload', message: 'upload job discarded: oversize', level: 'info' }),
+    );
+    expect(captureMessage).not.toHaveBeenCalled();
+  });
+
+  it('oversize + rejected 묶음 → 버림, rejected 기준 warning 1회', async () => {
+    memFiles.set(SOURCE.uri, 'bytes');
+    const job = await enqueueJob([SOURCE, SOURCE]);
+
+    const action = await uploadQueue.settleFailedJob(job.jobId, 0, [new UploadOversizeError(), httpError(400)], CTX);
+
+    expect(action).toEqual({ type: 'discard', reason: 'rejected' });
+    expect(captureMessage).toHaveBeenCalledTimes(1);
+    expect((captureMessage as jest.Mock).mock.calls[0][2].tags.status).toBe('400');
+    expect(Sentry.addBreadcrumb).not.toHaveBeenCalled();
+  });
+});
+

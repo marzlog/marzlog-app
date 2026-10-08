@@ -4,7 +4,8 @@
  * 목표: 약한 네트워크에서도 사진 무손실.
  *  - 촬영/선택 즉시 documentDirectory에 사본 보관(persistCopy)
  *  - 업로드 진행 상황을 manifest.json에 기록
- *  - 성공 → 사본/항목 제거(markDone), 실패 → 보존(markFailed)
+ *  - 성공 → 사본/항목 제거(markDone), 실패 → 분류 후 보존(markFailed) 또는 버림(discardJob)
+ *    (B-UPLOAD-FAIL-AS-PENDING: 서버가 거절한 작업은 재시도·대기 건수에서 즉시 뺀다 — settleFailedJob)
  *  - 포그라운드 복귀/콜드스타트 시 listResumable로 재개 (services/resumeUploads.resumeUploads)
  *
  * 백엔드 무변경: 재개 시 동일 SHA256으로 prepare가 중복/skip_upload를 반환해
@@ -25,8 +26,16 @@ import {
   readAsStringAsync,
   writeAsStringAsync,
 } from 'expo-file-system/legacy';
+import * as Sentry from '@sentry/react-native';
 import { QUEUE_DIR, QUEUE_MANIFEST, MAX_RESUME_ATTEMPTS } from '../constants/upload';
 import type { GroupUploadItem, PreparedUploadInfo } from '../types/upload';
+import { captureMessage } from '../utils/sentry';
+import {
+  classifyUploadFailure,
+  decideJobFailure,
+  uploadFailureStatus,
+  type JobFailureAction,
+} from '../utils/uploadFailure';
 
 export type QueueJobKind = 'single' | 'group' | 'add';
 export type QueueJobState = 'pending' | 'failed' | 'done';
@@ -176,8 +185,8 @@ export async function enqueue(input: EnqueueInput): Promise<QueueJob> {
   return job;
 }
 
-/** manifest에서 제거 + 사본 deleteAsync(idempotent) */
-export async function markDone(jobId: string): Promise<void> {
+/** manifest에서 제거 + 사본 deleteAsync(idempotent) — markDone·discardJob 공용 */
+async function removeJob(jobId: string): Promise<void> {
   const jobs = await readManifest();
   const job = jobs.find((j) => j.jobId === jobId);
   const remaining = jobs.filter((j) => j.jobId !== jobId);
@@ -193,6 +202,16 @@ export async function markDone(jobId: string): Promise<void> {
   }
 }
 
+/** 성공 완료: manifest 제거 + 사본 삭제 */
+export async function markDone(jobId: string): Promise<void> {
+  await removeJob(jobId);
+}
+
+/** 서버 거절(quota·rejected): markDone 과 같은 정리 — 재시도·대기 건수에서 즉시 빠진다 */
+export async function discardJob(jobId: string): Promise<void> {
+  await removeJob(jobId);
+}
+
 /** state='failed' + attempts 갱신 */
 export async function markFailed(jobId: string, attempts: number): Promise<void> {
   const jobs = await readManifest();
@@ -200,6 +219,48 @@ export async function markFailed(jobId: string, attempts: number): Promise<void>
   if (idx < 0) return;
   jobs[idx] = { ...jobs[idx], state: 'failed', attempts };
   await writeManifest(jobs);
+}
+
+export interface FailureContext {
+  path: QueueJobKind;
+  source: 'direct' | 'resume';
+}
+
+/**
+ * 실패한 작업의 큐 반영(명세 §4·§6) — 세 업로드 경로와 재개가 공유한다.
+ * failures: 이 작업에서 난 실패들(사진 여러 장이면 여러 개). 분류 → 결정 → 반영 → 관측 순.
+ *  - 버림(quota·oversize): breadcrumb 만 / 버림(rejected): warning 1회(상태 코드·경로 종류만)
+ *  - 보존: local 이 있으면 attempts+1, transient·auth 만이면 attempts 유지
+ * 파일명·사용자 식별값은 어떤 기록에도 싣지 않는다.
+ */
+export async function settleFailedJob(
+  jobId: string,
+  attempts: number,
+  failures: unknown[],
+  ctx: FailureContext,
+): Promise<JobFailureAction> {
+  const action = decideJobFailure(failures.map(classifyUploadFailure));
+  if (action.type === 'keep') {
+    await markFailed(jobId, action.incrementAttempts ? attempts + 1 : attempts);
+    return action;
+  }
+  await discardJob(jobId);
+  if (action.reason === 'quota' || action.reason === 'oversize') {
+    Sentry.addBreadcrumb({
+      category: 'upload',
+      message: `upload job discarded: ${action.reason}`,
+      level: 'info',
+      data: { path: ctx.path, source: ctx.source },
+    });
+  } else {
+    const status = failures.map(uploadFailureStatus).find((s) => s !== null) ?? null;
+    captureMessage('upload job discarded: rejected', undefined, {
+      level: 'warning',
+      fingerprint: ['upload-rejected'],
+      tags: { status: status === null ? 'none' : String(status), path: ctx.path, source: ctx.source },
+    });
+  }
+  return action;
 }
 
 /** group/add: 해당 index 항목의 업로드 결과 영속(재개 시 재업로드 생략) */

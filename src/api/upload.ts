@@ -6,6 +6,7 @@
  */
 import * as Crypto from 'expo-crypto';
 import { Platform } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import type {
   GroupUploadCompleteRequest,
   GroupUploadCompleteResponse,
@@ -20,6 +21,7 @@ import { apiClient } from './client';
 import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
 import { UPLOAD_PUT_TIMEOUT_MS } from '../constants/upload';
 import { toCompleteMetadata, type UploadMetadata } from '../utils/uploadMetadata';
+import { S3UploadError, UploadTimeoutError, isPresignRejected, markAfterReissue } from '../utils/uploadFailure';
 
 function getCurrentAnalysisMode(): 'light' | 'precision' {
   return aiModeToBackend(useSettingsStore.getState().aiMode);
@@ -28,7 +30,7 @@ function getCurrentAnalysisMode(): 'light' | 'precision' {
 /** 약한 네트워크에서 uploadAsync가 hang하는 것을 차단 — 타임아웃 시 'UPLOAD_TIMEOUT' reject */
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('UPLOAD_TIMEOUT')), ms);
+    const timer = setTimeout(() => reject(new UploadTimeoutError()), ms);
     promise.then(
       (value) => {
         clearTimeout(timer);
@@ -40,6 +42,16 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
       },
     );
   });
+}
+
+/** NetInfo 가 "연결 없음"을 확정한 경우만 true. 판정 불가(null)·조회 실패는 false. */
+async function isConfirmedOffline(): Promise<boolean> {
+  try {
+    const state = await NetInfo.fetch();
+    return state.isConnected === false;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -120,13 +132,13 @@ export async function uploadToS3(
           resolve();
         } else if (xhr.status === 403) {
           // presigned URL 만료/서명 무효 — 상위에서 prepare 재발급 분기
-          reject(new Error('PRESIGNED_EXPIRED'));
+          reject(new S3UploadError(403, 'PRESIGNED_EXPIRED'));
         } else {
-          reject(new Error(`S3 upload failed: ${xhr.status} ${xhr.statusText}`));
+          reject(new S3UploadError(xhr.status, `S3 upload failed: ${xhr.status} ${xhr.statusText}`));
         }
       });
 
-      xhr.addEventListener('error', () => reject(new Error('Network error during S3 upload')));
+      xhr.addEventListener('error', () => reject(new S3UploadError(null, 'Network error during S3 upload')));
       xhr.timeout = 120000; // 2분 타임아웃
       xhr.open('PUT', presignedUrl);
       xhr.setRequestHeader('Content-Type', contentType);
@@ -138,24 +150,36 @@ export async function uploadToS3(
     const LegacyFS = require('expo-file-system/legacy');
     // 약한 네트워크 hang 방지: UPLOAD_PUT_TIMEOUT_MS 초과 시 'UPLOAD_TIMEOUT' reject
     // LegacyFS는 동적 require(any)라 결과 형태를 명시한다.
-    const result = await withTimeout<{ status: number }>(
-      LegacyFS.uploadAsync(presignedUrl, fileUri, {
-        httpMethod: 'PUT',
-        uploadType: LegacyFS.FileSystemUploadType.BINARY_CONTENT,
-        headers: {
-          'Content-Type': contentType,
-        },
-      }),
-      UPLOAD_PUT_TIMEOUT_MS,
-    );
+    let result: { status: number };
+    try {
+      result = await withTimeout<{ status: number }>(
+        LegacyFS.uploadAsync(presignedUrl, fileUri, {
+          httpMethod: 'PUT',
+          uploadType: LegacyFS.FileSystemUploadType.BINARY_CONTENT,
+          headers: {
+            'Content-Type': contentType,
+          },
+        }),
+        UPLOAD_PUT_TIMEOUT_MS,
+      );
+    } catch (err) {
+      if (err instanceof UploadTimeoutError) throw err;
+      // 응답 없이 끝난 PUT: NetInfo 가 오프라인을 확인한 경우만 응답 없음(transient).
+      // 온라인·판별 불가(null·조회 실패)는 원 오류 그대로(local — 재시도 횟수 +1, 5회 상한).
+      // 메시지 문자열로 가르지 않는다. 원 메시지는 유지.
+      if (await isConfirmedOffline()) {
+        throw new S3UploadError(null, err instanceof Error ? err.message : String(err));
+      }
+      throw err;
+    }
 
     if (result.status === 403) {
       // presigned URL 만료/서명 무효 — 상위에서 prepare 재발급 분기
-      throw new Error('PRESIGNED_EXPIRED');
+      throw new S3UploadError(403, 'PRESIGNED_EXPIRED');
     }
 
     if (result.status < 200 || result.status >= 300) {
-      throw new Error(`S3 upload failed: ${result.status}`);
+      throw new S3UploadError(result.status, `S3 upload failed: ${result.status}`);
     }
 
     onProgress?.(100);
@@ -216,6 +240,7 @@ export async function uploadImage(
   const completeMeta = toCompleteMetadata(metadata);
   // F-UPLOAD-DUP B: 저장된 prepare 결과가 있으면 해시/prepare 생략 — 같은 storage_key로
   // PUT+complete. 만료(PRESIGNED_EXPIRED)만 신규 prepare로 계속, 그 외 에러는 그대로 throw.
+  let reissued = false;
   if (reuse?.prepared) {
     const p = reuse.prepared;
     try {
@@ -237,9 +262,10 @@ export async function uploadImage(
       onStatusChange?.('완료!');
       return result;
     } catch (err) {
-      if (!(err instanceof Error && err.message === 'PRESIGNED_EXPIRED')) {
+      if (!isPresignRejected(err)) {
         throw err;
       }
+      reissued = true;
     }
   }
 
@@ -313,9 +339,14 @@ export async function uploadImage(
     });
   }
 
-  await uploadToS3(uploadUrl, image.uri, image.mimeType, (s3Progress) => {
-    onProgress?.(15 + Math.round(s3Progress * 0.75));
-  });
+  try {
+    await uploadToS3(uploadUrl, image.uri, image.mimeType, (s3Progress) => {
+      onProgress?.(15 + Math.round(s3Progress * 0.75));
+    });
+  } catch (err) {
+    // 만료 폴백으로 새로 받은 서명마저 403 이면 만료가 아니다 — 분류에서 local 로 본다
+    throw reissued ? markAfterReissue(err) : err;
+  }
   onProgress?.(90);
 
   // 4. 완료 콜백 - AI 분석 트리거 (90-100%)

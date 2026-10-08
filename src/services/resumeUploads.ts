@@ -9,9 +9,10 @@
  * 기준으로 멱등(중복 재호출 시 기존 Media 반환, Redis 만료도 fallback). 따라서 재개가
  * complete를 재호출해도 서버가 중복 Media 생성을 막는다 — 프론트의 과방어는 불필요하다.
  *
- * 각 job은 try/catch로 격리되며, 실패는 markFailed(attempts+1)로 보존(크래시 금지).
+ * 각 job은 try/catch로 격리되며, 실패는 분류 후 큐에 반영한다(크래시 금지 — settleFailedJob):
+ * 일시 실패는 attempts 유지, 로컬 원인은 attempts+1, 서버 거절(quota·rejected)은 큐에서 버림.
  * PRESIGNED_EXPIRED는 재시도가 아니라 prepare 재발급 대상 — 즉시 throw되어 해당 job만
- * markFailed되고 다음 재개 사이클이 새 presigned로 흡수한다.
+ * 보존되고 다음 재개 사이클이 새 presigned로 흡수한다. 재개가 새로 받은 서명마저 403 이면 local.
  */
 import { Platform } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
@@ -26,7 +27,14 @@ import {
 import { updateMedia } from '../api/media';
 import type { SelectedImage, GroupUploadItem } from '../types/upload';
 import { captureError } from './../utils/sentry';
-import { withRetry, isTransientUploadError } from '../utils/retry';
+import { withRetry } from '../utils/retry';
+import {
+  classifyUploadFailure,
+  defersUntilSettled,
+  markAfterReissue,
+  reportsAsException,
+  type JobFailureAction,
+} from '../utils/uploadFailure';
 import { UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS } from '../constants/upload';
 import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
 import { useMediaUpdatesStore } from '../store/mediaUpdatesStore';
@@ -42,6 +50,20 @@ async function safeQueue(fn: () => Promise<void>): Promise<void> {
     await fn();
   } catch (e) {
     captureError(e instanceof Error ? e : new Error(String(e)), { context: 'resumeUploads.queue' });
+  }
+}
+
+/**
+ * single 재개의 사진별 실패 묶음 — 작업 catch 가 failures 전체를 settleFailedJob 에 넘긴다
+ * (사진 여러 장인 single 작업에서 한 장의 거절이 미처리 사진까지 버리지 않게).
+ */
+class ResumeItemsError extends Error {
+  readonly failures: unknown[];
+
+  constructor(failures: unknown[]) {
+    super(`resume single: ${failures.length} item(s) failed`);
+    this.name = 'ResumeItemsError';
+    this.failures = failures;
   }
 }
 
@@ -93,11 +115,16 @@ async function uploadOneItem(qi: uploadQueue.QueueItem): Promise<GroupUploadItem
     throw new Error('No presigned URL received');
   }
 
-  await withRetry(
-    () => uploadToS3(uploadUrl, qi.persistedUri, qi.mimeType),
-    UPLOAD_MAX_ATTEMPTS,
-    UPLOAD_BACKOFF_BASE_MS,
-  );
+  try {
+    await withRetry(
+      () => uploadToS3(uploadUrl, qi.persistedUri, qi.mimeType),
+      UPLOAD_MAX_ATTEMPTS,
+      UPLOAD_BACKOFF_BASE_MS,
+    );
+  } catch (err) {
+    // 재개는 매번 prepare 를 새로 받는다(서명 재발급) — 그래도 403 이면 만료가 아니다(local)
+    throw markAfterReissue(err);
+  }
 
   if (!prepareResponse.upload_id || !prepareResponse.storage_key) {
     throw new Error('Missing upload_id/storage_key');
@@ -176,7 +203,9 @@ async function resumeSingle(job: uploadQueue.QueueJob): Promise<void> {
   // 같은 storage_key로 PUT+complete → 서버 (user_id, storage_key) 멱등이 중복 Media를 흡수.
   // (구 코드는 매 재개마다 재-prepare해 새 storage_key를 받아 멱등이 무력화됐다.)
   // presigned 만료 폴백의 새 prepare 결과는 onPrepared로 구 key를 교체한다.
+  // 사진별로 실패를 모아 작업 단위로 판정한다(직접 경로 startUpload 와 같음). 용량 초과에서는 중단.
   let firstMediaId: string | undefined;
+  const failures: unknown[] = [];
   for (let i = 0; i < job.items.length; i++) {
     const qi = job.items[i];
     const selectedImage: SelectedImage = {
@@ -189,13 +218,19 @@ async function resumeSingle(job: uploadQueue.QueueJob): Promise<void> {
       clientExif: qi.clientExif,
     };
     const itemIndex = i;
-    const result = await uploadImage(selectedImage, undefined, undefined, job.takenAt, {
-      prepared: qi.prepared,
-      onPrepared: (p) =>
-        safeQueue(() => uploadQueue.markItemPrepared(job.jobId, itemIndex, p)),
-    });
-    if (!firstMediaId && result.media_id) firstMediaId = result.media_id;
+    try {
+      const result = await uploadImage(selectedImage, undefined, undefined, job.takenAt, {
+        prepared: qi.prepared,
+        onPrepared: (p) =>
+          safeQueue(() => uploadQueue.markItemPrepared(job.jobId, itemIndex, p)),
+      });
+      if (!firstMediaId && result.media_id) firstMediaId = result.media_id;
+    } catch (err) {
+      failures.push(err);
+      if (classifyUploadFailure(err) === 'quota') break;
+    }
   }
+  if (failures.length > 0) throw new ResumeItemsError(failures);
 
   // 업로드 완료된 media_id 보존 → updateMedia 실패해도 다음 재개는 메타만 재시도
   if (firstMediaId) {
@@ -238,17 +273,26 @@ export async function resumeUploads(userId: string): Promise<void> {
         await resumeSingle(job);
       }
     } catch (e) {
-      captureError(e instanceof Error ? e : new Error(String(e)), {
-        context: 'resumeUploads.job',
-        jobId: job.jobId,
+      // transient·auth: attempts 유지 / local: attempts+1(MAX_RESUME_ATTEMPTS 도달 시 자동재시도 중단·보존)
+      // 백그라운드 재개의 413 은 안내 시트를 띄우지 않고 큐 정리만 한다(명세 §3.4).
+      const failures = e instanceof ResumeItemsError ? e.failures : [e];
+      const outcome: { action?: JobFailureAction } = {};
+      await safeQueue(async () => {
+        outcome.action = await uploadQueue.settleFailedJob(job.jobId, job.attempts, failures, {
+          path: job.kind,
+          source: 'resume',
+        });
       });
-      if (isTransientUploadError(e)) {
-        // 네트워크성/일시 실패 — attempts 소모 안 함.
-        // markFailed 미호출 → state/attempts 불변 → 다음 온라인 재개에서 재시도.
-        // (대응1 gating이 "온라인일 때만 재개"를 보장하므로, 도중 끊김만 여기 해당)
-      } else {
-        // 영구성 실패만 attempts 누적(MAX_RESUME_ATTEMPTS 도달 시 자동재시도 중단·보존)
-        await safeQueue(() => uploadQueue.markFailed(job.jobId, job.attempts + 1));
+      // 예외 기록은 작업이 보존됐을 때만(직접 경로와 같은 규칙) — 버려지면 settleFailedJob 의 warning·breadcrumb 만
+      if (outcome.action?.type !== 'discard') {
+        for (const f of failures) {
+          if (reportsAsException(f, true) || defersUntilSettled(f, true)) {
+            captureError(f instanceof Error ? f : new Error(String(f)), {
+              context: 'resumeUploads.job',
+              jobId: job.jobId,
+            });
+          }
+        }
       }
     }
   }

@@ -4,13 +4,12 @@
  * - 업로드 진행 관리
  * - 상태 추적
  * - B-DN 패턴1: 최초 업로드 시 영속 큐(uploadQueue)에 사본+manifest 등록 + 진행 기록
- *   (markItemUploaded / markDone / markFailed). 재개(resume)는 화면 state와 분리된
+ *   (markItemUploaded / markDone / settleFailedJob). 재개(resume)는 화면 state와 분리된
  *   순수 함수 src/services/resumeUploads.ts가 담당한다(여기엔 없음).
  */
 import { useState, useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { Alert, Platform } from 'react-native';
-import { AxiosError } from 'axios';
 import { uploadImage, prepareUpload, uploadToS3, calculateSHA256, completeGroupUpload, addImagesToGroup } from '../api/upload';
 import { updateMedia } from '../api/media';
 import type { SelectedImage, UploadItem, UploadCompleteResponse, UploadStatus, GroupUploadCompleteResponse, GroupUploadItem } from '../types/upload';
@@ -26,13 +25,17 @@ import * as uploadQueue from '../services/uploadQueue';
 import { UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS } from '../constants/upload';
 import { withRetry } from '../utils/retry';
 import { needsMetadataPut } from '../utils/uploadMetadata';
+import {
+  UploadOversizeError,
+  classifyUploadFailure,
+  defersUntilSettled,
+  reportsAsException,
+  type JobFailureAction,
+} from '../utils/uploadFailure';
 
+/** 413 STORAGE_QUOTA_EXCEEDED — 본문은 {"detail":{"error_code":...}} (분류 함수와 같은 판별) */
 function isQuotaExceededError(err: unknown): boolean {
-  if (err instanceof AxiosError) {
-    return err.response?.status === 413 &&
-      err.response?.data?.error_code === 'STORAGE_QUOTA_EXCEEDED';
-  }
-  return false;
+  return classifyUploadFailure(err) === 'quota';
 }
 
 const MAX_SELECTION = 5; // 대표 1개 + 서브 4개
@@ -50,7 +53,7 @@ function currentUserId(): string | null {
 
 /** 큐 변형 호출 래퍼 — 큐 실패가 업로드 흐름을 깨뜨리지 않도록 swallow + 보고.
  *  F-UPLOAD-RESUME-UX: 변형 후 대기 카운트 미러 갱신(배너/주기 tick 게이팅) —
- *  최초 업로드 경로의 enqueue/markFailed/markDone은 전부 이 두 래퍼를 경유한다. */
+ *  최초 업로드 경로의 enqueue/settleFailedJob/markDone은 전부 이 두 래퍼를 경유한다. */
 async function safeQueue(fn: () => Promise<void>): Promise<void> {
   try {
     await fn();
@@ -245,6 +248,10 @@ export function useImageUpload() {
     setIsUploading(true);
     setError(null);
     const results: UploadCompleteResponse[] = [];
+    // 작업 단위 큐 반영용 — 사진별 실패(HTTP 응답이 아닌 실패 포함)를 모아 한 번에 결정
+    const failures: unknown[] = [];
+    // 큐에 올라간 작업의 rejected 는 버려질 때 warning 1건만 — 보존되면 아래에서 예외로 남긴다
+    const deferredRejected: unknown[] = [];
 
     try {
       for (let i = 0; i < pendingItems.length; i++) {
@@ -255,6 +262,8 @@ export function useImageUpload() {
             status: 'error',
             error: t('upload.fileTooLarge'),
           });
+          // 크기 사전 검사 초과 — 재시도해도 같으므로 즉시 버림(breadcrumb 만)
+          failures.push(new UploadOversizeError());
           continue;
         }
 
@@ -307,6 +316,7 @@ export function useImageUpload() {
           });
           results.push(result);
         } catch (err) {
+          failures.push(err);
           if (isQuotaExceededError(err)) {
             setQuotaExceeded(true);
             setError(t('storage.quotaExceeded'));
@@ -318,7 +328,11 @@ export function useImageUpload() {
             status: 'error',
             error: errorMsg,
           });
-          captureError(err instanceof Error ? err : new Error(String(err)), { context: 'useImageUpload.startUpload', filename: item.filename });
+          if (reportsAsException(err, jobId !== null)) {
+            captureError(err instanceof Error ? err : new Error(String(err)), { context: 'useImageUpload.startUpload', filename: item.filename });
+          } else if (defersUntilSettled(err, jobId !== null)) {
+            deferredRejected.push(err);
+          }
         }
       }
 
@@ -327,10 +341,19 @@ export function useImageUpload() {
       // ===== 영속 큐 상태 갱신 (single 2단계: 업로드 → updateMedia) =====
       const allOk = results.length === pendingItems.length;
       if (!allOk) {
-        // 일부라도 실패 → 보존(다음 재개 때 재시도)
+        // 일부라도 실패 → 분류 후 보존(다음 재개 때 재시도) 또는 버림(서버 거절)
         if (jobId) {
           const id = jobId;
-          await safeQueue(() => uploadQueue.markFailed(id, jobAttempts + 1));
+          const outcome: { action?: JobFailureAction } = {};
+          await safeQueue(async () => {
+            outcome.action = await uploadQueue.settleFailedJob(id, jobAttempts, failures, { path: 'single', source: 'direct' });
+          });
+          // 작업이 보존됐거나 큐 반영이 실패했으면 warning 이 없다 — 미뤄 둔 rejected 를 예외로 남긴다
+          if (outcome.action?.type !== 'discard') {
+            for (const e of deferredRejected) {
+              captureError(e instanceof Error ? e : new Error(String(e)), { context: 'useImageUpload.startUpload' });
+            }
+          }
         }
       } else if (results.length > 0 && results[0].media_id) {
         const firstMediaId = results[0].media_id;
@@ -347,10 +370,14 @@ export function useImageUpload() {
             await withRetry(() => updateMedia(firstMediaId, metadata), UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS);
           } catch (e) {
             metaOk = false;
-            captureError(e instanceof Error ? e : new Error(String(e)), { context: 'useImageUpload.startUpload.updateMedia' });
+            if (reportsAsException(e, jobId !== null)) {
+              captureError(e instanceof Error ? e : new Error(String(e)), { context: 'useImageUpload.startUpload.updateMedia' });
+            }
             if (jobId) {
               const id = jobId;
-              await safeQueue(() => uploadQueue.markFailed(id, jobAttempts + 1));
+              await safeQueue(async () => {
+                await uploadQueue.settleFailedJob(id, jobAttempts, [e], { path: 'single', source: 'direct' });
+              });
             }
           }
         }
@@ -446,7 +473,7 @@ export function useImageUpload() {
 
         // 파일 크기 체크
         if (item.fileSize > MAX_FILE_SIZE) {
-          throw new Error(t('upload.fileTooLargeNamed', { filename: item.filename }));
+          throw new UploadOversizeError(t('upload.fileTooLargeNamed', { filename: item.filename }));
         }
 
         updateItem(item.id, { status: 'hashing', progress: 0 });
@@ -579,10 +606,12 @@ export function useImageUpload() {
       return result;
 
     } catch (err) {
-      // 부분 실패라도 성공분(uploadedItems)은 manifest에 markItemUploaded로 보존됨 → 재개 시 흡수
+      // 분류 → 큐 반영. 보존 시 성공분(uploadedItems)은 markItemUploaded로 남아 재개 시 흡수
       if (jobId) {
         const id = jobId;
-        await safeQueue(() => uploadQueue.markFailed(id, jobAttempts + 1));
+        await safeQueue(async () => {
+          await uploadQueue.settleFailedJob(id, jobAttempts, [err], { path: 'group', source: 'direct' });
+        });
       }
       if (isQuotaExceededError(err)) {
         setQuotaExceeded(true);
@@ -592,7 +621,9 @@ export function useImageUpload() {
       }
       const errorMsg = getErrorMessage(err);
       setError(errorMsg);
-      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'useImageUpload.startGroupUpload' });
+      if (reportsAsException(err, jobId !== null)) {
+        captureError(err instanceof Error ? err : new Error(String(err)), { context: 'useImageUpload.startGroupUpload' });
+      }
       Alert.alert(t('common.error'), errorMsg);
       setIsUploading(false);
       return null;
@@ -645,7 +676,7 @@ export function useImageUpload() {
         const item = itemsToUpload[i];
 
         if (item.fileSize > MAX_FILE_SIZE) {
-          throw new Error(t('upload.fileTooLargeNamed', { filename: item.filename }));
+          throw new UploadOversizeError(t('upload.fileTooLargeNamed', { filename: item.filename }));
         }
 
         updateItem(item.id, { status: 'hashing', progress: 0 });
@@ -746,9 +777,12 @@ export function useImageUpload() {
       return true;
 
     } catch (err) {
+      // 분류 → 큐 반영
       if (jobId) {
         const id = jobId;
-        await safeQueue(() => uploadQueue.markFailed(id, jobAttempts + 1));
+        await safeQueue(async () => {
+          await uploadQueue.settleFailedJob(id, jobAttempts, [err], { path: 'add', source: 'direct' });
+        });
       }
       if (isQuotaExceededError(err)) {
         setQuotaExceeded(true);
@@ -758,7 +792,9 @@ export function useImageUpload() {
       }
       const errorMsg = getErrorMessage(err);
       setError(errorMsg);
-      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'useImageUpload.addToExistingGroup' });
+      if (reportsAsException(err, jobId !== null)) {
+        captureError(err instanceof Error ? err : new Error(String(err)), { context: 'useImageUpload.addToExistingGroup' });
+      }
       setIsUploading(false);
       return false;
     } finally {
