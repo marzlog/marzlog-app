@@ -40,14 +40,30 @@ export const captureError = (
   Sentry.captureException(error, { extra: context });
 };
 
+type MessageOptions = {
+  /** Defaults to 'warning'. Use 'info' for expected conditions that should be counted but not alerted on. */
+  level?: Sentry.SeverityLevel;
+  fingerprint?: string[];
+  tags?: Record<string, string>;
+};
+
 /**
  * Report a non-exception signal (silent failure, unexpected flow exit) as a warning.
  */
-export const captureMessage = (message: string, context?: Record<string, unknown>): void => {
+export const captureMessage = (
+  message: string,
+  context?: Record<string, unknown>,
+  options?: MessageOptions,
+): void => {
   if (process.env.NODE_ENV !== 'production') {
-    console.warn('[Warn]', message, context);
+    console.warn('[Warn]', message, context, options);
     return;
   }
 
-  Sentry.captureMessage(message, { level: 'warning', extra: context });
+  Sentry.captureMessage(message, {
+    level: options?.level ?? 'warning',
+    extra: context,
+    fingerprint: options?.fingerprint,
+    tags: options?.tags,
+  });
 };

@@ -31,6 +31,7 @@ import { useNetworkResume } from '@src/hooks/useNetworkResume';
 import { t } from '@src/i18n';
 import { darkTheme, lightTheme, palette } from '@src/theme/colors';
 import { ensureInstallMarker } from '@src/utils/installMarker';
+import { resolveOtaCheckFailure } from '@src/utils/otaCheckFailure';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -134,10 +135,22 @@ export default function RootLayout() {
           await Updates.reloadAsync();
         }
       } catch (e) {
-        console.log('[OTA] ERROR:', String((e as Error)?.message ?? e));
+        const message = String((e as Error)?.message ?? e);
+        console.log('[OTA] ERROR:', message);
+        // W-SENTRY-OFFLINE-NOISE: 오프라인 확인 실패는 정상 거동 — breadcrumb만 남기고 이벤트는 보내지 않는다
+        const action = await resolveOtaCheckFailure(() => NetInfo.fetch());
         try {
           const Sentry = require('@sentry/react-native');
-          Sentry.captureException(e, { tags: { area: 'ota-check' } });
+          if (action === 'breadcrumb') {
+            Sentry.addBreadcrumb({
+              category: 'ota-check',
+              message: '[OTA] check failed while offline',
+              level: 'info',
+              data: { error: message },
+            });
+          } else {
+            Sentry.captureException(e, { tags: { area: 'ota-check' } });
+          }
         } catch {}
       }
     })();

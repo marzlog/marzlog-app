@@ -34,7 +34,7 @@ jest.mock('../../api/auth', () => {
 });
 jest.mock('../../api/client', () => ({ setOnSessionExpired: jest.fn() }));
 jest.mock('../../utils/errorMessages', () => ({ extractErrorMessage: jest.fn() }));
-jest.mock('../../utils/sentry', () => ({ captureError: jest.fn() }));
+jest.mock('../../utils/sentry', () => ({ captureError: jest.fn(), captureMessage: jest.fn() }));
 jest.mock('../settingsStore', () => ({
   useSettingsStore: { getState: () => ({ language: 'ko', setLanguage: jest.fn(async () => {}) }) },
   backendToAiMode: jest.fn(),
@@ -51,12 +51,13 @@ import { AxiosError, AxiosResponse, HttpStatusCode, InternalAxiosRequestConfig }
 import NetInfo from '@react-native-community/netinfo';
 import authApi from '../../api/auth';
 import { AUTH_STORE_UNAVAILABLE_CODE } from '../../api/authErrors';
-import { captureError } from '../../utils/sentry';
+import { captureError, captureMessage } from '../../utils/sentry';
 import { useAuthStore } from '../authStore';
 
 const getCurrentUser = authApi.getCurrentUser as jest.Mock;
 const netInfoFetch = NetInfo.fetch as jest.Mock;
 const captureErrorMock = captureError as jest.Mock;
+const captureMessageMock = captureMessage as jest.Mock;
 const config = { headers: {} } as InternalAxiosRequestConfig;
 
 function httpError(status: number, data?: unknown): AxiosError {
@@ -82,6 +83,7 @@ beforeEach(() => {
   mockKeychain.refresh_token = 'refresh';
   getCurrentUser.mockReset();
   captureErrorMock.mockReset();
+  captureMessageMock.mockReset();
   netInfoFetch.mockReset();
   netInfoFetch.mockResolvedValue({ isConnected: true, isInternetReachable: true });
   useAuthStore.setState({
@@ -100,10 +102,13 @@ describe('checkAuth 실패 분류 (D6/D8)', () => {
     await useAuthStore.getState().checkAuth();
 
     expectDeferredWithTokens('unavailable');
-    expect(captureErrorMock).toHaveBeenCalledWith(
-      expect.any(Error),
-      expect.objectContaining({ scope: 'checkAuth.deferred', failure: 'no_response' })
-    );
+    // W-SENTRY-OFFLINE-NOISE: 응답 없음은 info 메시지로만 집계, 예외 미발송
+    expect(captureMessageMock).toHaveBeenCalledWith('checkAuth deferred: no_response', undefined, {
+      level: 'info',
+      fingerprint: ['checkAuth-deferred-no-response'],
+      tags: { scope: 'checkAuth.deferred', failure: 'no_response', reason: 'unavailable', code: 'ERR_NETWORK' },
+    });
+    expect(captureErrorMock).not.toHaveBeenCalled();
   });
 
   it('(1-b) 요청 실패 후 NetInfo가 연결 없음을 확인 → deferred(offline)', async () => {
@@ -115,6 +120,35 @@ describe('checkAuth 실패 분류 (D6/D8)', () => {
     await useAuthStore.getState().checkAuth();
 
     expectDeferredWithTokens('offline');
+    expect(captureMessageMock).toHaveBeenCalledWith(
+      'checkAuth deferred: no_response',
+      undefined,
+      expect.objectContaining({
+        level: 'info',
+        tags: expect.objectContaining({ failure: 'no_response', reason: 'offline' }),
+      })
+    );
+    expect(captureErrorMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['server_error', () => httpError(HttpStatusCode.ServiceUnavailable)],
+    [
+      'auth_store_unavailable',
+      () => httpError(HttpStatusCode.Unauthorized, { detail: { code: AUTH_STORE_UNAVAILABLE_CODE } }),
+    ],
+    ['retryable_status', () => httpError(HttpStatusCode.TooManyRequests)],
+    ['unknown', () => new Error('boom')],
+  ])('(1-c) %s → 현행 error 등급 유지(captureError, info 메시지 없음)', async (failure, makeError) => {
+    getCurrentUser.mockRejectedValue(makeError());
+
+    await useAuthStore.getState().checkAuth();
+
+    expect(captureErrorMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ scope: 'checkAuth.deferred', failure })
+    );
+    expect(captureMessageMock).not.toHaveBeenCalled();
   });
 
   it('(2) 5xx → 토큰 유지 + deferred', async () => {

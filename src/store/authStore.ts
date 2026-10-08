@@ -10,7 +10,7 @@ import { setOnSessionExpired } from '../api/client';
 import type { User, AuthState, AuthResponse } from '../types/auth';
 import { extractErrorMessage } from '../utils/errorMessages';
 import { secureStorage as storage, SECURE_KEYS, isKeychainUnavailableError } from '../utils/secureStorage';
-import { captureError } from '../utils/sentry';
+import { captureError, captureMessage } from '../utils/sentry';
 import { useSettingsStore, backendToAiMode } from './settingsStore';
 import { setLanguage as setI18nLanguage, isSupportedLocale, type SupportedLocale } from '../i18n';
 import { registerPushToken, unregisterPushToken } from '../services/pushTokenService';
@@ -453,6 +453,21 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       if (failure !== 'auth_failed') {
         const reason: AuthCheckDeferredReason = (await isConfirmedOffline()) ? 'offline' : 'unavailable';
         set({ isLoading: false, authCheckDeferred: true, authCheckDeferredReason: reason });
+        // W-SENTRY-OFFLINE-NOISE: 응답 없음(오프라인 등)은 결함이 아닌 정상 거동 — 이슈 알림을 만들지 않게
+        // info 로 내리되 건수는 남긴다(W-DEFERRED-SCREEN-ESCAPE 판단 근거). 그 외 사유는 error 유지.
+        if (failure === 'no_response') {
+          captureMessage('checkAuth deferred: no_response', undefined, {
+            level: 'info',
+            fingerprint: ['checkAuth-deferred-no-response'],
+            tags: {
+              scope: 'checkAuth.deferred',
+              failure,
+              reason,
+              ...(isAxiosError(e) && e.code ? { code: e.code } : {}),
+            },
+          });
+          return;
+        }
         // 원 오류 대신 분류값만 싣는다 — 요청 헤더(토큰)·응답 본문이 이벤트에 섞이지 않게
         captureError(new Error(`checkAuth deferred: ${failure}`), {
           scope: 'checkAuth.deferred',
