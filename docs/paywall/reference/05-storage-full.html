@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=390">
+<title>진입점: 용량 초과 안내</title>
+<!-- 시안 참조용 정적 사본. 수치(간격·글자 크기) 참조만, 색·글꼴은 앱 테마 값을 쓴다. accent 임시값 #FF6A5E -->
+<style>
+body{margin:0}
+a{color:#4A4A4F}a:hover{color:#1C1C1E}
+</style>
+</head>
+<body>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; overflow: hidden; background: #F7F7F5; color: #1C1C1E; font-family: 'Noto Sans KR', 'Noto Sans CJK KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif">
+
+<div style="padding: 12px 20px; display: flex; flex-direction: column; gap: 16px">
+<div style="height: 44px; display: flex; align-items: center; justify-content: space-between">
+<span style="font-size: 18px; font-weight: 500">Marzlog</span>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1C1C1E" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+</div>
+<div style="height: 300px; border-radius: 20px; background: #FFFFFF; border: 1px solid #E4E4E0; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #4A4A4F">[홈 캘린더]</div>
+<div style="height: 120px; border-radius: 16px; background: #E4E4E0; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #4A4A4F">[오늘의 기록]</div>
+</div>
+
+<div style="position: absolute; left: 0; top: 0; width: 390px; height: 844px; background: rgba(0,0,0,0.45)"></div>
+
+<div style="position: absolute; left: 0; bottom: 0; width: 390px; box-sizing: border-box; padding: 10px 20px 28px; background: #FFFFFF; border-radius: 24px 24px 0 0; display: flex; flex-direction: column; gap: 16px">
+<span style="align-self: center; width: 40px; height: 4px; border-radius: 2px; background: #D9D9D4"></span>
+<div style="display: flex; flex-direction: column; gap: 8px; padding-top: 4px">
+<span style="font-size: 13px; font-weight: 700; color: #4A4A4F">Marzlog Plus</span>
+<h2 style="margin: 0; font-size: 21px; line-height: 1.35; font-weight: 700">저장 공간이 가득 찼어요</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.55; color: #4A4A4F">지금까지의 기록은 그대로 볼 수 있어요. Plus에서는 100GB까지 넉넉하게 기록할 수 있어요.</p>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 12px; background: #F7F7F5">
+<div style="display: flex; justify-content: space-between; font-size: 14px">
+<span style="color: #4A4A4F">저장 공간</span>
+<span style="font-weight: 700">[사용량] / 2GB</span>
+</div>
+<div style="height: 8px; border-radius: 4px; background: #E4E4E0; overflow: hidden">
+<div style="width: 100%; height: 8px; border-radius: 4px; background: #1C1C1E"></div>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<button type="button" style="width: 100%; height: 56px; border: 0; border-radius: 999px; background: #FF6A5E; color: #FFFFFF; font-family: inherit; font-size: 17px; font-weight: 700; cursor: pointer">Plus 알아보기</button>
+<button type="button" style="width: 100%; height: 48px; border: 0; background: transparent; color: #4A4A4F; font-family: inherit; font-size: 15px; font-weight: 500; cursor: pointer">다음에 할게요</button>
+</div>
+</div>
+
+</div>
+</body>
+</html>
