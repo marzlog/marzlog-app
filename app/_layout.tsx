@@ -458,6 +458,8 @@ function RootLayoutNav() {
           <Stack.Screen name="labs" options={{ headerShown: false }} />
           {/* PAYWALL 명세 PW-8: 닫기(X)로만 닫는 전체 화면 모달(Android 는 modal 로 대체) */}
           <Stack.Screen name="paywall" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
+          {/* PAYWALL 명세 §3.2: 구독 시작 완료 — 결제 화면이 replace 로 보낸다. 스와이프로 결제 화면에 돌아가지 않게 */}
+          <Stack.Screen name="plus-success" options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>
       </DialogProvider>

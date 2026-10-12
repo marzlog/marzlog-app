@@ -20,6 +20,8 @@ import { useAuthStore } from '@src/store/authStore';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
+import { PlusCta } from '@/src/components/plus/PlusCta';
+import { plusColors } from '@/src/components/plus/plusColors';
 import { addBreadcrumb, captureError, captureMessage } from '@/src/utils/sentry';
 import {
   loadPaywallOffer,
@@ -40,6 +42,7 @@ import {
   type TextRef,
 } from '@src/utils/paywallViewModel';
 import { waitForPlusReflected } from '@src/utils/plusReflect';
+import { toPlusSuccessRouteParams } from '@src/utils/plusSuccessViewModel';
 import { PLUS_REFLECT_RETRY_COUNT, PLUS_REFLECT_RETRY_INTERVAL_MS } from '@src/constants/plus';
 import { PRIVACY_URL, TERMS_URL } from '@src/constants/legal';
 import { borderRadius, darkTheme, lightTheme, palette, spacing, typography, type Theme } from '@src/theme';
@@ -51,8 +54,8 @@ import { borderRadius, darkTheme, lightTheme, palette, spacing, typography, type
  * 구매/복원 성공은 /auth/me 재조회 트리거일 뿐 — SDK 결과로 Plus 를 단정하지 않는다.
  * 상태별 표시는 buildPaywallVM(순수 함수)이 정하고, 여기서는 렌더·이동·기록만 한다.
  *
- * D4 임시 처리(D5·D6 전): 구매 반영·복원 성공·이미 Plus 는 이 화면의 "이용 중" 카드로,
- * 결제 후 미반영은 기존 paywall.processing 안내로 대신한다(/plus-success·/subscription 은 D5·D6).
+ * 구매 완료(completed)는 반영 여부와 무관하게 /plus-success 로 replace 한다(PW-7 — 미반영도 alert 없이
+ * 완료 화면의 "반영 중" 변형으로). 복원 성공·이미 Plus 는 D6(/subscription) 전까지 이 화면의 "이용 중" 카드.
  */
 const MIN_TOUCH = 44;
 
@@ -71,6 +74,7 @@ export default function PaywallScreen() {
 
   const isDark = themeMode === 'system' ? systemColorScheme === 'dark' : themeMode === 'dark';
   const theme: Theme = isDark ? darkTheme : lightTheme;
+  const accent = plusColors(theme, isDark);
   const isPlus = user?.plan === 'plus';
 
   const [offerResult, setOfferResult] = useState<PaywallOfferResult | null>(null);
@@ -81,6 +85,8 @@ export default function PaywallScreen() {
   const busyRef = useRef(false);
   // 조건 1: 고지문까지 하단에 두되, 하단 영역이 화면 절반을 넘으면 고지문은 스크롤 끝으로 내린다
   const [disclosureInFooter, setDisclosureInFooter] = useState(true);
+  // 구매 완료 후 이동할 완료 화면 파라미터 — 잠금(usePreventRemove)이 풀린 뒤에 이동한다
+  const [successParams, setSuccessParams] = useState<Record<string, string> | null>(null);
 
   const vm = buildPaywallVM({ isAuthenticated, isPlus, loading, offerResult, selected, busy });
   const tx = (ref: TextRef) => t(ref.key, ref.params);
@@ -111,6 +117,11 @@ export default function PaywallScreen() {
   // 구매 중에는 화면이 닫히지 않게(Android 하드웨어 뒤로가기 포함) — 닫기 버튼도 비활성
   usePreventRemove(busy, () => {});
 
+  // 잠금 중 replace 는 usePreventRemove 에 막히므로, 잠금이 풀린 렌더 뒤에 완료 화면으로 보낸다
+  useEffect(() => {
+    if (!busy && successParams) router.replace({ pathname: '/plus-success', params: successParams });
+  }, [busy, successParams, router]);
+
   const runLocked = async (task: () => Promise<void>) => {
     if (busyRef.current) return;
     busyRef.current = true;
@@ -126,6 +137,7 @@ export default function PaywallScreen() {
   const handlePurchase = () =>
     runLocked(async () => {
       const kind = selected;
+      const plan = offerResult?.status === 'ok' ? offerResult.offer[kind] : null;
       addBreadcrumb('paywall', 'purchase', { kind, phase: 'start', source });
       const outcome = await purchasePaywallPlan(kind, source);
       addBreadcrumb('paywall', 'purchase', { kind, outcome, source });
@@ -145,10 +157,15 @@ export default function PaywallScreen() {
           fingerprint: ['paywall-reflect-timeout'],
           tags: { area: 'paywall', kind, source },
         });
-        // D4 임시: "반영 중" 변형 완료 화면(/plus-success)은 D5 — 그 전까지 기존 안내 유지
-        await alert(t('paywall.title'), t('paywall.processing'));
       }
-      // 반영되면 user.plan === 'plus' → "이용 중" 카드(D5 에서 /plus-success 로 replace)
+      setSuccessParams(
+        toPlusSuccessRouteParams({
+          kind,
+          trial: plan?.trial.eligible === true,
+          price: plan?.priceString ?? '',
+          reflected,
+        }),
+      );
     });
 
   const handleRestore = () =>
@@ -219,8 +236,8 @@ export default function PaywallScreen() {
       style={[
         styles.planCard,
         {
-          backgroundColor: plan.selected ? theme.primary.background : theme.surface.primary,
-          borderColor: plan.selected ? theme.primary.default : theme.border.default,
+          backgroundColor: plan.selected ? accent.selectedCardBackground : theme.surface.primary,
+          borderColor: plan.selected ? accent.selectedCardBorder : theme.border.default,
         },
         locked && styles.dimmed,
       ]}
@@ -239,8 +256,8 @@ export default function PaywallScreen() {
         <View style={styles.planTitleRow}>
           <Text style={[styles.planTitle, { color: theme.text.primary }]}>{tx(plan.title)}</Text>
           {plan.discount && (
-            <View style={[styles.badge, { backgroundColor: theme.text.primary }]}>
-              <Text style={[styles.badgeText, { color: theme.text.inverse }]}>{tx(plan.discount)}</Text>
+            <View style={[styles.badge, { backgroundColor: accent.badgeBackground }]}>
+              <Text style={[styles.badgeText, { color: accent.badgeText }]}>{tx(plan.discount)}</Text>
             </View>
           )}
         </View>
@@ -356,19 +373,7 @@ export default function PaywallScreen() {
           onLayout={onFooterLayout}
           style={[styles.footer, { paddingBottom: insets.bottom + spacing.base, backgroundColor: theme.background.primary }]}
         >
-          <TouchableOpacity
-            onPress={handlePurchase}
-            disabled={ready.locked}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: ready.locked, busy: ready.locked }}
-            style={[styles.cta, { backgroundColor: ready.locked ? theme.primary.disabled : theme.primary.default }]}
-          >
-            {ready.locked ? (
-              <ActivityIndicator color={palette.neutral[0]} />
-            ) : (
-              <Text style={[styles.ctaText, { color: palette.neutral[0] }]}>{tx(ready.cta)}</Text>
-            )}
-          </TouchableOpacity>
+          <PlusCta label={tx(ready.cta)} onPress={handlePurchase} loading={ready.locked} colors={accent} />
           {disclosureInFooter && renderDisclosure()}
         </View>
       )}
@@ -443,15 +448,6 @@ const styles = StyleSheet.create({
   stateText: { fontSize: typography.fontSize.base, textAlign: 'center' },
   retryText: { fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semiBold },
   footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.sm },
-  cta: {
-    minHeight: 56,
-    borderRadius: borderRadius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  ctaText: { fontSize: typography.fontSize.lg, fontWeight: typography.fontWeight.bold, textAlign: 'center' },
   disclosureBlock: { gap: spacing.sm },
   noCharge: { fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semiBold, textAlign: 'center' },
   disclosure: { fontSize: typography.fontSize.xs, lineHeight: typography.fontSize.xs * typography.lineHeight.normal },
