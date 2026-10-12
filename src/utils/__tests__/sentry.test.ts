@@ -1,8 +1,13 @@
-jest.mock('@sentry/react-native', () => ({ init: jest.fn(), captureException: jest.fn(), captureMessage: jest.fn() }));
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+  addBreadcrumb: jest.fn(),
+}));
 jest.mock('expo-constants', () => ({ __esModule: true, default: { expoConfig: { extra: {} } } }));
 
 import * as Sentry from '@sentry/react-native';
-import { captureError, captureMessage } from '../sentry';
+import { addBreadcrumb, captureError, captureMessage } from '../sentry';
 
 const sentryCaptureMessage = Sentry.captureMessage as jest.Mock;
 const sentryCaptureException = Sentry.captureException as jest.Mock;
@@ -77,6 +82,19 @@ describe('captureError', () => {
     captureError(err, { scope: 's' });
 
     expect(sentryCaptureException).toHaveBeenCalledWith(err, { extra: { scope: 's' }, tags: undefined });
+  });
+});
+
+describe('addBreadcrumb', () => {
+  it('category·message·data 를 info 레벨로 전달', () => {
+    addBreadcrumb('paywall', 'offer', { status: 'ok' });
+
+    expect(Sentry.addBreadcrumb).toHaveBeenCalledWith({
+      category: 'paywall',
+      message: 'offer',
+      level: 'info',
+      data: { status: 'ok' },
+    });
   });
 });
 

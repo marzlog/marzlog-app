@@ -2,8 +2,7 @@ import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { router } from 'expo-router';
-
-const PRIVACY_URL = 'https://marzlog.com/privacy';
+import { PRIVACY_URL } from '@/src/constants/legal';
 
 export default function PrivacyPolicyScreen() {
   useEffect(() => {

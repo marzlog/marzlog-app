@@ -19,6 +19,7 @@ import { useTranslation } from '@/src/hooks/useTranslation';
 import { Logo } from '@/src/components/common/Logo';
 import { AiNotice } from '@/src/components/common/AiNotice';
 import { AppTouchable } from '@/src/components/common/AppTouchable';
+import { PRIVACY_URL, TERMS_URL } from '@/src/constants/legal';
 
 // Native-only: expo-alternate-app-icons crashes on web
 let nativeGetAppIconName: (() => string | null) | undefined;
@@ -122,7 +123,7 @@ export default function AppInfoScreen() {
         <View style={[styles.card, isDark && styles.cardDark]}>
           <AppTouchable
             style={styles.menuItem}
-            onPress={() => WebBrowser.openBrowserAsync('https://marzlog.com/terms')}
+            onPress={() => WebBrowser.openBrowserAsync(TERMS_URL)}
             activeOpacity={0.7}
           >
             <View style={styles.menuItemLeft}>
@@ -134,7 +135,7 @@ export default function AppInfoScreen() {
 
           <AppTouchable
             style={[styles.menuItem, styles.menuItemLast]}
-            onPress={() => WebBrowser.openBrowserAsync('https://marzlog.com/privacy')}
+            onPress={() => WebBrowser.openBrowserAsync(PRIVACY_URL)}
             activeOpacity={0.7}
           >
             <View style={styles.menuItemLeft}>

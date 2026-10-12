@@ -456,7 +456,8 @@ function RootLayoutNav() {
           <Stack.Screen name="language-select" options={{ headerShown: false }} />
           <Stack.Screen name="bookmarks" options={{ headerShown: false }} />
           <Stack.Screen name="labs" options={{ headerShown: false }} />
-          <Stack.Screen name="paywall" options={{ headerShown: false }} />
+          {/* PAYWALL 명세 PW-8: 닫기(X)로만 닫는 전체 화면 모달(Android 는 modal 로 대체) */}
+          <Stack.Screen name="paywall" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>
       </DialogProvider>

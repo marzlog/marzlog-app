@@ -68,3 +68,10 @@ export const captureMessage = (
     tags: options?.tags,
   });
 };
+
+/**
+ * 흐름 추적용 breadcrumb(오류 아님 — 다음 이벤트에 함께 실린다). 식별값·영수증·토큰은 싣지 않는다.
+ */
+export const addBreadcrumb = (category: string, message: string, data?: Record<string, unknown>): void => {
+  Sentry.addBreadcrumb({ category, message, level: 'info', data });
+};

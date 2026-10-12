@@ -246,20 +246,27 @@ export async function loadPaywallOffer(): Promise<PaywallOfferResult> {
 
 export type PurchaseOutcome = 'completed' | 'cancelled' | 'failed';
 
-/** 구매 시트 호출. 'completed' 는 "스토어 거래가 끝났다"는 뜻일 뿐 Plus 판정이 아니다. */
-export async function purchasePaywallPlan(kind: PaywallPlanKind): Promise<PurchaseOutcome> {
+/**
+ * 구매 시트 호출. 'completed' 는 "스토어 거래가 끝났다"는 뜻일 뿐 Plus 판정이 아니다.
+ * failed 는 여기서 한 번만 기록한다(명세 §6 tags area·kind·source) — 화면은 다시 기록하지 않는다.
+ */
+export async function purchasePaywallPlan(kind: PaywallPlanKind, source: string = 'unknown'): Promise<PurchaseOutcome> {
   const pkg = paywallPackages[kind];
-  if (!configured || !pkg) return 'failed';
+  const tags = { area: 'paywall', kind, source };
+  if (!configured || !pkg) {
+    captureError(new Error('paywall purchase unavailable'), { scope: 'purchases.purchase', kind, configured }, { tags });
+    return 'failed';
+  }
   try {
     await Purchases.purchasePackage(pkg);
     return 'completed';
   } catch (e: any) {
     if (e?.userCancelled || e?.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) return 'cancelled';
-    captureError(e instanceof Error ? e : new Error(String(e?.message ?? e)), {
-      scope: 'purchases.purchase',
-      kind,
-      code: e?.code,
-    });
+    captureError(
+      e instanceof Error ? e : new Error(String(e?.message ?? e)),
+      { scope: 'purchases.purchase', kind, code: e?.code },
+      { tags },
+    );
     return 'failed';
   }
 }
