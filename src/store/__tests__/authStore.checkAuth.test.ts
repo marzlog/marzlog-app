@@ -243,3 +243,33 @@ describe('checkAuth 실패 분류 (D6/D8)', () => {
     expect(s.authCheckDeferredReason).toBeNull();
   });
 });
+
+describe('refreshUser 호출별 시간 제한 (W-REFRESHUSER-TIMEOUT)', () => {
+  it('기본은 부트와 같은 10초 시간 제한으로 /auth/me 를 부른다', async () => {
+    getCurrentUser.mockResolvedValue(USER);
+
+    const user = await useAuthStore.getState().refreshUser();
+
+    expect(getCurrentUser).toHaveBeenCalledWith({ timeout: 10_000 });
+    expect(user).toEqual(USER);
+    expect(useAuthStore.getState().user).toEqual(USER);
+  });
+
+  it('호출별로 시간 제한을 바꿀 수 있다', async () => {
+    getCurrentUser.mockResolvedValue(USER);
+
+    await useAuthStore.getState().refreshUser(3_000);
+
+    expect(getCurrentUser).toHaveBeenCalledWith({ timeout: 3_000 });
+  });
+
+  it('시간 초과 → throw, 기존 user 상태는 그대로', async () => {
+    const before = { id: 'u-0', app_lang: null };
+    useAuthStore.setState({ user: before as never });
+    getCurrentUser.mockRejectedValue(new AxiosError('timeout of 10000ms exceeded', AxiosError.ECONNABORTED, config));
+
+    await expect(useAuthStore.getState().refreshUser()).rejects.toThrow('timeout of 10000ms exceeded');
+    expect(useAuthStore.getState().user).toBe(before);
+  });
+});
+

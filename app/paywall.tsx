@@ -13,7 +13,7 @@ import {
   loadPaywallOffer,
   purchasePaywallPlan,
   restorePaywallPurchases,
-  type PaywallOffer,
+  type PaywallOfferResult,
 } from '@src/services/purchases';
 import type { PaywallPlanKind } from '@src/services/paywallPackages';
 
@@ -38,13 +38,15 @@ export default function PaywallScreen() {
   const isDark = themeMode === 'system' ? systemColorScheme === 'dark' : themeMode === 'dark';
   const isPlus = user?.plan === 'plus';
 
-  const [offer, setOffer] = useState<PaywallOffer | null>(null);
+  // D3: 반환형만 맞춘 최소 수정 — unavailable·load_failed 구분 표시는 D4 화면 개편에서
+  const [offerResult, setOfferResult] = useState<PaywallOfferResult | null>(null);
+  const offer = offerResult?.status === 'ok' ? offerResult.offer : null;
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const loadOffer = useCallback(async () => {
     setLoading(true);
-    setOffer(await loadPaywallOffer());
+    setOfferResult(await loadPaywallOffer());
     setLoading(false);
   }, []);
 
@@ -117,7 +119,7 @@ export default function PaywallScreen() {
 
     return (
       <>
-        {PLAN_ORDER.filter((kind) => offer[kind]).map((kind) => (
+        {PLAN_ORDER.map((kind) => (
           <TouchableOpacity
             key={kind}
             style={[styles.card, styles.planRow, isDark && styles.cardDark, busy && styles.disabled]}
@@ -125,7 +127,7 @@ export default function PaywallScreen() {
             disabled={busy}
           >
             <Text style={[styles.cardTitle, { color: textColor }]}>{t(`paywall.${kind}`)}</Text>
-            <Text style={[styles.price, { color: textColor }]}>{offer[kind]!.priceString}</Text>
+            <Text style={[styles.price, { color: textColor }]}>{offer[kind].priceString}</Text>
           </TouchableOpacity>
         ))}
         <TouchableOpacity onPress={handleRestore} disabled={busy} style={styles.linkButton}>

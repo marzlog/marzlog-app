@@ -79,7 +79,8 @@ interface AuthStore extends AuthState {
    * /auth/me 재조회로 user 만 갱신(plan 등 서버 SSOT 반영). 실패는 throw — 토큰을 지우지 않는다.
    * checkAuth 는 비-Keychain 오류(일시적 네트워크 포함)에 토큰을 지우므로 결제 직후 재조회에 쓰지 않는다.
    */
-  refreshUser: () => Promise<User>;
+  /** /auth/me 재조회. 호출별 시간 제한(기본 AUTH_CHECK_TIMEOUT_MS) — 초과 시 throw, 상태 불변 */
+  refreshUser: (timeoutMs?: number) => Promise<User>;
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -485,8 +486,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 
-  refreshUser: async () => {
-    const user = await authApi.getCurrentUser();
+  refreshUser: async (timeoutMs = AUTH_CHECK_TIMEOUT_MS) => {
+    // W-REFRESHUSER-TIMEOUT: 전역 30초 대신 호출별 시간 제한(부트 checkAuth 와 같은 10초 기본)
+    const user = await authApi.getCurrentUser({ timeout: timeoutMs });
     set({ user });
     return user;
   },

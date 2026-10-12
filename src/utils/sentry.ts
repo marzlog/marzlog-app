@@ -18,6 +18,7 @@ export const initSentry = (): void => {
 type CaptureOptions = {
   /** Skip Sentry reporting for axios 4xx (handled client errors). 5xx still reported. */
   skipClientErrors?: boolean;
+  tags?: Record<string, string>;
 };
 
 export const captureError = (
@@ -37,7 +38,7 @@ export const captureError = (
     }
   }
 
-  Sentry.captureException(error, { extra: context });
+  Sentry.captureException(error, { extra: context, tags: options?.tags });
 };
 
 type MessageOptions = {

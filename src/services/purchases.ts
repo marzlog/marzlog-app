@@ -1,10 +1,20 @@
-import { NativeModules, Platform } from 'react-native';
-import Purchases, { LOG_LEVEL, PURCHASES_ERROR_CODE, type PurchasesPackage } from 'react-native-purchases';
+import { Linking, NativeModules, Platform } from 'react-native';
+import Purchases, {
+  INTRO_ELIGIBILITY_STATUS,
+  LOG_LEVEL,
+  PURCHASES_ERROR_CODE,
+  type PurchasesPackage,
+  type PurchasesStoreProduct,
+} from 'react-native-purchases';
 
+import { PAYWALL_OFFER_TIMEOUT_MS } from '../constants/plus';
 import { captureError, captureMessage } from '../utils/sentry';
 import { resolvePurchasesSetup } from './purchasesGuard';
 import { resolveIdentityTransition } from './purchasesIdentity';
 import { PAYWALL_OFFERING_ID, pickPaywallPackages, type PaywallPlanKind } from './paywallPackages';
+import { annualDiscountPercent, trialPeriodToDays } from './paywallOffer';
+
+export type { PaywallPlanKind };
 
 /**
  * RevenueCat SDK 래퍼 — 앱 코드는 react-native-purchases 를 직접 import 하지 않고 여기를 거친다.
@@ -79,28 +89,159 @@ export function syncPurchasesIdentity(prevUserId: string | null | undefined, nex
 // 화면에는 표시용 값(가격 문자열)만 넘기고 SDK 패키지 객체는 여기서 보관한다.
 // ★구매/복원 결과로 Plus 여부를 판정하지 않는다 — 성공은 서버 재조회 트리거일 뿐(ADR 조건 ②).
 
-export type PaywallOffer = Partial<Record<PaywallPlanKind, { priceString: string }>>;
+/** 체험 정보. null = 확인 불가(체험을 약속하지 않는다 — PW-4). days 는 일·주 단위 체험만. */
+export type PaywallTrial = { eligible: boolean | null; days: number | null };
+
+export type PaywallPlanOffer = {
+  priceString: string; // 스토어 문자열 그대로
+  perMonthPriceString: string | null; // 연간만. SDK 제공값이 없으면 null(자체 계산 금지)
+  trial: PaywallTrial;
+};
+
+export type PaywallOffer = {
+  annual: PaywallPlanOffer;
+  monthly: PaywallPlanOffer;
+  annualDiscountPercent: number | null; // 통화가 다르거나 할인 ≤ 0 이면 null
+};
+
+export type PaywallOfferResult =
+  | { status: 'ok'; offer: PaywallOffer }
+  | { status: 'unavailable' } // 미구성·패키지 부족
+  | { status: 'load_failed' }; // 예외·시간 초과
 
 let paywallPackages: Partial<Record<PaywallPlanKind, PurchasesPackage>> = {};
 
-/** offering 'default' 의 월/연 패키지를 불러온다. 미구성·상품 없음이면 null. */
-export async function loadPaywallOffer(): Promise<PaywallOffer | null> {
-  if (!configured) return null;
-  try {
-    const offerings = await Purchases.getOfferings();
-    const offering = offerings.all[PAYWALL_OFFERING_ID];
-    paywallPackages = offering ? pickPaywallPackages(offering.availablePackages) : {};
-  } catch (e) {
-    paywallPackages = {};
-    captureError(e instanceof Error ? e : new Error(String(e)), { scope: 'purchases.loadOffer' });
-    return null;
+class PaywallOfferTimeoutError extends Error {
+  constructor() {
+    super('PAYWALL_OFFER_TIMEOUT');
+    this.name = 'PaywallOfferTimeoutError';
+  }
+}
+
+function withOfferTimeout<T>(promise: Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new PaywallOfferTimeoutError()), PAYWALL_OFFER_TIMEOUT_MS);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
+function mapIosEligibility(status: INTRO_ELIGIBILITY_STATUS | undefined): boolean | null {
+  if (status === INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_ELIGIBLE) return true;
+  if (status === INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_INELIGIBLE) return false;
+  return null;
+}
+
+/**
+ * 체험 자격·일수 (명세 §2.3).
+ *  - iOS: checkTrialOrIntroductoryPriceEligibility — ELIGIBLE true / INELIGIBLE false / 그 외 null.
+ *    유료 첫 할인(무료가 아닌 introPrice)은 무료 체험이 아니므로 자격이 있어도 false.
+ *  - Android: defaultOption.freePhase 존재 여부(Play 는 자격 있는 혜택만 내려준다).
+ *  - 자격 조회 실패는 null(체험을 약속하지 않음).
+ */
+async function resolveTrials(
+  products: Record<PaywallPlanKind, PurchasesStoreProduct>,
+): Promise<Record<PaywallPlanKind, PaywallTrial>> {
+  const kinds = Object.keys(products) as PaywallPlanKind[];
+  const result = {} as Record<PaywallPlanKind, PaywallTrial>;
+
+  if (Platform.OS === 'ios') {
+    let eligibility: Record<string, { status: INTRO_ELIGIBILITY_STATUS }> = {};
+    try {
+      eligibility = await Purchases.checkTrialOrIntroductoryPriceEligibility(
+        kinds.map((k) => products[k].identifier),
+      );
+    } catch (e) {
+      captureError(e instanceof Error ? e : new Error(String(e)), { scope: 'purchases.trialEligibility' }, { tags: { area: 'paywall' } });
+    }
+    for (const kind of kinds) {
+      const product = products[kind];
+      const intro = product.introPrice;
+      const freeIntro = !!intro && intro.price === 0;
+      const mapped = mapIosEligibility(eligibility[product.identifier]?.status);
+      result[kind] = {
+        eligible: freeIntro ? mapped : mapped === true ? false : mapped,
+        days: freeIntro ? trialPeriodToDays(intro!.periodUnit, intro!.periodNumberOfUnits, intro!.cycles) : null,
+      };
+    }
+    return result;
   }
 
-  const offer: PaywallOffer = {};
-  (Object.keys(paywallPackages) as PaywallPlanKind[]).forEach((kind) => {
-    offer[kind] = { priceString: paywallPackages[kind]!.product.priceString };
-  });
-  return Object.keys(offer).length > 0 ? offer : null;
+  for (const kind of kinds) {
+    const freePhase = products[kind].defaultOption?.freePhase ?? null;
+    result[kind] = {
+      eligible: !!freePhase,
+      days: freePhase
+        ? trialPeriodToDays(freePhase.billingPeriod.unit, freePhase.billingPeriod.value, freePhase.billingCycleCount ?? 1)
+        : null,
+    };
+  }
+  return result;
+}
+
+/**
+ * offering 'default' 의 월/연 패키지를 불러온다(PAYWALL_OFFER_TIMEOUT_MS 시간 제한).
+ * 미구성·월/연 중 하나라도 없으면 unavailable, 예외·시간 초과면 load_failed.
+ */
+export async function loadPaywallOffer(): Promise<PaywallOfferResult> {
+  if (!configured) return { status: 'unavailable' };
+
+  let loaded: { picked: Record<PaywallPlanKind, PurchasesPackage>; trials: Record<PaywallPlanKind, PaywallTrial> } | null;
+  try {
+    loaded = await withOfferTimeout(
+      (async () => {
+        const offerings = await Purchases.getOfferings();
+        const offering = offerings.all[PAYWALL_OFFERING_ID];
+        const picked = offering ? pickPaywallPackages(offering.availablePackages) : {};
+        if (!picked.annual || !picked.monthly) return null;
+        const complete = { annual: picked.annual, monthly: picked.monthly };
+        const trials = await resolveTrials({ annual: complete.annual.product, monthly: complete.monthly.product });
+        return { picked: complete, trials };
+      })(),
+    );
+  } catch (e) {
+    paywallPackages = {};
+    captureError(e instanceof Error ? e : new Error(String(e)), { scope: 'purchases.loadOffer' }, { tags: { area: 'paywall' } });
+    return { status: 'load_failed' };
+  }
+
+  if (!loaded) {
+    paywallPackages = {};
+    // 스토어·RC 설정 이상 신호(명세 §6) — production 은 Sentry warning, dev 는 console.warn
+    captureMessage('[RC] paywall offer unavailable', { offering: PAYWALL_OFFERING_ID });
+    return { status: 'unavailable' };
+  }
+
+  paywallPackages = loaded.picked;
+  const annual = loaded.picked.annual.product;
+  const monthly = loaded.picked.monthly.product;
+  return {
+    status: 'ok',
+    offer: {
+      annual: {
+        priceString: annual.priceString,
+        perMonthPriceString: annual.pricePerMonthString ?? null,
+        trial: loaded.trials.annual,
+      },
+      monthly: {
+        priceString: monthly.priceString,
+        perMonthPriceString: null,
+        trial: loaded.trials.monthly,
+      },
+      annualDiscountPercent: annualDiscountPercent(
+        { price: monthly.price, currencyCode: monthly.currencyCode },
+        { price: annual.price, currencyCode: annual.currencyCode },
+      ),
+    },
+  };
 }
 
 export type PurchaseOutcome = 'completed' | 'cancelled' | 'failed';
@@ -137,3 +278,34 @@ export async function restorePaywallPurchases(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * 스토어 구독 관리 화면 열기(명세 §2.3). 스토어 URL 을 코드에 직접 쓰지 않는다.
+ *  - iOS: showManageSubscriptions() → 실패 시 managementURL
+ *  - Android: managementURL
+ * customerInfo 는 관리 URL 을 얻는 데만 쓴다 — Plus 판정에 쓰지 않는다(ADR 조건 ②).
+ */
+export async function openSubscriptionManagement(): Promise<'opened' | 'unavailable'> {
+  if (!configured) return 'unavailable';
+
+  if (Platform.OS === 'ios') {
+    try {
+      await Purchases.showManageSubscriptions();
+      return 'opened';
+    } catch (e) {
+      captureError(e instanceof Error ? e : new Error(String(e)), { scope: 'purchases.manageSheet' }, { tags: { area: 'paywall' } });
+    }
+  }
+
+  try {
+    const info = await Purchases.getCustomerInfo();
+    if (info.managementURL) {
+      await Linking.openURL(info.managementURL);
+      return 'opened';
+    }
+  } catch (e) {
+    captureError(e instanceof Error ? e : new Error(String(e)), { scope: 'purchases.manageUrl' }, { tags: { area: 'paywall' } });
+  }
+  return 'unavailable';
+}
+
