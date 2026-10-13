@@ -60,9 +60,15 @@
     "chargeValue": "{{date}} · {{price}}",
     "noteTrial": "Hủy trong thời gian dùng thử thì không bị tính tiền.\nBạn có thể quản lý gói trong Cài đặt.",
     "note": "Bạn có thể quản lý gói trong Cài đặt.",
-    "pending": "Thanh toán đã hoàn tất. Có thể mất một lúc để cập nhật.",
+    "pending": "Đang xác nhận quyền Plus của bạn. Nếu sau một lúc vẫn chưa cập nhật, hãy nhấn 'Khôi phục giao dịch'",
     "cta": "Về nhật ký của tôi",
-    "manage": "Quản lý gói"
+    "manage": "Quản lý gói",
+    "pendingTitle": "Thanh toán đã hoàn tất",
+    "restore": "Khôi phục giao dịch",
+    "close": "Đóng",
+    "restoreChecked": "Đã kiểm tra lịch sử mua. Có thể mất vài phút để cập nhật",
+    "restoreFailed": "Không thể khôi phục. Vui lòng thử lại sau",
+    "identityMismatch": "Không thể xác minh tài khoản. Vui lòng mở lại ứng dụng"
   },
   "subscription": {
     "title": "Gói đăng ký",

@@ -22,7 +22,7 @@ import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
 import { PlusCta } from '@/src/components/plus/PlusCta';
 import { plusColors } from '@/src/components/plus/plusColors';
-import { addBreadcrumb, captureError, captureMessage } from '@/src/utils/sentry';
+import { addBreadcrumb, captureMessage } from '@/src/utils/sentry';
 import {
   loadPaywallOffer,
   purchasePaywallPlan,
@@ -43,7 +43,7 @@ import {
   type TextRef,
 } from '@src/utils/paywallViewModel';
 import { waitForPlusReflected } from '@src/utils/plusReflect';
-import { toPlusSuccessRouteParams } from '@src/utils/plusSuccessViewModel';
+import { PLUS_SUCCESS_RESTORE_PARAMS, toPlusSuccessRouteParams } from '@src/utils/plusSuccessViewModel';
 import {
   PLUS_REFLECT_ATTEMPT_TIMEOUT_MS,
   PLUS_REFLECT_INTERVAL_MS,
@@ -62,7 +62,9 @@ import { borderRadius, darkTheme, lightTheme, palette, spacing, typography, type
  *
  * 구매 완료(completed)는 서버 반영을 최대 PLUS_REFLECT_MAX_WAIT_MS 확인한 뒤(대기 문구 표시, 화면 잠금 유지)
  * 반영 여부와 무관하게 /plus-success 로 replace 한다(PW-7 — 미반영도 alert 없이
- * 완료 화면의 "반영 중" 변형으로). 복원 성공·이미 Plus 는 D6(/subscription) 전까지 이 화면의 "이용 중" 카드.
+ * 완료 화면의 "반영 중" 변형으로).
+ * 복원(PW-14): RC 응답에 활성 구독이 없으면 바로 restoreNone. 있으면 같은 반영 확인 → 반영되면 완료 화면(기본 변형),
+ * 30초 안에 안 되면 완료 화면 "반영 중"(복원 확인 안내). 이미 Plus 는 D6(/subscription) 전까지 이 화면의 "이용 중" 카드.
  */
 const MIN_TOUCH = 44;
 
@@ -143,6 +145,25 @@ export default function PaywallScreen() {
     }
   };
 
+  // 서버 반영 확인(최대 PLUS_REFLECT_MAX_WAIT_MS) — 대기 문구 단계는 완료 화면으로 넘어갈 때까지 유지
+  const waitReflected = async (): Promise<boolean> => {
+    setReflectPhase('checking');
+    const longTimer = setTimeout(() => setReflectPhase('checking-long'), PLUS_REFLECT_LONG_AFTER_MS);
+    try {
+      const { reflected } = await waitForPlusReflected(
+        async (timeoutMs) => (await useAuthStore.getState().refreshUser(timeoutMs)).plan === 'plus',
+        {
+          intervalMs: PLUS_REFLECT_INTERVAL_MS,
+          maxWaitMs: PLUS_REFLECT_MAX_WAIT_MS,
+          attemptTimeoutMs: PLUS_REFLECT_ATTEMPT_TIMEOUT_MS,
+        },
+      );
+      return reflected;
+    } finally {
+      clearTimeout(longTimer);
+    }
+  };
+
   const handlePurchase = () =>
     runLocked(async () => {
       const kind = selected;
@@ -161,21 +182,7 @@ export default function PaywallScreen() {
         await alert(t('paywall.title'), t('paywall.failed'));
         return;
       }
-      setReflectPhase('checking');
-      const longTimer = setTimeout(() => setReflectPhase('checking-long'), PLUS_REFLECT_LONG_AFTER_MS);
-      let reflected = false;
-      try {
-        ({ reflected } = await waitForPlusReflected(
-          async (timeoutMs) => (await useAuthStore.getState().refreshUser(timeoutMs)).plan === 'plus',
-          {
-            intervalMs: PLUS_REFLECT_INTERVAL_MS,
-            maxWaitMs: PLUS_REFLECT_MAX_WAIT_MS,
-            attemptTimeoutMs: PLUS_REFLECT_ATTEMPT_TIMEOUT_MS,
-          },
-        ));
-      } finally {
-        clearTimeout(longTimer);
-      }
+      const reflected = await waitReflected();
       if (!reflected) {
         captureMessage('paywall plus not reflected after purchase', { kind, source }, {
           level: 'warning',
@@ -204,15 +211,21 @@ export default function PaywallScreen() {
         await alert(t('paywall.title'), t('paywall.failed'));
         return;
       }
-      try {
-        const refreshed = await useAuthStore.getState().refreshUser();
-        // plus 면 "이용 중" 카드(D6 에서 /subscription 으로 replace)
-        if (refreshed.plan === 'plus') return;
+      addBreadcrumb('paywall', 'restore', { outcome: restored, source });
+      if (restored === 'restored-none') {
         await alert(t('paywall.title'), t('paywall.restoreNone'));
-      } catch (e) {
-        captureError(e instanceof Error ? e : new Error(String(e)), { context: 'Paywall.restore.refreshUser' });
-        await alert(t('paywall.title'), t('paywall.restoreChecked'));
+        return;
       }
+      // restored-active: Plus 여부는 서버 반영으로만 판단(PW-1)
+      const reflected = await waitReflected();
+      if (!reflected) {
+        captureMessage('paywall plus not reflected after restore', { source }, {
+          level: 'warning',
+          fingerprint: ['paywall-restore-reflect-timeout'],
+          tags: { area: 'paywall', source },
+        });
+      }
+      setSuccessParams(reflected ? {} : PLUS_SUCCESS_RESTORE_PARAMS);
     });
 
   const handleClose = () => {

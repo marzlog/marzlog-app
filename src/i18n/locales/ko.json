@@ -886,9 +886,15 @@
     "chargeValue": "{{date}} · {{price}}",
     "noteTrial": "체험 기간에 해지하면 결제되지 않아요.\n구독은 설정에서 언제든 관리할 수 있어요.",
     "note": "구독은 설정에서 언제든 관리할 수 있어요.",
-    "pending": "결제는 완료됐어요. 반영까지 잠시 걸릴 수 있어요.",
+    "pending": "Plus 반영을 확인하고 있어요. 잠시 뒤에도 반영되지 않으면 '구매 복원'을 눌러 주세요",
     "cta": "기록하러 가기",
-    "manage": "구독 관리 보기"
+    "manage": "구독 관리 보기",
+    "pendingTitle": "결제가 완료됐어요",
+    "restore": "구매 복원",
+    "close": "닫기",
+    "restoreChecked": "구매 내역을 확인했어요. 반영까지 몇 분 걸릴 수 있어요",
+    "restoreFailed": "복원하지 못했어요. 잠시 후 다시 시도해 주세요",
+    "identityMismatch": "계정 확인에 실패했어요. 앱을 다시 열어 주세요"
   },
   "subscription": {
     "title": "구독",

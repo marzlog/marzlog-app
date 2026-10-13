@@ -17,6 +17,7 @@ import {
   verifyPurchaseIdentity,
   type IdentityVerdict,
 } from './purchasesIdentity';
+import { hasActiveSubscription } from './purchasesRestore';
 import { PAYWALL_OFFERING_ID, pickPaywallPackages, type PaywallPlanKind } from './paywallPackages';
 import { annualDiscountPercent, trialPeriodToDays } from './paywallOffer';
 
@@ -358,8 +359,13 @@ export async function purchasePaywallPlan(
   }
 }
 
-/** restored = 복원 요청 완료(결과 판정은 서버 재조회로) · identity_mismatch = 신원 대조 차단(복원 미호출) */
-export type RestoreOutcome = 'restored' | 'failed' | 'identity_mismatch';
+/**
+ * restored-active = 복원 완료, RC 응답에 활성 구독 있음 → 서버 반영 확인 루프로
+ * restored-none = 복원 완료, 활성 구독 없음 → 즉시 restoreNone
+ * identity_mismatch = 신원 대조 차단(복원 미호출)
+ * ★활성 여부는 대기 생략 판단에만 쓴다 — Plus 판정은 서버 재조회로(PW-1, PW-14).
+ */
+export type RestoreOutcome = 'restored-active' | 'restored-none' | 'failed' | 'identity_mismatch';
 
 /** 구매 복원 — 구매와 같은 신원 대조를 먼저 한다(익명·다른 id 로 복원하면 영수증이 엉뚱한 RC 사용자에 붙는다). */
 export async function restorePaywallPurchases(serverUserId: string | null | undefined): Promise<RestoreOutcome> {
@@ -369,7 +375,8 @@ export async function restorePaywallPurchases(serverUserId: string | null | unde
       () => verifyIdentityFor('restore', serverUserId),
       () => Purchases.restorePurchases(),
     );
-    return run.blocked ? 'identity_mismatch' : 'restored';
+    if (run.blocked) return 'identity_mismatch';
+    return hasActiveSubscription(run.result) ? 'restored-active' : 'restored-none';
   } catch (e: any) {
     captureError(e instanceof Error ? e : new Error(String(e?.message ?? e)), {
       scope: 'purchases.restore',

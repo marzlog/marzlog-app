@@ -1,6 +1,7 @@
 # Marzlog Plus 결제 화면(PAYWALL) 구현 명세서
 
-- 판: v1.4 (2026-10-08, PW-11~13 + 게이트 2 판정·측정 S1~S3 + D1 보정 3건 + 재개 single 사진별 판정 반영) · 대상: Build 34 (marzlog-app 1.0.3, develop)
+- 판: v1.5 (2026-10-13, D5-b — 반영 확인 30초·미반영 화면·신원 대조, PW-14·PW-15) · 대상: Build 34 (marzlog-app 1.0.3, develop)
+- 이전 판: v1.4 (2026-10-08, PW-11~13 + 게이트 2 판정·측정 S1~S3 + D1 보정 3건 + 재개 single 사진별 판정 반영)
 - 기준선: marzlog-app `e24e5a1` / marzlog-backend `7031620` / 정찰 보고 2026-10-08(게이트 1)
 - 우선순위: **이 문서 > `screens/*.png` > `reference/*.html`**
   - PNG·HTML은 배치·위계·문구의 기준이다. 색·글꼴·간격·모서리 값은 앱의 기존 테마 토큰을 쓴다.
@@ -36,6 +37,8 @@
 | PW-11 | 서버는 샌드박스 구매 알림을 **항상 받는다**(`RC_ACCEPT_SANDBOX_EVENTS=true` 상시). 9/28 G0의 `false`를 되돌린다. | 심사는 업데이트마다 있고 심사자는 샌드박스로 구매한다. 샌드박스 구매는 TestFlight·개발 빌드·Play 라이선스 테스터만 가능해 명단이 통제됨. 통계에서는 `subscriptions.environment = 'sandbox'` 행을 제외한다(기존 컬럼, 마이그레이션 없음) |
 | PW-12 | `PLUS_GATE_ENABLED=true` 전환은 **심사 제출 전**에 한다(공개일이 아님). 선행 조건은 8.2의 측정 2건. | 꺼져 있으면 Plus 결제자도 2GB로 집행됨. 첫 결제가 가능해지기 전에 켜져 있어야 함 |
 | PW-13 | `/auth/me`의 `plan`은 집행과 **같은 만료 판정**을 쓴다. 만료 시각 뒤 여유 시간(`PLAN_EXPIRY_GRACE_SECONDS`) 동안은 Plus로 본다. 표시·집행 모두 같은 함수. | EXPIRATION 알림이 누락되면 "표시는 Plus, 집행은 무료"가 됨. 여유 시간은 갱신 알림 지연 대비 |
+| PW-14 | 복원 후: RC 응답(`CustomerInfo`)에 활성 구독이 없으면 즉시 `paywall.restoreNone`. 있으면 구매와 같은 반영 확인(최대 30초) → 반영되면 완료 화면, 안 되면 완료 화면 "반영 중"(복원 확인 안내). **SDK 결과는 대기 생략 판단에만 쓰고 Plus 부여·표시에는 쓰지 않는다(PW-1 유지).** | 복원도 웹훅을 거쳐 반영되므로 즉시 1회 조회는 대부분 "내역 없음"으로 오판. 내역 없는 사용자를 30초 기다리게 하지 않기 위해 SDK 결과로 대기만 생략 |
+| PW-15 | 구매·복원 직전 신원 대조: ① 식별 큐 대기 → ② RC `appUserID`와 서버 `user.id` 대조(대소문자 무시·공백 유지), 다르면 재 `logIn` 1회 후 재대조 → ③ 그래도 다르면 스토어 호출 전에 차단 + Sentry. 로그인 때 `logIn`이 실패한 채면 앱 복귀 때 재시도. (④ 보류) | 익명·다른 id로 산 구매는 웹훅이 사용자에 매핑하지 못해 영원히 미반영 |
 | PW-10 | 새 의존성 0건. 바텀시트는 앱에 이미 있는 모달 패턴으로 만든다. | 네이티브 모듈 추가는 빌드·심사 리스크 |
 
 ---
@@ -115,9 +118,24 @@ openSubscriptionManagement(): Promise<'opened' | 'unavailable'>
 - 같은 diff(D3)에서 `captureError`에 `tags` 옵션을 추가하고(`captureMessage`와 같은 방식), `refreshUser`에 호출별 시간 제한을 넣는다(W-REFRESHUSER-TIMEOUT 종결).
 - 기존 `loadPaywallOffer` 반환형이 바뀌므로 호출처(`paywall.tsx`)를 같은 diff에서 맞춘다.
 
+D5-b 추가 (PW-14·PW-15):
+
+```ts
+purchasePaywallPlan(kind, serverUserId, source): Promise<'completed' | 'cancelled' | 'failed' | 'identity_mismatch'>
+restorePaywallPurchases(serverUserId): Promise<'restored-active' | 'restored-none' | 'failed' | 'identity_mismatch'>
+retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' 리스너
+```
+
+- 신원 대조 판정은 순수 함수(`purchasesIdentity.ts`의 `verifyPurchaseIdentity`·`runWithVerifiedIdentity`·`normalizeAppUserId`·`shouldRetryIdentity`)로 분리한다. 차단이면 `purchasePackage`·`restorePurchases`를 부르지 않는다.
+- 정규화: 서버 웹훅 매핑(`uuid.UUID` 파싱)과 같게 — 대소문자 무시, 공백은 무시하지 않음(서버도 매핑 못 하므로 "다름"이 맞고, 재 `logIn`이 교정한다), 빈 값은 "없음".
+- RC 미설정(`configured=false`): 대조 없이 기존대로 구매 `failed`·복원 `failed`. 서버 `user.id` 없음(비로그인): `no_server_user`로 SDK 호출 없이 차단.
+- 활성 구독 판단(`purchasesRestore.ts`의 `hasActiveSubscription`): `activeSubscriptions` 또는 `entitlements.active`가 하나라도 있으면 활성.
+
 ### 2.4 상수: `src/constants/plus.ts` (신규)
 
-`FREE_STORAGE_GB`, `PLUS_STORAGE_GB`, `PAYWALL_OFFER_TIMEOUT_MS`, `PLUS_REFLECT_RETRY_COUNT`, `PLUS_REFLECT_RETRY_INTERVAL_MS`. 값은 diff 보고에서 제안 → JJ 확정.
+`FREE_STORAGE_GB`, `PLUS_STORAGE_GB`, `PAYWALL_OFFER_TIMEOUT_MS`, `PLUS_REFLECT_INTERVAL_MS`(2초), `PLUS_REFLECT_MAX_WAIT_MS`(30초), `PLUS_REFLECT_ATTEMPT_TIMEOUT_MS`(5초), `PLUS_REFLECT_LONG_AFTER_MS`(10초). 값은 diff 보고에서 제안 → JJ 확정(반영 확인 4개는 2026-10-13 확정, 구 `PLUS_REFLECT_RETRY_COUNT` 삭제).
+
+- 반영 확인은 **마감 시각 기준**: 시도는 2초마다 시작, 시도별 제한 5초(마지막 시도는 남은 시간으로 자름), 전체 ≤ 30초. 근거 = 구매→첫 웹훅 지연 실측 5.8 / 14.3 / 17.4 / 6.6초(2026-10-12~13)의 약 1.7배.
 
 ---
 
@@ -135,6 +153,8 @@ openSubscriptionManagement(): Promise<'opened' | 'unavailable'>
 | 상품 없음 | `unavailable` | `paywall.unavailable` + 다시 시도 |
 | 조회 실패 | `load_failed` | `paywall.loadFailed` + 다시 시도 |
 | 구매 중 | 구매·복원 진행 | 버튼 스피너, 플랜 카드·닫기·복원 비활성, 뒤로가기 차단 |
+| 반영 확인 중 | 구매 `completed`·복원 `restored-active` 후 | 구매 중과 같은 잠금 + 버튼 아래 `paywall.reflecting` → 10초 뒤 `paywall.reflectingLong`. 완료 화면으로 넘어갈 때까지 표시를 고정(재조회로 plus가 돼도 "이용 중" 카드로 바뀌지 않음) |
+| 신원 불일치 | 구매·복원 `identity_mismatch` | `paywall.identityMismatch` 안내, 화면 유지(구매 시트는 뜨지 않음) |
 | 이미 Plus | `user.plan === 'plus'` | 결제 UI 없이 `/subscription`으로 `replace` |
 
 - 연간이 기본 선택. 할인 배지는 `annualDiscountPercent !== null`일 때만, "월 ○꼴"은 `perMonthPriceString !== null`일 때만 표시한다.
@@ -144,12 +164,15 @@ openSubscriptionManagement(): Promise<'opened' | 'unavailable'>
 
 구매 흐름
 
-1. 버튼 탭 → `purchasePaywallPlan(kind)`. 진행 중 재탭 무시(중복 방지).
+1. 버튼 탭 → `purchasePaywallPlan(kind, user.id)`. 진행 중 재탭 무시(중복 방지). 래퍼가 신원 대조(PW-15) 후에만 구매 시트를 띄운다 — 차단이면 `identity_mismatch`.
 2. `cancelled` → 아무 표시 없이 정상 상태로 복귀.
 3. `failed` → `paywall.failed` 안내, 화면 유지.
-4. `completed` → `refreshUser()`를 `PLUS_REFLECT_RETRY_COUNT`회까지 `PLUS_REFLECT_RETRY_INTERVAL_MS` 간격으로 재시도 → `/plus-success`로 `replace`(params: `kind`, `trial`, `price`, `reflected`).
+4. `completed` → 반영 확인(§2.4, 최대 30초, 대기 문구 표시) → `/plus-success`로 `replace`(params: `kind`, `trial`, `price`, `reflected`).
 
-복원: 성공 후 `refreshUser()` → plus면 `/subscription`으로 `replace`, 아니면 `paywall.restoreNone`.
+복원(PW-14): `restorePaywallPurchases(user.id)` →
+- `identity_mismatch` → `paywall.identityMismatch` / `failed` → `paywall.failed`
+- `restored-none` → 즉시 `paywall.restoreNone`
+- `restored-active` → 반영 확인(구매와 같은 상수·문구) → 반영되면 `/plus-success`(파라미터 없음 → 기본 변형), 30초 안에 안 되면 `/plus-success?restore=1`(반영 중 + 복원 확인 안내). D6에서 반영 시 이동처를 `/subscription`으로 바꿀지 재검토.
 
 ### 3.2 구독 시작 완료 — `app/plus-success.tsx` (신규, 시안 `03-success.png`)
 
@@ -157,8 +180,9 @@ openSubscriptionManagement(): Promise<'opened' | 'unavailable'>
 |---|---|---|
 | 체험 시작 | `reflected && trial` | 플랜 / 무료 체험 종료 = `plan_expires_at` / 첫 결제 = `plan_expires_at` · `price` + 체험 해지 안내 |
 | 바로 결제 | `reflected && !trial` | 플랜 / 다음 결제 = `plan_expires_at` · `price` |
-| 반영 중 | `!reflected` | 표 없음. `plusSuccess.pending` 문구. 화면 진입 후에도 재조회 1회 |
+| 반영 중 | `!reflected && !plus`, 또는 `restore=1 && !plus` | 표 없음. 시계 아이콘, 제목 `plusSuccess.pendingTitle`, 본문 `plusSuccess.pending`. 버튼 "구매 복원"(`plusSuccess.restore`, 주 버튼) + "닫기"(`plusSuccess.close`, 홈으로 `replace`). 진입 시 1회 + 앱 복귀(AppState active)마다 1회 재조회, plus가 확인되면 반영 변형으로 바뀐다 |
 
+- 반영 중 화면의 복원 단계(표시 모델 `buildPlusPendingVM`): `idle`(안내 없음) / `restoring`(버튼 스피너·닫기 잠금) / `restore-checked`(`plusSuccess.restoreChecked`) / `restore-none`(`paywall.restoreNone`) / `restore-failed`(`plusSuccess.restoreFailed`) / `identity-mismatch`(`plusSuccess.identityMismatch`). 복원 규칙은 PW-14와 같다. `restore=1`로 들어오면 `restore-checked`부터.
 - 날짜는 앱의 기존 날짜 표시 유틸·로케일을 따른다.
 - "기록하러 가기" → 홈으로 `replace`(뒤로가기로 결제 화면에 돌아가지 않게). "구독 관리 보기" → `/subscription`.
 
@@ -230,6 +254,7 @@ openSubscriptionManagement(): Promise<'opened' | 'unavailable'>
 - 금지 표현: "AI 일기·검색 무제한". 검색은 Plus 혜택이 아니다.
 - 값이 영어와 같은 키(`paywall.brand`, `paywall.compare.plus`, 스토어 이름)는 의도적 영어 유지 목록에 등록한다.
 - vi·th는 초안이다. 병합 후 표로 뽑아 JJ 검수를 받는다.
+- v1.5(D5-b): copy 72키 → **81키**. 추가 9개 = `paywall.reflecting`·`reflectingLong`·`identityMismatch`, `plusSuccess.pendingTitle`·`restore`·`close`·`restoreChecked`·`restoreFailed`·`identityMismatch`. 값 변경 1개 = `plusSuccess.pending`. vi·th 9개는 D9 검수 대상.
 
 ---
 
@@ -244,6 +269,10 @@ openSubscriptionManagement(): Promise<'opened' | 'unavailable'>
 | 업로드를 `rejected`로 버림 | `captureMessage` warning, fingerprint `upload-rejected`, tags 상태 코드·경로 종류. 파일명·사용자 식별값 금지 |
 | 업로드를 `quota`·`oversize`로 버림 | breadcrumb만 |
 | 결제 완료 후 미반영 | `captureMessage` warning, fingerprint `paywall-reflect-timeout` |
+| 복원(활성 구독 있음) 후 미반영 | `captureMessage` warning, fingerprint `paywall-restore-reflect-timeout`, tags `source`(결제 화면 source 또는 `plus-success`) |
+| 복원 결과 | breadcrumb `restore` + `outcome` |
+| 신원 대조 차단 | `captureMessage` warning `purchases identity mismatch`, fingerprint `['purchases-identity-mismatch', reason]`, tags `area`·`stage`(purchase·restore)·`reason`(`relogin_failed` = 재 logIn 네트워크 등 실패 / `id_mismatch` = logIn 후에도 다름 / `no_server_user`), extra `rcAnonymous`·`reloginCode`. id 값 금지 |
+| 앱 복귀 logIn 재시도 실패 | `captureError` scope `purchases.identity`, `transition: 'retry'` |
 | 403 `PLUS_REQUIRED`, 413 용량 초과 | breadcrumb만(오류 아님) |
 | 상품 `unavailable` (production) | `captureMessage` warning — 스토어·RC 설정 이상 신호 |
 
@@ -263,7 +292,12 @@ openSubscriptionManagement(): Promise<'opened' | 'unavailable'>
 | 단위 | 구독 화면 표시 모델(순수 함수) | 무료·active·cancelled·grace·불명 5개 상태, 다른 스토어 안내. 렌더는 실기 스크린샷으로 확인 |
 | 통합 | 백엔드 `/auth/me` | 2.1의 케이스 |
 | 시나리오 | 용량 초과 | prepare 413 → 시트 표시 → 대기 배너 없음 → "Plus 알아보기" → 결제 화면 |
-| 시나리오 | 구매 완료 | completed → 재조회 후 plus → 완료 화면(체험) / 끝까지 미반영 → 반영 중 변형 |
+| 단위 | 반영 확인(`plusReflect.ts`) | 실측 지연 4건 30초 안 확인, 끝까지 미반영 15회·≤30초, 시도별 5초·마지막 자르기, throw = 미반영 |
+| 단위 | 결제 화면 표시 모델 | 반영 확인 단계 문구·잠금, 단계 중 plus 고정 |
+| 단위 | 완료 화면 표시 모델 | 반영 중 6단계, `restore=1` 진입, plus 확인 시 반영 변형 |
+| 단위 | 신원 대조(`purchasesIdentity.ts`) | 정규화(대소문자·공백·빈 값), 일치·익명·다른 id·조회 실패, relogin_failed vs id_mismatch, 비로그인 SDK 호출 0, 차단 시 스토어 호출 0, 복귀 재시도 판정 |
+| 단위 | 활성 구독 판단(`purchasesRestore.ts`) | 구독·entitlement·빈 값·누락 |
+| 시나리오 | 구매 완료 | completed → 대기 문구 → 재조회 후 plus → 완료 화면(체험) / 30초 미반영 → 반영 중 변형 → 구매 복원 |
 
 품질 게이트: `tsc --noEmit` 0 · `jest` 전부 통과(기준선 28 suites / 291 tests에서 증가만). eslint는 부재(W-LINT-ABSENT). 백엔드는 black·ruff·pytest.
 
@@ -279,6 +313,7 @@ openSubscriptionManagement(): Promise<'opened' | 'unavailable'>
 | D3 | RC 래퍼 확장 + `paywallOffer.ts` + 상수 | app | — |
 | D4 | 결제 화면 본체 | app | dev build, iOS·Android 각 1회 |
 | D5 | 구독 시작 완료 화면 | app | 샌드박스 구매 1회 |
+| D5-b | 반영 확인 30초(D5-b-1) → 신원 대조(D5-b-3) → 미반영 화면·복원 규칙(D5-b-2) | app | 샌드박스 구매·복원, 비행기 모드 미반영 |
 | D6 | 설정 구독 화면 + 진입점 ① | app | 무료·Plus 각 1회 |
 | D7 | 안내 시트 + 재생성 진입점 ② | app | 무료 계정 1회 |
 | D8 | 용량 초과 진입점 ⑤ | app | 한도 근처 계정 1회 |

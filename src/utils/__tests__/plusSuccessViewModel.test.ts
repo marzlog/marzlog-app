@@ -2,7 +2,11 @@
  * plusSuccessViewModel 단위 테스트 (PAYWALL 명세 §3.2)
  */
 import {
+  PLUS_SUCCESS_RESTORE_PARAMS,
+  buildPlusPendingVM,
   buildPlusSuccessVM,
+  initialPendingPhase,
+  parsePlusSuccessEntry,
   parsePlusSuccessParams,
   resolvePlusSuccessGuard,
   toPlusSuccessRouteParams,
@@ -70,12 +74,21 @@ describe('buildPlusSuccessVM — 3변형 + 기본', () => {
     expect(vm.note).toEqual({ key: 'plusSuccess.note' });
   });
 
-  it('반영 중: 표 없음, pending 문구', () => {
+  it('반영 중: 표 없음, 시계 아이콘·pendingTitle·pending 문구, 복원·닫기', () => {
     const vm = buildPlusSuccessVM({ params: { ...PAID_MONTHLY, reflected: false }, isPlus: false, planExpiresAt: null, formatDate });
     expect(vm.variant).toBe('pending');
+    expect(vm.icon).toBe('time');
+    expect(vm.title).toEqual({ key: 'plusSuccess.pendingTitle' });
     expect(vm.rows).toEqual([]);
     expect(vm.body).toEqual({ key: 'plusSuccess.pending' });
     expect(vm.note).toBeNull();
+    expect(vm.pending).toEqual({ notice: null, restore: { enabled: true, loading: false }, closeEnabled: true });
+  });
+
+  it('반영 변형은 체크 아이콘, pending 없음', () => {
+    const vm = buildPlusSuccessVM({ params: PAID_MONTHLY, isPlus: true, planExpiresAt: EXPIRES, formatDate });
+    expect(vm.icon).toBe('check');
+    expect(vm.pending).toBeNull();
   });
 
   it('반영 중으로 왔어도 재조회로 plus 가 확인되면 반영 변형으로 바뀐다', () => {
@@ -91,6 +104,8 @@ describe('buildPlusSuccessVM — 3변형 + 기본', () => {
       body: { key: 'plusSuccess.body', params: { gb: 100 } },
       rows: [],
       note: null,
+      icon: 'check',
+      pending: null,
     });
   });
 
@@ -110,5 +125,81 @@ describe('resolvePlusSuccessGuard', () => {
     [true, true, true, 'render'],
   ])('인증=%s, 파라미터=%s, plus=%s → %s', (isAuthenticated, hasParams, isPlus, expected) => {
     expect(resolvePlusSuccessGuard({ isAuthenticated, hasParams, isPlus })).toBe(expected);
+  });
+});
+
+describe('반영 중 화면 — 복원 단계 (D5-b-2)', () => {
+  it.each<[Parameters<typeof buildPlusPendingVM>[0], string | null, boolean]>([
+    ['idle', null, false],
+    ['restoring', null, true],
+    ['restore-checked', 'plusSuccess.restoreChecked', false],
+    ['restore-none', 'paywall.restoreNone', false],
+    ['restore-failed', 'plusSuccess.restoreFailed', false],
+    ['identity-mismatch', 'plusSuccess.identityMismatch', false],
+  ])('%s → 안내 %s, 진행 중=%s', (phase, noticeKey, busy) => {
+    const vm = buildPlusPendingVM(phase);
+    expect(vm.notice).toEqual(noticeKey ? { key: noticeKey } : null);
+    expect(vm.restore).toEqual({ enabled: !busy, loading: busy });
+    expect(vm.closeEnabled).toBe(!busy);
+  });
+
+  it('pendingPhase 가 VM 의 pending 에 반영된다', () => {
+    const vm = buildPlusSuccessVM({
+      params: { ...PAID_MONTHLY, reflected: false },
+      pendingPhase: 'restoring',
+      isPlus: false,
+      planExpiresAt: null,
+      formatDate,
+    });
+    expect(vm.pending?.restore.loading).toBe(true);
+    expect(vm.pending?.closeEnabled).toBe(false);
+  });
+
+  it('복원 중 재조회로 plus 가 되면 반영 변형으로(단계와 무관)', () => {
+    const vm = buildPlusSuccessVM({
+      params: { ...TRIAL_ANNUAL, reflected: false },
+      pendingPhase: 'restoring',
+      isPlus: true,
+      planExpiresAt: EXPIRES,
+      formatDate,
+    });
+    expect(vm.variant).toBe('trial-started');
+    expect(vm.pending).toBeNull();
+  });
+});
+
+describe('결제 화면 복원에서 진입 (restore=1, PW-14)', () => {
+  it('파싱: restore=1 → fromRestore, 구매 파라미터 없음', () => {
+    expect(parsePlusSuccessEntry(PLUS_SUCCESS_RESTORE_PARAMS)).toEqual({ params: null, fromRestore: true });
+    expect(parsePlusSuccessEntry({ restore: ['1'] }).fromRestore).toBe(true);
+    expect(parsePlusSuccessEntry({ restore: 'yes' }).fromRestore).toBe(false);
+    expect(parsePlusSuccessEntry({}).fromRestore).toBe(false);
+  });
+
+  it('첫 단계: 복원 진입이면 restore-checked, 아니면 idle', () => {
+    expect(initialPendingPhase(true)).toBe('restore-checked');
+    expect(initialPendingPhase(false)).toBe('idle');
+  });
+
+  it('미반영 → pending(복원 확인 안내)', () => {
+    const vm = buildPlusSuccessVM({
+      params: null,
+      fromRestore: true,
+      pendingPhase: initialPendingPhase(true),
+      isPlus: false,
+      planExpiresAt: null,
+      formatDate,
+    });
+    expect(vm.variant).toBe('pending');
+    expect(vm.pending?.notice).toEqual({ key: 'plusSuccess.restoreChecked' });
+  });
+
+  it('이후 plus 확인 → 기본 변형(구매 파라미터가 없으므로 표 없음)', () => {
+    const vm = buildPlusSuccessVM({ params: null, fromRestore: true, isPlus: true, planExpiresAt: EXPIRES, formatDate });
+    expect(vm.variant).toBe('basic');
+  });
+
+  it('결제 화면 복원 직후 반영됨(파라미터 없음 + plus) → 기본 변형', () => {
+    expect(buildPlusSuccessVM({ params: null, isPlus: true, planExpiresAt: EXPIRES, formatDate }).variant).toBe('basic');
   });
 });

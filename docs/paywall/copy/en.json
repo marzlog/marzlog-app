@@ -60,9 +60,15 @@
     "chargeValue": "{{date}} · {{price}}",
     "noteTrial": "Cancel during the trial and you won't be charged.\nManage your subscription anytime in Settings.",
     "note": "Manage your subscription anytime in Settings.",
-    "pending": "Your purchase went through. It may take a moment to show up.",
+    "pending": "We're confirming your Plus access. If it doesn't show up in a little while, tap 'Restore purchases'",
     "cta": "Back to my diary",
-    "manage": "Manage subscription"
+    "manage": "Manage subscription",
+    "pendingTitle": "Your payment is complete",
+    "restore": "Restore purchases",
+    "close": "Close",
+    "restoreChecked": "We checked your purchases. It may take a few minutes to be reflected",
+    "restoreFailed": "Couldn't restore. Please try again shortly",
+    "identityMismatch": "We couldn't verify your account. Please reopen the app"
   },
   "subscription": {
     "title": "Subscription",
