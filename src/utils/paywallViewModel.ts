@@ -6,6 +6,7 @@
  */
 import { FREE_STORAGE_GB, PLUS_STORAGE_GB } from '../constants/plus';
 import type { PaywallOfferResult, PaywallPlanKind, PaywallPlanOffer } from '../services/purchases';
+import { PLUS_SUCCESS_RESTORE_PARAMS, toPlusSuccessRouteParams } from './plusSuccessViewModel';
 
 export type PaywallSource = 'settings' | 'regen' | 'storage' | 'unknown';
 
@@ -174,4 +175,34 @@ export function buildPaywallVM(input: PaywallVMInput): PaywallVM {
  */
 export function footerFitsWithDisclosure(footerHeight: number, windowHeight: number): boolean {
   return footerHeight <= windowHeight / 2;
+}
+
+/**
+ * 구매·복원 잠금 구간에서 예상 밖 오류가 났을 때의 처리(D5-b-5).
+ * 진행 단계에 따라 다르다 — 스토어 결제·복원이 이미 끝났는데 "실패"만 보여 주면 다시 결제할 수 있다.
+ *  - before-completion: 스토어 거래 완료 전 → paywall.failed 안내(화면 유지)
+ *  - purchase-completed: 구매 completed 뒤 → 완료 화면 반영 중 변형(reflected=0)
+ *  - restore-active: 복원 restored-active 뒤 → 완료 화면 반영 중(restore=1)
+ */
+export type PaywallLockedProgress =
+  | { stage: 'before-completion' }
+  | { stage: 'purchase-completed'; kind: PaywallPlanKind; trial: boolean; price: string }
+  | { stage: 'restore-active' };
+
+export type PaywallLockedErrorAction =
+  | { type: 'alert-failed' }
+  | { type: 'go-success'; params: Record<string, string> };
+
+export function resolveLockedErrorAction(progress: PaywallLockedProgress): PaywallLockedErrorAction {
+  switch (progress.stage) {
+    case 'purchase-completed':
+      return {
+        type: 'go-success',
+        params: toPlusSuccessRouteParams({ kind: progress.kind, trial: progress.trial, price: progress.price, reflected: false }),
+      };
+    case 'restore-active':
+      return { type: 'go-success', params: PLUS_SUCCESS_RESTORE_PARAMS };
+    default:
+      return { type: 'alert-failed' };
+  }
 }

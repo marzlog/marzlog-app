@@ -1,6 +1,6 @@
 # Marzlog Plus 결제 화면(PAYWALL) 구현 명세서
 
-- 판: v1.5 (2026-10-13, D5-b — 반영 확인 30초·미반영 화면·신원 대조, PW-14·PW-15 / D5-b-4 주기 재확인·복원 안전장치) · 대상: Build 34 (marzlog-app 1.0.3, develop)
+- 판: v1.5 (2026-10-13, D5-b — 반영 확인 30초·미반영 화면·신원 대조, PW-14·PW-15 / D5-b-4 주기 재확인·복원 안전장치 / D5-b-5 결제 화면 잠금 안전장치) · 대상: Build 34 (marzlog-app 1.0.3, develop)
 - 이전 판: v1.4 (2026-10-08, PW-11~13 + 게이트 2 판정·측정 S1~S3 + D1 보정 3건 + 재개 single 사진별 판정 반영)
 - 기준선: marzlog-app `e24e5a1` / marzlog-backend `7031620` / 정찰 보고 2026-10-08(게이트 1)
 - 우선순위: **이 문서 > `screens/*.png` > `reference/*.html`**
@@ -175,6 +175,12 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - `restored-none` → 즉시 `paywall.restoreNone`
 - `restored-active` → 반영 확인(구매와 같은 상수·문구) → 반영되면 `/plus-success`(파라미터 없음 → 기본 변형), 30초 안에 안 되면 `/plus-success?restore=1`(반영 중 + 복원 확인 안내). D6에서 반영 시 이동처를 `/subscription`으로 바꿀지 재검토.
 
+잠금 구간 예상 밖 오류(D5-b-5): 구매·복원 잠금(`runLocked`)은 오류에도 항상 풀린다. 처리는 진행 단계로 정한다(순수 함수 `resolveLockedErrorAction`).
+- 스토어 거래 완료 전 → `paywall.failed` 안내, 화면 유지.
+- 구매 `completed` 뒤 → 실패 안내 대신 `/plus-success` 반영 중(`reflected=0`) — "실패"를 보고 다시 결제하는 일을 막는다.
+- 복원 `restored-active` 뒤 → `/plus-success?restore=1`.
+- 완료 화면으로 넘어가지 않은 채 잠금이 풀리면 반영 확인 단계를 `idle`로 되돌린다(정상 경로의 "넘어갈 때까지 고정"은 유지).
+
 ### 3.2 구독 시작 완료 — `app/plus-success.tsx` (신규, 시안 `03-success.png`)
 
 | 변형 | 조건 | 표 내용 |
@@ -275,6 +281,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 복원(활성 구독 있음) 후 미반영 | `captureMessage` warning, fingerprint `paywall-restore-reflect-timeout`, tags `source`(결제 화면 source 또는 `plus-success`) |
 | 복원 결과 | breadcrumb `restore` + `outcome` |
 | 신원 대조 차단 | `captureMessage` warning `purchases identity mismatch`, fingerprint `['purchases-identity-mismatch', reason]`, tags `area`·`stage`(purchase·restore)·`reason`(`relogin_failed` = 재 logIn 네트워크 등 실패 / `id_mismatch` = logIn 후에도 다름 / `no_server_user`), extra `rcAnonymous`·`reloginCode`. id 값 금지 |
+| 결제 화면 잠금 구간 예상 밖 오류 | `captureError` scope `paywall.locked`, extra `stage`(`before-completion`·`purchase-completed`·`restore-active`), tags `area`·`source`. 식별값 금지 |
 | 앱 복귀 logIn 재시도 실패 | `captureError` scope `purchases.identity`, `transition: 'retry'` |
 | 403 `PLUS_REQUIRED`, 413 용량 초과 | breadcrumb만(오류 아님) |
 | 상품 `unavailable` (production) | `captureMessage` warning — 스토어·RC 설정 이상 신호 |

@@ -22,7 +22,7 @@ import { useDialog } from '@/src/components/ui/Dialog';
 import { Logo } from '@/src/components/common/Logo';
 import { PlusCta } from '@/src/components/plus/PlusCta';
 import { plusColors } from '@/src/components/plus/plusColors';
-import { addBreadcrumb, captureMessage } from '@/src/utils/sentry';
+import { addBreadcrumb, captureError, captureMessage } from '@/src/utils/sentry';
 import {
   loadPaywallOffer,
   purchasePaywallPlan,
@@ -37,7 +37,9 @@ import {
   buildPaywallVM,
   footerFitsWithDisclosure,
   normalizePaywallSource,
+  resolveLockedErrorAction,
   shouldLoadOffer,
+  type PaywallLockedProgress,
   type PaywallPlanVM,
   type PaywallReflectPhase,
   type TextRef,
@@ -133,13 +135,30 @@ export default function PaywallScreen() {
     if (!busy && successParams) router.replace({ pathname: '/plus-success', params: successParams });
   }, [busy, successParams, router]);
 
-  const runLocked = async (task: () => Promise<void>) => {
+  // 완료 화면으로 보내기로 정했는지 — 아니면 잠금이 풀릴 때 반영 확인 단계를 idle 로 되돌린다
+  const goingToSuccessRef = useRef(false);
+  const goToSuccess = (params: Record<string, string>) => {
+    goingToSuccessRef.current = true;
+    setSuccessParams(params);
+  };
+
+  // D5-b-5: 예상 밖 오류에도 잠금이 풀리고, 스토어 거래가 끝난 뒤의 오류면 "실패" 대신 완료 화면 반영 중으로 보낸다
+  const runLocked = async (task: (progress: { current: PaywallLockedProgress }) => Promise<void>) => {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
+    const progress: { current: PaywallLockedProgress } = { current: { stage: 'before-completion' } };
     try {
-      await task();
+      await task(progress);
+    } catch (e) {
+      captureError(e instanceof Error ? e : new Error(String(e)), { scope: 'paywall.locked', stage: progress.current.stage }, {
+        tags: { area: 'paywall', source },
+      });
+      const action = resolveLockedErrorAction(progress.current);
+      if (action.type === 'go-success') goToSuccess(action.params);
+      else await alert(t('paywall.title'), t('paywall.failed'));
     } finally {
+      if (!goingToSuccessRef.current) setReflectPhase('idle');
       busyRef.current = false;
       setBusy(false);
     }
@@ -165,7 +184,7 @@ export default function PaywallScreen() {
   };
 
   const handlePurchase = () =>
-    runLocked(async () => {
+    runLocked(async (progress) => {
       const kind = selected;
       const plan = offerResult?.status === 'ok' ? offerResult.offer[kind] : null;
       addBreadcrumb('paywall', 'purchase', { kind, phase: 'start', source });
@@ -182,6 +201,9 @@ export default function PaywallScreen() {
         await alert(t('paywall.title'), t('paywall.failed'));
         return;
       }
+      const trial = plan?.trial.eligible === true;
+      const price = plan?.priceString ?? '';
+      progress.current = { stage: 'purchase-completed', kind, trial, price };
       const reflected = await waitReflected();
       if (!reflected) {
         captureMessage('paywall plus not reflected after purchase', { kind, source }, {
@@ -190,18 +212,11 @@ export default function PaywallScreen() {
           tags: { area: 'paywall', kind, source },
         });
       }
-      setSuccessParams(
-        toPlusSuccessRouteParams({
-          kind,
-          trial: plan?.trial.eligible === true,
-          price: plan?.priceString ?? '',
-          reflected,
-        }),
-      );
+      goToSuccess(toPlusSuccessRouteParams({ kind, trial, price, reflected }));
     });
 
   const handleRestore = () =>
-    runLocked(async () => {
+    runLocked(async (progress) => {
       const restored = await restorePaywallPurchases(useAuthStore.getState().user?.id);
       if (restored === 'identity_mismatch') {
         await alert(t('paywall.title'), t('paywall.identityMismatch'));
@@ -217,6 +232,7 @@ export default function PaywallScreen() {
         return;
       }
       // restored-active: Plus 여부는 서버 반영으로만 판단(PW-1)
+      progress.current = { stage: 'restore-active' };
       const reflected = await waitReflected();
       if (!reflected) {
         captureMessage('paywall plus not reflected after restore', { source }, {
@@ -225,7 +241,7 @@ export default function PaywallScreen() {
           tags: { area: 'paywall', source },
         });
       }
-      setSuccessParams(reflected ? {} : PLUS_SUCCESS_RESTORE_PARAMS);
+      goToSuccess(reflected ? {} : PLUS_SUCCESS_RESTORE_PARAMS);
     });
 
   const handleClose = () => {

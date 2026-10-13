@@ -11,6 +11,7 @@ import {
   buildPaywallVM,
   footerFitsWithDisclosure,
   normalizePaywallSource,
+  resolveLockedErrorAction,
   shouldLoadOffer,
   type PaywallVMInput,
 } from '../paywallViewModel';
@@ -240,5 +241,22 @@ describe('footerFitsWithDisclosure (조건 1)', () => {
     expect(footerFitsWithDisclosure(300, 800)).toBe(true);
     expect(footerFitsWithDisclosure(400, 800)).toBe(true);
     expect(footerFitsWithDisclosure(401, 800)).toBe(false);
+  });
+});
+
+describe('잠금 구간 예상 밖 오류 처리 (D5-b-5)', () => {
+  it('스토어 거래 완료 전 오류 → paywall.failed 안내', () => {
+    expect(resolveLockedErrorAction({ stage: 'before-completion' })).toEqual({ type: 'alert-failed' });
+  });
+
+  it('구매 completed 뒤 오류 → 실패 안내 대신 완료 화면 반영 중(reflected=0) — 재결제 방지', () => {
+    expect(resolveLockedErrorAction({ stage: 'purchase-completed', kind: 'annual', trial: true, price: '₩44,000' })).toEqual({
+      type: 'go-success',
+      params: { kind: 'annual', trial: '1', price: '₩44,000', reflected: '0' },
+    });
+  });
+
+  it('복원 restored-active 뒤 오류 → 완료 화면 반영 중(restore=1)', () => {
+    expect(resolveLockedErrorAction({ stage: 'restore-active' })).toEqual({ type: 'go-success', params: { restore: '1' } });
   });
 });
