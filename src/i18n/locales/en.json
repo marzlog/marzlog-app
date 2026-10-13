@@ -855,7 +855,9 @@
     "loadFailed": "Couldn't load plans. Check your connection and try again.",
     "retry": "Try again",
     "restoreNone": "No purchases to restore",
-    "ctaTrialGeneric": "Start free trial"
+    "ctaTrialGeneric": "Start free trial",
+    "reflecting": "Confirming your purchase",
+    "reflectingLong": "This is taking a little longer. Please wait a moment"
   },
   "plusSheet": {
     "regenTitle": "AI diary rewrites\nare part of Plus",

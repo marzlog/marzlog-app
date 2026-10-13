@@ -31,7 +31,12 @@ export interface PaywallVMInput {
   selected: PaywallPlanKind;
   /** 구매·복원 진행 중 */
   busy: boolean;
+  /** 구매 후 서버 반영 확인 단계(D5-b) — idle 이 아니면 화면을 잠그고 대기 문구를 보인다 */
+  reflecting: PaywallReflectPhase;
 }
+
+/** checking → PLUS_REFLECT_LONG_AFTER_MS 뒤 checking-long. 완료 화면으로 넘어갈 때까지 되돌리지 않는다 */
+export type PaywallReflectPhase = 'idle' | 'checking' | 'checking-long';
 
 export interface PaywallHeaderVM {
   closeEnabled: boolean;
@@ -62,6 +67,8 @@ export type PaywallBodyVM =
       disclosure: TextRef;
       /** 구매 중 — 플랜 카드·닫기·복원 비활성, 뒤로가기 차단, CTA 스피너 */
       locked: boolean;
+      /** 반영 확인 중 CTA 아래 문구(reflecting → reflectingLong). 그 외 null */
+      status: TextRef | null;
     };
 
 export type PaywallVM = { header: PaywallHeaderVM; body: PaywallBodyVM };
@@ -119,14 +126,24 @@ function ctaAndDisclosure(kind: PaywallPlanKind, plan: PaywallPlanOffer): { cta:
   };
 }
 
+const REFLECT_STATUS: Record<PaywallReflectPhase, TextRef | null> = {
+  idle: null,
+  checking: { key: 'paywall.reflecting' },
+  'checking-long': { key: 'paywall.reflectingLong' },
+};
+
 export function buildPaywallVM(input: PaywallVMInput): PaywallVM {
+  const reflecting = input.reflecting !== 'idle';
+  const locked = input.busy || reflecting;
+  // 반영 확인 중 재조회로 plan 이 plus 가 돼도 화면을 고정한다 — 완료 화면 replace 직전 "이용 중" 카드 노출 방지
+  const isPlus = input.isPlus && !reflecting;
   const header: PaywallHeaderVM = {
-    closeEnabled: !input.busy,
-    restoreEnabled: !input.busy && input.isAuthenticated && !input.isPlus,
+    closeEnabled: !locked,
+    restoreEnabled: !locked && input.isAuthenticated && !isPlus,
   };
 
   if (!input.isAuthenticated) return { header, body: { kind: 'unauthenticated' } };
-  if (input.isPlus) return { header, body: { kind: 'already-plus' } };
+  if (isPlus) return { header, body: { kind: 'already-plus' } };
   if (input.loading || input.offerResult === null) return { header, body: { kind: 'loading' } };
   if (input.offerResult.status === 'unavailable') {
     return { header, body: { kind: 'unavailable', message: { key: 'paywall.unavailable' } } };
@@ -145,7 +162,8 @@ export function buildPaywallVM(input: PaywallVMInput): PaywallVM {
       kind: 'ready',
       plans,
       ...ctaAndDisclosure(input.selected, offer[input.selected]),
-      locked: input.busy,
+      locked,
+      status: REFLECT_STATUS[input.reflecting],
     },
   };
 }

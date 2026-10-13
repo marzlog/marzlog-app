@@ -44,6 +44,7 @@ function input(overrides: Partial<PaywallVMInput> = {}): PaywallVMInput {
     offerResult: ok(),
     selected: PAYWALL_DEFAULT_PLAN,
     busy: false,
+    reflecting: 'idle',
     ...overrides,
   };
 }
@@ -92,8 +93,38 @@ describe('상태 (명세 §3.1 표)', () => {
     expect(vm.body.kind === 'ready' && vm.body.locked).toBe(true);
   });
 
-  it('정상 — 잠금 없음', () => {
+  it('정상 — 잠금 없음, 대기 문구 없음', () => {
     expect(ready(input()).locked).toBe(false);
+    expect(ready(input()).status).toBeNull();
+  });
+});
+
+describe('구매 후 반영 확인 (D5-b-1)', () => {
+  it('checking → 잠금 + paywall.reflecting, 닫기·복원 비활성', () => {
+    const vm = buildPaywallVM(input({ reflecting: 'checking' }));
+    expect(vm.header).toEqual({ closeEnabled: false, restoreEnabled: false });
+    expect(vm.body.kind === 'ready' && vm.body.locked).toBe(true);
+    expect(ready(input({ reflecting: 'checking' })).status).toEqual({ key: 'paywall.reflecting' });
+  });
+
+  it('checking-long → paywall.reflectingLong', () => {
+    expect(ready(input({ reflecting: 'checking-long' })).status).toEqual({ key: 'paywall.reflectingLong' });
+  });
+
+  it('busy 가 풀려도 반영 확인 단계면 잠금 유지(완료 화면 replace 직전 렌더)', () => {
+    const vm = buildPaywallVM(input({ busy: false, reflecting: 'checking-long' }));
+    expect(vm.header.closeEnabled).toBe(false);
+    expect(vm.body.kind === 'ready' && vm.body.locked).toBe(true);
+  });
+
+  it.each(['checking', 'checking-long'] as const)('%s 중 plan 이 plus 로 바뀌어도 already-plus 카드로 바뀌지 않는다', (phase) => {
+    const vm = buildPaywallVM(input({ isPlus: true, busy: false, reflecting: phase }));
+    expect(vm.body.kind).toBe('ready');
+    expect(vm.header).toEqual({ closeEnabled: false, restoreEnabled: false });
+  });
+
+  it('idle 이면 plus 는 그대로 already-plus', () => {
+    expect(buildPaywallVM(input({ isPlus: true, reflecting: 'idle' })).body.kind).toBe('already-plus');
   });
 });
 

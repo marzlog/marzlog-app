@@ -29,7 +29,9 @@
     "loadFailed": "Không tải được thông tin gói. Hãy kiểm tra kết nối và thử lại.",
     "retry": "Thử lại",
     "restoreNone": "Không có giao dịch nào để khôi phục",
-    "ctaTrialGeneric": "Bắt đầu dùng thử miễn phí"
+    "ctaTrialGeneric": "Bắt đầu dùng thử miễn phí",
+    "reflecting": "Đang xác nhận thanh toán",
+    "reflectingLong": "Việc này mất thêm một chút thời gian. Vui lòng chờ trong giây lát"
   },
   "plusSheet": {
     "regenTitle": "Viết lại nhật ký AI\nlà tính năng của Plus",

@@ -29,7 +29,9 @@
     "loadFailed": "상품 정보를 불러오지 못했어요. 연결을 확인하고 다시 시도해 주세요.",
     "retry": "다시 시도",
     "restoreNone": "복원할 구매 내역이 없어요",
-    "ctaTrialGeneric": "무료로 시작하기"
+    "ctaTrialGeneric": "무료로 시작하기",
+    "reflecting": "결제를 확인하고 있어요",
+    "reflectingLong": "조금 더 걸리고 있어요. 잠시만 기다려 주세요"
   },
   "plusSheet": {
     "regenTitle": "AI 일기 재생성은\nPlus에서 할 수 있어요",

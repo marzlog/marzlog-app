@@ -39,11 +39,17 @@ import {
   normalizePaywallSource,
   shouldLoadOffer,
   type PaywallPlanVM,
+  type PaywallReflectPhase,
   type TextRef,
 } from '@src/utils/paywallViewModel';
 import { waitForPlusReflected } from '@src/utils/plusReflect';
 import { toPlusSuccessRouteParams } from '@src/utils/plusSuccessViewModel';
-import { PLUS_REFLECT_RETRY_COUNT, PLUS_REFLECT_RETRY_INTERVAL_MS } from '@src/constants/plus';
+import {
+  PLUS_REFLECT_ATTEMPT_TIMEOUT_MS,
+  PLUS_REFLECT_INTERVAL_MS,
+  PLUS_REFLECT_LONG_AFTER_MS,
+  PLUS_REFLECT_MAX_WAIT_MS,
+} from '@src/constants/plus';
 import { PRIVACY_URL, TERMS_URL } from '@src/constants/legal';
 import { borderRadius, darkTheme, lightTheme, palette, spacing, typography, type Theme } from '@src/theme';
 
@@ -54,7 +60,8 @@ import { borderRadius, darkTheme, lightTheme, palette, spacing, typography, type
  * 구매/복원 성공은 /auth/me 재조회 트리거일 뿐 — SDK 결과로 Plus 를 단정하지 않는다.
  * 상태별 표시는 buildPaywallVM(순수 함수)이 정하고, 여기서는 렌더·이동·기록만 한다.
  *
- * 구매 완료(completed)는 반영 여부와 무관하게 /plus-success 로 replace 한다(PW-7 — 미반영도 alert 없이
+ * 구매 완료(completed)는 서버 반영을 최대 PLUS_REFLECT_MAX_WAIT_MS 확인한 뒤(대기 문구 표시, 화면 잠금 유지)
+ * 반영 여부와 무관하게 /plus-success 로 replace 한다(PW-7 — 미반영도 alert 없이
  * 완료 화면의 "반영 중" 변형으로). 복원 성공·이미 Plus 는 D6(/subscription) 전까지 이 화면의 "이용 중" 카드.
  */
 const MIN_TOUCH = 44;
@@ -87,8 +94,10 @@ export default function PaywallScreen() {
   const [disclosureInFooter, setDisclosureInFooter] = useState(true);
   // 구매 완료 후 이동할 완료 화면 파라미터 — 잠금(usePreventRemove)이 풀린 뒤에 이동한다
   const [successParams, setSuccessParams] = useState<Record<string, string> | null>(null);
+  // 구매 후 서버 반영 확인 단계 — 완료 화면으로 넘어갈 때까지 idle 로 되돌리지 않는다(VM 고정)
+  const [reflectPhase, setReflectPhase] = useState<PaywallReflectPhase>('idle');
 
-  const vm = buildPaywallVM({ isAuthenticated, isPlus, loading, offerResult, selected, busy });
+  const vm = buildPaywallVM({ isAuthenticated, isPlus, loading, offerResult, selected, busy, reflecting: reflectPhase });
   const tx = (ref: TextRef) => t(ref.key, ref.params);
 
   useEffect(() => {
@@ -147,10 +156,21 @@ export default function PaywallScreen() {
         await alert(t('paywall.title'), t('paywall.failed'));
         return;
       }
-      const { reflected } = await waitForPlusReflected(
-        async () => (await useAuthStore.getState().refreshUser(PLUS_REFLECT_RETRY_INTERVAL_MS)).plan === 'plus',
-        { count: PLUS_REFLECT_RETRY_COUNT, intervalMs: PLUS_REFLECT_RETRY_INTERVAL_MS },
-      );
+      setReflectPhase('checking');
+      const longTimer = setTimeout(() => setReflectPhase('checking-long'), PLUS_REFLECT_LONG_AFTER_MS);
+      let reflected = false;
+      try {
+        ({ reflected } = await waitForPlusReflected(
+          async (timeoutMs) => (await useAuthStore.getState().refreshUser(timeoutMs)).plan === 'plus',
+          {
+            intervalMs: PLUS_REFLECT_INTERVAL_MS,
+            maxWaitMs: PLUS_REFLECT_MAX_WAIT_MS,
+            attemptTimeoutMs: PLUS_REFLECT_ATTEMPT_TIMEOUT_MS,
+          },
+        ));
+      } finally {
+        clearTimeout(longTimer);
+      }
       if (!reflected) {
         captureMessage('paywall plus not reflected after purchase', { kind, source }, {
           level: 'warning',
@@ -374,6 +394,11 @@ export default function PaywallScreen() {
           style={[styles.footer, { paddingBottom: insets.bottom + spacing.base, backgroundColor: theme.background.primary }]}
         >
           <PlusCta label={tx(ready.cta)} onPress={handlePurchase} loading={ready.locked} colors={accent} />
+          {ready.status && (
+            <Text style={[styles.reflectStatus, { color: theme.text.secondary }]} accessibilityLiveRegion="polite">
+              {tx(ready.status)}
+            </Text>
+          )}
           {disclosureInFooter && renderDisclosure()}
         </View>
       )}
@@ -449,6 +474,7 @@ const styles = StyleSheet.create({
   retryText: { fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semiBold },
   footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.sm },
   disclosureBlock: { gap: spacing.sm },
+  reflectStatus: { fontSize: typography.fontSize.sm, textAlign: 'center' },
   noCharge: { fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semiBold, textAlign: 'center' },
   disclosure: { fontSize: typography.fontSize.xs, lineHeight: typography.fontSize.xs * typography.lineHeight.normal },
   links: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', gap: spacing.lg },
