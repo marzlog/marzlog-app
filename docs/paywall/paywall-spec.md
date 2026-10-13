@@ -325,6 +325,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D4 | 결제 화면 본체 | app | dev build, iOS·Android 각 1회 |
 | D5 | 구독 시작 완료 화면 | app | 샌드박스 구매 1회 |
 | D5-b | 반영 확인 30초(D5-b-1) → 신원 대조(D5-b-3) → 미반영 화면·복원 규칙(D5-b-2) | app | 샌드박스 구매·복원, 비행기 모드 미반영 |
+| D6-a | 진입점 ① 선행: 더보기 저장 공간 카드 전체 탭 → `/paywall?source=settings`(무료·Plus 모두, D6에서 `/subscription`으로 교체) + 배지를 `/auth/me` plan 기준으로(PW-1, `planBadge.ts`) | app | Android 실기 결제 시험 진입 |
 | D6 | 설정 구독 화면 + 진입점 ① | app | 무료·Plus 각 1회 |
 | D7 | 안내 시트 + 재생성 진입점 ② | app | 무료 계정 1회 |
 | D8 | 용량 초과 진입점 ⑤ | app | 한도 근처 계정 1회 |

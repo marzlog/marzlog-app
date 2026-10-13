@@ -63,7 +63,12 @@ export default function MoreScreen() {
       </View>
 
       <View style={styles.content}>
-        <StorageUsageBar isDark={isDark} />
+        {/* PAYWALL 진입점 ①(D6-a, source=settings): 무료·Plus 모두 결제 화면으로 — Plus 는 결제 화면의 "이용 중" 카드.
+            D6 에서 /subscription 으로 교체한다(명세 §3.3). 진입 기록은 결제 화면의 breadcrumb view+source 가 남긴다 */}
+        <StorageUsageBar
+          isDark={isDark}
+          onPress={() => router.push({ pathname: '/paywall', params: { source: 'settings' } })}
+        />
         <View style={[styles.card, isDark && styles.cardDark]}>
           {MENU_ITEMS.map((item, index) => (
             <AppTouchable

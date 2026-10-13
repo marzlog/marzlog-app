@@ -3,6 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useStorageStore } from '@/src/store/storageStore';
+import { useAuthStore } from '@/src/store/authStore';
+import { PLAN_BADGE_KEYS, resolvePlanBadge } from '@/src/utils/planBadge';
 import { AppTouchable } from './AppTouchable';
 
 function formatBytes(bytes: number): string {
@@ -21,41 +23,56 @@ function getBarColor(percent: number): string {
   return '#6366F1';
 }
 
-const PLAN_KEYS: Record<string, string> = {
-  free: 'storage.planFree',
-  basic: 'storage.planBasic',
-  pro: 'storage.planPro',
-  unlimited: 'storage.planUnlimited',
-};
-
 interface StorageUsageBarProps {
   isDark: boolean;
   onUpgrade?: () => void;
+  /** 카드 전체 탭(D6-a 진입점 ①) — 주면 오른쪽 chevron 과 버튼 접근성이 붙는다 */
+  onPress?: () => void;
 }
 
-export function StorageUsageBar({ isDark, onUpgrade }: StorageUsageBarProps) {
+export function StorageUsageBar({ isDark, onUpgrade, onPress }: StorageUsageBarProps) {
   const { t } = useTranslation();
   const { storageUsage, isLoading } = useStorageStore();
+  // 배지는 서버 /auth/me plan 기준(PW-1) — /users/storage 의 plan 은 쓰지 않는다
+  const planKey = PLAN_BADGE_KEYS[resolvePlanBadge(useAuthStore((s) => s.user?.plan))];
+
+  // 카드 전체를 누를 수 있게(로딩·조회 실패 중에도 진입 가능)
+  const wrap = (children: React.ReactNode) =>
+    onPress ? (
+      <AppTouchable
+        style={[styles.container, isDark && styles.containerDark]}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('storage.title')}, ${t(planKey as any)}`}
+      >
+        {children}
+      </AppTouchable>
+    ) : (
+      <View style={[styles.container, isDark && styles.containerDark]}>{children}</View>
+    );
+
+  const chevron = onPress ? (
+    <Ionicons name="chevron-forward" size={18} color={isDark ? '#4B5563' : '#9CA3AF'} />
+  ) : null;
 
   if (isLoading || !storageUsage) {
-    return (
-      <View style={[styles.container, isDark && styles.containerDark]}>
-        <View style={styles.inner}>
-          {/* Skeleton */}
+    return wrap(
+      <View style={[styles.inner, styles.skeletonRow]}>
+        {/* Skeleton */}
+        <View style={styles.skeletonBody}>
           <View style={[styles.skeletonLine, isDark && styles.skeletonDark, { width: '40%' }]} />
           <View style={[styles.skeletonBar, isDark && styles.skeletonDark]} />
           <View style={[styles.skeletonLine, isDark && styles.skeletonDark, { width: '60%' }]} />
         </View>
-      </View>
+        {chevron}
+      </View>,
     );
   }
 
-  const { used_bytes, limit_bytes, used_percentage, plan } = storageUsage;
+  const { used_bytes, limit_bytes, used_percentage } = storageUsage;
   const barColor = getBarColor(used_percentage);
-  const planKey = PLAN_KEYS[plan] || PLAN_KEYS.free;
 
-  return (
-    <View style={[styles.container, isDark && styles.containerDark]}>
+  return wrap(
       <View style={styles.inner}>
         {/* Header: title + plan badge */}
         <View style={styles.headerRow}>
@@ -65,10 +82,13 @@ export function StorageUsageBar({ isDark, onUpgrade }: StorageUsageBarProps) {
               {t('storage.title')}
             </Text>
           </View>
-          <View style={[styles.badge, { backgroundColor: barColor + '1A' }]}>
-            <Text style={[styles.badgeText, { color: barColor }]}>
-              {t(planKey as any)}
-            </Text>
+          <View style={styles.badgeRow}>
+            <View style={[styles.badge, { backgroundColor: barColor + '1A' }]}>
+              <Text style={[styles.badgeText, { color: barColor }]}>
+                {t(planKey as any)}
+              </Text>
+            </View>
+            {chevron}
           </View>
         </View>
 
@@ -104,8 +124,7 @@ export function StorageUsageBar({ isDark, onUpgrade }: StorageUsageBarProps) {
             {t('storage.freeNotice')}
           </Text>
         )}
-      </View>
-    </View>
+      </View>,
   );
 }
 
@@ -139,6 +158,11 @@ const styles = StyleSheet.create({
   },
   textMuted: {
     color: '#9CA3AF',
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   badge: {
     paddingHorizontal: 8,
@@ -189,6 +213,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   // Skeleton
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  skeletonBody: {
+    flex: 1,
+  },
   skeletonLine: {
     height: 12,
     borderRadius: 4,
