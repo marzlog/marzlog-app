@@ -31,7 +31,8 @@
     "restoreNone": "No purchases to restore",
     "ctaTrialGeneric": "Start free trial",
     "reflecting": "Confirming your purchase",
-    "reflectingLong": "This is taking a little longer. Please wait a moment"
+    "reflectingLong": "This is taking a little longer. Please wait a moment",
+    "identityMismatch": "We couldn't verify your account. Please reopen the app and try again"
   },
   "plusSheet": {
     "regenTitle": "AI diary rewrites\nare part of Plus",

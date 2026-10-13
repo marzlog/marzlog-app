@@ -10,7 +10,13 @@ import Purchases, {
 import { PAYWALL_OFFER_TIMEOUT_MS } from '../constants/plus';
 import { captureError, captureMessage } from '../utils/sentry';
 import { resolvePurchasesSetup } from './purchasesGuard';
-import { resolveIdentityTransition } from './purchasesIdentity';
+import {
+  resolveIdentityTransition,
+  runWithVerifiedIdentity,
+  shouldRetryIdentity,
+  verifyPurchaseIdentity,
+  type IdentityVerdict,
+} from './purchasesIdentity';
 import { PAYWALL_OFFERING_ID, pickPaywallPackages, type PaywallPlanKind } from './paywallPackages';
 import { annualDiscountPercent, trialPeriodToDays } from './paywallOffer';
 
@@ -60,6 +66,25 @@ export function isPurchasesReady(): boolean {
 
 // 식별 호출 직렬화 — 로그인 직후 로그아웃처럼 전이가 연달아 와도 SDK 호출 순서를 보장한다.
 let identityQueue: Promise<void> = Promise.resolve();
+// 마지막으로 원한 식별 상태 — logIn 이 실패하면 synced=false 로 남아 앱 복귀 때 재시도한다(D5-b-3)
+let identityTarget: string | null = null;
+let identitySynced = true;
+let identityRetryInFlight = false;
+
+/** 식별 큐에 SDK 호출을 넣고, 그 호출의 결과(throw 포함)를 돌려준다. 큐 자체는 실패해도 이어진다 */
+function enqueueIdentity<T>(task: () => Promise<T>): Promise<T> {
+  const run = identityQueue.then(task);
+  identityQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+async function logInTracked(appUserId: string): Promise<void> {
+  await Purchases.logIn(appUserId);
+  if (identityTarget === appUserId) identitySynced = true;
+}
 
 /**
  * authStore user.id 전이를 RC 식별에 반영한다(_layout 의 subscribe 단일 지점에서 호출).
@@ -69,10 +94,12 @@ export function syncPurchasesIdentity(prevUserId: string | null | undefined, nex
   const transition = resolveIdentityTransition(prevUserId, nextUserId);
   if (!transition || !configured) return;
 
-  identityQueue = identityQueue.then(async () => {
+  identityTarget = transition.type === 'login' ? transition.appUserId : null;
+  identitySynced = transition.type !== 'login';
+  enqueueIdentity(async () => {
     try {
       if (transition.type === 'login') {
-        await Purchases.logIn(transition.appUserId);
+        await logInTracked(transition.appUserId);
       } else if (!(await Purchases.isAnonymous())) {
         await Purchases.logOut();
       }
@@ -83,6 +110,56 @@ export function syncPurchasesIdentity(prevUserId: string | null | undefined, nex
       });
     }
   });
+}
+
+/**
+ * 앱 복귀(AppState active) 때 호출 — 로그인 상태인데 마지막 logIn 이 실패한 채면 1회 다시 시도한다(D5-b-3).
+ * 실패는 transition 'retry' 로 기록하고 다음 복귀에서 다시 본다.
+ */
+export function retryPurchasesIdentity(): void {
+  const target = identityTarget;
+  if (!shouldRetryIdentity({ configured, target, synced: identitySynced, inFlight: identityRetryInFlight })) return;
+  identityRetryInFlight = true;
+  enqueueIdentity(async () => {
+    try {
+      await logInTracked(target as string);
+    } catch (e) {
+      captureError(e instanceof Error ? e : new Error(String(e)), { scope: 'purchases.identity', transition: 'retry' });
+    } finally {
+      identityRetryInFlight = false;
+    }
+  });
+}
+
+export type IdentityStage = 'purchase' | 'restore';
+
+/**
+ * 구매·복원 직전 신원 대조(신원 수리안 ①②③). 차단이면 여기서 한 번 기록한다 — 식별값(id)은 싣지 않는다.
+ * tags.reason 으로 재 logIn 네트워크 실패(relogin_failed)와 id 불일치(id_mismatch)를 구분한다.
+ */
+async function verifyIdentityFor(stage: IdentityStage, serverUserId: string | null | undefined): Promise<IdentityVerdict> {
+  const verdict = await verifyPurchaseIdentity(serverUserId, {
+    waitForQueue: () => identityQueue,
+    getAppUserId: () => Purchases.getAppUserID(),
+    logIn: (appUserId) => {
+      identityTarget = appUserId;
+      identitySynced = false;
+      return enqueueIdentity(() => logInTracked(appUserId));
+    },
+  });
+  if (!verdict.ok) {
+    const err = verdict.reloginError as { code?: unknown } | null;
+    captureMessage(
+      'purchases identity mismatch',
+      { stage, reason: verdict.reason, rcAnonymous: verdict.rcAnonymous, reloginCode: err?.code ?? null },
+      {
+        level: 'warning',
+        fingerprint: ['purchases-identity-mismatch', verdict.reason],
+        tags: { area: 'paywall', stage, reason: verdict.reason },
+      },
+    );
+  }
+  return verdict;
 }
 
 // ─── 페이월 (2d) ────────────────────────────────────────────────────────────────
@@ -244,21 +321,31 @@ export async function loadPaywallOffer(): Promise<PaywallOfferResult> {
   };
 }
 
-export type PurchaseOutcome = 'completed' | 'cancelled' | 'failed';
+/** identity_mismatch = 신원 대조 차단(구매 시트를 띄우지 않았다) */
+export type PurchaseOutcome = 'completed' | 'cancelled' | 'failed' | 'identity_mismatch';
 
 /**
  * 구매 시트 호출. 'completed' 는 "스토어 거래가 끝났다"는 뜻일 뿐 Plus 판정이 아니다.
  * failed 는 여기서 한 번만 기록한다(명세 §6 tags area·kind·source) — 화면은 다시 기록하지 않는다.
  */
-export async function purchasePaywallPlan(kind: PaywallPlanKind, source: string = 'unknown'): Promise<PurchaseOutcome> {
+export async function purchasePaywallPlan(
+  kind: PaywallPlanKind,
+  serverUserId: string | null | undefined,
+  source: string = 'unknown',
+): Promise<PurchaseOutcome> {
   const pkg = paywallPackages[kind];
   const tags = { area: 'paywall', kind, source };
+  // RC 미설정이면 대조 없이 기존대로 failed(구매 자체가 불가 — 대조할 SDK 가 없다)
   if (!configured || !pkg) {
     captureError(new Error('paywall purchase unavailable'), { scope: 'purchases.purchase', kind, configured }, { tags });
     return 'failed';
   }
   try {
-    await Purchases.purchasePackage(pkg);
+    const run = await runWithVerifiedIdentity(
+      () => verifyIdentityFor('purchase', serverUserId),
+      () => Purchases.purchasePackage(pkg),
+    );
+    if (run.blocked) return 'identity_mismatch';
     return 'completed';
   } catch (e: any) {
     if (e?.userCancelled || e?.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) return 'cancelled';
@@ -271,18 +358,24 @@ export async function purchasePaywallPlan(kind: PaywallPlanKind, source: string 
   }
 }
 
-/** 구매 복원. true = 복원 요청 완료(결과 판정은 서버 재조회로). */
-export async function restorePaywallPurchases(): Promise<boolean> {
-  if (!configured) return false;
+/** restored = 복원 요청 완료(결과 판정은 서버 재조회로) · identity_mismatch = 신원 대조 차단(복원 미호출) */
+export type RestoreOutcome = 'restored' | 'failed' | 'identity_mismatch';
+
+/** 구매 복원 — 구매와 같은 신원 대조를 먼저 한다(익명·다른 id 로 복원하면 영수증이 엉뚱한 RC 사용자에 붙는다). */
+export async function restorePaywallPurchases(serverUserId: string | null | undefined): Promise<RestoreOutcome> {
+  if (!configured) return 'failed';
   try {
-    await Purchases.restorePurchases();
-    return true;
+    const run = await runWithVerifiedIdentity(
+      () => verifyIdentityFor('restore', serverUserId),
+      () => Purchases.restorePurchases(),
+    );
+    return run.blocked ? 'identity_mismatch' : 'restored';
   } catch (e: any) {
     captureError(e instanceof Error ? e : new Error(String(e?.message ?? e)), {
       scope: 'purchases.restore',
       code: e?.code,
     });
-    return false;
+    return 'failed';
   }
 }
 

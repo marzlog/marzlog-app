@@ -31,7 +31,8 @@
     "restoreNone": "복원할 구매 내역이 없어요",
     "ctaTrialGeneric": "무료로 시작하기",
     "reflecting": "결제를 확인하고 있어요",
-    "reflectingLong": "조금 더 걸리고 있어요. 잠시만 기다려 주세요"
+    "reflectingLong": "조금 더 걸리고 있어요. 잠시만 기다려 주세요",
+    "identityMismatch": "계정 확인에 실패했어요. 앱을 다시 열고 시도해 주세요"
   },
   "plusSheet": {
     "regenTitle": "AI 일기 재생성은\nPlus에서 할 수 있어요",

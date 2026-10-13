@@ -25,7 +25,7 @@ import { triggerResume } from '@src/services/resumeUploads';
 import { RESUME_INTERVAL_MS } from '@src/constants/upload';
 import { useUploadQueueStore } from '@src/store/uploadQueueStore';
 import NetInfo from '@react-native-community/netinfo';
-import { initPurchases, syncPurchasesIdentity } from '@src/services/purchases';
+import { initPurchases, retryPurchasesIdentity, syncPurchasesIdentity } from '@src/services/purchases';
 import ErrorView from '@/src/components/common/ErrorView';
 import { useNetworkResume } from '@src/hooks/useNetworkResume';
 import { t } from '@src/i18n';
@@ -55,6 +55,10 @@ if (kakaoKey && Platform.OS !== 'web') {
 initPurchases();
 // RC 식별: 로그인/로그아웃 경로를 각각 건드리지 않고 user.id 전이 한 지점에서 logIn/logOut.
 useAuthStore.subscribe((state, prev) => syncPurchasesIdentity(prev.user?.id, state.user?.id));
+// D5-b-3: 로그인 때 RC logIn 이 실패한 채 남았으면 앱 복귀 때 다시 시도(다른 복귀 리스너와 분리)
+AppState.addEventListener('change', (nextState) => {
+  if (nextState === 'active') retryPurchasesIdentity();
+});
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.

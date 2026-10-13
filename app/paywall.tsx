@@ -148,9 +148,14 @@ export default function PaywallScreen() {
       const kind = selected;
       const plan = offerResult?.status === 'ok' ? offerResult.offer[kind] : null;
       addBreadcrumb('paywall', 'purchase', { kind, phase: 'start', source });
-      const outcome = await purchasePaywallPlan(kind, source);
+      const outcome = await purchasePaywallPlan(kind, useAuthStore.getState().user?.id, source);
       addBreadcrumb('paywall', 'purchase', { kind, outcome, source });
       if (outcome === 'cancelled') return;
+      if (outcome === 'identity_mismatch') {
+        // 구매 시트는 뜨지 않았다. 기록(tags reason)은 래퍼가 한 번 남겼다
+        await alert(t('paywall.title'), t('paywall.identityMismatch'));
+        return;
+      }
       if (outcome === 'failed') {
         // captureError(tags area·kind·source)는 purchasePaywallPlan 이 한 번 남겼다
         await alert(t('paywall.title'), t('paywall.failed'));
@@ -190,7 +195,12 @@ export default function PaywallScreen() {
 
   const handleRestore = () =>
     runLocked(async () => {
-      if (!(await restorePaywallPurchases())) {
+      const restored = await restorePaywallPurchases(useAuthStore.getState().user?.id);
+      if (restored === 'identity_mismatch') {
+        await alert(t('paywall.title'), t('paywall.identityMismatch'));
+        return;
+      }
+      if (restored === 'failed') {
         await alert(t('paywall.title'), t('paywall.failed'));
         return;
       }

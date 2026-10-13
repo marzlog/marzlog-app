@@ -857,7 +857,8 @@
     "restoreNone": "Không có giao dịch nào để khôi phục",
     "ctaTrialGeneric": "Bắt đầu dùng thử miễn phí",
     "reflecting": "Đang xác nhận thanh toán",
-    "reflectingLong": "Việc này mất thêm một chút thời gian. Vui lòng chờ trong giây lát"
+    "reflectingLong": "Việc này mất thêm một chút thời gian. Vui lòng chờ trong giây lát",
+    "identityMismatch": "Không thể xác minh tài khoản. Vui lòng mở lại ứng dụng và thử lại"
   },
   "plusSheet": {
     "regenTitle": "Viết lại nhật ký AI\nlà tính năng của Plus",
