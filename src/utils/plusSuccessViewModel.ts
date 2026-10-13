@@ -79,6 +79,27 @@ export function buildPlusPendingVM(phase: PlusPendingPhase): PlusPendingVM {
   return { notice: PENDING_NOTICE[phase], restore: { enabled: !busy, loading: busy }, closeEnabled: !busy };
 }
 
+/**
+ * 반영 중 화면의 /auth/me 주기 재확인 계속 여부(D5-b-4).
+ * 중단: plus 확인(pending=false) / 화면 이탈 / 앱 백그라운드 / 복원 진행 중(복원의 반영 확인 루프와 겹치지 않게) / 시간 소진.
+ */
+export interface PendingRecheckState {
+  mounted: boolean;
+  pending: boolean;
+  phase: PlusPendingPhase;
+  appActive: boolean;
+  remainingMs: number;
+}
+
+export function shouldPendingRecheck(s: PendingRecheckState): boolean {
+  return s.mounted && s.pending && s.phase !== 'restoring' && s.appActive && s.remainingMs > 0;
+}
+
+/** 주기 재확인 남은 시간 — 앱이 앞에 있는 동안 쓴 시간(usedMs)만 뺀다 */
+export function remainingRecheckMs(maxMs: number, usedMs: number): number {
+  return Math.max(0, maxMs - usedMs);
+}
+
 /** 첫 단계 — 결제 화면 복원에서 왔으면 "구매 내역을 확인했어요" 안내부터 */
 export function initialPendingPhase(fromRestore: boolean): PlusPendingPhase {
   return fromRestore ? 'restore-checked' : 'idle';

@@ -6,6 +6,7 @@
  *  - 각 시도에는 시간 제한 min(attemptTimeoutMs, 마감까지 남은 시간)을 넘긴다(호출부가 refreshUser(timeoutMs) 로 쓴다).
  *  - 다음 시작 시각이 마감에 닿으면 더 시도하지 않는다 → 전체 대기 ≤ maxWaitMs.
  *  - 반영되면 즉시 끝. 시도 중 throw(시간 초과·네트워크)는 "아직 미반영"으로 센다.
+ *  - shouldContinue(선택)가 false 면 다음 시도 전에 멈춘다(화면 이탈·백그라운드 등, D5-b-4). 진행 중인 시도는 끝까지 기다린다.
  * 시계·대기는 주입받는다(테스트에서 가짜 시계 사용).
  */
 
@@ -13,6 +14,7 @@ export interface ReflectOptions {
   intervalMs: number;
   maxWaitMs: number;
   attemptTimeoutMs: number;
+  shouldContinue?: () => boolean;
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
 }
@@ -26,14 +28,14 @@ const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(r
 
 export async function waitForPlusReflected(
   isReflected: (timeoutMs: number) => Promise<boolean>,
-  { intervalMs, maxWaitMs, attemptTimeoutMs, now = Date.now, sleep = defaultSleep }: ReflectOptions,
+  { intervalMs, maxWaitMs, attemptTimeoutMs, shouldContinue = () => true, now = Date.now, sleep = defaultSleep }: ReflectOptions,
 ): Promise<ReflectResult> {
   const deadline = now() + maxWaitMs;
   let attempts = 0;
   for (;;) {
     const startedAt = now();
     const remaining = deadline - startedAt;
-    if (remaining <= 0) break;
+    if (remaining <= 0 || !shouldContinue()) break;
     attempts += 1;
     let reflected = false;
     try {

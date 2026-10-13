@@ -1,6 +1,6 @@
 # Marzlog Plus 결제 화면(PAYWALL) 구현 명세서
 
-- 판: v1.5 (2026-10-13, D5-b — 반영 확인 30초·미반영 화면·신원 대조, PW-14·PW-15) · 대상: Build 34 (marzlog-app 1.0.3, develop)
+- 판: v1.5 (2026-10-13, D5-b — 반영 확인 30초·미반영 화면·신원 대조, PW-14·PW-15 / D5-b-4 주기 재확인·복원 안전장치) · 대상: Build 34 (marzlog-app 1.0.3, develop)
 - 이전 판: v1.4 (2026-10-08, PW-11~13 + 게이트 2 판정·측정 S1~S3 + D1 보정 3건 + 재개 single 사진별 판정 반영)
 - 기준선: marzlog-app `e24e5a1` / marzlog-backend `7031620` / 정찰 보고 2026-10-08(게이트 1)
 - 우선순위: **이 문서 > `screens/*.png` > `reference/*.html`**
@@ -136,6 +136,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 `FREE_STORAGE_GB`, `PLUS_STORAGE_GB`, `PAYWALL_OFFER_TIMEOUT_MS`, `PLUS_REFLECT_INTERVAL_MS`(2초), `PLUS_REFLECT_MAX_WAIT_MS`(30초), `PLUS_REFLECT_ATTEMPT_TIMEOUT_MS`(5초), `PLUS_REFLECT_LONG_AFTER_MS`(10초). 값은 diff 보고에서 제안 → JJ 확정(반영 확인 4개는 2026-10-13 확정, 구 `PLUS_REFLECT_RETRY_COUNT` 삭제).
 
 - 반영 확인은 **마감 시각 기준**: 시도는 2초마다 시작, 시도별 제한 5초(마지막 시도는 남은 시간으로 자름), 전체 ≤ 30초. 근거 = 구매→첫 웹훅 지연 실측 5.8 / 14.3 / 17.4 / 6.6초(2026-10-12~13)의 약 1.7배.
+- 완료 화면 "반영 중" 주기 재확인(D5-b-4): `PLUS_PENDING_RECHECK_INTERVAL_MS`(5초), `PLUS_PENDING_RECHECK_MAX_MS`(2분, 앱이 앞에 있는 동안 쓴 시간만 셈). 시도별 제한은 `PLUS_REFLECT_ATTEMPT_TIMEOUT_MS` 재사용. 같은 `waitForPlusReflected`에 `shouldContinue`로 중단 조건을 넘긴다.
 
 ---
 
@@ -182,6 +183,8 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 바로 결제 | `reflected && !trial` | 플랜 / 다음 결제 = `plan_expires_at` · `price` |
 | 반영 중 | `!reflected && !plus`, 또는 `restore=1 && !plus` | 표 없음. 시계 아이콘, 제목 `plusSuccess.pendingTitle`, 본문 `plusSuccess.pending`. 버튼 "구매 복원"(`plusSuccess.restore`, 주 버튼) + "닫기"(`plusSuccess.close`, 홈으로 `replace`). 진입 시 1회 + 앱 복귀(AppState active)마다 1회 재조회, plus가 확인되면 반영 변형으로 바뀐다 |
 
+- 반영 중 주기 재확인(D5-b-4): 5초마다 `/auth/me` 재조회, 최대 2분. 중단 = plus 확인 / 화면 이탈 / 앱 백그라운드 / 복원 진행 중(`restoring`, 복원의 반영 확인 루프와 겹치지 않게 — 복원이 끝나면 남은 시간으로 다시 시작) / 시간 소진. 앱 복귀 때는 남은 시간이 있으면 주기 재확인을 이어 가고(첫 시도가 곧 복귀 1회 재조회), 없으면 1회만 재조회. 실패한 재조회는 기록하지 않는다. 판정은 순수 함수 `shouldPendingRecheck`·`remainingRecheckMs`.
+- 반영 중 화면의 복원은 전체를 try/catch/finally 로 감싼다 — 예상 밖 throw 에도 `restoring`에 남지 않고 `restore-failed`, `captureError` scope `plusSuccess.restore`.
 - 반영 중 화면의 복원 단계(표시 모델 `buildPlusPendingVM`): `idle`(안내 없음) / `restoring`(버튼 스피너·닫기 잠금) / `restore-checked`(`plusSuccess.restoreChecked`) / `restore-none`(`paywall.restoreNone`) / `restore-failed`(`plusSuccess.restoreFailed`) / `identity-mismatch`(`plusSuccess.identityMismatch`). 복원 규칙은 PW-14와 같다. `restore=1`로 들어오면 `restore-checked`부터.
 - 날짜는 앱의 기존 날짜 표시 유틸·로케일을 따른다.
 - "기록하러 가기" → 홈으로 `replace`(뒤로가기로 결제 화면에 돌아가지 않게). "구독 관리 보기" → `/subscription`.
@@ -294,12 +297,13 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 시나리오 | 용량 초과 | prepare 413 → 시트 표시 → 대기 배너 없음 → "Plus 알아보기" → 결제 화면 |
 | 단위 | 반영 확인(`plusReflect.ts`) | 실측 지연 4건 30초 안 확인, 끝까지 미반영 15회·≤30초, 시도별 5초·마지막 자르기, throw = 미반영 |
 | 단위 | 결제 화면 표시 모델 | 반영 확인 단계 문구·잠금, 단계 중 plus 고정 |
-| 단위 | 완료 화면 표시 모델 | 반영 중 6단계, `restore=1` 진입, plus 확인 시 반영 변형 |
+| 단위 | 완료 화면 표시 모델 | 반영 중 6단계, `restore=1` 진입, plus 확인 시 반영 변형, 주기 재확인 계속/중단 판정(restoring 정지·백그라운드·이탈·시간 소진)·남은 시간 |
+| 단위 | 반영 확인 중단(`shouldContinue`) | 처음부터 중단 → 시도 0, 도중 중단, 5초·2분 = 24회 |
 | 단위 | 신원 대조(`purchasesIdentity.ts`) | 정규화(대소문자·공백·빈 값), 일치·익명·다른 id·조회 실패, relogin_failed vs id_mismatch, 비로그인 SDK 호출 0, 차단 시 스토어 호출 0, 복귀 재시도 판정 |
 | 단위 | 활성 구독 판단(`purchasesRestore.ts`) | 구독·entitlement·빈 값·누락 |
-| 시나리오 | 구매 완료 | completed → 대기 문구 → 재조회 후 plus → 완료 화면(체험) / 30초 미반영 → 반영 중 변형 → 구매 복원 |
+| 시나리오 | 구매 완료 | completed → 대기 문구 → 재조회 후 plus → 완료 화면(체험) / 30초 미반영 → 반영 중 변형 → (아무것도 누르지 않아도) 주기 재확인으로 반영 변형 / 구매 복원 |
 
-품질 게이트: `tsc --noEmit` 0 · `jest` 전부 통과(기준선 28 suites / 291 tests에서 증가만). eslint는 부재(W-LINT-ABSENT). 백엔드는 black·ruff·pytest.
+품질 게이트: `tsc --noEmit` 0 · `jest` 전부 통과(기준선 **40 suites / 538 tests**(2026-10-13, D5-b-4)에서 증가만. 구 기준선 28 / 291 은 v1.4 작성 시점). eslint는 부재(W-LINT-ABSENT). 백엔드는 black·ruff·pytest.
 
 ---
 

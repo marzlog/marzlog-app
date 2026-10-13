@@ -8,10 +8,13 @@ import {
   initialPendingPhase,
   parsePlusSuccessEntry,
   parsePlusSuccessParams,
+  remainingRecheckMs,
   resolvePlusSuccessGuard,
+  shouldPendingRecheck,
   toPlusSuccessRouteParams,
   type PlusSuccessParams,
 } from '../plusSuccessViewModel';
+import { PLUS_PENDING_RECHECK_INTERVAL_MS, PLUS_PENDING_RECHECK_MAX_MS } from '../../constants/plus';
 
 const EXPIRES = '2026-11-08T03:12:00Z';
 const formatDate = (iso: string) => `D(${iso.slice(0, 10)})`;
@@ -201,5 +204,38 @@ describe('결제 화면 복원에서 진입 (restore=1, PW-14)', () => {
 
   it('결제 화면 복원 직후 반영됨(파라미터 없음 + plus) → 기본 변형', () => {
     expect(buildPlusSuccessVM({ params: null, isPlus: true, planExpiresAt: EXPIRES, formatDate }).variant).toBe('basic');
+  });
+});
+
+describe('반영 중 주기 재확인 판정 (D5-b-4)', () => {
+  const base = { mounted: true, pending: true, phase: 'idle' as const, appActive: true, remainingMs: 60_000 };
+
+  it('확정 상수: 5초 간격 · 최대 2분', () => {
+    expect([PLUS_PENDING_RECHECK_INTERVAL_MS, PLUS_PENDING_RECHECK_MAX_MS]).toEqual([5_000, 120_000]);
+  });
+
+  it('반영 중 · 화면 위 · 앱 앞 · 시간 남음 → 계속', () => {
+    expect(shouldPendingRecheck(base)).toBe(true);
+  });
+
+  it.each(['restore-checked', 'restore-none', 'restore-failed', 'identity-mismatch'] as const)('복원 결과 안내(%s) 중에도 계속', (phase) => {
+    expect(shouldPendingRecheck({ ...base, phase })).toBe(true);
+  });
+
+  it('복원 진행 중(restoring) → 정지(복원의 반영 확인 루프와 겹치지 않게)', () => {
+    expect(shouldPendingRecheck({ ...base, phase: 'restoring' })).toBe(false);
+  });
+
+  it('plus 확인(pending 아님) · 화면 이탈 · 백그라운드 · 시간 소진 → 중단', () => {
+    expect(shouldPendingRecheck({ ...base, pending: false })).toBe(false);
+    expect(shouldPendingRecheck({ ...base, mounted: false })).toBe(false);
+    expect(shouldPendingRecheck({ ...base, appActive: false })).toBe(false);
+    expect(shouldPendingRecheck({ ...base, remainingMs: 0 })).toBe(false);
+  });
+
+  it('남은 시간 = 최대 − 앞에 있던 동안 쓴 시간, 0 미만은 0', () => {
+    expect(remainingRecheckMs(120_000, 0)).toBe(120_000);
+    expect(remainingRecheckMs(120_000, 45_000)).toBe(75_000);
+    expect(remainingRecheckMs(120_000, 130_000)).toBe(0);
   });
 });

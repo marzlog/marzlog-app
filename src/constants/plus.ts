@@ -26,3 +26,9 @@ export const PLUS_REFLECT_ATTEMPT_TIMEOUT_MS = 5_000;
 
 /** 대기 문구를 "조금 더 걸리고 있어요"로 바꾸는 시점 */
 export const PLUS_REFLECT_LONG_AFTER_MS = 10_000;
+
+/** 완료 화면 "반영 중"에서 /auth/me 주기 재확인 간격(D5-b-4). 시도별 제한은 PLUS_REFLECT_ATTEMPT_TIMEOUT_MS */
+export const PLUS_PENDING_RECHECK_INTERVAL_MS = 5_000;
+
+/** 주기 재확인 총 시간 — 앱이 앞에 있는 동안 쓴 시간만 센다(백그라운드에서 멈췄다가 복귀하면 남은 만큼 이어 감) */
+export const PLUS_PENDING_RECHECK_MAX_MS = 120_000;

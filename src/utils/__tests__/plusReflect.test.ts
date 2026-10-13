@@ -142,3 +142,39 @@ it('maxWait 0 이면 시도하지 않는다', async () => {
   expect(r).toEqual({ reflected: false, attempts: 0 });
   expect(fn).not.toHaveBeenCalled();
 });
+
+describe('shouldContinue — 주기 재확인 중단(D5-b-4)', () => {
+  it('처음부터 false 면 시도하지 않는다', async () => {
+    const clock = fakeClock();
+    const fn = attempts(clock, [true]);
+    const r = await waitForPlusReflected(fn, { ...opts(clock), shouldContinue: () => false });
+    expect(r).toEqual({ reflected: false, attempts: 0 });
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('도중에 false 가 되면 다음 시도 전에 멈춘다', async () => {
+    const clock = fakeClock();
+    const fn = attempts(clock, [false]);
+    let allowed = 3;
+    const r = await waitForPlusReflected(fn, { ...opts(clock), shouldContinue: () => allowed-- > 0 });
+    expect(r).toEqual({ reflected: false, attempts: 3 });
+    expect(fn).toHaveBeenCalledTimes(3);
+  });
+
+  it('반복마다 확인한다 — 5초 간격·2분이면 계속 true 일 때 24회', async () => {
+    const clock = fakeClock();
+    const fn = attempts(clock, [false]);
+    const keep = jest.fn(() => true);
+    const r = await waitForPlusReflected(fn, {
+      intervalMs: 5_000,
+      maxWaitMs: 120_000,
+      attemptTimeoutMs: ATTEMPT_TIMEOUT,
+      shouldContinue: keep,
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+    expect(r.attempts).toBe(24);
+    expect(keep).toHaveBeenCalledTimes(24);
+    expect(clock.now()).toBeLessThanOrEqual(120_000);
+  });
+});
