@@ -5,7 +5,7 @@
  * 돌려준다 — t() 는 렌더 시점에만 부른다(§5: 모듈 스코프 평가 금지).
  */
 import { FREE_STORAGE_GB, PLUS_STORAGE_GB } from '../constants/plus';
-import type { PaywallOfferResult, PaywallPlanKind, PaywallPlanOffer } from '../services/purchases';
+import type { PaywallOfferResult, PaywallPlanKind, PaywallPlanOffer, PurchaseOutcome } from '../services/purchases';
 import { PLUS_SUCCESS_RESTORE_PARAMS, toPlusSuccessRouteParams } from './plusSuccessViewModel';
 
 export type PaywallSource = 'settings' | 'regen' | 'storage' | 'unknown';
@@ -205,4 +205,45 @@ export function resolveLockedErrorAction(progress: PaywallLockedProgress): Paywa
     default:
       return { type: 'alert-failed' };
   }
+}
+
+/**
+ * 구매 결과 뒤 화면이 할 일(D5-c 포함). completed 만 반영 확인으로 간다.
+ *  - offer-restore: 이미 구독 중인 스토어 계정 → 잠금이 풀린 뒤 [구매 복원]/[닫기] 대화상자, 복원은 새 잠금으로
+ */
+export type PurchaseFollowUp = 'none' | 'alert-failed' | 'alert-identity' | 'offer-restore' | 'reflect';
+
+export function resolvePurchaseFollowUp(outcome: PurchaseOutcome): PurchaseFollowUp {
+  switch (outcome) {
+    case 'completed':
+      return 'reflect';
+    case 'cancelled':
+      return 'none';
+    case 'identity_mismatch':
+      return 'alert-identity';
+    case 'already_owned':
+      return 'offer-restore';
+    default:
+      return 'alert-failed';
+  }
+}
+
+export interface AlreadyOwnedDialogVM {
+  title: TextRef;
+  /** body 의 {{store}} 는 storeName 키를 t() 한 값으로 채운다 */
+  body: TextRef;
+  storeName: TextRef;
+  confirm: TextRef;
+  cancel: TextRef;
+}
+
+/** 이미 구독 중 대화상자 — 스토어 이름은 기존 키(subscription.storeApple·storeGoogle) */
+export function buildAlreadyOwnedDialog(platform: string): AlreadyOwnedDialogVM {
+  return {
+    title: { key: 'paywall.alreadyOwnedTitle' },
+    body: { key: 'paywall.alreadyOwned' },
+    storeName: { key: platform === 'ios' ? 'subscription.storeApple' : 'subscription.storeGoogle' },
+    confirm: { key: 'paywall.restore' },
+    cancel: { key: 'paywall.close' },
+  };
 }

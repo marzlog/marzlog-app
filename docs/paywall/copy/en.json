@@ -32,7 +32,9 @@
     "ctaTrialGeneric": "Start free trial",
     "reflecting": "Confirming your purchase",
     "reflectingLong": "This is taking a little longer. Please wait a moment",
-    "identityMismatch": "We couldn't verify your account. Please reopen the app and try again"
+    "identityMismatch": "We couldn't verify your account. Please reopen the app and try again",
+    "alreadyOwnedTitle": "This store account already has Plus",
+    "alreadyOwned": "The {{store}} account on this device already has a Plus subscription. Tap 'Restore purchases' to move it to the account you're signed in to now. Plus will be removed from the account it was linked to before."
   },
   "plusSheet": {
     "regenTitle": "AI diary rewrites\nare part of Plus",

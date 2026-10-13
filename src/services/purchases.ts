@@ -18,6 +18,7 @@ import {
   type IdentityVerdict,
 } from './purchasesIdentity';
 import { hasActiveSubscription } from './purchasesRestore';
+import { classifyPurchaseError, purchaseFailureReason } from './purchaseErrors';
 import { PAYWALL_OFFERING_ID, pickPaywallPackages, type PaywallPlanKind } from './paywallPackages';
 import { annualDiscountPercent, trialPeriodToDays } from './paywallOffer';
 
@@ -322,8 +323,14 @@ export async function loadPaywallOffer(): Promise<PaywallOfferResult> {
   };
 }
 
-/** identity_mismatch = 신원 대조 차단(구매 시트를 띄우지 않았다) */
-export type PurchaseOutcome = 'completed' | 'cancelled' | 'failed' | 'identity_mismatch';
+/**
+ * identity_mismatch = 신원 대조 차단(구매 시트를 띄우지 않았다)
+ * already_owned = 이 기기의 스토어 계정이 이미 구독 중(PRODUCT_ALREADY_PURCHASED) → 화면이 복원을 안내(D5-c)
+ */
+export type PurchaseOutcome = 'completed' | 'cancelled' | 'failed' | 'identity_mismatch' | 'already_owned';
+
+/** Sentry tag store — 현재 기기의 스토어 */
+const deviceStore = (): 'apple' | 'google' => (Platform.OS === 'ios' ? 'apple' : 'google');
 
 /**
  * 구매 시트 호출. 'completed' 는 "스토어 거래가 끝났다"는 뜻일 뿐 Plus 판정이 아니다.
@@ -349,11 +356,21 @@ export async function purchasePaywallPlan(
     if (run.blocked) return 'identity_mismatch';
     return 'completed';
   } catch (e: any) {
-    if (e?.userCancelled || e?.code === PURCHASES_ERROR_CODE.PURCHASE_CANCELLED_ERROR) return 'cancelled';
+    const errorClass = classifyPurchaseError(e, PURCHASES_ERROR_CODE);
+    if (errorClass === 'cancelled') return 'cancelled';
+    if (errorClass === 'already_owned') {
+      // 사용자 상황이지 오류가 아니다 — 건수만 info 로(알림 없음). 식별값 없음
+      captureMessage('purchases already owned', { kind }, {
+        level: 'info',
+        fingerprint: ['purchases-already-owned'],
+        tags: { area: 'paywall', stage: 'purchase', store: deviceStore() },
+      });
+      return 'already_owned';
+    }
     captureError(
       e instanceof Error ? e : new Error(String(e?.message ?? e)),
       { scope: 'purchases.purchase', kind, code: e?.code },
-      { tags },
+      { tags: { ...tags, reason: purchaseFailureReason(e, PURCHASES_ERROR_CODE) } },
     );
     return 'failed';
   }
@@ -378,10 +395,11 @@ export async function restorePaywallPurchases(serverUserId: string | null | unde
     if (run.blocked) return 'identity_mismatch';
     return hasActiveSubscription(run.result) ? 'restored-active' : 'restored-none';
   } catch (e: any) {
-    captureError(e instanceof Error ? e : new Error(String(e?.message ?? e)), {
-      scope: 'purchases.restore',
-      code: e?.code,
-    });
+    captureError(
+      e instanceof Error ? e : new Error(String(e?.message ?? e)),
+      { scope: 'purchases.restore', code: e?.code },
+      { tags: { area: 'paywall', stage: 'restore', reason: purchaseFailureReason(e, PURCHASES_ERROR_CODE) } },
+    );
     return 'failed';
   }
 }

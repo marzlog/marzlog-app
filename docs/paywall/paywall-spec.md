@@ -1,6 +1,6 @@
 # Marzlog Plus 결제 화면(PAYWALL) 구현 명세서
 
-- 판: v1.5 (2026-10-13, D5-b — 반영 확인 30초·미반영 화면·신원 대조, PW-14·PW-15 / D5-b-4 주기 재확인·복원 안전장치 / D5-b-5 결제 화면 잠금 안전장치) · 대상: Build 34 (marzlog-app 1.0.3, develop)
+- 판: v1.5 (2026-10-13, D5-b — 반영 확인 30초·미반영 화면·신원 대조, PW-14·PW-15 / D5-b-4 주기 재확인·복원 안전장치 / D5-b-5 결제 화면 잠금 안전장치 / D5-c 이미 구독 중 안내, PW-16) · 대상: Build 34 (marzlog-app 1.0.3, develop)
 - 이전 판: v1.4 (2026-10-08, PW-11~13 + 게이트 2 판정·측정 S1~S3 + D1 보정 3건 + 재개 single 사진별 판정 반영)
 - 기준선: marzlog-app `e24e5a1` / marzlog-backend `7031620` / 정찰 보고 2026-10-08(게이트 1)
 - 우선순위: **이 문서 > `screens/*.png` > `reference/*.html`**
@@ -39,6 +39,7 @@
 | PW-13 | `/auth/me`의 `plan`은 집행과 **같은 만료 판정**을 쓴다. 만료 시각 뒤 여유 시간(`PLAN_EXPIRY_GRACE_SECONDS`) 동안은 Plus로 본다. 표시·집행 모두 같은 함수. | EXPIRATION 알림이 누락되면 "표시는 Plus, 집행은 무료"가 됨. 여유 시간은 갱신 알림 지연 대비 |
 | PW-14 | 복원 후: RC 응답(`CustomerInfo`)에 활성 구독이 없으면 즉시 `paywall.restoreNone`. 있으면 구매와 같은 반영 확인(최대 30초) → 반영되면 완료 화면, 안 되면 완료 화면 "반영 중"(복원 확인 안내). **SDK 결과는 대기 생략 판단에만 쓰고 Plus 부여·표시에는 쓰지 않는다(PW-1 유지).** | 복원도 웹훅을 거쳐 반영되므로 즉시 1회 조회는 대부분 "내역 없음"으로 오판. 내역 없는 사용자를 30초 기다리게 하지 않기 위해 SDK 결과로 대기만 생략 |
 | PW-15 | 구매·복원 직전 신원 대조: ① 식별 큐 대기 → ② RC `appUserID`와 서버 `user.id` 대조(대소문자 무시·공백 유지), 다르면 재 `logIn` 1회 후 재대조 → ③ 그래도 다르면 스토어 호출 전에 차단 + Sentry. 로그인 때 `logIn`이 실패한 채면 앱 복귀 때 재시도. (④ 보류) | 익명·다른 id로 산 구매는 웹훅이 사용자에 매핑하지 못해 영원히 미반영 |
+| PW-16 | 이 기기의 스토어 계정이 이미 구독 중이면(`PRODUCT_ALREADY_PURCHASED`) 실패가 아니라 `already_owned`로 보고 [구매 복원]/[닫기]를 안내한다. 복원하면 구독이 지금 계정으로 옮겨지고 이전 계정은 Plus가 해제됨을 문구로 알린다. **RevenueCat 이전 정책 = Transfer 전제**(대시보드 설정, JJ 확인 항목). 헤더의 일반 "구매 복원"에는 복원 전 확인 창을 넣지 않는다. | 2026-10-13 Android 실측: 같은 Play 계정·다른 앱 계정에서 구매 시 "실패" 안내, 복원 시 TRANSFER(A→B) 처리 |
 | PW-10 | 새 의존성 0건. 바텀시트는 앱에 이미 있는 모달 패턴으로 만든다. | 네이티브 모듈 추가는 빌드·심사 리스크 |
 
 ---
@@ -121,7 +122,7 @@ openSubscriptionManagement(): Promise<'opened' | 'unavailable'>
 D5-b 추가 (PW-14·PW-15):
 
 ```ts
-purchasePaywallPlan(kind, serverUserId, source): Promise<'completed' | 'cancelled' | 'failed' | 'identity_mismatch'>
+purchasePaywallPlan(kind, serverUserId, source): Promise<'completed' | 'cancelled' | 'failed' | 'identity_mismatch' | 'already_owned'>
 restorePaywallPurchases(serverUserId): Promise<'restored-active' | 'restored-none' | 'failed' | 'identity_mismatch'>
 retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' 리스너
 ```
@@ -129,6 +130,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 신원 대조 판정은 순수 함수(`purchasesIdentity.ts`의 `verifyPurchaseIdentity`·`runWithVerifiedIdentity`·`normalizeAppUserId`·`shouldRetryIdentity`)로 분리한다. 차단이면 `purchasePackage`·`restorePurchases`를 부르지 않는다.
 - 정규화: 서버 웹훅 매핑(`uuid.UUID` 파싱)과 같게 — 대소문자 무시, 공백은 무시하지 않음(서버도 매핑 못 하므로 "다름"이 맞고, 재 `logIn`이 교정한다), 빈 값은 "없음".
 - RC 미설정(`configured=false`): 대조 없이 기존대로 구매 `failed`·복원 `failed`. 서버 `user.id` 없음(비로그인): `no_server_user`로 SDK 호출 없이 차단.
+- 오류 분류(D5-c, `purchaseErrors.ts`의 `classifyPurchaseError`): 사용자 취소·`PURCHASE_CANCELLED_ERROR` → `cancelled` / `PRODUCT_ALREADY_PURCHASED_ERROR` → `already_owned` / 그 외 → `failed`. 영수증이 다른 사용자에 묶인 계열(`RECEIPT_ALREADY_IN_USE_ERROR`·`RECEIPT_IN_USE_BY_OTHER_SUBSCRIBER_ERROR`)은 `failed`를 유지하고 Sentry tag `reason=receipt_in_use`로만 구분한다. 코드는 숫자 리터럴이 아니라 SDK `PURCHASES_ERROR_CODE`를 넘긴다.
 - 활성 구독 판단(`purchasesRestore.ts`의 `hasActiveSubscription`): `activeSubscriptions` 또는 `entitlements.active`가 하나라도 있으면 활성.
 
 ### 2.4 상수: `src/constants/plus.ts` (신규)
@@ -156,6 +158,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 구매 중 | 구매·복원 진행 | 버튼 스피너, 플랜 카드·닫기·복원 비활성, 뒤로가기 차단 |
 | 반영 확인 중 | 구매 `completed`·복원 `restored-active` 후 | 구매 중과 같은 잠금 + 버튼 아래 `paywall.reflecting` → 10초 뒤 `paywall.reflectingLong`. 완료 화면으로 넘어갈 때까지 표시를 고정(재조회로 plus가 돼도 "이용 중" 카드로 바뀌지 않음) |
 | 신원 불일치 | 구매·복원 `identity_mismatch` | `paywall.identityMismatch` 안내, 화면 유지(구매 시트는 뜨지 않음) |
+| 이미 구독 중 | 구매 `already_owned` | 잠금이 풀린 뒤 대화상자: 제목 `paywall.alreadyOwnedTitle`, 본문 `paywall.alreadyOwned`(`{{store}}` = `subscription.storeApple`/`storeGoogle`), 버튼 [구매 복원](`paywall.restore`) / [닫기](`paywall.close`). 구매 복원 → 복원 흐름을 새 잠금으로 시작 |
 | 이미 Plus | `user.plan === 'plus'` | 결제 UI 없이 `/subscription`으로 `replace` |
 
 - 연간이 기본 선택. 할인 배지는 `annualDiscountPercent !== null`일 때만, "월 ○꼴"은 `perMonthPriceString !== null`일 때만 표시한다.
@@ -168,6 +171,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 1. 버튼 탭 → `purchasePaywallPlan(kind, user.id)`. 진행 중 재탭 무시(중복 방지). 래퍼가 신원 대조(PW-15) 후에만 구매 시트를 띄운다 — 차단이면 `identity_mismatch`.
 2. `cancelled` → 아무 표시 없이 정상 상태로 복귀.
 3. `failed` → `paywall.failed` 안내, 화면 유지.
+3-1. `already_owned` → 잠금 해제 후 "이미 구독 중" 대화상자(PW-16). [구매 복원]이면 아래 복원 흐름 그대로(신원 대조·PW-14·완료 화면). 결과 뒤 처리는 순수 함수 `resolvePurchaseFollowUp`.
 4. `completed` → 반영 확인(§2.4, 최대 30초, 대기 문구 표시) → `/plus-success`로 `replace`(params: `kind`, `trial`, `price`, `reflected`).
 
 복원(PW-14): `restorePaywallPurchases(user.id)` →
@@ -261,9 +265,10 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 보간 문법은 기존 키(`paywall.activeUntil`)와 같은 방식을 쓴다. 파일의 `{{name}}` 표기가 다르면 맞춰 바꾼다.
 - `t()`는 런타임 호출만. 모듈 스코프에서 미리 평가하지 않는다.
 - 금지 표현: "AI 일기·검색 무제한". 검색은 Plus 혜택이 아니다.
-- 값이 영어와 같은 키(`paywall.brand`, `paywall.compare.plus`, 스토어 이름)는 의도적 영어 유지 목록에 등록한다.
+- 값이 영어와 같은 키(`paywall.brand`, `paywall.compare.plus`, 스토어 이름)는 의도적 영어 유지 목록에 등록한다. 목록(v1.5): `paywall.brand` · `paywall.compare.plus` · `subscription.planPlus` · `subscription.storeApple`(App Store) · `subscription.storeGoogle`(Google Play). `paywall.alreadyOwned`의 `{{store}}`는 이 스토어 이름 키 값을 끼워 넣는다.
 - vi·th는 초안이다. 병합 후 표로 뽑아 JJ 검수를 받는다.
 - v1.5(D5-b): copy 72키 → **81키**. 추가 9개 = `paywall.reflecting`·`reflectingLong`·`identityMismatch`, `plusSuccess.pendingTitle`·`restore`·`close`·`restoreChecked`·`restoreFailed`·`identityMismatch`. 값 변경 1개 = `plusSuccess.pending`. vi·th 9개는 D9 검수 대상.
+- v1.5(D5-c): 81키 → **83키**. 추가 2개 = `paywall.alreadyOwnedTitle`·`paywall.alreadyOwned`. en·vi·th 초안, D9 검수 대상.
 
 ---
 
@@ -274,7 +279,10 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 결제 화면 진입 | breadcrumb `paywall` / `view` + `source` |
 | 상품 조회 결과 | breadcrumb `offer` + `status` |
 | 구매 시작·결과 | breadcrumb `purchase` + `kind` + 결과 |
-| 구매 `failed` | `captureError`, tags `area: 'paywall'`, `kind`, `source` |
+| 구매 `failed` | `captureError`, tags `area: 'paywall'`, `kind`, `source`, `reason`(`receipt_in_use`/`other`) |
+| 구매 `already_owned` | `captureMessage` **info**(알림 없음), fingerprint `['purchases-already-owned']`, tags `area`·`stage`(purchase)·`store`(apple·google). 사용자 상황이지 오류가 아니다 |
+| 복원 `failed` | `captureError` scope `purchases.restore`, tags `area`·`stage`(restore)·`reason` |
+| 이미 구독 중 대화상자 선택 | breadcrumb `already-owned` + `choice`(restore·close) |
 | 업로드를 `rejected`로 버림 | `captureMessage` warning, fingerprint `upload-rejected`, tags 상태 코드·경로 종류. 파일명·사용자 식별값 금지 |
 | 업로드를 `quota`·`oversize`로 버림 | breadcrumb만 |
 | 결제 완료 후 미반영 | `captureMessage` warning, fingerprint `paywall-reflect-timeout` |
@@ -308,6 +316,8 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 단위 | 반영 확인 중단(`shouldContinue`) | 처음부터 중단 → 시도 0, 도중 중단, 5초·2분 = 24회 |
 | 단위 | 신원 대조(`purchasesIdentity.ts`) | 정규화(대소문자·공백·빈 값), 일치·익명·다른 id·조회 실패, relogin_failed vs id_mismatch, 비로그인 SDK 호출 0, 차단 시 스토어 호출 0, 복귀 재시도 판정 |
 | 단위 | 활성 구독 판단(`purchasesRestore.ts`) | 구독·entitlement·빈 값·누락 |
+| 단위 | 오류 분류(`purchaseErrors.ts`) | 취소 2종 → cancelled, 이미 구매 → already_owned, 영수증 사용 중 2종 → failed(+reason), 알 수 없는 코드·코드 없음·null → failed |
+| 단위 | 구매 결과 뒤 처리 | 5개 결과 → none·alert-failed·alert-identity·offer-restore·reflect, 대화상자 스토어 이름(iOS/그 외) |
 | 시나리오 | 구매 완료 | completed → 대기 문구 → 재조회 후 plus → 완료 화면(체험) / 30초 미반영 → 반영 중 변형 → (아무것도 누르지 않아도) 주기 재확인으로 반영 변형 / 구매 복원 |
 
 품질 게이트: `tsc --noEmit` 0 · `jest` 전부 통과(기준선 **40 suites / 538 tests**(2026-10-13, D5-b-4)에서 증가만. 구 기준선 28 / 291 은 v1.4 작성 시점). eslint는 부재(W-LINT-ABSENT). 백엔드는 black·ruff·pytest.
@@ -325,6 +335,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D4 | 결제 화면 본체 | app | dev build, iOS·Android 각 1회 |
 | D5 | 구독 시작 완료 화면 | app | 샌드박스 구매 1회 |
 | D5-b | 반영 확인 30초(D5-b-1) → 신원 대조(D5-b-3) → 미반영 화면·복원 규칙(D5-b-2) | app | 샌드박스 구매·복원, 비행기 모드 미반영 |
+| D5-c | 이미 구독 중 안내(PW-16): `already_owned` 분류 + [구매 복원]/[닫기] 대화상자 + Sentry info | app | Android 같은 Play 계정·다른 앱 계정 구매 → 복원 / iOS 같은 상황 |
 | D6-a | 진입점 ① 선행: 더보기 저장 공간 카드 전체 탭 → `/paywall?source=settings`(무료·Plus 모두, D6에서 `/subscription`으로 교체) + 배지를 `/auth/me` plan 기준으로(PW-1, `planBadge.ts`) | app | Android 실기 결제 시험 진입 |
 | D6 | 설정 구독 화면 + 진입점 ① | app | 무료·Plus 각 1회 |
 | D7 | 안내 시트 + 재생성 진입점 ② | app | 무료 계정 1회 |

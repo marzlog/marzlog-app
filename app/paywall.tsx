@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -34,10 +35,12 @@ import {
   PAYWALL_COMPARE_STORAGE,
   PAYWALL_DEFAULT_PLAN,
   PAYWALL_SUBHEAD,
+  buildAlreadyOwnedDialog,
   buildPaywallVM,
   footerFitsWithDisclosure,
   normalizePaywallSource,
   resolveLockedErrorAction,
+  resolvePurchaseFollowUp,
   shouldLoadOffer,
   type PaywallLockedProgress,
   type PaywallPlanVM,
@@ -77,7 +80,7 @@ export default function PaywallScreen() {
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
   const { t } = useTranslation();
-  const { alert } = useDialog();
+  const { alert, confirm } = useDialog();
   const params = useLocalSearchParams<{ source?: string | string[] }>();
   const source = normalizePaywallSource(params.source);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -183,22 +186,29 @@ export default function PaywallScreen() {
     }
   };
 
-  const handlePurchase = () =>
-    runLocked(async (progress) => {
+  const handlePurchase = async () => {
+    let offerRestore = false;
+    await runLocked(async (progress) => {
       const kind = selected;
       const plan = offerResult?.status === 'ok' ? offerResult.offer[kind] : null;
       addBreadcrumb('paywall', 'purchase', { kind, phase: 'start', source });
       const outcome = await purchasePaywallPlan(kind, useAuthStore.getState().user?.id, source);
       addBreadcrumb('paywall', 'purchase', { kind, outcome, source });
-      if (outcome === 'cancelled') return;
-      if (outcome === 'identity_mismatch') {
+      const followUp = resolvePurchaseFollowUp(outcome);
+      if (followUp === 'none') return;
+      if (followUp === 'alert-identity') {
         // 구매 시트는 뜨지 않았다. 기록(tags reason)은 래퍼가 한 번 남겼다
         await alert(t('paywall.title'), t('paywall.identityMismatch'));
         return;
       }
-      if (outcome === 'failed') {
-        // captureError(tags area·kind·source)는 purchasePaywallPlan 이 한 번 남겼다
+      if (followUp === 'alert-failed') {
+        // captureError(tags area·kind·source·reason)는 purchasePaywallPlan 이 한 번 남겼다
         await alert(t('paywall.title'), t('paywall.failed'));
+        return;
+      }
+      if (followUp === 'offer-restore') {
+        // 기록(info, purchases-already-owned)은 래퍼가 남겼다. 대화상자는 잠금이 풀린 뒤에
+        offerRestore = true;
         return;
       }
       const trial = plan?.trial.eligible === true;
@@ -214,6 +224,19 @@ export default function PaywallScreen() {
       }
       goToSuccess(toPlusSuccessRouteParams({ kind, trial, price, reflected }));
     });
+    if (!offerRestore) return;
+
+    // D5-c: 이 기기의 스토어 계정이 이미 구독 중 → 복원 안내. 복원은 기존 경로(신원 대조·PW-14·완료 화면)를 새 잠금으로
+    const dialog = buildAlreadyOwnedDialog(Platform.OS);
+    const restore = await confirm({
+      title: tx(dialog.title),
+      description: t(dialog.body.key, { store: tx(dialog.storeName) }),
+      confirmText: tx(dialog.confirm),
+      cancelText: tx(dialog.cancel),
+    });
+    addBreadcrumb('paywall', 'already-owned', { choice: restore ? 'restore' : 'close', source });
+    if (restore) await handleRestore();
+  };
 
   const handleRestore = () =>
     runLocked(async (progress) => {

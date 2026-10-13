@@ -8,10 +8,12 @@ import {
   PAYWALL_COMPARE_STORAGE,
   PAYWALL_DEFAULT_PLAN,
   PAYWALL_SUBHEAD,
+  buildAlreadyOwnedDialog,
   buildPaywallVM,
   footerFitsWithDisclosure,
   normalizePaywallSource,
   resolveLockedErrorAction,
+  resolvePurchaseFollowUp,
   shouldLoadOffer,
   type PaywallVMInput,
 } from '../paywallViewModel';
@@ -258,5 +260,28 @@ describe('잠금 구간 예상 밖 오류 처리 (D5-b-5)', () => {
 
   it('복원 restored-active 뒤 오류 → 완료 화면 반영 중(restore=1)', () => {
     expect(resolveLockedErrorAction({ stage: 'restore-active' })).toEqual({ type: 'go-success', params: { restore: '1' } });
+  });
+});
+
+describe('구매 결과 뒤 처리 (D5-c)', () => {
+  it.each([
+    ['completed', 'reflect'],
+    ['cancelled', 'none'],
+    ['failed', 'alert-failed'],
+    ['identity_mismatch', 'alert-identity'],
+    ['already_owned', 'offer-restore'],
+  ] as const)('%s → %s', (outcome, followUp) => {
+    expect(resolvePurchaseFollowUp(outcome)).toBe(followUp);
+  });
+
+  it('이미 구독 중 대화상자 — iOS 는 App Store, 그 외는 Google Play, 버튼은 구매 복원/닫기', () => {
+    expect(buildAlreadyOwnedDialog('ios')).toEqual({
+      title: { key: 'paywall.alreadyOwnedTitle' },
+      body: { key: 'paywall.alreadyOwned' },
+      storeName: { key: 'subscription.storeApple' },
+      confirm: { key: 'paywall.restore' },
+      cancel: { key: 'paywall.close' },
+    });
+    expect(buildAlreadyOwnedDialog('android').storeName).toEqual({ key: 'subscription.storeGoogle' });
   });
 });
