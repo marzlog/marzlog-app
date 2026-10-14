@@ -89,7 +89,8 @@
     "otherStore": "이 구독은 {{store}}에서 시작했어요. {{store}}에서 관리할 수 있어요.",
     "storeApple": "App Store",
     "storeGoogle": "Google Play",
-    "footnote": "Plus를 해지해도 기록은 그대로 남아요. 무료 저장 공간({{gb}}GB)을 넘은 경우 새 사진 올리기만 잠시 멈춰요."
+    "footnote": "Plus를 해지해도 기록은 그대로 남아요. 무료 저장 공간({{gb}}GB)을 넘은 경우 새 사진 올리기만 잠시 멈춰요.",
+    "restored": "구매를 복원했어요"
   },
   "settings": {
     "subscriptionRow": "구독"

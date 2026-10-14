@@ -12,7 +12,10 @@ import {
   buildPaywallVM,
   footerFitsWithDisclosure,
   normalizePaywallSource,
+  parseRestoredParam,
   resolveLockedErrorAction,
+  restoreExitTarget,
+  shouldRedirectToSubscription,
   resolvePurchaseFollowUp,
   shouldLoadOffer,
   type PaywallVMInput,
@@ -283,5 +286,35 @@ describe('구매 결과 뒤 처리 (D5-c)', () => {
       cancel: { key: 'paywall.close' },
     });
     expect(buildAlreadyOwnedDialog('android').storeName).toEqual({ key: 'subscription.storeGoogle' });
+  });
+});
+
+describe('구독 화면으로 이동 (D6-2)', () => {
+  const base = { isAuthenticated: true, isPlus: true, reflecting: 'idle' as const, busy: false };
+
+  it('이미 Plus · 반영 확인 없음 · 잠금 없음 → 구독 화면으로', () => {
+    expect(shouldRedirectToSubscription(base)).toBe(true);
+  });
+
+  it.each(['checking', 'checking-long'] as const)('반영 확인 중(%s)에는 이동하지 않는다', (reflecting) => {
+    expect(shouldRedirectToSubscription({ ...base, reflecting })).toBe(false);
+  });
+
+  it('잠금 중·무료·미인증이면 이동하지 않는다', () => {
+    expect(shouldRedirectToSubscription({ ...base, busy: true })).toBe(false);
+    expect(shouldRedirectToSubscription({ ...base, isPlus: false })).toBe(false);
+    expect(shouldRedirectToSubscription({ ...base, isAuthenticated: false })).toBe(false);
+  });
+
+  it('복원 결과 이동처 — 반영 → 구독 화면(restored=1), 미반영 → 완료 화면 반영 중(restore=1)', () => {
+    expect(restoreExitTarget(true)).toEqual({ pathname: '/subscription', params: { restored: '1' } });
+    expect(restoreExitTarget(false)).toEqual({ pathname: '/plus-success', params: { restore: '1' } });
+  });
+
+  it('parseRestoredParam', () => {
+    expect(parseRestoredParam('1')).toBe(true);
+    expect(parseRestoredParam(['1'])).toBe(true);
+    expect(parseRestoredParam(undefined)).toBe(false);
+    expect(parseRestoredParam('0')).toBe(false);
   });
 });

@@ -1,7 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
@@ -18,7 +18,7 @@ import { addBreadcrumb, captureError } from '@/src/utils/sentry';
 import { loadPaywallOffer, openSubscriptionManagement, type PaywallOfferResult } from '@src/services/purchases';
 import { formatLongDate } from '@src/utils/dateLocale';
 import { waitForPlusReflected } from '@src/utils/plusReflect';
-import type { TextRef } from '@src/utils/paywallViewModel';
+import { parseRestoredParam, type TextRef } from '@src/utils/paywallViewModel';
 import { buildSubscriptionVM, deviceStoreOf } from '@src/utils/subscriptionViewModel';
 import {
   PLUS_REFLECT_ATTEMPT_TIMEOUT_MS,
@@ -35,6 +35,7 @@ import { borderRadius, darkTheme, lightTheme, spacing, typography, type Theme } 
  * 상태별 표시는 buildSubscriptionVM(순수 함수)이 정하고, 여기서는 렌더·이동·기록만 한다.
  * 진입할 때마다 /auth/me·저장 공간을 다시 읽고, 무료일 때만 상품을 조회한다(Plus 카드 가격 줄).
  * 구매 복원은 결제 화면과 같은 흐름(usePlusRestore — 신원 대조 → PW-14 → 반영 확인).
+ * 결제 화면 복원이 반영되면 ?restored=1 로 온다 → 상단에 subscription.restored 1회(D6-2). 이 화면의 복원도 같다.
  */
 const MIN_TOUCH = 44;
 const SOURCE = 'subscription';
@@ -57,6 +58,12 @@ export default function SubscriptionScreen() {
 
   const [offerResult, setOfferResult] = useState<PaywallOfferResult | null>(null);
   const [restoring, setRestoring] = useState(false);
+  // "구매를 복원했어요" — 들어올 때 1회. 파라미터는 바로 지워 다시 들어와도 반복하지 않는다
+  const restoredParam = useLocalSearchParams<{ restored?: string | string[] }>().restored;
+  const [restoredNotice, setRestoredNotice] = useState(() => parseRestoredParam(restoredParam));
+  useEffect(() => {
+    if (parseRestoredParam(restoredParam)) router.setParams({ restored: undefined });
+  }, [restoredParam, router]);
 
   const vm = buildSubscriptionVM({
     plan: user?.plan,
@@ -117,8 +124,9 @@ export default function SubscriptionScreen() {
             )
           ).reflected,
       });
-      // reflected 는 /auth/me 가 plus 로 바뀌어 화면이 Plus 상태로 다시 그려진다
-      if (result === 'identity_mismatch') await alert(t('subscription.title'), t('paywall.identityMismatch'));
+      // reflected 는 /auth/me 가 plus 로 바뀌어 화면이 Plus 상태로 다시 그려진다 + 상단 안내
+      if (result === 'reflected') setRestoredNotice(true);
+      else if (result === 'identity_mismatch') await alert(t('subscription.title'), t('paywall.identityMismatch'));
       else if (result === 'failed') await alert(t('subscription.title'), t('paywall.failed'));
       else if (result === 'restored-none') await alert(t('subscription.title'), t('paywall.restoreNone'));
       else if (result === 'not-reflected') await alert(t('subscription.title'), t('paywall.restoreChecked'));
@@ -167,6 +175,16 @@ export default function SubscriptionScreen() {
       </View>
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.xl }]}>
+        {restoredNotice && (
+          <View
+            style={[styles.notice, { backgroundColor: accent.selectedCardBackground }]}
+            accessibilityLiveRegion="polite"
+            accessibilityRole="alert"
+          >
+            <Ionicons name="checkmark-circle" size={20} color={theme.text.primary} />
+            <Text style={[styles.noticeText, { color: theme.text.primary }]}>{t('subscription.restored')}</Text>
+          </View>
+        )}
         {/* 현재 플랜 + 저장 공간 */}
         <View style={[styles.card, { backgroundColor: theme.surface.primary, borderColor: theme.border.light }]}>
           <View style={styles.planRow}>
@@ -245,5 +263,7 @@ const styles = StyleSheet.create({
   plusPrice: { fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semiBold, marginBottom: spacing.xs },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 56, gap: spacing.sm },
   rowLabel: { flexShrink: 1, fontSize: typography.fontSize.base },
+  notice: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: borderRadius.lg, padding: spacing.md },
+  noticeText: { flexShrink: 1, fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.medium },
   note: { fontSize: typography.fontSize.sm, lineHeight: typography.fontSize.sm * typography.lineHeight.normal },
 });

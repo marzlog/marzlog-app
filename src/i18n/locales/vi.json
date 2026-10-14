@@ -913,6 +913,7 @@
     "otherStore": "Gói này được đăng ký qua {{store}}. Hãy quản lý tại đó.",
     "storeApple": "App Store",
     "storeGoogle": "Google Play",
-    "footnote": "Dữ liệu vẫn được giữ khi bạn hủy Plus. Nếu vượt quá {{gb}}GB miễn phí, chỉ việc tải ảnh mới bị tạm dừng."
+    "footnote": "Dữ liệu vẫn được giữ khi bạn hủy Plus. Nếu vượt quá {{gb}}GB miễn phí, chỉ việc tải ảnh mới bị tạm dừng.",
+    "restored": "Đã khôi phục giao dịch của bạn"
   }
 }

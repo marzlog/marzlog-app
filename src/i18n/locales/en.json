@@ -913,6 +913,7 @@
     "otherStore": "This subscription was started on {{store}}. Manage it there.",
     "storeApple": "App Store",
     "storeGoogle": "Google Play",
-    "footnote": "Your records stay even if you cancel Plus. If you're over the free {{gb}}GB, only new uploads are paused."
+    "footnote": "Your records stay even if you cancel Plus. If you're over the free {{gb}}GB, only new uploads are paused.",
+    "restored": "Your purchase has been restored"
   }
 }

@@ -162,7 +162,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 반영 확인 중 | 구매 `completed`·복원 `restored-active` 후 | 구매 중과 같은 잠금 + 버튼 아래 `paywall.reflecting` → 10초 뒤 `paywall.reflectingLong`. 완료 화면으로 넘어갈 때까지 표시를 고정(재조회로 plus가 돼도 "이용 중" 카드로 바뀌지 않음) |
 | 신원 불일치 | 구매·복원 `identity_mismatch` | `paywall.identityMismatch` 안내, 화면 유지(구매 시트는 뜨지 않음) |
 | 이미 구독 중 | 구매 `already_owned` | 잠금이 풀린 뒤 대화상자: 제목 `paywall.alreadyOwnedTitle`, 본문 `paywall.alreadyOwned`(`{{store}}` = `subscription.storeApple`/`storeGoogle`), 버튼 [구매 복원](`paywall.restore`) / [닫기](`paywall.close`). 구매 복원 → 복원 흐름을 새 잠금으로 시작 |
-| 이미 Plus | `user.plan === 'plus'` | 결제 UI 없이 `/subscription`으로 `replace` |
+| 이미 Plus | `user.plan === 'plus'` | 결제 UI 없이 `/subscription`으로 `replace`(D6-2). 반영 확인 중·잠금 중에는 하지 않는다(`shouldRedirectToSubscription`) — 구매·복원 직후 이동은 각 흐름이 정한다. "이용 중" 카드는 이동 전 대체 표시 |
 
 - 연간이 기본 선택. 할인 배지는 `annualDiscountPercent !== null`일 때만, "월 ○꼴"은 `perMonthPriceString !== null`일 때만 표시한다.
 - 비교표 3행은 고정 문구. 용량 숫자는 `FREE_STORAGE_GB`·`PLUS_STORAGE_GB`를 끼워 넣는다.
@@ -180,7 +180,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 복원(PW-14): `restorePaywallPurchases(user.id)` →
 - `identity_mismatch` → `paywall.identityMismatch` / `failed` → `paywall.failed`
 - `restored-none` → 즉시 `paywall.restoreNone`
-- `restored-active` → 반영 확인(구매와 같은 상수·문구) → 반영되면 `/plus-success`(파라미터 없음 → 기본 변형), 30초 안에 안 되면 `/plus-success?restore=1`(반영 중 + 복원 확인 안내). D6에서 반영 시 이동처를 `/subscription`으로 바꿀지 재검토.
+- `restored-active` → 반영 확인(구매와 같은 상수·문구) → 반영되면 **`/subscription?restored=1`**(상단 `subscription.restored` 1회, D6-2), 30초 안에 안 되면 `/plus-success?restore=1`(반영 중 + 복원 확인 안내). 이동처는 `restoreExitTarget`.
 
 잠금 구간 예상 밖 오류(D5-b-5): 구매·복원 잠금(`runLocked`)은 오류에도 항상 풀린다. 처리는 진행 단계로 정한다(순수 함수 `resolveLockedErrorAction`).
 - 스토어 거래 완료 전 → `paywall.failed` 안내, 화면 유지.
@@ -200,7 +200,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 반영 중 화면의 복원은 전체를 try/catch/finally 로 감싼다 — 예상 밖 throw 에도 `restoring`에 남지 않고 `restore-failed`, `captureError` scope `plusSuccess.restore`.
 - 반영 중 화면의 복원 단계(표시 모델 `buildPlusPendingVM`): `idle`(안내 없음) / `restoring`(버튼 스피너·닫기 잠금) / `restore-checked`(`plusSuccess.restoreChecked`) / `restore-none`(`paywall.restoreNone`) / `restore-failed`(`plusSuccess.restoreFailed`) / `identity-mismatch`(`plusSuccess.identityMismatch`). 복원 규칙은 PW-14와 같다. `restore=1`로 들어오면 `restore-checked`부터.
 - 날짜는 앱의 기존 날짜 표시 유틸·로케일을 따른다.
-- "기록하러 가기" → 홈으로 `replace`(뒤로가기로 결제 화면에 돌아가지 않게). "구독 관리 보기" → `/subscription`.
+- "기록하러 가기" → 홈으로 `replace`(뒤로가기로 결제 화면에 돌아가지 않게). "구독 관리 보기" → `/subscription`으로 `replace`(D6-2 — 뒤로가기가 완료 화면·결제 화면으로 돌아가지 않는다).
 
 ### 3.3 설정 구독 화면 — `app/subscription.tsx` (D6-1, 시안 `04-subscription-settings.png`)
 
@@ -224,6 +224,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - **다른 스토어**: plus이고 `plan_store`가 기기 스토어와 다르면 관리 행 대신 `subscription.otherStore`(`{{store}}` = `subscription.storeApple`/`storeGoogle`)를 행 아래에 보인다.
 - 구매 복원: `usePlusRestore`(결제 화면과 같은 흐름, PW-14·PW-15). `identity_mismatch` → `paywall.identityMismatch` / `failed` → `paywall.failed` / `restored-none` → `paywall.restoreNone` / `not-reflected` → `paywall.restoreChecked` / `reflected` → `/auth/me`가 plus로 바뀌어 Plus 상태로 다시 그린다. 진행 중 행 스피너, 예상 밖 오류는 `captureError` scope `subscription.restore`.
 - 진입할 때마다 `/auth/me`·저장 공간을 다시 읽는다. 무료일 때만 상품을 조회한다.
+- 복원 안내(D6-2): `?restored=1`로 들어오면 상단에 `subscription.restored`를 보이고 파라미터는 바로 지운다(다시 들어와도 반복하지 않음). 이 화면의 구매 복원이 `reflected`여도 같은 안내.
 - 뒤로가기: 일반 스택. 완료 화면에서 `replace`로 오면(결제 화면 → 완료 화면 → 구독 화면이 모두 replace) 뒤로가기는 결제 화면을 연 화면으로 돌아간다.
 - 관측: breadcrumb `paywall` / `subscription` + `plan`.
 - 동반 수정(완료): `StorageUsageBar`의 `PLAN_KEYS` 정리(D6-a `planBadge.ts`), `User` 타입 `plan_status?`·`plan_store?`(D2).
@@ -278,9 +279,10 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 보간 문법은 기존 키(`paywall.activeUntil`)와 같은 방식을 쓴다. 파일의 `{{name}}` 표기가 다르면 맞춰 바꾼다.
 - `t()`는 런타임 호출만. 모듈 스코프에서 미리 평가하지 않는다.
 - 금지 표현: "AI 일기·검색 무제한". 검색은 Plus 혜택이 아니다.
-- 값이 영어와 같은 키(`paywall.brand`, `paywall.compare.plus`, 스토어 이름)는 의도적 영어 유지 목록에 등록한다. 목록(v1.5): `paywall.brand` · `paywall.compare.plus` · `subscription.planPlus` · `subscription.storeApple`(App Store) · `subscription.storeGoogle`(Google Play). `paywall.alreadyOwned`의 `{{store}}`는 이 스토어 이름 키 값을 끼워 넣는다.
+- 값이 영어와 같은 키(`paywall.brand`, `paywall.compare.plus`, 스토어 이름)는 의도적 영어 유지 목록에 등록한다. 목록(v1.6): `paywall.brand` · `paywall.compare.plus` · `subscription.planPlus` · `subscription.storeApple`(App Store) · `subscription.storeGoogle`(Google Play) · `storage.planFree`(ko·th 배지 "Free" — 더보기 카드·마이페이지 플랜 표기, D6-a·D6-3). `paywall.alreadyOwned`의 `{{store}}`는 이 스토어 이름 키 값을 끼워 넣는다.
 - vi·th는 초안이다. 병합 후 표로 뽑아 JJ 검수를 받는다.
 - v1.5(D5-b): copy 72키 → **81키**. 추가 9개 = `paywall.reflecting`·`reflectingLong`·`identityMismatch`, `plusSuccess.pendingTitle`·`restore`·`close`·`restoreChecked`·`restoreFailed`·`identityMismatch`. 값 변경 1개 = `plusSuccess.pending`. vi·th 9개는 D9 검수 대상.
+- v1.6(D6-2): 83키 → **84키**. 추가 1개 = `subscription.restored`. 삭제(D6-3) = `storage.freeNotice`·`storage.upgrade`(로케일만, copy 묶음 밖이라 84키 계산에 영향 없음).
 - v1.5(D5-c): 81키 → **83키**. 추가 2개 = `paywall.alreadyOwnedTitle`·`paywall.alreadyOwned`. en·vi·th 초안, D9 검수 대상.
 
 ---
@@ -321,6 +323,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 단위 | 재생성 판정 | 복구 재생성 통과 / 무료 → 시트 / Plus → 요청 / 403 → 시트·alert 없음 |
 | 단위 | 결제 화면 표시 모델(순수 함수) | 6개 상태, 체험 가능·없음·불명·일수 불명의 버튼·고지 문구, 구매 중 닫기 차단. 렌더는 실기 스크린샷으로 확인 |
 | 단위 | 구독 화면 표시 모델(`buildSubscriptionVM`) | 무료(상품 조회 성공·전·없음·실패), active·cancelled·grace·불명(null·expired·알 수 없음), 날짜 없음·변환 실패, 관리 행 조건·다른 스토어 6조합, 저장 공간 숨김·0~100 고정. 렌더는 실기 스크린샷으로 확인 |
+| 단위 | 구독 화면 이동(D6-2) | 이미 Plus 이동 조건(반영 확인 중·잠금·무료·미인증 제외), 복원 결과 이동처, `restored` 파라미터 |
 | 단위 | 복원 흐름(`runPlusRestore`) | 5개 결과, 기록 순서(breadcrumb·진행 단계·warning) |
 | 통합 | 백엔드 `/auth/me` | 2.1의 케이스 |
 | 시나리오 | 용량 초과 | prepare 413 → 시트 표시 → 대기 배너 없음 → "Plus 알아보기" → 결제 화면 |
@@ -354,6 +357,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D6-3 | 표기 정리: 마이페이지 플랜·용량 출처, 무료 안내 문구·업그레이드 버튼 삭제 | app | 무료·Plus 마이페이지·더보기 |
 | D6-0 | 복원 흐름 분리(`usePlusRestore`·`runPlusRestore`), 동작 변경 0 | app | — |
 | D6-1 | 설정 구독 화면(`buildSubscriptionVM`) + 설정 "구독" 행 | app | 무료·Plus·다른 스토어 각 1회 |
+| D6-2 | 진입점 정리: 더보기 카드·완료 화면 "구독 관리 보기"·결제 화면 이미 Plus·복원 성공 → `/subscription` | app | 각 진입 1회 + 뒤로가기 |
 | D6 | (D6-a·D6-0~3으로 분할) 설정 구독 화면 + 진입점 ① | app | 무료·Plus 각 1회 |
 | D7 | 안내 시트 + 재생성 진입점 ② | app | 무료 계정 1회 |
 | D8 | 용량 초과 진입점 ⑤ | app | 한도 근처 계정 1회 |

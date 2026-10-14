@@ -10,7 +10,7 @@ import { useTranslation } from '@src/hooks/useTranslation';
 import { PlusCta } from '@/src/components/plus/PlusCta';
 import { plusColors } from '@/src/components/plus/plusColors';
 import { addBreadcrumb, captureError, captureMessage } from '@/src/utils/sentry';
-import { openSubscriptionManagement, restorePaywallPurchases } from '@src/services/purchases';
+import { restorePaywallPurchases } from '@src/services/purchases';
 import { formatLongDate } from '@src/utils/dateLocale';
 import type { TextRef } from '@src/utils/paywallViewModel';
 import {
@@ -40,7 +40,7 @@ import { borderRadius, darkTheme, lightTheme, palette, spacing, typography, type
  * 반영 중(D5-b-2): 안내 + 구매 복원 + 닫기. 진입 시와 앱 복귀(AppState active) 때 /auth/me 를 다시 읽고,
  * plus 가 확인되면 반영 변형으로 바뀐다. 그 사이 5초마다 주기 재확인(앱이 앞에 있는 시간 기준 최대 2분, D5-b-4). 구매 복원은 결제 화면과 같은 규칙(PW-14) — 활성 구독 없으면 바로 안내,
  * 있으면 반영 확인(최대 30초). 미반영 warning(paywall-reflect-timeout)은 결제 화면이 이미 남겼다.
- * "구독 관리 보기"는 D6(/subscription) 전까지 스토어 관리 화면을 직접 연다(열 수 없으면 버튼 숨김).
+ * "구독 관리 보기"는 구독 화면으로 replace(D6-2) — 뒤로가기가 완료 화면·결제 화면으로 돌아가지 않는다.
  */
 const MIN_TOUCH = 44;
 
@@ -81,7 +81,6 @@ export default function PlusSuccessScreen() {
   });
   const tx = (ref: TextRef) => t(ref.key, ref.params);
 
-  const [manageHidden, setManageHidden] = useState(false);
 
   useEffect(() => {
     if (guard === 'go-home') router.replace('/(tabs)');
@@ -202,10 +201,7 @@ export default function PlusSuccessScreen() {
     }
   };
 
-  const openManage = async () => {
-    // D6 에서 /subscription 으로 교체
-    if ((await openSubscriptionManagement()) === 'unavailable') setManageHidden(true);
-  };
+  const openManage = () => router.replace('/subscription');
 
   if (guard !== 'render') {
     return <View style={[styles.container, { backgroundColor: theme.background.primary }]} />;
@@ -274,11 +270,9 @@ export default function PlusSuccessScreen() {
       ) : (
         <View style={styles.footer}>
           <PlusCta label={t('plusSuccess.cta')} onPress={goHome} colors={plusColors(theme, isDark)} />
-          {!manageHidden && (
-            <TouchableOpacity onPress={openManage} style={styles.manageTouch} accessibilityRole="button">
-              <Text style={[styles.manageText, { color: theme.text.secondary }]}>{t('plusSuccess.manage')}</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity onPress={openManage} style={styles.manageTouch} accessibilityRole="button">
+            <Text style={[styles.manageText, { color: theme.text.secondary }]}>{t('plusSuccess.manage')}</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>

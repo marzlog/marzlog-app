@@ -1,5 +1,5 @@
 /**
- * PAYWALL 문구 병합 확인 (명세 §5) — docs/paywall/copy/{lang}.json 83키가 로케일 파일에
+ * PAYWALL 문구 병합 확인 (명세 §5) — docs/paywall/copy/{lang}.json 84키가 로케일 파일에
  * 같은 값으로 들어 있고, 4개 언어의 키 집합이 같은지.
  */
 import * as fs from 'fs';
@@ -28,8 +28,8 @@ describe.each(LANGS)('%s', (lang) => {
   const copy = read(`docs/paywall/copy/${lang}.json`);
   const locale = read(`src/i18n/locales/${lang}.json`);
 
-  it('copy 83키가 로케일에 같은 값으로 있다', () => {
-    expect(Object.keys(copy)).toHaveLength(83);
+  it('copy 84키가 로케일에 같은 값으로 있다', () => {
+    expect(Object.keys(copy)).toHaveLength(84);
     for (const [key, value] of Object.entries(copy)) {
       expect([key, locale[key]]).toEqual([key, value]);
     }

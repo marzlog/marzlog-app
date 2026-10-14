@@ -247,3 +247,32 @@ export function buildAlreadyOwnedDialog(platform: string): AlreadyOwnedDialogVM 
     cancel: { key: 'paywall.close' },
   };
 }
+
+/**
+ * 이미 Plus 인 사용자가 결제 화면에 들어오면 구독 화면으로 replace(D6-2, 명세 §3.1 "이미 Plus").
+ * 반영 확인 중(reflecting ≠ idle)·잠금 중(busy)에는 하지 않는다 — 구매·복원 직후의 이동은 각 흐름이 정한다.
+ */
+export function shouldRedirectToSubscription(input: {
+  isAuthenticated: boolean;
+  isPlus: boolean;
+  reflecting: PaywallReflectPhase;
+  busy: boolean;
+}): boolean {
+  return input.isAuthenticated && input.isPlus && input.reflecting === 'idle' && !input.busy;
+}
+
+export type PaywallExitTarget = { pathname: '/plus-success' | '/subscription'; params: Record<string, string> };
+
+/** 결제 화면 복원 결과의 이동처(D6-2) — 반영되면 구독 화면(복원 안내 1회), 30초 미반영이면 완료 화면 반영 중 */
+export function restoreExitTarget(reflected: boolean): PaywallExitTarget {
+  return reflected
+    ? { pathname: '/subscription', params: SUBSCRIPTION_RESTORED_PARAMS }
+    : { pathname: '/plus-success', params: PLUS_SUCCESS_RESTORE_PARAMS };
+}
+
+/** 구독 화면 상단 "구매를 복원했어요" 1회 표시 파라미터 */
+export const SUBSCRIPTION_RESTORED_PARAMS: Record<string, string> = { restored: '1' };
+
+export function parseRestoredParam(raw: unknown): boolean {
+  return (Array.isArray(raw) ? raw[0] : raw) === '1';
+}

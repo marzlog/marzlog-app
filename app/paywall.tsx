@@ -40,7 +40,10 @@ import {
   normalizePaywallSource,
   resolveLockedErrorAction,
   resolvePurchaseFollowUp,
+  restoreExitTarget,
   shouldLoadOffer,
+  shouldRedirectToSubscription,
+  type PaywallExitTarget,
   type PaywallLockedProgress,
   type PaywallPlanVM,
   type PaywallReflectPhase,
@@ -48,7 +51,7 @@ import {
 } from '@src/utils/paywallViewModel';
 import { waitForPlusReflected } from '@src/utils/plusReflect';
 import { usePlusRestore } from '@src/hooks/usePlusRestore';
-import { PLUS_SUCCESS_RESTORE_PARAMS, toPlusSuccessRouteParams } from '@src/utils/plusSuccessViewModel';
+import { toPlusSuccessRouteParams } from '@src/utils/plusSuccessViewModel';
 import {
   PLUS_REFLECT_ATTEMPT_TIMEOUT_MS,
   PLUS_REFLECT_INTERVAL_MS,
@@ -69,7 +72,8 @@ import { borderRadius, darkTheme, lightTheme, palette, spacing, typography, type
  * 반영 여부와 무관하게 /plus-success 로 replace 한다(PW-7 — 미반영도 alert 없이
  * 완료 화면의 "반영 중" 변형으로).
  * 복원(PW-14): RC 응답에 활성 구독이 없으면 바로 restoreNone. 있으면 같은 반영 확인 → 반영되면 완료 화면(기본 변형),
- * 30초 안에 안 되면 완료 화면 "반영 중"(복원 확인 안내). 이미 Plus 는 D6(/subscription) 전까지 이 화면의 "이용 중" 카드.
+ * 30초 안에 안 되면 완료 화면 "반영 중"(복원 확인 안내). 복원이 반영되면 구독 화면(/subscription?restored=1, D6-2).
+ * 이미 Plus 로 들어오면 구독 화면으로 replace(D6-2) — "이용 중" 카드는 이동 전 한 번 그려질 수 있는 대체 표시.
  */
 const MIN_TOUCH = 44;
 
@@ -101,7 +105,7 @@ export default function PaywallScreen() {
   // 조건 1: 고지문까지 하단에 두되, 하단 영역이 화면 절반을 넘으면 고지문은 스크롤 끝으로 내린다
   const [disclosureInFooter, setDisclosureInFooter] = useState(true);
   // 구매 완료 후 이동할 완료 화면 파라미터 — 잠금(usePreventRemove)이 풀린 뒤에 이동한다
-  const [successParams, setSuccessParams] = useState<Record<string, string> | null>(null);
+  const [exitTarget, setExitTarget] = useState<PaywallExitTarget | null>(null);
   // 구매 후 서버 반영 확인 단계 — 완료 화면으로 넘어갈 때까지 idle 로 되돌리지 않는다(VM 고정)
   const [reflectPhase, setReflectPhase] = useState<PaywallReflectPhase>('idle');
 
@@ -136,14 +140,20 @@ export default function PaywallScreen() {
 
   // 잠금 중 replace 는 usePreventRemove 에 막히므로, 잠금이 풀린 렌더 뒤에 완료 화면으로 보낸다
   useEffect(() => {
-    if (!busy && successParams) router.replace({ pathname: '/plus-success', params: successParams });
-  }, [busy, successParams, router]);
+    if (!busy && exitTarget) router.replace({ pathname: exitTarget.pathname, params: exitTarget.params });
+  }, [busy, exitTarget, router]);
+
+  // D6-2: 이미 Plus 면 구독 화면으로(반영 확인 중·잠금 중 제외 — 구매·복원 직후 이동은 각 흐름이 정한다)
+  const redirectToSubscription = shouldRedirectToSubscription({ isAuthenticated, isPlus, reflecting: reflectPhase, busy });
+  useEffect(() => {
+    if (redirectToSubscription && !goingToSuccessRef.current) router.replace('/subscription');
+  }, [redirectToSubscription, router]);
 
   // 완료 화면으로 보내기로 정했는지 — 아니면 잠금이 풀릴 때 반영 확인 단계를 idle 로 되돌린다
   const goingToSuccessRef = useRef(false);
-  const goToSuccess = (params: Record<string, string>) => {
+  const goToSuccess = (params: Record<string, string>, pathname: PaywallExitTarget['pathname'] = '/plus-success') => {
     goingToSuccessRef.current = true;
-    setSuccessParams(params);
+    setExitTarget({ pathname, params });
   };
 
   // D5-b-5: 예상 밖 오류에도 잠금이 풀리고, 스토어 거래가 끝난 뒤의 오류면 "실패" 대신 완료 화면 반영 중으로 보낸다
@@ -260,7 +270,9 @@ export default function PaywallScreen() {
         await alert(t('paywall.title'), t('paywall.restoreNone'));
         return;
       }
-      goToSuccess(result === 'reflected' ? {} : PLUS_SUCCESS_RESTORE_PARAMS);
+      // D6-2: 반영되면 구독 화면(상단 "구매를 복원했어요" 1회), 30초 미반영이면 완료 화면 반영 중(restore=1)
+      const target = restoreExitTarget(result === 'reflected');
+      goToSuccess(target.params, target.pathname);
     });
 
   const handleClose = () => {
