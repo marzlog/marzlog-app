@@ -5,17 +5,8 @@ import { useTranslation } from '@/src/hooks/useTranslation';
 import { useStorageStore } from '@/src/store/storageStore';
 import { useAuthStore } from '@/src/store/authStore';
 import { PLAN_BADGE_KEYS, resolvePlanBadge } from '@/src/utils/planBadge';
+import { formatBytes } from '@/src/utils/formatBytes';
 import { AppTouchable } from './AppTouchable';
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-  if (bytes < 1024 * 1024 * 1024) {
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-}
 
 function getBarColor(percent: number): string {
   if (percent >= 90) return '#FF3B30';
@@ -25,12 +16,11 @@ function getBarColor(percent: number): string {
 
 interface StorageUsageBarProps {
   isDark: boolean;
-  onUpgrade?: () => void;
   /** 카드 전체 탭(D6-a 진입점 ①) — 주면 오른쪽 chevron 과 버튼 접근성이 붙는다 */
   onPress?: () => void;
 }
 
-export function StorageUsageBar({ isDark, onUpgrade, onPress }: StorageUsageBarProps) {
+export function StorageUsageBar({ isDark, onPress }: StorageUsageBarProps) {
   const { t } = useTranslation();
   const { storageUsage, isLoading } = useStorageStore();
   // 배지는 서버 /auth/me plan 기준(PW-1) — /users/storage 의 plan 은 쓰지 않는다
@@ -102,28 +92,12 @@ export function StorageUsageBar({ isDark, onUpgrade, onPress }: StorageUsageBarP
           />
         </View>
 
-        {/* Footer: usage text + upgrade */}
+        {/* Footer: usage text */}
         <View style={styles.footerRow}>
           <Text style={[styles.usageText, isDark && styles.textMuted]}>
             {t('storage.usagePercent', { percent: used_percentage })} — {formatBytes(used_bytes)} / {formatBytes(limit_bytes)}
           </Text>
-          {onUpgrade && (
-            <AppTouchable
-              style={styles.upgradeBtn}
-              onPress={onUpgrade}
-            >
-              <Text style={styles.upgradeText}>{t('storage.upgrade')}</Text>
-              <Ionicons name="chevron-forward" size={14} color="#6366F1" />
-            </AppTouchable>
-          )}
         </View>
-
-        {/* Free-for-now notice (shown when upgrade is disabled) */}
-        {!onUpgrade && (
-          <Text style={[styles.freeNoticeText, isDark && styles.textMuted]}>
-            {t('storage.freeNotice')}
-          </Text>
-        )}
       </View>,
   );
 }
@@ -196,21 +170,6 @@ const styles = StyleSheet.create({
   usageText: {
     fontSize: 12,
     color: '#6B7280',
-  },
-  upgradeBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  upgradeText: {
-    fontSize: 12,
-    color: '#6366F1',
-    fontWeight: '500',
-  },
-  freeNoticeText: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 8,
   },
   // Skeleton
   skeletonRow: {

@@ -215,6 +215,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - "스토어에서 구독 관리" → `openSubscriptionManagement()`. `'unavailable'`이면 `subscription.manageUnavailable`.
 - `plan_store`가 현재 기기의 스토어와 다르면 관리 행 아래에 `subscription.otherStore`를 보여준다.
 - 동반 수정: `StorageUsageBar`의 `PLAN_KEYS`에 `plus` 추가, `StorageUsage.plan` 타입에 `'plus'` 추가, `User` 타입에 `plan_status?`·`plan_store?` 추가.
+- 표기 정리(D6-3): 마이페이지 플랜 = `/auth/me` `plan`(`resolvePlanBadge`, PW-1), 용량 = `/users/storage`(`storageStore`, 더보기 카드와 같은 스켈레톤). `/auth/me/stats`의 `storage_plan`·`storage_limit_bytes`(레거시 `users` 컬럼, 웹훅이 갱신하지 않음)는 읽지 않는다. "지금은 모든 기능을 무료로 제공하고 있어요"(`storage.freeNotice`)와 더보기 카드의 업그레이드 버튼(`onUpgrade`·`storage.upgrade`)은 삭제 — PW-12로 심사 전 게이트가 켜지면 사실이 아니게 된다.
 
 ### 3.4 Plus 안내 시트 — `src/components/plus/PlusUpsellSheet.tsx` (신규, 시안 `02`, `05`)
 
@@ -337,6 +338,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D5-b | 반영 확인 30초(D5-b-1) → 신원 대조(D5-b-3) → 미반영 화면·복원 규칙(D5-b-2) | app | 샌드박스 구매·복원, 비행기 모드 미반영 |
 | D5-c | 이미 구독 중 안내(PW-16): `already_owned` 분류 + [구매 복원]/[닫기] 대화상자 + Sentry info | app | Android 같은 Play 계정·다른 앱 계정 구매 → 복원 / iOS 같은 상황 |
 | D6-a | 진입점 ① 선행: 더보기 저장 공간 카드 전체 탭 → `/paywall?source=settings`(무료·Plus 모두, D6에서 `/subscription`으로 교체) + 배지를 `/auth/me` plan 기준으로(PW-1, `planBadge.ts`) | app | Android 실기 결제 시험 진입 |
+| D6-3 | 표기 정리: 마이페이지 플랜·용량 출처, 무료 안내 문구·업그레이드 버튼 삭제 | app | 무료·Plus 마이페이지·더보기 |
 | D6 | 설정 구독 화면 + 진입점 ① | app | 무료·Plus 각 1회 |
 | D7 | 안내 시트 + 재생성 진입점 ② | app | 무료 계정 1회 |
 | D8 | 용량 초과 진입점 ⑤ | app | 한도 근처 계정 1회 |

@@ -1,6 +1,9 @@
 import { useColorScheme } from '@/components/useColorScheme';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuthStore } from '@src/store/authStore';
+import { useStorageStore } from '@src/store/storageStore';
+import { PLAN_BADGE_KEYS, resolvePlanBadge } from '@src/utils/planBadge';
+import { formatBytes } from '@src/utils/formatBytes';
 import { useSettingsStore } from '@src/store/settingsStore';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { authApi } from '@src/api/auth';
@@ -42,6 +45,9 @@ export default function ProfileScreen() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState<string | null>(null);
+  // D6-3: 용량은 더보기 카드와 같은 /users/storage(storageStore), 플랜은 서버 /auth/me plan(PW-1).
+  // /auth/me/stats 의 storage_plan·storage_limit_bytes 는 레거시 users 컬럼이라 읽지 않는다
+  const { storageUsage, isLoading: storageLoading, fetchStorageUsage } = useStorageStore();
 
   useEffect(() => {
     loadStats();
@@ -67,6 +73,7 @@ export default function ProfileScreen() {
     try {
       setStatsLoading(true);
       setStatsError(null);
+      fetchStorageUsage();
       const userStats = await authApi.getUserStats();
       setStats(userStats);
     } catch (error) {
@@ -184,10 +191,8 @@ export default function ProfileScreen() {
                 <StatItem icon="layers-outline" label={t('stats.groups')} value={stats?.total_groups?.toString() || '0'} isDark={isDark} />
               </View>
               <StorageGauge
-                usedFormatted={stats?.storage_used_formatted || '0 B'}
-                limitFormatted={stats?.storage_limit_formatted || '5.0 GB'}
-                usagePercent={stats?.storage_usage_percent || 0}
-                plan={stats?.storage_plan || 'free'}
+                usage={storageLoading ? null : storageUsage}
+                planLabelKey={PLAN_BADGE_KEYS[resolvePlanBadge(user?.plan)]}
                 isDark={isDark}
               />
             </>
@@ -230,16 +235,27 @@ export default function ProfileScreen() {
   );
 }
 
-function StorageGauge({ usedFormatted, limitFormatted, usagePercent, plan, isDark }: {
-  usedFormatted: string;
-  limitFormatted: string;
-  usagePercent: number;
-  plan: string;
+function StorageGauge({ usage, planLabelKey, isDark }: {
+  /** null = 불러오는 중·실패 — 더보기 카드와 같은 스켈레톤 */
+  usage: { used_bytes: number; limit_bytes: number; used_percentage: number } | null;
+  planLabelKey: string;
   isDark: boolean;
 }) {
   const { t } = useTranslation();
+
+  if (!usage) {
+    const skeleton = { backgroundColor: isDark ? '#2D3748' : '#E5E7EB', borderRadius: 4, marginBottom: 8 };
+    return (
+      <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+        <View style={[skeleton, { height: 12, width: '40%' }]} />
+        <View style={[skeleton, { height: 8, width: '100%' }]} />
+        <View style={[skeleton, { height: 12, width: '60%' }]} />
+      </View>
+    );
+  }
+
+  const usagePercent = usage.used_percentage;
   const barColor = usagePercent >= 95 ? '#EF4444' : usagePercent >= 80 ? '#F59E0B' : '#8B5CF6';
-  const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1);
 
   return (
     <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
@@ -248,7 +264,7 @@ function StorageGauge({ usedFormatted, limitFormatted, usagePercent, plan, isDar
           {t('storage.title')}
         </Text>
         <Text style={{ fontSize: 13, color: isDark ? '#D1D5DB' : '#374151', fontWeight: '500' }}>
-          {usedFormatted} / {limitFormatted}
+          {formatBytes(usage.used_bytes)} / {formatBytes(usage.limit_bytes)}
         </Text>
       </View>
       <View style={{ height: 8, borderRadius: 4, backgroundColor: isDark ? '#2D3748' : '#E5E7EB' }}>
@@ -259,12 +275,9 @@ function StorageGauge({ usedFormatted, limitFormatted, usagePercent, plan, isDar
           {t('storage.usagePercent', { percent: usagePercent })}
         </Text>
         <Text style={{ fontSize: 12, color: isDark ? '#9CA3AF' : '#6B7280' }}>
-          {t('storage.currentPlan')}: {planLabel}
+          {t('storage.currentPlan')}: {t(planLabelKey as any)}
         </Text>
       </View>
-      <Text style={{ fontSize: 12, color: isDark ? '#6B7280' : '#9CA3AF', marginTop: 8 }}>
-        {t('storage.freeNotice')}
-      </Text>
     </View>
   );
 }
