@@ -27,7 +27,6 @@ import { addBreadcrumb, captureError, captureMessage } from '@/src/utils/sentry'
 import {
   loadPaywallOffer,
   purchasePaywallPlan,
-  restorePaywallPurchases,
   type PaywallOfferResult,
   type PaywallPlanKind,
 } from '@src/services/purchases';
@@ -48,6 +47,7 @@ import {
   type TextRef,
 } from '@src/utils/paywallViewModel';
 import { waitForPlusReflected } from '@src/utils/plusReflect';
+import { usePlusRestore } from '@src/hooks/usePlusRestore';
 import { PLUS_SUCCESS_RESTORE_PARAMS, toPlusSuccessRouteParams } from '@src/utils/plusSuccessViewModel';
 import {
   PLUS_REFLECT_ATTEMPT_TIMEOUT_MS,
@@ -83,6 +83,7 @@ export default function PaywallScreen() {
   const { alert, confirm } = useDialog();
   const params = useLocalSearchParams<{ source?: string | string[] }>();
   const source = normalizePaywallSource(params.source);
+  const runRestore = usePlusRestore(source);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
 
@@ -240,31 +241,26 @@ export default function PaywallScreen() {
 
   const handleRestore = () =>
     runLocked(async (progress) => {
-      const restored = await restorePaywallPurchases(useAuthStore.getState().user?.id);
-      if (restored === 'identity_mismatch') {
+      // 복원 흐름(신원 대조 → PW-14 → 반영 확인)은 usePlusRestore(D6-0). 여기서는 결과별 안내·이동만
+      const result = await runRestore({
+        waitReflected,
+        onRestoreActive: () => {
+          progress.current = { stage: 'restore-active' };
+        },
+      });
+      if (result === 'identity_mismatch') {
         await alert(t('paywall.title'), t('paywall.identityMismatch'));
         return;
       }
-      if (restored === 'failed') {
+      if (result === 'failed') {
         await alert(t('paywall.title'), t('paywall.failed'));
         return;
       }
-      addBreadcrumb('paywall', 'restore', { outcome: restored, source });
-      if (restored === 'restored-none') {
+      if (result === 'restored-none') {
         await alert(t('paywall.title'), t('paywall.restoreNone'));
         return;
       }
-      // restored-active: Plus 여부는 서버 반영으로만 판단(PW-1)
-      progress.current = { stage: 'restore-active' };
-      const reflected = await waitReflected();
-      if (!reflected) {
-        captureMessage('paywall plus not reflected after restore', { source }, {
-          level: 'warning',
-          fingerprint: ['paywall-restore-reflect-timeout'],
-          tags: { area: 'paywall', source },
-        });
-      }
-      goToSuccess(reflected ? {} : PLUS_SUCCESS_RESTORE_PARAMS);
+      goToSuccess(result === 'reflected' ? {} : PLUS_SUCCESS_RESTORE_PARAMS);
     });
 
   const handleClose = () => {

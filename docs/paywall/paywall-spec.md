@@ -130,6 +130,8 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 신원 대조 판정은 순수 함수(`purchasesIdentity.ts`의 `verifyPurchaseIdentity`·`runWithVerifiedIdentity`·`normalizeAppUserId`·`shouldRetryIdentity`)로 분리한다. 차단이면 `purchasePackage`·`restorePurchases`를 부르지 않는다.
 - 정규화: 서버 웹훅 매핑(`uuid.UUID` 파싱)과 같게 — 대소문자 무시, 공백은 무시하지 않음(서버도 매핑 못 하므로 "다름"이 맞고, 재 `logIn`이 교정한다), 빈 값은 "없음".
 - RC 미설정(`configured=false`): 대조 없이 기존대로 구매 `failed`·복원 `failed`. 서버 `user.id` 없음(비로그인): `no_server_user`로 SDK 호출 없이 차단.
+- 월 환산(`perMonthPriceString`): 플랫폼 SDK의 반올림 차이로 월 환산이 1원 다를 수 있음(Android ₩3,666 / iOS ₩3,667). 자체 계산 금지 원칙 유지(W-PAYWALL-PERMONTH-ROUNDING, 2026-10-14 현행 유지로 종결).
+- 복원 흐름(D6-0): 순수 함수 `runPlusRestore`(`src/utils/plusRestoreFlow.ts`) + 훅 `usePlusRestore(source)`(`src/hooks/usePlusRestore.ts`). 래퍼 복원(신원 대조) → 결과 분기 → 활성 구독이면 반영 확인. 결과 `identity_mismatch`·`failed`·`restored-none`·`reflected`·`not-reflected`에 따른 안내·이동은 화면 몫.
 - 오류 분류(D5-c, `purchaseErrors.ts`의 `classifyPurchaseError`): 사용자 취소·`PURCHASE_CANCELLED_ERROR` → `cancelled` / `PRODUCT_ALREADY_PURCHASED_ERROR` → `already_owned` / 그 외 → `failed`. 영수증이 다른 사용자에 묶인 계열(`RECEIPT_ALREADY_IN_USE_ERROR`·`RECEIPT_IN_USE_BY_OTHER_SUBSCRIBER_ERROR`)은 `failed`를 유지하고 Sentry tag `reason=receipt_in_use`로만 구분한다. 코드는 숫자 리터럴이 아니라 SDK `PURCHASES_ERROR_CODE`를 넘긴다.
 - 활성 구독 판단(`purchasesRestore.ts`의 `hasActiveSubscription`): `activeSubscriptions` 또는 `entitlements.active`가 하나라도 있으면 활성.
 
