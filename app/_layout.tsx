@@ -20,6 +20,7 @@ import { useSettingsStore } from '@src/store/settingsStore';
 import { useAppLockStore } from '@src/store/appLockStore';
 import { useReminderStore } from '@src/store/reminderStore';
 import { DialogProvider } from '@/src/components/ui/Dialog';
+import { PlusUpsellSheet } from '@/src/components/plus/PlusUpsellSheet';
 import { BiometricLock } from '@/src/components/auth/BiometricLock';
 import { triggerResume } from '@src/services/resumeUploads';
 import { RESUME_INTERVAL_MS } from '@src/constants/upload';
@@ -468,6 +469,8 @@ function RootLayoutNav() {
           <Stack.Screen name="subscription" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>
+        {/* PAYWALL 명세 §3.4: Plus 안내 시트(D7-1) — 화면이 바뀌어도 남도록 루트에 하나만 */}
+        <PlusUpsellSheet />
       </DialogProvider>
     </ThemeProvider>
   );

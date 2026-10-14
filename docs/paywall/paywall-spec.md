@@ -1,6 +1,7 @@
 # Marzlog Plus 결제 화면(PAYWALL) 구현 명세서
 
-- 판: v1.6 (2026-10-14, D6 — 설정 구독 화면 §3.3 전면 개정·진입점 정리·표기 정리·복원 훅) · 대상: Build 34 (marzlog-app 1.0.3, develop)
+- 판: v1.7 (2026-10-14, D7·D8 — Plus 안내 시트·재생성 진입점 ②·용량 초과 진입점 ⑤) · 대상: Build 34 (marzlog-app 1.0.3, develop)
+- 이전 판: v1.6 (2026-10-14, D6 — 설정 구독 화면 §3.3 전면 개정·진입점 정리·표기 정리·복원 훅)
 - 이전 판: v1.5 (2026-10-13, D5-b — 반영 확인 30초·미반영 화면·신원 대조, PW-14·PW-15 / D5-b-4 주기 재확인·복원 안전장치 / D5-b-5 결제 화면 잠금 안전장치 / D5-c 이미 구독 중 안내, PW-16) · 대상: Build 34 (marzlog-app 1.0.3, develop)
 - 이전 판: v1.4 (2026-10-08, PW-11~13 + 게이트 2 판정·측정 S1~S3 + D1 보정 3건 + 재개 single 사진별 판정 반영)
 - 기준선: marzlog-app `e24e5a1` / marzlog-backend `7031620` / 정찰 보고 2026-10-08(게이트 1)
@@ -234,6 +235,12 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 
 `variant: 'regen' | 'storage'` 하나의 컴포넌트. 버튼: "Plus 알아보기" → 시트 닫고 `/paywall?source=…` / "다음에 할게요" → 닫기.
 
+- 구현(D7-1): 시트 본체는 **루트 레이아웃에 하나**(`app/_layout.tsx`), 열기·닫기는 `usePlusSheetStore`(`src/store/plusSheetStore.ts`)의 `open({ variant: 'regen' } | { variant: 'storage', usage })`·`close()`. 업로드가 끝나면 홈으로 이동하므로 화면 밖 스토어로 연다 — 이동 전에 열어도 남는다.
+- 표시는 순수 함수 `buildUpsellSheetVM`(`src/utils/plusSheetViewModel.ts`): 브랜드 `paywall.brand` · 제목 · 본문 · 체험 줄(regen만) · 사용량 막대(storage, 413 값) · 주 버튼 · "다음에 할게요". Plus 여부는 `/auth/me` plan(PW-1).
+- 모달은 `ShareSheet`와 같은 `Modal animationType="slide"` 패턴(PW-10). 내용 전체를 `ScrollView`로 감싸 글자 확대에서도 버튼이 밀려나지 않는다. 바깥 누름·Android 뒤로가기 = "다음에 할게요".
+- 체험 줄: 열린 뒤 상품을 조회해(`loadPaywallOffer`, 연간 플랜 기준 `sheetTrialFromOffer`) `eligible === true`면 `plusSheet.trialNote`(일수)·`trialNoteGeneric`(일수 불명). 조회를 기다리지 않고 먼저 띄운다.
+- 관측: breadcrumb `paywall` / `sheet` + `variant` + `action`(open·cta·later·confirm).
+
 **재생성 제한(`regen`)** — `app/media/[id].tsx`
 
 - `REGEN_PLUS_GATE` 지역 상수와 "곧 만나요" alert를 제거한다.
@@ -354,6 +361,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D5-b | 반영 확인 30초(D5-b-1) → 신원 대조(D5-b-3) → 미반영 화면·복원 규칙(D5-b-2) | app | 샌드박스 구매·복원, 비행기 모드 미반영 |
 | D5-c | 이미 구독 중 안내(PW-16): `already_owned` 분류 + [구매 복원]/[닫기] 대화상자 + Sentry info | app | Android 같은 Play 계정·다른 앱 계정 구매 → 복원 / iOS 같은 상황 |
 | D6-a | 진입점 ① 선행: 더보기 저장 공간 카드 전체 탭 → `/paywall?source=settings`(무료·Plus 모두, D6에서 `/subscription`으로 교체) + 배지를 `/auth/me` plan 기준으로(PW-1, `planBadge.ts`) | app | Android 실기 결제 시험 진입 |
+| D7-1 | Plus 안내 시트 + `plusSheetStore` + 루트 호스트 + `buildUpsellSheetVM`(진입점 없음) | app | — |
 | D6-3 | 표기 정리: 마이페이지 플랜·용량 출처, 무료 안내 문구·업그레이드 버튼 삭제 | app | 무료·Plus 마이페이지·더보기 |
 | D6-0 | 복원 흐름 분리(`usePlusRestore`·`runPlusRestore`), 동작 변경 0 | app | — |
 | D6-1 | 설정 구독 화면(`buildSubscriptionVM`) + 설정 "구독" 행 | app | 무료·Plus·다른 스토어 각 1회 |
