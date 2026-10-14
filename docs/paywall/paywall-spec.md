@@ -244,8 +244,9 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 **재생성 제한(`regen`)** — `app/media/[id].tsx`
 
 - `REGEN_PLUS_GATE` 지역 상수와 "곧 만나요" alert를 제거한다.
-- 판정 순서: ① 복구 재생성(`isDiaryFailed`) → 현행대로 통과 ② `user.plan !== 'plus'` → 시트 ③ 그 외 → 재생성 요청.
-- 서버가 403 `PLUS_REQUIRED`를 주면: `refreshUser()` 후 시트를 연다. 오류 alert와 Sentry error는 남기지 않는다(breadcrumb만).
+- 판정 순서: ① 복구 재생성 → 통과 ② `user.plan !== 'plus'` → 시트 ③ 그 외 → 재생성 요청. 순수 함수 `resolveRegenAction`(`src/utils/regenGate.ts`).
+- 복구 판정(D7-2) `isRecoveryRegeneration`은 서버 `entitlement.is_recovery_regeneration` 4조건에 맞춘다: `ai_provider = 'fallback'` · AI 본문 없음(`ai_content`, 구 응답은 `content` — 서버 ①카드 없음·③본문 NULL) · `analysis_status = 'failed'`(서버 ④최신 작업 실패). 너그럽게 판정해 빈 문자열·백엔드 fallback 문구 접두도 복구로 본다 — 앱이 잘못 보내도 서버 403이 최종 판단이고, 앱이 막으면 무료 복구를 잃는다.
+- 서버가 403 `PLUS_REQUIRED`를 주면(`isPlusRequiredError`): `refreshUser()` → plus면(반영 지연) **재시도 1회**, 아니면(또는 재시도도 403·재조회 실패) 시트(`resolvePlusRequiredFollowUp`). 오류 alert와 Sentry error는 남기지 않는다(breadcrumb `regen-gate` + `by: server`·`retried`).
 - 체험 안내 줄은 상품 조회가 끝나 `eligible === true`일 때만 나타난다. 조회를 기다리느라 시트를 늦게 띄우지 않는다.
 
 **용량 초과(`storage`)** — `src/hooks/useImageUpload.ts`의 세 경로(단일·그룹·그룹 추가)
@@ -289,6 +290,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 값이 영어와 같은 키(`paywall.brand`, `paywall.compare.plus`, 스토어 이름)는 의도적 영어 유지 목록에 등록한다. 목록(v1.6): `paywall.brand` · `paywall.compare.plus` · `subscription.planPlus` · `subscription.storeApple`(App Store) · `subscription.storeGoogle`(Google Play) · `storage.planFree`(ko·th 배지 "Free" — 더보기 카드·마이페이지 플랜 표기, D6-a·D6-3). `paywall.alreadyOwned`의 `{{store}}`는 이 스토어 이름 키 값을 끼워 넣는다.
 - vi·th는 초안이다. 병합 후 표로 뽑아 JJ 검수를 받는다.
 - v1.5(D5-b): copy 72키 → **81키**. 추가 9개 = `paywall.reflecting`·`reflectingLong`·`identityMismatch`, `plusSuccess.pendingTitle`·`restore`·`close`·`restoreChecked`·`restoreFailed`·`identityMismatch`. 값 변경 1개 = `plusSuccess.pending`. vi·th 9개는 D9 검수 대상.
+- v1.7(D7-2): 로케일 삭제 `plus.regenComingSoonTitle`·`plus.regenComingSoonBody`("곧 만나요" alert, 사용처 0) — `plus` 묶음이 비어 묶음째 삭제. copy 84키 영향 없음.
 - v1.6(D6-2): 83키 → **84키**. 추가 1개 = `subscription.restored`. 삭제(D6-3) = `storage.freeNotice`·`storage.upgrade`(로케일만, copy 묶음 밖이라 84키 계산에 영향 없음).
 - v1.5(D5-c): 81키 → **83키**. 추가 2개 = `paywall.alreadyOwnedTitle`·`paywall.alreadyOwned`. en·vi·th 초안, D9 검수 대상.
 
@@ -314,6 +316,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 결제 화면 잠금 구간 예상 밖 오류 | `captureError` scope `paywall.locked`, extra `stage`(`before-completion`·`purchase-completed`·`restore-active`), tags `area`·`source`. 식별값 금지 |
 | 앱 복귀 logIn 재시도 실패 | `captureError` scope `purchases.identity`, `transition: 'retry'` |
 | 403 `PLUS_REQUIRED`, 413 용량 초과 | breadcrumb만(오류 아님) |
+| 재생성 게이트 | breadcrumb `regen-gate` + `by`(app: 앱 판정으로 시트 · server: 403) + `retried` |
 | 상품 `unavailable` (production) | `captureMessage` warning — 스토어·RC 설정 이상 신호 |
 
 이메일·사용자 ID·영수증·토큰은 어떤 기록에도 싣지 않는다.
@@ -327,7 +330,8 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 단위 | `paywallOffer.ts` | 할인율(KRW 33 / VND 32 / THB 36), 통화 불일치 → null, 연간이 더 비쌈 → null, 체험 일수 변환 |
 | 단위 | `uploadFailure.ts` | 응답 없음·500·408·429·401·403 CONSENT·413 quota·413 기타·400·422 |
 | 단위 | 큐 | quota·rejected 후 `listResumable`·`pendingCount`에서 제외, transient는 유지, auth는 횟수 불변 |
-| 단위 | 재생성 판정 | 복구 재생성 통과 / 무료 → 시트 / Plus → 요청 / 403 → 시트·alert 없음 |
+| 단위 | 재생성 판정(`regenGate.ts`) | 복구 4조건(fallback·AI 본문 없음·구 응답 content·최신 작업 실패)·너그러운 판정(빈 값·fallback 접두)·정상 일기 / 무료 → 시트 · Plus·복구 → 요청 / 403 판별(다른 403·형식 오류) / 403 뒤 plus면 재시도 1회 |
+| 단위 | 안내 시트 표시 모델(`plusSheetViewModel.ts`) | regen 체험 줄 5종, storage 무료(막대·숫자 없음·0~100), storage Plus(정리 안내·확인 하나), 체험 근거 |
 | 단위 | 결제 화면 표시 모델(순수 함수) | 6개 상태, 체험 가능·없음·불명·일수 불명의 버튼·고지 문구, 구매 중 닫기 차단. 렌더는 실기 스크린샷으로 확인 |
 | 단위 | 구독 화면 표시 모델(`buildSubscriptionVM`) | 무료(상품 조회 성공·전·없음·실패), active·cancelled·grace·불명(null·expired·알 수 없음), 날짜 없음·변환 실패, 관리 행 조건·다른 스토어 6조합, 저장 공간 숨김·0~100 고정. 렌더는 실기 스크린샷으로 확인 |
 | 단위 | 구독 화면 이동(D6-2) | 이미 Plus 이동 조건(반영 확인 중·잠금·무료·미인증 제외), 복원 결과 이동처, `restored` 파라미터 |
@@ -361,6 +365,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D5-b | 반영 확인 30초(D5-b-1) → 신원 대조(D5-b-3) → 미반영 화면·복원 규칙(D5-b-2) | app | 샌드박스 구매·복원, 비행기 모드 미반영 |
 | D5-c | 이미 구독 중 안내(PW-16): `already_owned` 분류 + [구매 복원]/[닫기] 대화상자 + Sentry info | app | Android 같은 Play 계정·다른 앱 계정 구매 → 복원 / iOS 같은 상황 |
 | D6-a | 진입점 ① 선행: 더보기 저장 공간 카드 전체 탭 → `/paywall?source=settings`(무료·Plus 모두, D6에서 `/subscription`으로 교체) + 배지를 `/auth/me` plan 기준으로(PW-1, `planBadge.ts`) | app | Android 실기 결제 시험 진입 |
+| D7-2 | 재생성 진입점 ②: `REGEN_PLUS_GATE`·"곧 만나요" 제거, 복구 판정 서버 기준, 403 → 재조회 → 재시도 1회·시트 | app | 무료 정상 일기·실패 일기·Plus 각 1회, 403은 S5 직후 |
 | D7-1 | Plus 안내 시트 + `plusSheetStore` + 루트 호스트 + `buildUpsellSheetVM`(진입점 없음) | app | — |
 | D6-3 | 표기 정리: 마이페이지 플랜·용량 출처, 무료 안내 문구·업그레이드 버튼 삭제 | app | 무료·Plus 마이페이지·더보기 |
 | D6-0 | 복원 흐름 분리(`usePlusRestore`·`runPlusRestore`), 동작 변경 0 | app | — |

@@ -215,10 +215,6 @@
     "comingSoon": "ฟีเจอร์ชำระเงินจะเปิดให้ใช้งานเร็ว ๆ นี้",
     "usageSummary": "การใช้งานปัจจุบัน"
   },
-  "plus": {
-    "regenComingSoonTitle": "เร็ว ๆ นี้",
-    "regenComingSoonBody": "ฟีเจอร์เขียนไดอารี่ใหม่กำลังเตรียมพร้อมใน Marzlog Plus รอสักครู่นะ"
-  },
   "account": {
     "title": "บัญชี",
     "deleteAccount": "ลบบัญชี",

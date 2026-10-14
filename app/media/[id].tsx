@@ -46,7 +46,14 @@ import { useTimelineStore } from '@/src/store/timelineStore';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { t } from '@/src/i18n';
 import { getErrorMessage } from '@/src/utils/errorMessages';
-import { captureError } from '@/src/utils/sentry';
+import { addBreadcrumb, captureError } from '@/src/utils/sentry';
+import { usePlusSheetStore } from '@/src/store/plusSheetStore';
+import {
+  isPlusRequiredError,
+  isRecoveryRegeneration,
+  resolvePlusRequiredFollowUp,
+  resolveRegenAction,
+} from '@/src/utils/regenGate';
 import ErrorView from '@/src/components/common/ErrorView';
 import { AiNotice } from '@/src/components/common/AiNotice';
 import { isEnrichPlaceholderTitle } from '@/src/utils/i18n';
@@ -99,12 +106,6 @@ const RUBBER_BAND_FACTOR = 0.25; // 첫/마지막에서의 저항 계수
 const PREV_TRAVEL = STACK_CARD_WIDTH + STACK_PADDING_LEFT + 24;
 // 전환·복귀 전부 withTiming — 스프링 출렁임(overshoot) 제거
 
-// 백엔드 diary_generator.py:31-40의 fallback 문구와 동기.
-// 백엔드 문구 변경 시 이 배열도 갱신 필요 (B-REGEN-FALLBACK-SYNC).
-const DIARY_FALLBACK_PREFIXES = [
-  'AI 일기를 생성하지 못했',
-  'Could not generate the diary',
-] as const;
 
 /**
  * 감정 카드 라벨 — "{감정}" / "매우 {감정}" (F-EMOTION-REVAMP, 명시 i18n 키).
@@ -736,15 +737,15 @@ export default function MediaDetailScreen() {
       return;
     }
 
-    // Plus 예고 게이트: 정상 일기 재생성은 Marzlog Plus 출시 전까지 차단.
-    // 실패 일기(ai_provider='fallback' 또는 fallback 문구) 복구 재생성은 게이트 우회.
-    // 복구: REGEN_PLUS_GATE 를 false 로 바꾸거나 이 가드 블록을 제거하면 됨.
-    const REGEN_PLUS_GATE: boolean = true;
-    const isDiaryFailed =
-      media.ai_provider === 'fallback' ||
-      DIARY_FALLBACK_PREFIXES.some((prefix) => media.content?.startsWith(prefix));
-    if (REGEN_PLUS_GATE && !isDiaryFailed) {
-      await alert(t('plus.regenComingSoonTitle'), t('plus.regenComingSoonBody'));
+    // PAYWALL 진입점 ②(D7-2, 명세 §3.4): ① 실패 복구(서버 is_recovery_regeneration 기준) → 통과
+    // ② Plus 아님(/auth/me plan, PW-1) → 안내 시트 ③ 그 외 → 재생성. 서버 403 이 최종 판단(아래 runGenerate)
+    const regenAction = resolveRegenAction({
+      isPlus: useAuthStore.getState().user?.plan === 'plus',
+      isRecovery: isRecoveryRegeneration(media),
+    });
+    if (regenAction === 'sheet') {
+      addBreadcrumb('paywall', 'regen-gate', { by: 'app' });
+      usePlusSheetStore.getState().open({ variant: 'regen' });
       return;
     }
 
@@ -759,9 +760,29 @@ export default function MediaDetailScreen() {
       if (!ok) return;
     }
 
+    // 서버 403 PLUS_REQUIRED → refreshUser → plus 면(반영 지연) 재시도 1회, 아니면 시트. 오류 alert·Sentry error 없음
+    const runGenerate = async (alreadyRetried: boolean): Promise<'started' | 'sheet'> => {
+      try {
+        await generateDiary(id!);
+        return 'started';
+      } catch (err) {
+        if (!isPlusRequiredError(err)) throw err;
+        addBreadcrumb('paywall', 'regen-gate', { by: 'server', retried: alreadyRetried });
+        let refreshedIsPlus = false;
+        try {
+          refreshedIsPlus = (await useAuthStore.getState().refreshUser()).plan === 'plus';
+        } catch {
+          // 재조회 실패 → plus 를 확인하지 못했으니 시트
+        }
+        if (resolvePlusRequiredFollowUp({ refreshedIsPlus, alreadyRetried }) === 'retry') return runGenerate(true);
+        usePlusSheetStore.getState().open({ variant: 'regen' });
+        return 'sheet';
+      }
+    };
+
     setIsGeneratingDiary(true);
     try {
-      await generateDiary(id!);
+      if ((await runGenerate(false)) === 'sheet') return;
       await alert(t('media.diaryStartedTitle'), t('media.diaryStarted'));
 
       // 10초 후 자동 새로고침
