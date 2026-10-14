@@ -240,7 +240,7 @@
     "withdrawDataItem4": "ข้อมูลบัญชี (อีเมล ชื่อเล่น)",
     "withdrawDataNote": "หลังจากลบแล้ว จะไม่สามารถสมัครใหม่ด้วยอีเมลเดิมได้เป็นเวลา 30 วัน",
     "withdrawProBlockTitle": "พบการสมัครสมาชิกที่ใช้งานอยู่",
-    "withdrawProBlockDesc": "กรุณายกเลิกการสมัครสมาชิกบน App Store หรือ Play Store ก่อนยกเลิกบัญชี",
+    "withdrawProBlockDesc": "กรุณายกเลิกการสมัครสมาชิกบน App Store หรือ Google Play ก่อนยกเลิกบัญชี",
     "withdrawNext": "ถัดไป",
     "withdrawPrev": "ย้อนกลับ",
     "withdrawStep2Title": "ข้อกำหนดการยกเลิกบัญชี",

@@ -240,7 +240,7 @@
     "withdrawDataItem4": "계정 정보 (이메일, 닉네임)",
     "withdrawDataNote": "삭제 후 30일간 동일 이메일로 재가입할 수 없습니다.",
     "withdrawProBlockTitle": "활성 구독이 있습니다",
-    "withdrawProBlockDesc": "탈퇴 전에 App Store 또는 Play Store에서 구독을 먼저 취소해 주세요.",
+    "withdrawProBlockDesc": "탈퇴 전에 App Store 또는 Google Play에서 구독을 먼저 취소해 주세요.",
     "withdrawNext": "다음",
     "withdrawPrev": "이전",
     "withdrawStep2Title": "탈퇴 약관 동의",

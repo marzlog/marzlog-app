@@ -240,7 +240,7 @@
     "withdrawDataItem4": "Account info (email, nickname)",
     "withdrawDataNote": "After deletion, you cannot re-register with the same email for 30 days.",
     "withdrawProBlockTitle": "Active Subscription Detected",
-    "withdrawProBlockDesc": "Please cancel your subscription on App Store or Play Store before deleting your account.",
+    "withdrawProBlockDesc": "Please cancel your subscription on App Store or Google Play before deleting your account.",
     "withdrawNext": "Next",
     "withdrawPrev": "Back",
     "withdrawStep2Title": "Withdrawal Terms",

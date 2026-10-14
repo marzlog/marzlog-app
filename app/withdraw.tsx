@@ -28,7 +28,7 @@ import {
   CURRENT_WITHDRAWAL_TERMS_VERSION,
 } from '@/src/api/withdrawal';
 import { AccountDeletionError } from '@/src/api/auth';
-import { storageApi } from '@/src/api/storage';
+import { shouldBlockWithdraw } from '@/src/utils/withdrawGate';
 
 // ─── Constants ───────────────────────────────────────────
 const REASON_IDS = [
@@ -44,7 +44,6 @@ const TOTAL_STEPS = 3;
 const WITHDRAWAL_TERMS_URL = 'https://marzlog.com/withdrawal-terms';
 const CONFIRM_PHRASE_KO = '계정 삭제';
 const CONFIRM_PHRASE_EN = 'delete account';
-const FREE_PLAN = 'free' as const;
 
 type StepNumber = 1 | 2 | 3;
 
@@ -66,8 +65,6 @@ export default function WithdrawScreen() {
   // Step 1: reasons + Pro detection
   const [selectedReasons, setSelectedReasons] = useState<ReasonId[]>([]);
   const [otherText, setOtherText] = useState('');
-  const [plan, setPlan] = useState<string | null>(null);
-  const [planLoaded, setPlanLoaded] = useState(false);
 
   // Step 2: consent checkboxes
   const [agreeDataLoss, setAgreeDataLoss] = useState(false);
@@ -89,30 +86,16 @@ export default function WithdrawScreen() {
   // (기존 `=== 'en'` 기준은 vi/th 사용자에게 한국어 '계정 삭제' 를 타이핑하게 만들었다)
   const confirmPhrase = language === 'ko' ? CONFIRM_PHRASE_KO : CONFIRM_PHRASE_EN;
 
-  // ─── Fetch plan on mount (mirror backend 409 ACTIVE_SUBSCRIPTION guard) ──
+  // ─── 구독 안내 판정(서버 409 ACTIVE_SUBSCRIPTION 가드와 같은 방향) ──
+  // W-WITHDRAW-PLAN-SOURCE(D9-3): /auth/me plan(PW-1). 진입 시 한 번 다시 읽는다(실패해도 마지막 값으로, 서버가 최종 409)
   useEffect(() => {
-    let mounted = true;
-    storageApi
-      .getStorageUsage()
-      .then((usage) => {
-        if (mounted) {
-          setPlan(usage.plan);
-          setPlanLoaded(true);
-        }
-      })
-      .catch(() => {
-        // best-effort; backend will 409 if active sub present
-        if (mounted) {
-          setPlan(null);
-          setPlanLoaded(true);
-        }
-      });
-    return () => {
-      mounted = false;
-    };
+    useAuthStore
+      .getState()
+      .refreshUser()
+      .catch(() => {});
   }, []);
 
-  const hasActiveSubscription = planLoaded && plan !== null && plan !== FREE_PLAN;
+  const hasActiveSubscription = shouldBlockWithdraw({ plan: user?.plan });
 
   // ─── Step 1 logic ──────────────────────────────────────
   const toggleReason = (id: ReasonId) => {
