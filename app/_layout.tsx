@@ -464,6 +464,8 @@ function RootLayoutNav() {
           <Stack.Screen name="paywall" options={{ headerShown: false, presentation: 'fullScreenModal' }} />
           {/* PAYWALL 명세 §3.2: 구독 시작 완료 — 결제 화면이 replace 로 보낸다. 스와이프로 결제 화면에 돌아가지 않게 */}
           <Stack.Screen name="plus-success" options={{ headerShown: false, gestureEnabled: false }} />
+          {/* PAYWALL 명세 §3.3: 설정 구독 화면(D6-1) */}
+          <Stack.Screen name="subscription" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         </Stack>
       </DialogProvider>

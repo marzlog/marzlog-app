@@ -1,6 +1,7 @@
 # Marzlog Plus 결제 화면(PAYWALL) 구현 명세서
 
-- 판: v1.5 (2026-10-13, D5-b — 반영 확인 30초·미반영 화면·신원 대조, PW-14·PW-15 / D5-b-4 주기 재확인·복원 안전장치 / D5-b-5 결제 화면 잠금 안전장치 / D5-c 이미 구독 중 안내, PW-16) · 대상: Build 34 (marzlog-app 1.0.3, develop)
+- 판: v1.6 (2026-10-14, D6 — 설정 구독 화면 §3.3 전면 개정·진입점 정리·표기 정리·복원 훅) · 대상: Build 34 (marzlog-app 1.0.3, develop)
+- 이전 판: v1.5 (2026-10-13, D5-b — 반영 확인 30초·미반영 화면·신원 대조, PW-14·PW-15 / D5-b-4 주기 재확인·복원 안전장치 / D5-b-5 결제 화면 잠금 안전장치 / D5-c 이미 구독 중 안내, PW-16) · 대상: Build 34 (marzlog-app 1.0.3, develop)
 - 이전 판: v1.4 (2026-10-08, PW-11~13 + 게이트 2 판정·측정 S1~S3 + D1 보정 3건 + 재개 single 사진별 판정 반영)
 - 기준선: marzlog-app `e24e5a1` / marzlog-backend `7031620` / 정찰 보고 2026-10-08(게이트 1)
 - 우선순위: **이 문서 > `screens/*.png` > `reference/*.html`**
@@ -201,22 +202,31 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 날짜는 앱의 기존 날짜 표시 유틸·로케일을 따른다.
 - "기록하러 가기" → 홈으로 `replace`(뒤로가기로 결제 화면에 돌아가지 않게). "구독 관리 보기" → `/subscription`.
 
-### 3.3 설정 구독 화면 — `app/subscription.tsx` (신규, 시안 `04-subscription-settings.png`)
+### 3.3 설정 구독 화면 — `app/subscription.tsx` (D6-1, 시안 `04-subscription-settings.png`)
 
-진입: `settings.tsx`에 "구독" 행 추가 + `more.tsx`의 `<StorageUsageBar onUpgrade>` 연결.
+진입: 설정 Section 1 맨 위 "구독" 행(`settings.subscriptionRow`) · 더보기 저장 공간 카드(D6-2) · 완료 화면 "구독 관리 보기"(D6-2) · 결제 화면의 이미 Plus(D6-2) · 결제 화면 복원 성공(D6-2).
 
-| 상태 | 조건 | 표시 |
-|---|---|---|
-| 무료 | `plan !== 'plus'` | 시안 그대로. Plus 카드 가격 줄은 상품 조회 성공 시에만 |
-| Plus·이용 중 | `plan_status === 'active'` | 현재 플랜 Plus, `subscription.renewsOn`, Plus 카드 없음 |
-| Plus·해지 예약 | `cancelled` | `subscription.cancelledUntil` |
-| Plus·결제 확인 필요 | `grace` | `subscription.graceNotice` |
-| Plus·상태 불명 | `plan_status`가 없거나 `null` | 날짜만(`paywall.activeUntil` 재사용) |
+표시는 순수 함수 `buildSubscriptionVM`(`src/utils/subscriptionViewModel.ts`). 입력 = `/auth/me`의 `plan`·`plan_status`·`plan_store`·`plan_expires_at`(PW-1) + `/users/storage` + 기기 스토어 + 상품 조회 결과(무료일 때만).
 
-- 저장 공간 막대는 `/users/storage` 값. 불러오지 못하면 막대 영역을 숨긴다(오류 alert 없음).
-- "스토어에서 구독 관리" → `openSubscriptionManagement()`. `'unavailable'`이면 `subscription.manageUnavailable`.
-- `plan_store`가 현재 기기의 스토어와 다르면 관리 행 아래에 `subscription.otherStore`를 보여준다.
-- 동반 수정: `StorageUsageBar`의 `PLAN_KEYS`에 `plus` 추가, `StorageUsage.plan` 타입에 `'plus'` 추가, `User` 타입에 `plan_status?`·`plan_store?` 추가.
+| 상태 | 조건 | 현재 플랜 아래 | Plus 카드 |
+|---|---|---|---|
+| 무료 | `plan !== 'plus'` | 없음 | 있음(`paywall.brand`·`paywall.subhead`, 가격 줄 `subscription.plusCardPrice`는 상품 조회 성공 시에만, 버튼 `subscription.cta` → `/paywall?source=settings`) |
+| 이용 중 | plus + `active` | `subscription.renewsOn` | 없음 |
+| 해지 예약 | plus + `cancelled` | `subscription.cancelledUntil` | 없음 |
+| 결제 확인 필요 | plus + `grace` | `subscription.graceNotice` + `paywall.activeUntil` | 없음 |
+| 상태 불명 | plus + `null`·없음·`expired`(여유 시간 안)·알 수 없는 값 | 날짜만(`paywall.activeUntil`) | 없음 |
+
+- 날짜는 `formatLongDate`. 날짜가 없거나 변환에 실패하면 날짜 줄을 생략한다.
+- 체험 중 여부·월간/연간 구분은 `/auth/me`에 없어 표시하지 않는다(W-AUTHME-PERIOD-FIELDS, Build 34 제외).
+- 저장 공간 막대는 `/users/storage` 값(`subscription.usage`). 불러오는 중·실패면 막대 영역을 숨긴다(오류 alert 없음).
+- 행: 구매 복원(`paywall.restore`) · 스토어에서 구독 관리(`subscription.manage`, 조건부) · 이용약관 · 개인정보처리방침. 하단 `subscription.footnote`.
+- **스토어에서 구독 관리 표시 조건**: `plan === 'plus' && (plan_store == null || plan_store === 기기 스토어)`. 무료·다른 스토어는 숨긴다. 열지 못하면(`'unavailable'`) `subscription.manageUnavailable`.
+- **다른 스토어**: plus이고 `plan_store`가 기기 스토어와 다르면 관리 행 대신 `subscription.otherStore`(`{{store}}` = `subscription.storeApple`/`storeGoogle`)를 행 아래에 보인다.
+- 구매 복원: `usePlusRestore`(결제 화면과 같은 흐름, PW-14·PW-15). `identity_mismatch` → `paywall.identityMismatch` / `failed` → `paywall.failed` / `restored-none` → `paywall.restoreNone` / `not-reflected` → `paywall.restoreChecked` / `reflected` → `/auth/me`가 plus로 바뀌어 Plus 상태로 다시 그린다. 진행 중 행 스피너, 예상 밖 오류는 `captureError` scope `subscription.restore`.
+- 진입할 때마다 `/auth/me`·저장 공간을 다시 읽는다. 무료일 때만 상품을 조회한다.
+- 뒤로가기: 일반 스택. 완료 화면에서 `replace`로 오면(결제 화면 → 완료 화면 → 구독 화면이 모두 replace) 뒤로가기는 결제 화면을 연 화면으로 돌아간다.
+- 관측: breadcrumb `paywall` / `subscription` + `plan`.
+- 동반 수정(완료): `StorageUsageBar`의 `PLAN_KEYS` 정리(D6-a `planBadge.ts`), `User` 타입 `plan_status?`·`plan_store?`(D2).
 - 표기 정리(D6-3): 마이페이지 플랜 = `/auth/me` `plan`(`resolvePlanBadge`, PW-1), 용량 = `/users/storage`(`storageStore`, 더보기 카드와 같은 스켈레톤). `/auth/me/stats`의 `storage_plan`·`storage_limit_bytes`(레거시 `users` 컬럼, 웹훅이 갱신하지 않음)는 읽지 않는다. "지금은 모든 기능을 무료로 제공하고 있어요"(`storage.freeNotice`)와 더보기 카드의 업그레이드 버튼(`onUpgrade`·`storage.upgrade`)은 삭제 — PW-12로 심사 전 게이트가 켜지면 사실이 아니게 된다.
 
 ### 3.4 Plus 안내 시트 — `src/components/plus/PlusUpsellSheet.tsx` (신규, 시안 `02`, `05`)
@@ -310,7 +320,8 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 단위 | 큐 | quota·rejected 후 `listResumable`·`pendingCount`에서 제외, transient는 유지, auth는 횟수 불변 |
 | 단위 | 재생성 판정 | 복구 재생성 통과 / 무료 → 시트 / Plus → 요청 / 403 → 시트·alert 없음 |
 | 단위 | 결제 화면 표시 모델(순수 함수) | 6개 상태, 체험 가능·없음·불명·일수 불명의 버튼·고지 문구, 구매 중 닫기 차단. 렌더는 실기 스크린샷으로 확인 |
-| 단위 | 구독 화면 표시 모델(순수 함수) | 무료·active·cancelled·grace·불명 5개 상태, 다른 스토어 안내. 렌더는 실기 스크린샷으로 확인 |
+| 단위 | 구독 화면 표시 모델(`buildSubscriptionVM`) | 무료(상품 조회 성공·전·없음·실패), active·cancelled·grace·불명(null·expired·알 수 없음), 날짜 없음·변환 실패, 관리 행 조건·다른 스토어 6조합, 저장 공간 숨김·0~100 고정. 렌더는 실기 스크린샷으로 확인 |
+| 단위 | 복원 흐름(`runPlusRestore`) | 5개 결과, 기록 순서(breadcrumb·진행 단계·warning) |
 | 통합 | 백엔드 `/auth/me` | 2.1의 케이스 |
 | 시나리오 | 용량 초과 | prepare 413 → 시트 표시 → 대기 배너 없음 → "Plus 알아보기" → 결제 화면 |
 | 단위 | 반영 확인(`plusReflect.ts`) | 실측 지연 4건 30초 안 확인, 끝까지 미반영 15회·≤30초, 시도별 5초·마지막 자르기, throw = 미반영 |
@@ -341,7 +352,9 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D5-c | 이미 구독 중 안내(PW-16): `already_owned` 분류 + [구매 복원]/[닫기] 대화상자 + Sentry info | app | Android 같은 Play 계정·다른 앱 계정 구매 → 복원 / iOS 같은 상황 |
 | D6-a | 진입점 ① 선행: 더보기 저장 공간 카드 전체 탭 → `/paywall?source=settings`(무료·Plus 모두, D6에서 `/subscription`으로 교체) + 배지를 `/auth/me` plan 기준으로(PW-1, `planBadge.ts`) | app | Android 실기 결제 시험 진입 |
 | D6-3 | 표기 정리: 마이페이지 플랜·용량 출처, 무료 안내 문구·업그레이드 버튼 삭제 | app | 무료·Plus 마이페이지·더보기 |
-| D6 | 설정 구독 화면 + 진입점 ① | app | 무료·Plus 각 1회 |
+| D6-0 | 복원 흐름 분리(`usePlusRestore`·`runPlusRestore`), 동작 변경 0 | app | — |
+| D6-1 | 설정 구독 화면(`buildSubscriptionVM`) + 설정 "구독" 행 | app | 무료·Plus·다른 스토어 각 1회 |
+| D6 | (D6-a·D6-0~3으로 분할) 설정 구독 화면 + 진입점 ① | app | 무료·Plus 각 1회 |
 | D7 | 안내 시트 + 재생성 진입점 ② | app | 무료 계정 1회 |
 | D8 | 용량 초과 진입점 ⑤ | app | 한도 근처 계정 1회 |
 | D9 | 레거시 `plans` 정리 + vi·th 검수 반영 | app | — |

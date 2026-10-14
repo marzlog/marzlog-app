@@ -188,6 +188,20 @@ export default function SettingsScreen() {
           {t('settings.appSettingsSection')}
         </Text>
         <View style={[styles.card, { backgroundColor: cardBg }]}>
+          {/* 구독(PAYWALL D6-1, 명세 §3.3) */}
+          <AppTouchable
+            style={[styles.menuItem, { borderBottomColor: divider }]}
+            onPress={() => router.push('/subscription')}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+          >
+            <View style={styles.menuItemLeft}>
+              <Ionicons name="card-outline" size={24} color={ICON_COLOR} />
+              <Text style={[styles.menuLabel, { color: labelColor }]}>{t('settings.subscriptionRow')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={subColor} />
+          </AppTouchable>
+
           {/* Push Notifications */}
           <View style={[styles.menuItem, { borderBottomColor: divider }]}>
             <View style={styles.menuItemLeft}>
