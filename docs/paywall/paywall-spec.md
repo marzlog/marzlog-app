@@ -1,6 +1,7 @@
 # Marzlog Plus 결제 화면(PAYWALL) 구현 명세서
 
-- 판: v1.7 (2026-10-14, D7·D8 — Plus 안내 시트·재생성 진입점 ②·용량 초과 진입점 ⑤) · 대상: Build 34 (marzlog-app 1.0.3, develop)
+- 판: v1.8 (2026-10-14, D9 — 레거시 plans 정리·탈퇴 판정 정렬·vi·th 1차 검수, PW-9 종결, §9 정리) · 대상: Build 34 (marzlog-app 1.0.3, develop)
+- 이전 판: v1.7 (2026-10-14, D7·D8 — Plus 안내 시트·재생성 진입점 ②·용량 초과 진입점 ⑤)
 - 이전 판: v1.6 (2026-10-14, D6 — 설정 구독 화면 §3.3 전면 개정·진입점 정리·표기 정리·복원 훅)
 - 이전 판: v1.5 (2026-10-13, D5-b — 반영 확인 30초·미반영 화면·신원 대조, PW-14·PW-15 / D5-b-4 주기 재확인·복원 안전장치 / D5-b-5 결제 화면 잠금 안전장치 / D5-c 이미 구독 중 안내, PW-16) · 대상: Build 34 (marzlog-app 1.0.3, develop)
 - 이전 판: v1.4 (2026-10-08, PW-11~13 + 게이트 2 판정·측정 S1~S3 + D1 보정 3건 + 재개 single 사진별 판정 반영)
@@ -35,7 +36,7 @@
 | PW-6 | 서버가 거절한 업로드(용량 초과 포함)는 재시도 대상과 "대기 중" 건수에서 즉시 뺀다. | 지금은 413 항목이 4분 넘게 "대기 중"으로 보여 안내가 묻힘 |
 | PW-7 | 결제 완료 후 서버 반영이 늦어도 alert를 띄우지 않는다. 완료 화면의 "반영 중" 변형으로 보여준다. | 스토어 결제는 이미 끝난 상태. 오류처럼 보이면 안 됨 |
 | PW-8 | 결제 화면은 `fullScreenModal`, 닫기(X)로만 닫는다. 구매 진행 중에는 닫기·뒤로가기를 막는다. | 구매 시트와 화면 전환 충돌 방지 |
-| PW-9 | 레거시 `app/plans.tsx`와 `plans.*` 문구는 마지막 정리 diff에서 삭제한다. | 진입 경로 0건, ₩ 하드코딩 잔존 |
+| PW-9 | 레거시 `app/plans.tsx`와 `plans.*` 문구는 마지막 정리 diff에서 삭제한다. **종결(D9-1)** — 화면·`plans.*` 14키·`storage.planBasic/Pro/Unlimited`·`storageApi.getStorageInfo/getPlans`·`StorageInfo`/`PlanInfo`·`StorageUsage.plan`·`UserStats` 미사용 표시 필드 4개 삭제 | 진입 경로 0건, ₩ 하드코딩 잔존 |
 | PW-11 | 서버는 샌드박스 구매 알림을 **항상 받는다**(`RC_ACCEPT_SANDBOX_EVENTS=true` 상시). 9/28 G0의 `false`를 되돌린다. | 심사는 업데이트마다 있고 심사자는 샌드박스로 구매한다. 샌드박스 구매는 TestFlight·개발 빌드·Play 라이선스 테스터만 가능해 명단이 통제됨. 통계에서는 `subscriptions.environment = 'sandbox'` 행을 제외한다(기존 컬럼, 마이그레이션 없음) |
 | PW-12 | `PLUS_GATE_ENABLED=true` 전환은 **심사 제출 전**에 한다(공개일이 아님). 선행 조건은 8.2의 측정 2건. | 꺼져 있으면 Plus 결제자도 2GB로 집행됨. 첫 결제가 가능해지기 전에 켜져 있어야 함 |
 | PW-13 | `/auth/me`의 `plan`은 집행과 **같은 만료 판정**을 쓴다. 만료 시각 뒤 여유 시간(`PLAN_EXPIRY_GRACE_SECONDS`) 동안은 Plus로 본다. 표시·집행 모두 같은 함수. | EXPIRATION 알림이 누락되면 "표시는 Plus, 집행은 무료"가 됨. 여유 시간은 갱신 알림 지연 대비 |
@@ -379,7 +380,9 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D6 | (D6-a·D6-0~3으로 분할) 설정 구독 화면 + 진입점 ① | app | 무료·Plus 각 1회 |
 | D7 | (D7-1·D7-2로 분할) 안내 시트 + 재생성 진입점 ② | app | 무료 계정 1회 |
 | D8 | (위 D8 행으로 대체) 용량 초과 진입점 ⑤ | app | 한도 근처 계정 1회 |
-| D9 | 레거시 `plans` 정리 + vi·th 검수 반영 | app | — |
+| D9-1 | 레거시 정리(PW-9 종결): `app/plans.tsx`·`plans.*` 14키·`storage.plan{Basic,Pro,Unlimited}`·미사용 storage API·타입 | app | — |
+| D9-3 | 탈퇴 화면 구독 안내 판정을 `/auth/me` plan으로(`shouldBlockWithdraw`, PW-1) + "Play Store" → "Google Play" | app | Plus·무료 계정 탈퇴 화면 |
+| D9 | (D9-1·D9-2·D9-3으로 분할) 레거시 `plans` 정리 + vi·th 검수 반영 | app | — |
 
 ### 8.2 운영 절차 (코드 diff 아님, 각각 게이트)
 
@@ -402,9 +405,9 @@ S1·S2 결과로 S5의 선행 조건은 충족됐다.
 
 가정
 
-- A1. `react-native-purchases` 10.10.1의 `StoreProduct`가 월 환산 가격 문자열을 준다. 없으면 "월 ○꼴" 줄을 생략한다(D3에서 타입 정의 인용으로 확인).
-- A2. 체험 중 `plan_expires_at`은 체험 종료 시각이다(9/28 Play TRIAL 실측과 일치, iOS는 미실측).
-- A3. `subscriptions.store` 저장값은 스토어당 하나다(D2에서 SSH 실측).
+- A1. `react-native-purchases` 10.10.1의 `StoreProduct`가 월 환산 가격 문자열을 준다. 없으면 "월 ○꼴" 줄을 생략한다(D3에서 타입 정의 인용으로 확인). → **검증 완료(D3)**. 플랫폼별 1원 반올림 차이는 §2.3.
+- A2. 체험 중 `plan_expires_at`은 체험 종료 시각이다(9/28 Play TRIAL 실측과 일치, iOS는 미실측). → **종결 예정** — iOS는 Build 34 전 실기(구매 이력 없는 샌드박스 테스터)로 확인.
+- A3. `subscriptions.store` 저장값은 스토어당 하나다(D2에서 SSH 실측). → **검증 완료**(D2, 2026-10-13 Google 행 포함).
 
 판정 완료 (2026-10-08 JJ)
 
@@ -412,10 +415,16 @@ S1·S2 결과로 S5의 선행 조건은 충족됐다.
 - 게이트는 심사 제출 전에 켬 → PW-12.
 - 만료 표시는 Build 34 전에 수리 → PW-13, D2-b.
 
-열린 이슈
+열린 이슈 (v1.8 정리, 2026-10-14)
 
 - O1. (종결) 샌드박스 행은 `subscriptions.environment`로 가린다.
-- O2. `PLAN_EXPIRY_GRACE_SECONDS` 값: 실측 지연은 1분 이내. 배포·장애 중 재전송까지 덮도록 3600(1시간)을 제안, JJ 확정 대기.
+- O2. (종결) `PLAN_EXPIRY_GRACE_SECONDS = 3600`(1시간) 확정 — S4부터 compose 기본값으로 운영 중.
 - O3. (종결) 구버전 앱의 재생성 요청은 15일간 0건.
-- O4. 강조색: 시안의 코랄을 앱의 어떤 테마 토큰에 대응시킬지는 D4 보고에서 CC가 후보를 제시한다.
-- O5. 다크 모드: 시안은 라이트만 있다. 앱이 다크 모드를 지원하면 기존 토큰으로 따라간다.
+- O4. (종결) 강조색 = `plusColors`(라이트 `theme.primary.default`, 다크 `palette.primary[500]`), D4.
+- O5. (종결 예정) 다크 모드는 기존 토큰으로 따라간다(D4~D8). Build 34 전 실기 캡처로 종결.
+
+Build 34 이후
+
+- W-AUTHME-PERIOD-FIELDS(P3): `/auth/me`에 체험 여부·플랜 종류가 없어 구독 화면에 "무료 체험 중"·"Plus 연간"을 표시하지 못한다.
+- W-ANALYSIS-FAILED-NO-RETRY(P2): 분석이 실패한 사진을 앱에서 재분석할 경로가 없다.
+- W-WITHDRAW-PLAN-SOURCE(P2): 서버 탈퇴 가드(409)가 해지 예약 사용자도 만료까지 막는다 — 막지 않고 스토어 해지 안내로 전환 제안(심사 지침 5.1.1). 앱 판정은 D9-3에서 `/auth/me` plan으로 정렬.

@@ -191,26 +191,7 @@
     "clearCache": "ล้างแคช",
     "clearCacheConfirm": "ต้องการล้างแคชไหม อาจส่งผลต่อประสิทธิภาพของแอปชั่วคราว",
     "cacheCleared": "ล้างแคชแล้ว",
-    "planFree": "Free",
-    "planBasic": "Basic",
-    "planPro": "Pro",
-    "planUnlimited": "Unlimited"
-  },
-  "plans": {
-    "title": "แพ็กเกจพื้นที่จัดเก็บ",
-    "current": "แพ็กเกจปัจจุบัน",
-    "upgrade": "อัปเกรด",
-    "currentPlanBadge": "กำลังใช้งาน",
-    "monthly": "เดือน",
-    "features": "สิ่งที่รวมอยู่",
-    "featureStorage": "พื้นที่จัดเก็บ {{gb}}",
-    "featureAI": "วิเคราะห์ด้วย AI ไม่จำกัด",
-    "featureSearch": "ค้นหาเชิงความหมาย",
-    "featureOCR": "การรู้จำข้อความ OCR",
-    "featurePriority": "ประมวลผลลำดับแรก",
-    "featureSupport": "การสนับสนุนระดับพรีเมียม",
-    "comingSoon": "ฟีเจอร์ชำระเงินจะเปิดให้ใช้งานเร็ว ๆ นี้",
-    "usageSummary": "การใช้งานปัจจุบัน"
+    "planFree": "Free"
   },
   "account": {
     "title": "บัญชี",

@@ -191,26 +191,7 @@
     "clearCache": "Clear Cache",
     "clearCacheConfirm": "Clear cache? This may temporarily affect app performance.",
     "cacheCleared": "Cache cleared",
-    "planFree": "Free",
-    "planBasic": "Basic",
-    "planPro": "Pro",
-    "planUnlimited": "Unlimited"
-  },
-  "plans": {
-    "title": "Storage Plans",
-    "current": "Current Plan",
-    "upgrade": "Upgrade",
-    "currentPlanBadge": "Current",
-    "monthly": "mo",
-    "features": "Includes",
-    "featureStorage": "{{gb}} storage",
-    "featureAI": "Unlimited AI analysis",
-    "featureSearch": "Semantic search",
-    "featureOCR": "OCR text recognition",
-    "featurePriority": "Priority processing",
-    "featureSupport": "Premium support",
-    "comingSoon": "Payment support coming soon",
-    "usageSummary": "Current Usage"
+    "planFree": "Free"
   },
   "account": {
     "title": "Account",

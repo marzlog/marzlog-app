@@ -191,26 +191,7 @@
     "clearCache": "Xóa bộ nhớ đệm",
     "clearCacheConfirm": "Bạn có muốn xóa bộ nhớ đệm không? Việc này có thể tạm thời ảnh hưởng đến hiệu suất ứng dụng.",
     "cacheCleared": "Đã xóa bộ nhớ đệm",
-    "planFree": "Miễn phí",
-    "planBasic": "Basic",
-    "planPro": "Pro",
-    "planUnlimited": "Unlimited"
-  },
-  "plans": {
-    "title": "Gói lưu trữ",
-    "current": "Gói hiện tại",
-    "upgrade": "Nâng cấp",
-    "currentPlanBadge": "Đang dùng",
-    "monthly": "tháng",
-    "features": "Bao gồm",
-    "featureStorage": "Dung lượng {{gb}}",
-    "featureAI": "Phân tích AI không giới hạn",
-    "featureSearch": "Tìm kiếm ngữ nghĩa",
-    "featureOCR": "Nhận dạng văn bản OCR",
-    "featurePriority": "Ưu tiên xử lý",
-    "featureSupport": "Hỗ trợ ưu tiên",
-    "comingSoon": "Tính năng thanh toán sắp ra mắt",
-    "usageSummary": "Mức sử dụng hiện tại"
+    "planFree": "Miễn phí"
   },
   "account": {
     "title": "Tài khoản",
