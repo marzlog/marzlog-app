@@ -829,8 +829,8 @@
     "restoreNone": "No purchases to restore",
     "ctaTrialGeneric": "Start free trial",
     "reflecting": "Confirming your purchase",
-    "reflectingLong": "This is taking a little longer. Please wait a moment",
-    "identityMismatch": "We couldn't verify your account. Please reopen the app and try again",
+    "reflectingLong": "This is taking a little longer. Please wait a moment.",
+    "identityMismatch": "We couldn't verify your account. Please reopen the app and try again.",
     "alreadyOwnedTitle": "This store account already has Plus",
     "alreadyOwned": "The {{store}} account on this device already has a Plus subscription. Tap 'Restore purchases' to move it to the account you're signed in to now. Plus will be removed from the account it was linked to before."
   },
@@ -860,15 +860,15 @@
     "chargeValue": "{{date}} · {{price}}",
     "noteTrial": "Cancel during the trial and you won't be charged.\nManage your subscription anytime in Settings.",
     "note": "Manage your subscription anytime in Settings.",
-    "pending": "We're confirming your Plus access. If it doesn't show up in a little while, tap 'Restore purchases'",
+    "pending": "We're confirming your Plus access. If it doesn't show up in a little while, tap 'Restore purchases'.",
     "cta": "Back to my diary",
     "manage": "Manage subscription",
     "pendingTitle": "Your payment is complete",
     "restore": "Restore purchases",
     "close": "Close",
-    "restoreChecked": "We checked your purchases. It may take a few minutes to be reflected",
-    "restoreFailed": "Couldn't restore. Please try again shortly",
-    "identityMismatch": "We couldn't verify your account. Please reopen the app"
+    "restoreChecked": "We checked your purchases. It may take a few minutes to be reflected.",
+    "restoreFailed": "Couldn't restore. Please try again shortly.",
+    "identityMismatch": "We couldn't verify your account. Please reopen the app."
   },
   "subscription": {
     "title": "Subscription",

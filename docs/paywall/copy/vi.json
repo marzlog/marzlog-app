@@ -19,7 +19,7 @@
     "perMonth": "/ tháng",
     "ctaTrial": "Dùng thử miễn phí {{days}} ngày",
     "ctaSubscribe": "Bắt đầu Plus",
-    "noChargeToday": "Hôm nay bạn chưa bị trừ tiền",
+    "noChargeToday": "Hôm nay bạn sẽ không bị tính phí",
     "disclosureTrialAnnual": "Dùng thử miễn phí chỉ áp dụng cho lần đăng ký đầu tiên. Sau khi hết dùng thử, bạn sẽ bị tính {{price}} mỗi năm. Gói tự động gia hạn nếu bạn không hủy ít nhất 24 giờ trước khi hết kỳ. Bạn có thể hủy bất cứ lúc nào trong phần cài đặt tài khoản cửa hàng.",
     "disclosureTrialMonthly": "Dùng thử miễn phí chỉ áp dụng cho lần đăng ký đầu tiên. Sau khi hết dùng thử, bạn sẽ bị tính {{price}} mỗi tháng. Gói tự động gia hạn nếu bạn không hủy ít nhất 24 giờ trước khi hết kỳ. Bạn có thể hủy bất cứ lúc nào trong phần cài đặt tài khoản cửa hàng.",
     "disclosureAnnual": "Bạn sẽ bị tính {{price}} mỗi năm khi đăng ký. Gói tự động gia hạn nếu bạn không hủy ít nhất 24 giờ trước khi hết kỳ. Bạn có thể hủy bất cứ lúc nào trong phần cài đặt tài khoản cửa hàng.",
@@ -31,8 +31,8 @@
     "restoreNone": "Không có giao dịch nào để khôi phục",
     "ctaTrialGeneric": "Bắt đầu dùng thử miễn phí",
     "reflecting": "Đang xác nhận thanh toán",
-    "reflectingLong": "Việc này mất thêm một chút thời gian. Vui lòng chờ trong giây lát",
-    "identityMismatch": "Không thể xác minh tài khoản. Vui lòng mở lại ứng dụng và thử lại",
+    "reflectingLong": "Việc này mất thêm một chút thời gian. Vui lòng chờ trong giây lát.",
+    "identityMismatch": "Không thể xác minh tài khoản. Vui lòng mở lại ứng dụng và thử lại.",
     "alreadyOwnedTitle": "Tài khoản cửa hàng này đã đăng ký Plus",
     "alreadyOwned": "Tài khoản {{store}} trên thiết bị này đã có gói Plus. Nhấn 'Khôi phục giao dịch' để chuyển gói sang tài khoản bạn đang đăng nhập. Tài khoản được liên kết trước đó sẽ không còn Plus."
   },
@@ -45,7 +45,7 @@
     "confirm": "OK",
     "storageTitle": "Dung lượng lưu trữ đã đầy",
     "storageBody": "Những gì bạn đã lưu vẫn còn nguyên. Plus cho bạn tới {{gb}}GB.",
-    "storageBodyPlus": "Bạn đã dùng hết {{gb}}GB của Plus. Hãy dọn bớt rồi thử lại.",
+    "storageBodyPlus": "Bạn đã dùng hết {{gb}}GB của Plus. Hãy xóa bớt ảnh rồi thử lại.",
     "storageLabel": "Dung lượng lưu trữ",
     "usage": "{{used}} / {{limit}}",
     "trialNoteGeneric": "Lần đăng ký đầu tiên được dùng thử miễn phí"
@@ -62,15 +62,15 @@
     "chargeValue": "{{date}} · {{price}}",
     "noteTrial": "Hủy trong thời gian dùng thử thì không bị tính tiền.\nBạn có thể quản lý gói trong Cài đặt.",
     "note": "Bạn có thể quản lý gói trong Cài đặt.",
-    "pending": "Đang xác nhận quyền Plus của bạn. Nếu sau một lúc vẫn chưa cập nhật, hãy nhấn 'Khôi phục giao dịch'",
+    "pending": "Đang xác nhận quyền Plus của bạn. Nếu sau một lúc vẫn chưa cập nhật, hãy nhấn 'Khôi phục giao dịch'.",
     "cta": "Về nhật ký của tôi",
     "manage": "Quản lý gói",
     "pendingTitle": "Thanh toán đã hoàn tất",
     "restore": "Khôi phục giao dịch",
     "close": "Đóng",
-    "restoreChecked": "Đã kiểm tra lịch sử mua. Có thể mất vài phút để cập nhật",
-    "restoreFailed": "Không thể khôi phục. Vui lòng thử lại sau",
-    "identityMismatch": "Không thể xác minh tài khoản. Vui lòng mở lại ứng dụng"
+    "restoreChecked": "Đã kiểm tra lịch sử mua. Có thể mất vài phút để cập nhật.",
+    "restoreFailed": "Không thể khôi phục. Vui lòng thử lại sau.",
+    "identityMismatch": "Không thể xác minh tài khoản. Vui lòng mở lại ứng dụng."
   },
   "subscription": {
     "title": "Gói đăng ký",

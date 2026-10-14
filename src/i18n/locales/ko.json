@@ -829,8 +829,8 @@
     "restoreNone": "복원할 구매 내역이 없어요",
     "ctaTrialGeneric": "무료로 시작하기",
     "reflecting": "결제를 확인하고 있어요",
-    "reflectingLong": "조금 더 걸리고 있어요. 잠시만 기다려 주세요",
-    "identityMismatch": "계정 확인에 실패했어요. 앱을 다시 열고 시도해 주세요",
+    "reflectingLong": "조금 더 걸리고 있어요. 잠시만 기다려 주세요.",
+    "identityMismatch": "계정 확인에 실패했어요. 앱을 다시 열고 시도해 주세요.",
     "alreadyOwnedTitle": "이미 구독 중인 스토어 계정이에요",
     "alreadyOwned": "이 기기의 {{store}} 계정에 Plus 구독이 있어요. '구매 복원'을 누르면 구독이 지금 로그인한 계정으로 옮겨지고, 이전에 연결된 계정에서는 Plus가 해제돼요."
   },
@@ -860,15 +860,15 @@
     "chargeValue": "{{date}} · {{price}}",
     "noteTrial": "체험 기간에 해지하면 결제되지 않아요.\n구독은 설정에서 언제든 관리할 수 있어요.",
     "note": "구독은 설정에서 언제든 관리할 수 있어요.",
-    "pending": "Plus 반영을 확인하고 있어요. 잠시 뒤에도 반영되지 않으면 '구매 복원'을 눌러 주세요",
+    "pending": "Plus 반영을 확인하고 있어요. 잠시 뒤에도 반영되지 않으면 '구매 복원'을 눌러 주세요.",
     "cta": "기록하러 가기",
     "manage": "구독 관리 보기",
     "pendingTitle": "결제가 완료됐어요",
     "restore": "구매 복원",
     "close": "닫기",
-    "restoreChecked": "구매 내역을 확인했어요. 반영까지 몇 분 걸릴 수 있어요",
-    "restoreFailed": "복원하지 못했어요. 잠시 후 다시 시도해 주세요",
-    "identityMismatch": "계정 확인에 실패했어요. 앱을 다시 열어 주세요"
+    "restoreChecked": "구매 내역을 확인했어요. 반영까지 몇 분 걸릴 수 있어요.",
+    "restoreFailed": "복원하지 못했어요. 잠시 후 다시 시도해 주세요.",
+    "identityMismatch": "계정 확인에 실패했어요. 앱을 다시 열어 주세요."
   },
   "subscription": {
     "title": "구독",

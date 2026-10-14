@@ -291,7 +291,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - `t()`는 런타임 호출만. 모듈 스코프에서 미리 평가하지 않는다.
 - 금지 표현: "AI 일기·검색 무제한". 검색은 Plus 혜택이 아니다.
 - 값이 영어와 같은 키(`paywall.brand`, `paywall.compare.plus`, 스토어 이름)는 의도적 영어 유지 목록에 등록한다. 목록(v1.6): `paywall.brand` · `paywall.compare.plus` · `subscription.planPlus` · `subscription.storeApple`(App Store) · `subscription.storeGoogle`(Google Play) · `storage.planFree`(ko·th 배지 "Free" — 더보기 카드·마이페이지 플랜 표기, D6-a·D6-3). `paywall.alreadyOwned`의 `{{store}}`는 이 스토어 이름 키 값을 끼워 넣는다.
-- vi·th는 초안이다. 병합 후 표로 뽑아 JJ 검수를 받는다.
+- vi·th: **1차 검수 완료(2026-10-14, D9-2)** — copy 84키를 4열 표로 뽑아 JJ 검수. 반영: vi `paywall.noChargeToday`·`plusSheet.storageBodyPlus` 수정, ko·en·vi 문장 끝 마침표 통일 6키(`paywall.reflectingLong`·`identityMismatch`, `plusSuccess.pending`·`restoreChecked`·`restoreFailed`·`identityMismatch`). th 는 관례상 마침표 없음 — 그대로.
 - v1.5(D5-b): copy 72키 → **81키**. 추가 9개 = `paywall.reflecting`·`reflectingLong`·`identityMismatch`, `plusSuccess.pendingTitle`·`restore`·`close`·`restoreChecked`·`restoreFailed`·`identityMismatch`. 값 변경 1개 = `plusSuccess.pending`. vi·th 9개는 D9 검수 대상.
 - v1.7(D8): 로케일 삭제 `storage.quotaExceeded`·`storage.quotaExceededCleanup`·`storage.quotaExceededDesc`(업로드 화면 배너 삭제로 사용처 0). 업로드 항목 오류 문구는 `plusSheet.storageTitle` 재사용. copy 84키 영향 없음.
 - v1.7(D7-2): 로케일 삭제 `plus.regenComingSoonTitle`·`plus.regenComingSoonBody`("곧 만나요" alert, 사용처 0) — `plus` 묶음이 비어 묶음째 삭제. copy 84키 영향 없음.
@@ -382,6 +382,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D8 | (위 D8 행으로 대체) 용량 초과 진입점 ⑤ | app | 한도 근처 계정 1회 |
 | D9-1 | 레거시 정리(PW-9 종결): `app/plans.tsx`·`plans.*` 14키·`storage.plan{Basic,Pro,Unlimited}`·미사용 storage API·타입 | app | — |
 | D9-3 | 탈퇴 화면 구독 안내 판정을 `/auth/me` plan으로(`shouldBlockWithdraw`, PW-1) + "Play Store" → "Google Play" | app | Plus·무료 계정 탈퇴 화면 |
+| D9-2 | vi·th 1차 검수 반영(vi 2키 수정, ko·en·vi 마침표 6키) | app | 4개 언어 캡처 |
 | D9 | (D9-1·D9-2·D9-3으로 분할) 레거시 `plans` 정리 + vi·th 검수 반영 | app | — |
 
 ### 8.2 운영 절차 (코드 diff 아님, 각각 게이트)
