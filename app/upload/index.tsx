@@ -87,7 +87,7 @@ export default function UploadScreen() {
   // 반영되기 전 프레임 동안 뚫릴 수 있다(disabled 미적용 창). ref는 즉시 반영.
   const submittingRef = useRef(false);
 
-  const { startUpload, startGroupUpload, addToExistingGroup, pickFromGallery, takePhoto, quotaExceeded, error: uploadError } = useImageUpload();
+  const { startUpload, startGroupUpload, addToExistingGroup, pickFromGallery, takePhoto, error: uploadError } = useImageUpload();
 
   // 현재 시간
   const getCurrentTime = () => {
@@ -396,10 +396,8 @@ export default function UploadScreen() {
       router.push('/(tabs)');
     } catch (error) {
       captureError(error instanceof Error ? error : new Error(String(error)), { context: 'Upload.handleSubmit' });
-      // quota exceeded is handled via quotaExceeded state below
-      if (!quotaExceeded) {
-        showAlert(t('upload.uploadError'));
-      }
+      // 용량 초과(413)는 throw 하지 않는다 — 훅이 큐 정리 뒤 루트의 용량 초과 시트를 연다(D8)
+      showAlert(t('upload.uploadError'));
     } finally {
       setIsSubmitting(false);
     }
@@ -554,23 +552,6 @@ export default function UploadScreen() {
           />
         </View>
       </KeyboardAwareScrollView>
-
-      {/* Quota Exceeded Banner */}
-      {quotaExceeded && (
-        <View style={[styles.quotaBanner, isDark && styles.quotaBannerDark]}>
-          <View style={styles.quotaBannerContent}>
-            <Ionicons name="cloud-offline-outline" size={20} color="#EF4444" />
-            <View style={styles.quotaBannerTextWrap}>
-              <Text style={[styles.quotaBannerText, isDark && { color: '#F9FAFB' }]}>
-                {t('storage.quotaExceeded')}
-              </Text>
-              <Text style={[styles.quotaBannerDesc, isDark && { color: '#D1D5DB' }]}>
-                {t('storage.quotaExceededCleanup')}
-              </Text>
-            </View>
-          </View>
-        </View>
-      )}
 
       {/* Bottom Buttons - ScrollView 밖에 배치 (position: absolute 제거) */}
       <View style={[styles.bottomButtons, isDark && styles.bottomButtonsDark, { paddingBottom: Math.max(insets.bottom, 16) }]}>
@@ -839,38 +820,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: colors.text.secondary,
-  },
-  quotaBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FEF2F2',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#FECACA',
-  },
-  quotaBannerDark: {
-    backgroundColor: '#1C1917',
-    borderTopColor: '#7F1D1D',
-  },
-  quotaBannerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  quotaBannerTextWrap: {
-    flex: 1,
-  },
-  quotaBannerText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#991B1B',
-  },
-  quotaBannerDesc: {
-    fontSize: 12,
-    color: '#991B1B',
-    marginTop: 2,
   },
 });

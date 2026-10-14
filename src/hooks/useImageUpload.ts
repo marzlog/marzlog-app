@@ -21,6 +21,7 @@ import { t } from '../i18n';
 import { useSettingsStore, aiModeToBackend } from '../store/settingsStore';
 import { useAuthStore } from '../store/authStore';
 import { useUploadQueueStore } from '../store/uploadQueueStore';
+import { usePlusSheetStore } from '../store/plusSheetStore';
 import * as uploadQueue from '../services/uploadQueue';
 import { UPLOAD_MAX_ATTEMPTS, UPLOAD_BACKOFF_BASE_MS } from '../constants/upload';
 import { withRetry } from '../utils/retry';
@@ -29,13 +30,24 @@ import {
   UploadOversizeError,
   classifyUploadFailure,
   defersUntilSettled,
+  parseQuotaUsage,
   reportsAsException,
+  shouldOpenQuotaSheet,
   type JobFailureAction,
 } from '../utils/uploadFailure';
 
 /** 413 STORAGE_QUOTA_EXCEEDED — 본문은 {"detail":{"error_code":...}} (분류 함수와 같은 판별) */
 function isQuotaExceededError(err: unknown): boolean {
   return classifyUploadFailure(err) === 'quota';
+}
+
+/**
+ * PAYWALL 진입점 ⑤(D8): 직접 업로드의 413 → (큐 정리 뒤) 용량 초과 시트. 시트는 루트 호스트라
+ * 업로드 화면이 홈으로 이동한 뒤에도 남는다. Plus 여부(문구·버튼)는 시트가 /auth/me plan 으로 정한다.
+ */
+function openQuotaSheet(err: unknown): void {
+  if (!shouldOpenQuotaSheet({ source: 'direct' })) return;
+  usePlusSheetStore.getState().open({ variant: 'storage', usage: parseQuotaUsage(err) });
 }
 
 const MAX_SELECTION = 5; // 대표 1개 + 서브 4개
@@ -91,7 +103,6 @@ export function useImageUpload() {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [quotaExceeded, setQuotaExceeded] = useState(false);
 
   // 갤러리 권한 요청
   const requestPermission = useCallback(async () => {
@@ -250,6 +261,8 @@ export function useImageUpload() {
     const results: UploadCompleteResponse[] = [];
     // 작업 단위 큐 반영용 — 사진별 실패(HTTP 응답이 아닌 실패 포함)를 모아 한 번에 결정
     const failures: unknown[] = [];
+    // 413 용량 초과 — 큐 정리 뒤 시트를 띄우려고 보관(D8)
+    let quotaErr: unknown = undefined;
     // 큐에 올라간 작업의 rejected 는 버려질 때 warning 1건만 — 보존되면 아래에서 예외로 남긴다
     const deferredRejected: unknown[] = [];
 
@@ -318,9 +331,9 @@ export function useImageUpload() {
         } catch (err) {
           failures.push(err);
           if (isQuotaExceededError(err)) {
-            setQuotaExceeded(true);
-            setError(t('storage.quotaExceeded'));
-            updateItem(item.id, { status: 'error', error: t('storage.quotaExceeded') });
+            quotaErr = err;
+            setError(t('plusSheet.storageTitle'));
+            updateItem(item.id, { status: 'error', error: t('plusSheet.storageTitle') });
             break;
           }
           const errorMsg = getErrorMessage(err);
@@ -355,6 +368,8 @@ export function useImageUpload() {
             }
           }
         }
+        // 큐 정리 뒤 용량 초과 시트(D8)
+        if (quotaErr !== undefined) openQuotaSheet(quotaErr);
       } else if (results.length > 0 && results[0].media_id) {
         const firstMediaId = results[0].media_id;
         // 업로드 완료된 media_id 보존 → updateMedia 실패해도 재업로드 없이 메타만 재시도
@@ -424,7 +439,6 @@ export function useImageUpload() {
   const reset = useCallback(() => {
     setItems([]);
     setError(null);
-    setQuotaExceeded(false);
   }, []);
 
   // 그룹 업로드 시작 (여러 이미지를 하나의 그룹으로)
@@ -614,9 +628,10 @@ export function useImageUpload() {
         });
       }
       if (isQuotaExceededError(err)) {
-        setQuotaExceeded(true);
-        setError(t('storage.quotaExceeded'));
+        // 큐 정리(위 settleFailedJob) 뒤 용량 초과 시트(D8)
+        setError(t('plusSheet.storageTitle'));
         setIsUploading(false);
+        openQuotaSheet(err);
         return null;
       }
       const errorMsg = getErrorMessage(err);
@@ -785,9 +800,10 @@ export function useImageUpload() {
         });
       }
       if (isQuotaExceededError(err)) {
-        setQuotaExceeded(true);
-        setError(t('storage.quotaExceeded'));
+        // 큐 정리(위 settleFailedJob) 뒤 용량 초과 시트(D8)
+        setError(t('plusSheet.storageTitle'));
         setIsUploading(false);
+        openQuotaSheet(err);
         return false;
       }
       const errorMsg = getErrorMessage(err);
@@ -816,7 +832,6 @@ export function useImageUpload() {
     items,
     isUploading,
     error,
-    quotaExceeded,
     stats,
     pickFromGallery,
     takePhoto,

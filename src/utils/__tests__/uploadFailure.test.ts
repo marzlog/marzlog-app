@@ -18,6 +18,8 @@ import {
   defersUntilSettled,
   reportsAsException,
   uploadFailureStatus,
+  parseQuotaUsage,
+  shouldOpenQuotaSheet,
 } from '../uploadFailure';
 
 const config = { headers: {} } as InternalAxiosRequestConfig;
@@ -189,5 +191,37 @@ describe('defersUntilSettled (단일 경로 사진별 예외 기록 미룸)', ()
     expect(defersUntilSettled(new UploadOversizeError(), true)).toBe(false);
     expect(defersUntilSettled(httpError(HttpStatusCode.UnprocessableEntity), false)).toBe(false);
     expect(defersUntilSettled(new AxiosError('Network Error', AxiosError.ERR_NETWORK, config), true)).toBe(false);
+  });
+});
+
+describe('parseQuotaUsage — 용량 초과 시트 막대(D8)', () => {
+  const quota = (inner: unknown) =>
+    httpError(413, { detail: { error_code: 'STORAGE_QUOTA_EXCEEDED', message: 'm', detail: inner } });
+
+  it('413 본문의 used_bytes·limit_bytes', () => {
+    expect(parseQuotaUsage(quota({ used_bytes: 2147000000, limit_bytes: 2147483648, plan: 'free' }))).toEqual({
+      usedBytes: 2147000000,
+      limitBytes: 2147483648,
+    });
+  });
+
+  it('숫자 누락·형식 오류·한도 0 → null(숫자 줄 숨김)', () => {
+    expect(parseQuotaUsage(quota(undefined))).toBeNull();
+    expect(parseQuotaUsage(quota({ used_bytes: '1', limit_bytes: 2 }))).toBeNull();
+    expect(parseQuotaUsage(quota({ used_bytes: 1, limit_bytes: 0 }))).toBeNull();
+    expect(parseQuotaUsage(quota({ used_bytes: 1 }))).toBeNull();
+  });
+
+  it('용량 초과가 아닌 오류 → null', () => {
+    expect(parseQuotaUsage(httpError(413, { detail: { error_code: 'OTHER' } }))).toBeNull();
+    expect(parseQuotaUsage(httpError(500))).toBeNull();
+    expect(parseQuotaUsage(new Error('x'))).toBeNull();
+  });
+});
+
+describe('shouldOpenQuotaSheet', () => {
+  it('직접 업로드만 시트, 백그라운드 재개는 큐 정리만', () => {
+    expect(shouldOpenQuotaSheet({ source: 'direct' })).toBe(true);
+    expect(shouldOpenQuotaSheet({ source: 'resume' })).toBe(false);
   });
 });

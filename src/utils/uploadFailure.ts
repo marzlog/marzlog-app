@@ -72,6 +72,30 @@ function isConsentBody(data: unknown): boolean {
   return (data as { code?: unknown } | undefined)?.code === CONSENT_REQUIRED;
 }
 
+/**
+ * 413 본문의 사용량·한도(PAYWALL D8, 용량 초과 시트 막대) — 서버 형식
+ * {"detail":{"error_code":"STORAGE_QUOTA_EXCEEDED","detail":{"used_bytes","limit_bytes","plan"}}} (routers/media.py).
+ * 413 용량 초과가 아니거나 숫자가 없으면 null → 시트는 숫자 줄을 숨긴다.
+ */
+export function parseQuotaUsage(err: unknown): { usedBytes: number; limitBytes: number } | null {
+  if (classifyUploadFailure(err) !== 'quota') return null;
+  const inner = ((err as { response?: { data?: { detail?: { detail?: unknown } } } }).response?.data?.detail?.detail ?? null) as {
+    used_bytes?: unknown;
+    limit_bytes?: unknown;
+  } | null;
+  const used = inner?.used_bytes;
+  const limit = inner?.limit_bytes;
+  if (typeof used !== 'number' || typeof limit !== 'number' || !Number.isFinite(used) || !Number.isFinite(limit) || limit <= 0) {
+    return null;
+  }
+  return { usedBytes: used, limitBytes: limit };
+}
+
+/** 용량 초과 시트는 사용자가 직접 올린 경우만 — 백그라운드 재개(resumeUploads)의 413 은 큐 정리만(명세 §3.4) */
+export function shouldOpenQuotaSheet(input: { source: 'direct' | 'resume' }): boolean {
+  return input.source === 'direct';
+}
+
 export function classifyUploadFailure(err: unknown): UploadFailureClass {
   if (err instanceof UploadTimeoutError) return 'transient';
   if (err instanceof UploadOversizeError) return 'oversize';

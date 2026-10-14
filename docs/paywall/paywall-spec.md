@@ -251,10 +251,12 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 
 **용량 초과(`storage`)** — `src/hooks/useImageUpload.ts`의 세 경로(단일·그룹·그룹 추가)
 
-- 413 `STORAGE_QUOTA_EXCEEDED` 수신 → 남은 항목 업로드 중단 → 큐 정리(4장) → 시트.
-- 막대와 숫자는 413 본문 값. 본문에 값이 없으면 숫자 줄을 숨긴다.
-- 이미 Plus인 사용자: 제목은 같고 본문 `plusSheet.storageBodyPlus`, 버튼은 "확인" 하나.
-- 백그라운드 재시도(`resumeUploads`)에서 받은 413은 시트를 띄우지 않고 큐 정리만 한다.
+- 413 `STORAGE_QUOTA_EXCEEDED` 수신 → 남은 항목 업로드 중단 → 큐 정리(4장) → 시트(`usePlusSheetStore.open({ variant: 'storage', usage })`, D8).
+- 막대와 숫자는 413 본문 값 — 서버 형식 `{"detail":{"error_code":…,"detail":{"used_bytes","limit_bytes","plan"}}}`, 순수 함수 `parseQuotaUsage`(`src/utils/uploadFailure.ts`). 값이 없거나 형식이 다르면 숫자 줄을 숨긴다.
+- 이미 Plus인 사용자: 제목은 같고 본문 `plusSheet.storageBodyPlus`, 버튼은 "확인" 하나. Plus 판정은 413 본문의 `plan`이 아니라 `/auth/me` plan(PW-1).
+- 백그라운드 재시도(`resumeUploads`)에서 받은 413은 시트를 띄우지 않고 큐 정리만 한다(`shouldOpenQuotaSheet`).
+- 업로드 화면은 결과와 무관하게 홈으로 이동한다 — 시트는 루트 호스트라 이동 전에 열어도 홈 위에 남는다(시안 05). 업로드 화면의 용량 초과 배너는 삭제(D8). D8 이전에는 배너가 이동과 함께 사라져 **용량 초과가 사용자에게 보이지 않았다**(B-QUOTA-SILENT, D8로 종결).
+- 사용량 90% 사전 예고는 범위 밖(§0) — Build 34에 넣지 않는다.
 
 ---
 
@@ -290,6 +292,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 값이 영어와 같은 키(`paywall.brand`, `paywall.compare.plus`, 스토어 이름)는 의도적 영어 유지 목록에 등록한다. 목록(v1.6): `paywall.brand` · `paywall.compare.plus` · `subscription.planPlus` · `subscription.storeApple`(App Store) · `subscription.storeGoogle`(Google Play) · `storage.planFree`(ko·th 배지 "Free" — 더보기 카드·마이페이지 플랜 표기, D6-a·D6-3). `paywall.alreadyOwned`의 `{{store}}`는 이 스토어 이름 키 값을 끼워 넣는다.
 - vi·th는 초안이다. 병합 후 표로 뽑아 JJ 검수를 받는다.
 - v1.5(D5-b): copy 72키 → **81키**. 추가 9개 = `paywall.reflecting`·`reflectingLong`·`identityMismatch`, `plusSuccess.pendingTitle`·`restore`·`close`·`restoreChecked`·`restoreFailed`·`identityMismatch`. 값 변경 1개 = `plusSuccess.pending`. vi·th 9개는 D9 검수 대상.
+- v1.7(D8): 로케일 삭제 `storage.quotaExceeded`·`storage.quotaExceededCleanup`·`storage.quotaExceededDesc`(업로드 화면 배너 삭제로 사용처 0). 업로드 항목 오류 문구는 `plusSheet.storageTitle` 재사용. copy 84키 영향 없음.
 - v1.7(D7-2): 로케일 삭제 `plus.regenComingSoonTitle`·`plus.regenComingSoonBody`("곧 만나요" alert, 사용처 0) — `plus` 묶음이 비어 묶음째 삭제. copy 84키 영향 없음.
 - v1.6(D6-2): 83키 → **84키**. 추가 1개 = `subscription.restored`. 삭제(D6-3) = `storage.freeNotice`·`storage.upgrade`(로케일만, copy 묶음 밖이라 84키 계산에 영향 없음).
 - v1.5(D5-c): 81키 → **83키**. 추가 2개 = `paywall.alreadyOwnedTitle`·`paywall.alreadyOwned`. en·vi·th 초안, D9 검수 대상.
@@ -308,7 +311,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 복원 `failed` | `captureError` scope `purchases.restore`, tags `area`·`stage`(restore)·`reason` |
 | 이미 구독 중 대화상자 선택 | breadcrumb `already-owned` + `choice`(restore·close) |
 | 업로드를 `rejected`로 버림 | `captureMessage` warning, fingerprint `upload-rejected`, tags 상태 코드·경로 종류. 파일명·사용자 식별값 금지 |
-| 업로드를 `quota`·`oversize`로 버림 | breadcrumb만 |
+| 업로드를 `quota`·`oversize`로 버림 | breadcrumb만. `quota`면 직접 업로드에서 용량 초과 시트(breadcrumb `sheet` + `variant: storage`) |
 | 결제 완료 후 미반영 | `captureMessage` warning, fingerprint `paywall-reflect-timeout` |
 | 복원(활성 구독 있음) 후 미반영 | `captureMessage` warning, fingerprint `paywall-restore-reflect-timeout`, tags `source`(결제 화면 source 또는 `plus-success`) |
 | 복원 결과 | breadcrumb `restore` + `outcome` |
@@ -331,6 +334,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 단위 | `uploadFailure.ts` | 응답 없음·500·408·429·401·403 CONSENT·413 quota·413 기타·400·422 |
 | 단위 | 큐 | quota·rejected 후 `listResumable`·`pendingCount`에서 제외, transient는 유지, auth는 횟수 불변 |
 | 단위 | 재생성 판정(`regenGate.ts`) | 복구 4조건(fallback·AI 본문 없음·구 응답 content·최신 작업 실패)·너그러운 판정(빈 값·fallback 접두)·정상 일기 / 무료 → 시트 · Plus·복구 → 요청 / 403 판별(다른 403·형식 오류) / 403 뒤 plus면 재시도 1회 |
+| 단위 | 용량 초과(`uploadFailure.ts`) | `parseQuotaUsage`(정상·숫자 누락·형식 오류·한도 0·다른 오류), `shouldOpenQuotaSheet`(직접·재개) |
 | 단위 | 안내 시트 표시 모델(`plusSheetViewModel.ts`) | regen 체험 줄 5종, storage 무료(막대·숫자 없음·0~100), storage Plus(정리 안내·확인 하나), 체험 근거 |
 | 단위 | 결제 화면 표시 모델(순수 함수) | 6개 상태, 체험 가능·없음·불명·일수 불명의 버튼·고지 문구, 구매 중 닫기 차단. 렌더는 실기 스크린샷으로 확인 |
 | 단위 | 구독 화면 표시 모델(`buildSubscriptionVM`) | 무료(상품 조회 성공·전·없음·실패), active·cancelled·grace·불명(null·expired·알 수 없음), 날짜 없음·변환 실패, 관리 행 조건·다른 스토어 6조합, 저장 공간 숨김·0~100 고정. 렌더는 실기 스크린샷으로 확인 |
@@ -365,6 +369,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D5-b | 반영 확인 30초(D5-b-1) → 신원 대조(D5-b-3) → 미반영 화면·복원 규칙(D5-b-2) | app | 샌드박스 구매·복원, 비행기 모드 미반영 |
 | D5-c | 이미 구독 중 안내(PW-16): `already_owned` 분류 + [구매 복원]/[닫기] 대화상자 + Sentry info | app | Android 같은 Play 계정·다른 앱 계정 구매 → 복원 / iOS 같은 상황 |
 | D6-a | 진입점 ① 선행: 더보기 저장 공간 카드 전체 탭 → `/paywall?source=settings`(무료·Plus 모두, D6에서 `/subscription`으로 교체) + 배지를 `/auth/me` plan 기준으로(PW-1, `planBadge.ts`) | app | Android 실기 결제 시험 진입 |
+| D8 | 용량 초과 진입점 ⑤: 세 경로 413 → 큐 정리 → 시트, 재개는 시트 없음, 업로드 화면 배너 삭제(B-QUOTA-SILENT 종결) | app | 413 실제 흐름은 시험 계정 사용량 조정 승인 후(§8.2 아님, 부트스트랩) |
 | D7-2 | 재생성 진입점 ②: `REGEN_PLUS_GATE`·"곧 만나요" 제거, 복구 판정 서버 기준, 403 → 재조회 → 재시도 1회·시트 | app | 무료 정상 일기·실패 일기·Plus 각 1회, 403은 S5 직후 |
 | D7-1 | Plus 안내 시트 + `plusSheetStore` + 루트 호스트 + `buildUpsellSheetVM`(진입점 없음) | app | — |
 | D6-3 | 표기 정리: 마이페이지 플랜·용량 출처, 무료 안내 문구·업그레이드 버튼 삭제 | app | 무료·Plus 마이페이지·더보기 |
@@ -372,8 +377,8 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D6-1 | 설정 구독 화면(`buildSubscriptionVM`) + 설정 "구독" 행 | app | 무료·Plus·다른 스토어 각 1회 |
 | D6-2 | 진입점 정리: 더보기 카드·완료 화면 "구독 관리 보기"·결제 화면 이미 Plus·복원 성공 → `/subscription` | app | 각 진입 1회 + 뒤로가기 |
 | D6 | (D6-a·D6-0~3으로 분할) 설정 구독 화면 + 진입점 ① | app | 무료·Plus 각 1회 |
-| D7 | 안내 시트 + 재생성 진입점 ② | app | 무료 계정 1회 |
-| D8 | 용량 초과 진입점 ⑤ | app | 한도 근처 계정 1회 |
+| D7 | (D7-1·D7-2로 분할) 안내 시트 + 재생성 진입점 ② | app | 무료 계정 1회 |
+| D8 | (위 D8 행으로 대체) 용량 초과 진입점 ⑤ | app | 한도 근처 계정 1회 |
 | D9 | 레거시 `plans` 정리 + vi·th 검수 반영 | app | — |
 
 ### 8.2 운영 절차 (코드 diff 아님, 각각 게이트)
