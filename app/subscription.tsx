@@ -11,6 +11,7 @@ import { useAuthStore } from '@src/store/authStore';
 import { useStorageStore } from '@src/store/storageStore';
 import { useTranslation } from '@src/hooks/useTranslation';
 import { usePlusRestore } from '@src/hooks/usePlusRestore';
+import { useReturnHome } from '@src/hooks/useReturnHome';
 import { useDialog } from '@/src/components/ui/Dialog';
 import { PlusCta } from '@/src/components/plus/PlusCta';
 import { plusColors } from '@/src/components/plus/plusColors';
@@ -50,6 +51,7 @@ export default function SubscriptionScreen() {
   const user = useAuthStore((s) => s.user);
   const { storageUsage, isLoading: storageLoading, fetchStorageUsage } = useStorageStore();
   const runRestore = usePlusRestore(SOURCE);
+  const returnHome = useReturnHome();
 
   const isDark = themeMode === 'system' ? systemColorScheme === 'dark' : themeMode === 'dark';
   const theme: Theme = isDark ? darkTheme : lightTheme;
@@ -106,7 +108,7 @@ export default function SubscriptionScreen() {
 
   const goBack = () => {
     if (router.canGoBack()) router.back();
-    else router.replace('/(tabs)');
+    else returnHome();
   };
 
   const openPaywall = () => router.push({ pathname: '/paywall', params: { source: 'settings' } });

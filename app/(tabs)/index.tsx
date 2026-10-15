@@ -365,7 +365,8 @@ function sortDayItems<T extends { created_at?: string | null; taken_at?: string 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { accessToken } = useAuthStore();
+  // 선택자로 좁힌다 — 결제 반영 확인 중 refreshUser 가 user 를 바꿀 때마다 홈 전체가 다시 그려지지 않게
+  const accessToken = useAuthStore((s) => s.accessToken);
   const { themeMode } = useSettingsStore();
   const { t, language } = useTranslation();
   const systemColorScheme = useColorScheme();

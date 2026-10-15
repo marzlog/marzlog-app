@@ -202,7 +202,8 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 반영 중 화면의 복원은 전체를 try/catch/finally 로 감싼다 — 예상 밖 throw 에도 `restoring`에 남지 않고 `restore-failed`, `captureError` scope `plusSuccess.restore`.
 - 반영 중 화면의 복원 단계(표시 모델 `buildPlusPendingVM`): `idle`(안내 없음) / `restoring`(버튼 스피너·닫기 잠금) / `restore-checked`(`plusSuccess.restoreChecked`) / `restore-none`(`paywall.restoreNone`) / `restore-failed`(`plusSuccess.restoreFailed`) / `identity-mismatch`(`plusSuccess.identityMismatch`). 복원 규칙은 PW-14와 같다. `restore=1`로 들어오면 `restore-checked`부터.
 - 날짜는 앱의 기존 날짜 표시 유틸·로케일을 따른다.
-- "기록하러 가기" → 홈으로 `replace`(뒤로가기로 결제 화면에 돌아가지 않게). "구독 관리 보기" → `/subscription`으로 `replace`(D6-2 — 뒤로가기가 완료 화면·결제 화면으로 돌아가지 않는다).
+- **홈 복귀(B-HOME-DUPLICATE-ON-REPLACE, 2026-10-15)**: "기록하러 가기"·반영 중 "닫기"·진입 가드(파라미터 없음 + 무료)는 `useReturnHome` — 스택 아래에 기존 `(tabs)`가 있으면 `router.dismissTo('/(tabs)')`로 거기까지 되돌리고, 없으면(딥링크로 결제 화면을 바로 연 경우) `replace`. 판정은 순수 함수 `resolveHomeReturn`. 이전의 `router.replace('/(tabs)')`는 기존 탭 위에 탭을 하나 더 쌓아 홈이 2개 마운트됐다(캘린더 감정이 늦게 보임). 뒤로가기로 결제·완료 화면에 돌아가지 않는 것은 그대로다.
+- "기록하러 가기" → 홈으로(위 홈 복귀 규칙). "구독 관리 보기" → `/subscription`으로 `replace`(D6-2 — 뒤로가기가 완료 화면·결제 화면으로 돌아가지 않는다).
 
 ### 3.3 설정 구독 화면 — `app/subscription.tsx` (D6-1, 시안 `04-subscription-settings.png`)
 
@@ -227,7 +228,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 구매 복원: `usePlusRestore`(결제 화면과 같은 흐름, PW-14·PW-15). `identity_mismatch` → `paywall.identityMismatch` / `failed` → `paywall.failed` / `restored-none` → `paywall.restoreNone` / `not-reflected` → `paywall.restoreChecked` / `reflected` → `/auth/me`가 plus로 바뀌어 Plus 상태로 다시 그린다. 진행 중 행 스피너, 예상 밖 오류는 `captureError` scope `subscription.restore`.
 - 진입할 때마다 `/auth/me`·저장 공간을 다시 읽는다. 무료일 때만 상품을 조회한다.
 - 복원 안내(D6-2): `?restored=1`로 들어오면 상단에 `subscription.restored`를 보이고 파라미터는 바로 지운다(다시 들어와도 반복하지 않음). 이 화면의 구매 복원이 `reflected`여도 같은 안내.
-- 뒤로가기: 일반 스택. 완료 화면에서 `replace`로 오면(결제 화면 → 완료 화면 → 구독 화면이 모두 replace) 뒤로가기는 결제 화면을 연 화면으로 돌아간다.
+- 뒤로가기: 일반 스택. 완료 화면에서 `replace`로 오면(결제 화면 → 완료 화면 → 구독 화면이 모두 replace) 뒤로가기는 결제 화면을 연 화면으로 돌아간다. 돌아갈 화면이 없으면(딥링크) 홈 복귀 규칙(`useReturnHome`, §3.2)으로 탭을 연다 — 결제 화면의 닫기도 같다.
 - 관측: breadcrumb `paywall` / `subscription` + `plan`.
 - 동반 수정(완료): `StorageUsageBar`의 `PLAN_KEYS` 정리(D6-a `planBadge.ts`), `User` 타입 `plan_status?`·`plan_store?`(D2).
 - 표기 정리(D6-3): 마이페이지 플랜 = `/auth/me` `plan`(`resolvePlanBadge`, PW-1), 용량 = `/users/storage`(`storageStore`, 더보기 카드와 같은 스켈레톤). `/auth/me/stats`의 `storage_plan`·`storage_limit_bytes`(레거시 `users` 컬럼, 웹훅이 갱신하지 않음)는 읽지 않는다. "지금은 모든 기능을 무료로 제공하고 있어요"(`storage.freeNotice`)와 더보기 카드의 업그레이드 버튼(`onUpgrade`·`storage.upgrade`)은 삭제 — PW-12로 심사 전 게이트가 켜지면 사실이 아니게 된다.
@@ -380,6 +381,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D6 | (D6-a·D6-0~3으로 분할) 설정 구독 화면 + 진입점 ① | app | 무료·Plus 각 1회 |
 | D7 | (D7-1·D7-2로 분할) 안내 시트 + 재생성 진입점 ② | app | 무료 계정 1회 |
 | D8 | (위 D8 행으로 대체) 용량 초과 진입점 ⑤ | app | 한도 근처 계정 1회 |
+| B-HOME-DUP | 홈 복귀 통일: 완료 화면 "기록하러 가기"·닫기·진입 가드, 결제·구독 화면의 돌아갈 곳 없음 → `useReturnHome`(`dismissTo` / 딥링크면 `replace`). 홈 `useAuthStore` 구독을 `accessToken` 선택자로 | app | 구매 → 기록하러 가기 → 캘린더 감정 즉시, 뒤로가기, 딥링크 |
 | D9-1 | 레거시 정리(PW-9 종결): `app/plans.tsx`·`plans.*` 14키·`storage.plan{Basic,Pro,Unlimited}`·미사용 storage API·타입 | app | — |
 | D9-3 | 탈퇴 화면 구독 안내 판정을 `/auth/me` plan으로(`shouldBlockWithdraw`, PW-1) + "Play Store" → "Google Play" | app | Plus·무료 계정 탈퇴 화면 |
 | D9-2 | vi·th 1차 검수 반영(vi 2키 수정, ko·en·vi 마침표 6키) | app | 4개 언어 캡처 |

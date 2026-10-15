@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppState, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useReturnHome } from '@src/hooks/useReturnHome';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
@@ -82,9 +83,11 @@ export default function PlusSuccessScreen() {
   const tx = (ref: TextRef) => t(ref.key, ref.params);
 
 
+  // 홈 복귀는 스택 아래의 기존 탭까지 되돌린다 — replace 는 탭을 하나 더 쌓아 홈이 2개 마운트됐다(B-HOME-DUPLICATE-ON-REPLACE)
+  const returnHome = useReturnHome();
   useEffect(() => {
-    if (guard === 'go-home') router.replace('/(tabs)');
-  }, [guard, router]);
+    if (guard === 'go-home') returnHome();
+  }, [guard, returnHome]);
 
   useEffect(() => {
     if (guard === 'render') addBreadcrumb('paywall', 'success', { variant: vm.variant });
@@ -160,7 +163,7 @@ export default function PlusSuccessScreen() {
     return () => sub.remove();
   }, [refreshOnce, startRecheck]);
 
-  const goHome = () => router.replace('/(tabs)');
+  const goHome = returnHome;
 
   const closePending = () => {
     if (vm.pending?.closeEnabled) goHome();

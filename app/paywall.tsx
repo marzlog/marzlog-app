@@ -51,6 +51,7 @@ import {
 } from '@src/utils/paywallViewModel';
 import { waitForPlusReflected } from '@src/utils/plusReflect';
 import { usePlusRestore } from '@src/hooks/usePlusRestore';
+import { useReturnHome } from '@src/hooks/useReturnHome';
 import { toPlusSuccessRouteParams } from '@src/utils/plusSuccessViewModel';
 import {
   PLUS_REFLECT_ATTEMPT_TIMEOUT_MS,
@@ -88,6 +89,7 @@ export default function PaywallScreen() {
   const params = useLocalSearchParams<{ source?: string | string[] }>();
   const source = normalizePaywallSource(params.source);
   const runRestore = usePlusRestore(source);
+  const returnHome = useReturnHome();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
 
@@ -278,7 +280,7 @@ export default function PaywallScreen() {
   const handleClose = () => {
     if (!vm.header.closeEnabled) return;
     if (router.canGoBack()) router.back();
-    else router.replace('/(tabs)');
+    else returnHome();
   };
 
   const onFooterLayout = (e: LayoutChangeEvent) => {
