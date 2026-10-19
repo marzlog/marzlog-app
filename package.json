@@ -8,7 +8,9 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "test:unit": "jest",
-    "eas-build-pre-install": "bash scripts/check-env-public.sh"
+    "eas-build-pre-install": "bash scripts/check-env-public.sh",
+    "eas:dev": "bash scripts/check-env-public.sh && eas build --platform all --profile development",
+    "eas:prod": "bash scripts/check-env-public.sh && eas build --platform all --profile production"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
