@@ -270,6 +270,16 @@ export function restoreExitTarget(reflected: boolean): PaywallExitTarget {
     : { pathname: '/plus-success', params: PLUS_SUCCESS_RESTORE_PARAMS };
 }
 
+/**
+ * 결제 화면 포커스·복귀 때 RC 자격을 보고 시작한 반영 확인의 이동처(B-PURCHASE-ERROR-AFTER-SUCCESS ②).
+ * 어떤 상품인지 모르므로 구매 완료 화면 대신: 반영되면 구독 화면(안내 없음), 30초 미반영이면 완료 화면 반영 중(복원 버튼)
+ */
+export function autoReflectExitTarget(reflected: boolean): PaywallExitTarget {
+  return reflected
+    ? { pathname: '/subscription', params: {} }
+    : { pathname: '/plus-success', params: PLUS_SUCCESS_RESTORE_PARAMS };
+}
+
 /** 구독 화면 상단 "구매를 복원했어요" 1회 표시 파라미터 */
 export const SUBSCRIPTION_RESTORED_PARAMS: Record<string, string> = { restored: '1' };
 

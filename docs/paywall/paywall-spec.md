@@ -190,6 +190,11 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 복원 `restored-active` 뒤 → `/plus-success?restore=1`.
 - 완료 화면으로 넘어가지 않은 채 잠금이 풀리면 반영 확인 단계를 `idle`로 되돌린다(정상 경로의 "넘어갈 때까지 고정"은 유지).
 
+구매 오류 뒤 자격 재확인(B-PURCHASE-ERROR-AFTER-SUCCESS, 2026-10-19): 결제 시트 승인 뒤 `purchasePackage` 가 거부돼도(예: "A network error has occurred") 스토어 거래는 끝났을 수 있다 — 10/19 실측 RC RENEWAL 웹훅 200·서버 Plus 반영, 앱은 실패 안내·`/auth/me` 요청 0건.
+- 구매 catch: 사용자 취소가 아닌 모든 오류에서 `Purchases.getCustomerInfo()` 1회(시간 제한 `PAYWALL_OFFER_TIMEOUT_MS`). entitlement `plus` 활성이면 `completed` 로 돌려 기존 반영 확인(`waitReflected`) → 완료 화면. 아니면·조회 실패면 기존 `paywall.failed`(문구 변경 0). 판정 = 순수 함수 `shouldRecoverAfterPurchaseError(code, customerInfo)`(`src/services/purchaseRecovery.ts`). 복구 시 `purchases.purchase` 이벤트에 tag `recovered=true`, 원래 `code` 유지.
+- 결제 화면 포커스·앱 복귀(AppState `active`): 서버 plan 이 free 이고 잠금 중이 아니면, RC 현재 사용자 = 서버 사용자일 때만 자격을 읽어(`hasPlusEntitlementForUser`) 활성이면 반영 확인을 자동 시작. 화면당 1회(`shouldCheckEntitlementOnResume`). 이동 = 반영 → `/subscription`(안내 없음), 30초 미반영 → `/plus-success?restore=1`(`autoReflectExitTarget` — 상품을 모르므로 구매 완료 화면 대신).
+- ★RC 자격은 "반영 확인을 시작할지"만 정한다. Plus 판정·표시는 서버 plan(PW-1·ADR ②).
+
 ### 3.2 구독 시작 완료 — `app/plus-success.tsx` (신규, 시안 `03-success.png`)
 
 | 변형 | 조건 | 표 내용 |
@@ -386,6 +391,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D9-3 | 탈퇴 화면 구독 안내 판정을 `/auth/me` plan으로(`shouldBlockWithdraw`, PW-1) + "Play Store" → "Google Play" | app | Plus·무료 계정 탈퇴 화면 |
 | D9-2 | vi·th 1차 검수 반영(vi 2키 수정, ko·en·vi 마침표 6키) | app | 4개 언어 캡처 |
 | D9 | (D9-1·D9-2·D9-3으로 분할) 레거시 `plans` 정리 + vi·th 검수 반영 | app | — |
+| B-PURCHASE-ERROR-AFTER-SUCCESS | 구매 오류 뒤 RC 자격 재확인 → 반영 확인으로(§3.1), 결제 화면 포커스·복귀 시 자동 반영 확인, Sentry `recovered=true` | app | 체크리스트 28(결제 시트 승인 직후 비행기 모드) |
 
 ### 8.2 운영 절차 (코드 diff 아님, 각각 게이트)
 

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Platform,
   ScrollView,
   StyleSheet,
@@ -12,7 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { usePreventRemove } from '@react-navigation/native';
+import { useFocusEffect, usePreventRemove } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -25,15 +26,18 @@ import { PlusCta } from '@/src/components/plus/PlusCta';
 import { plusColors } from '@/src/components/plus/plusColors';
 import { addBreadcrumb, captureError, captureMessage } from '@/src/utils/sentry';
 import {
+  hasPlusEntitlementForUser,
   loadPaywallOffer,
   purchasePaywallPlan,
   type PaywallOfferResult,
   type PaywallPlanKind,
 } from '@src/services/purchases';
+import { shouldCheckEntitlementOnResume } from '@src/services/purchaseRecovery';
 import {
   PAYWALL_COMPARE_STORAGE,
   PAYWALL_DEFAULT_PLAN,
   PAYWALL_SUBHEAD,
+  autoReflectExitTarget,
   buildAlreadyOwnedDialog,
   buildPaywallVM,
   footerFitsWithDisclosure,
@@ -250,6 +254,46 @@ export default function PaywallScreen() {
     addBreadcrumb('paywall', 'already-owned', { choice: restore ? 'restore' : 'close', source });
     if (restore) await handleRestore();
   };
+
+  // B-PURCHASE-ERROR-AFTER-SUCCESS ②: 결제 화면 포커스·앱 복귀 때 RC 에 Plus 자격이 있는데 서버가 아직 free 면
+  // 기존 반영 확인(waitReflected)을 자동으로 시작한다. 화면당 1회(미반영이 계속돼도 복귀마다 30초 잠그지 않게)
+  const autoReflectDoneRef = useRef(false);
+  const autoReflectIfEntitled = useCallback(async (trigger: 'focus' | 'foreground') => {
+    const canCheck = () => {
+      const auth = useAuthStore.getState();
+      return shouldCheckEntitlementOnResume({
+        isAuthenticated: auth.isAuthenticated,
+        isPlus: auth.user?.plan === 'plus',
+        busy: busyRef.current,
+        autoReflectDone: autoReflectDoneRef.current,
+      });
+    };
+    if (!canCheck()) return;
+    const entitled = await hasPlusEntitlementForUser(useAuthStore.getState().user?.id);
+    if (!entitled || !canCheck()) return;
+    autoReflectDoneRef.current = true;
+    addBreadcrumb('paywall', 'auto-reflect', { trigger, source });
+    await runLocked(async (progress) => {
+      progress.current = { stage: 'restore-active' };
+      const reflected = await waitReflected();
+      const target = autoReflectExitTarget(reflected);
+      goToSuccess(target.params, target.pathname);
+    });
+    // runLocked·waitReflected 는 매 렌더 새로 만들어지지만 ref·스토어만 읽는다
+  }, [source]);
+
+  useFocusEffect(
+    useCallback(() => {
+      autoReflectIfEntitled('focus');
+    }, [autoReflectIfEntitled]),
+  );
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') autoReflectIfEntitled('foreground');
+    });
+    return () => sub.remove();
+  }, [autoReflectIfEntitled]);
 
   const handleRestore = () =>
     runLocked(async (progress) => {

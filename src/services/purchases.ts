@@ -11,6 +11,7 @@ import { PAYWALL_OFFER_TIMEOUT_MS } from '../constants/plus';
 import { captureError, captureMessage } from '../utils/sentry';
 import { resolvePurchasesSetup } from './purchasesGuard';
 import {
+  normalizeAppUserId,
   resolveIdentityTransition,
   runWithVerifiedIdentity,
   shouldRetryIdentity,
@@ -19,6 +20,7 @@ import {
 } from './purchasesIdentity';
 import { hasActiveSubscription } from './purchasesRestore';
 import { classifyPurchaseError, purchaseFailureReason } from './purchaseErrors';
+import { hasPlusEntitlement, shouldRecoverAfterPurchaseError } from './purchaseRecovery';
 import { PAYWALL_OFFERING_ID, pickPaywallPackages, type PaywallPlanKind } from './paywallPackages';
 import { annualDiscountPercent, trialPeriodToDays } from './paywallOffer';
 
@@ -358,6 +360,16 @@ export async function purchasePaywallPlan(
   } catch (e: any) {
     const errorClass = classifyPurchaseError(e, PURCHASES_ERROR_CODE);
     if (errorClass === 'cancelled') return 'cancelled';
+    // B-PURCHASE-ERROR-AFTER-SUCCESS: 결제 시트 승인 뒤 오류(네트워크 등)여도 RC 에 Plus 자격이 생겼으면
+    // 실패 안내 대신 서버 반영 확인(completed 경로)으로. 자격은 트리거일 뿐 — Plus 판정은 서버 plan(ADR ②)
+    if (shouldRecoverAfterPurchaseError(e?.code, await readCustomerInfo(), PURCHASES_ERROR_CODE)) {
+      captureError(
+        e instanceof Error ? e : new Error(String(e?.message ?? e)),
+        { scope: 'purchases.purchase', kind, code: e?.code },
+        { tags: { ...tags, reason: purchaseFailureReason(e, PURCHASES_ERROR_CODE), recovered: 'true' } },
+      );
+      return 'completed';
+    }
     if (errorClass === 'already_owned') {
       // 사용자 상황이지 오류가 아니다 — 건수만 info 로(알림 없음). 식별값 없음
       captureMessage('purchases already owned', { kind }, {
@@ -374,6 +386,31 @@ export async function purchasePaywallPlan(
     );
     return 'failed';
   }
+}
+
+/** RC CustomerInfo 1회 — 실패·시간 초과는 null(호출부가 "자격 없음"으로 다룬다) */
+async function readCustomerInfo() {
+  try {
+    return await withOfferTimeout(Purchases.getCustomerInfo());
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 결제 화면 포커스·앱 복귀 때(B-PURCHASE-ERROR-AFTER-SUCCESS ②): RC 에 Plus 자격이 있는지.
+ * RC 현재 사용자 = 서버 사용자일 때만 본다(다른 사용자의 자격으로 반영 확인을 시작하지 않게).
+ * true 는 "서버 반영 확인을 시작하라"는 뜻일 뿐 — Plus 판정·표시는 서버 plan(ADR ②).
+ */
+export async function hasPlusEntitlementForUser(serverUserId: string | null | undefined): Promise<boolean> {
+  if (!configured || !normalizeAppUserId(serverUserId)) return false;
+  try {
+    await identityQueue;
+    if (normalizeAppUserId(await Purchases.getAppUserID()) !== normalizeAppUserId(serverUserId)) return false;
+  } catch {
+    return false;
+  }
+  return hasPlusEntitlement(await readCustomerInfo());
 }
 
 /**
