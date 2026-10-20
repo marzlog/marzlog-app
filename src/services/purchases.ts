@@ -7,7 +7,8 @@ import Purchases, {
   type PurchasesStoreProduct,
 } from 'react-native-purchases';
 
-import { PAYWALL_OFFER_TIMEOUT_MS } from '../constants/plus';
+import { PAYWALL_OFFER_TIMEOUT_MS, PAYWALL_PURCHASE_TIMEOUT_MS, PAYWALL_RESTORE_TIMEOUT_MS } from '../constants/plus';
+import { withTimeout } from '../utils/withTimeout';
 import { captureError, captureMessage } from '../utils/sentry';
 import { resolvePurchasesSetup } from './purchasesGuard';
 import {
@@ -18,7 +19,7 @@ import {
   verifyPurchaseIdentity,
   type IdentityVerdict,
 } from './purchasesIdentity';
-import { hasActiveSubscription } from './purchasesRestore';
+import { resolveRestoreOutcome, type RestoreOutcome, type RestoreRun } from './purchasesRestore';
 import { classifyPurchaseError, purchaseFailureReason } from './purchaseErrors';
 import { hasPlusEntitlement, shouldRecoverAfterPurchaseError } from './purchaseRecovery';
 import { PAYWALL_OFFERING_ID, pickPaywallPackages, type PaywallPlanKind } from './paywallPackages';
@@ -192,27 +193,8 @@ export type PaywallOfferResult =
 
 let paywallPackages: Partial<Record<PaywallPlanKind, PurchasesPackage>> = {};
 
-class PaywallOfferTimeoutError extends Error {
-  constructor() {
-    super('PAYWALL_OFFER_TIMEOUT');
-    this.name = 'PaywallOfferTimeoutError';
-  }
-}
-
 function withOfferTimeout<T>(promise: Promise<T>): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new PaywallOfferTimeoutError()), PAYWALL_OFFER_TIMEOUT_MS);
-    promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (err) => {
-        clearTimeout(timer);
-        reject(err);
-      },
-    );
-  });
+  return withTimeout(promise, PAYWALL_OFFER_TIMEOUT_MS, 'PAYWALL_OFFER');
 }
 
 function mapIosEligibility(status: INTRO_ELIGIBILITY_STATUS | undefined): boolean | null {
@@ -353,7 +335,8 @@ export async function purchasePaywallPlan(
   try {
     const run = await runWithVerifiedIdentity(
       () => verifyIdentityFor('purchase', serverUserId),
-      () => Purchases.purchasePackage(pkg),
+      // B-PAYWALL-HANG: 결제 시트 뒤 RC 처리가 끝나지 않아도(비행기 모드 등) 화면 잠금이 풀리게 — 시간 초과는 failed 경로
+      () => withTimeout(Purchases.purchasePackage(pkg), PAYWALL_PURCHASE_TIMEOUT_MS, 'PAYWALL_PURCHASE'),
     );
     if (run.blocked) return 'identity_mismatch';
     return 'completed';
@@ -413,32 +396,38 @@ export async function hasPlusEntitlementForUser(serverUserId: string | null | un
   return hasPlusEntitlement(await readCustomerInfo());
 }
 
-/**
- * restored-active = 복원 완료, RC 응답에 활성 구독 있음 → 서버 반영 확인 루프로
- * restored-none = 복원 완료, 활성 구독 없음 → 즉시 restoreNone
- * identity_mismatch = 신원 대조 차단(복원 미호출)
- * ★활성 여부는 대기 생략 판단에만 쓴다 — Plus 판정은 서버 재조회로(PW-1, PW-14).
- */
-export type RestoreOutcome = 'restored-active' | 'restored-none' | 'failed' | 'identity_mismatch';
+export type { RestoreOutcome } from './purchasesRestore';
 
-/** 구매 복원 — 구매와 같은 신원 대조를 먼저 한다(익명·다른 id 로 복원하면 영수증이 엉뚱한 RC 사용자에 붙는다). */
+/**
+ * 구매 복원 — 구매와 같은 신원 대조를 먼저 한다(익명·다른 id 로 복원하면 영수증이 엉뚱한 RC 사용자에 붙는다).
+ * 결과 판정은 resolveRestoreOutcome(Plus entitlement 활성만 restored-active). 신원 대조부터 복원까지 전체에
+ * PAYWALL_RESTORE_TIMEOUT_MS 시간 제한(B-PAYWALL-HANG) — 초과는 failed, Sentry reason=timeout.
+ */
 export async function restorePaywallPurchases(serverUserId: string | null | undefined): Promise<RestoreOutcome> {
   if (!configured) return 'failed';
+  let run: RestoreRun;
   try {
-    const run = await runWithVerifiedIdentity(
-      () => verifyIdentityFor('restore', serverUserId),
-      () => Purchases.restorePurchases(),
+    const verified = await withTimeout(
+      runWithVerifiedIdentity(
+        () => verifyIdentityFor('restore', serverUserId),
+        () => Purchases.restorePurchases(),
+      ),
+      PAYWALL_RESTORE_TIMEOUT_MS,
+      'PAYWALL_RESTORE',
     );
-    if (run.blocked) return 'identity_mismatch';
-    return hasActiveSubscription(run.result) ? 'restored-active' : 'restored-none';
-  } catch (e: any) {
+    run = verified.blocked ? { kind: 'blocked' } : { kind: 'result', info: verified.result };
+  } catch (error) {
+    run = { kind: 'error', error };
+  }
+  if (run.kind === 'error') {
+    const e: any = run.error;
     captureError(
       e instanceof Error ? e : new Error(String(e?.message ?? e)),
       { scope: 'purchases.restore', code: e?.code },
       { tags: { area: 'paywall', stage: 'restore', reason: purchaseFailureReason(e, PURCHASES_ERROR_CODE) } },
     );
-    return 'failed';
   }
+  return resolveRestoreOutcome(run).outcome;
 }
 
 /**

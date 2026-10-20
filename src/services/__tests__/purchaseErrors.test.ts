@@ -5,6 +5,7 @@
  */
 import { PURCHASES_ERROR_CODE } from '@revenuecat/purchases-typescript-internal';
 import { classifyPurchaseError, purchaseFailureReason } from '../purchaseErrors';
+import { TimeoutError } from '../../utils/withTimeout';
 
 const C = PURCHASES_ERROR_CODE;
 const err = (fields: Record<string, unknown>) => Object.assign(new Error('rc'), fields);
@@ -45,6 +46,11 @@ describe('purchaseFailureReason (Sentry tag)', () => {
   it('영수증 사용 중 계열 → receipt_in_use', () => {
     expect(purchaseFailureReason(err({ code: C.RECEIPT_ALREADY_IN_USE_ERROR }), C)).toBe('receipt_in_use');
     expect(purchaseFailureReason(err({ code: C.RECEIPT_IN_USE_BY_OTHER_SUBSCRIBER_ERROR }), C)).toBe('receipt_in_use');
+  });
+
+  it('래퍼 시간 제한 초과 → timeout(B-PAYWALL-HANG)', () => {
+    expect(purchaseFailureReason(new TimeoutError('PAYWALL_RESTORE'), C)).toBe('timeout');
+    expect(classifyPurchaseError(new TimeoutError('PAYWALL_PURCHASE'), C)).toBe('failed');
   });
 
   it('그 외 → other', () => {

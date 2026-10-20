@@ -82,6 +82,9 @@ import { borderRadius, darkTheme, lightTheme, palette, spacing, typography, type
  */
 const MIN_TOUCH = 44;
 
+/** 잠금이 풀린 뒤 띄울 안내(B-PAYWALL-HANG) */
+type PaywallNoticeKey = 'paywall.failed' | 'paywall.identityMismatch' | 'paywall.restoreNone';
+
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -163,25 +166,29 @@ export default function PaywallScreen() {
   };
 
   // D5-b-5: 예상 밖 오류에도 잠금이 풀리고, 스토어 거래가 끝난 뒤의 오류면 "실패" 대신 완료 화면 반영 중으로 보낸다
-  const runLocked = async (task: (progress: { current: PaywallLockedProgress }) => Promise<void>) => {
+  // B-PAYWALL-HANG: 잠금 안에서는 대화상자를 기다리지 않는다 — task 는 안내 문구 키만 돌려주고, 대화상자는 잠금이
+  // 풀린 뒤에 띄운다(시스템 시트가 닫히는 중이라 대화상자가 안 뜨면 잠금 안의 await 가 끝나지 않아 화면이 영영 잠겼다)
+  const runLocked = async (task: (progress: { current: PaywallLockedProgress }) => Promise<PaywallNoticeKey | void>) => {
     if (busyRef.current) return;
     busyRef.current = true;
     setBusy(true);
     const progress: { current: PaywallLockedProgress } = { current: { stage: 'before-completion' } };
+    let notice: PaywallNoticeKey | null = null;
     try {
-      await task(progress);
+      notice = (await task(progress)) ?? null;
     } catch (e) {
       captureError(e instanceof Error ? e : new Error(String(e)), { scope: 'paywall.locked', stage: progress.current.stage }, {
         tags: { area: 'paywall', source },
       });
       const action = resolveLockedErrorAction(progress.current);
       if (action.type === 'go-success') goToSuccess(action.params);
-      else await alert(t('paywall.title'), t('paywall.failed'));
+      else notice = 'paywall.failed';
     } finally {
       if (!goingToSuccessRef.current) setReflectPhase('idle');
       busyRef.current = false;
       setBusy(false);
     }
+    if (notice) await alert(t('paywall.title'), t(notice));
   };
 
   // 서버 반영 확인(최대 PLUS_REFLECT_MAX_WAIT_MS) — 대기 문구 단계는 완료 화면으로 넘어갈 때까지 유지
@@ -213,16 +220,10 @@ export default function PaywallScreen() {
       addBreadcrumb('paywall', 'purchase', { kind, outcome, source });
       const followUp = resolvePurchaseFollowUp(outcome);
       if (followUp === 'none') return;
-      if (followUp === 'alert-identity') {
-        // 구매 시트는 뜨지 않았다. 기록(tags reason)은 래퍼가 한 번 남겼다
-        await alert(t('paywall.title'), t('paywall.identityMismatch'));
-        return;
-      }
-      if (followUp === 'alert-failed') {
-        // captureError(tags area·kind·source·reason)는 purchasePaywallPlan 이 한 번 남겼다
-        await alert(t('paywall.title'), t('paywall.failed'));
-        return;
-      }
+      // 구매 시트는 뜨지 않았다. 기록(tags reason)은 래퍼가 한 번 남겼다
+      if (followUp === 'alert-identity') return 'paywall.identityMismatch';
+      // captureError(tags area·kind·source·reason)는 purchasePaywallPlan 이 한 번 남겼다
+      if (followUp === 'alert-failed') return 'paywall.failed';
       if (followUp === 'offer-restore') {
         // 기록(info, purchases-already-owned)은 래퍼가 남겼다. 대화상자는 잠금이 풀린 뒤에
         offerRestore = true;
@@ -304,18 +305,9 @@ export default function PaywallScreen() {
           progress.current = { stage: 'restore-active' };
         },
       });
-      if (result === 'identity_mismatch') {
-        await alert(t('paywall.title'), t('paywall.identityMismatch'));
-        return;
-      }
-      if (result === 'failed') {
-        await alert(t('paywall.title'), t('paywall.failed'));
-        return;
-      }
-      if (result === 'restored-none') {
-        await alert(t('paywall.title'), t('paywall.restoreNone'));
-        return;
-      }
+      if (result === 'identity_mismatch') return 'paywall.identityMismatch';
+      if (result === 'failed') return 'paywall.failed';
+      if (result === 'restored-none') return 'paywall.restoreNone';
       // D6-2: 반영되면 구독 화면(상단 "구매를 복원했어요" 1회), 30초 미반영이면 완료 화면 반영 중(restore=1)
       const target = restoreExitTarget(result === 'reflected');
       goToSuccess(target.params, target.pathname);

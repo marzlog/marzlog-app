@@ -9,6 +9,7 @@
  *    failed 를 유지하고 Sentry tag reason 으로만 구분한다.
  */
 import type { PURCHASES_ERROR_CODE } from 'react-native-purchases';
+import { isTimeoutError } from '../utils/withTimeout';
 
 export type PurchaseErrorCodes = Pick<
   typeof PURCHASES_ERROR_CODE,
@@ -20,8 +21,8 @@ export type PurchaseErrorCodes = Pick<
 
 export type PurchaseErrorClass = 'cancelled' | 'already_owned' | 'failed';
 
-/** failed 의 Sentry tag reason */
-export type PurchaseFailureReason = 'receipt_in_use' | 'other';
+/** failed 의 Sentry tag reason — timeout 은 래퍼 시간 제한 초과(B-PAYWALL-HANG) */
+export type PurchaseFailureReason = 'receipt_in_use' | 'timeout' | 'other';
 
 type ErrorLike = { userCancelled?: unknown; code?: unknown } | null | undefined;
 
@@ -36,6 +37,7 @@ export function classifyPurchaseError(e: unknown, codes: PurchaseErrorCodes): Pu
 }
 
 export function purchaseFailureReason(e: unknown, codes: PurchaseErrorCodes): PurchaseFailureReason {
+  if (isTimeoutError(e)) return 'timeout';
   const code = codeOf(e);
   return code === codes.RECEIPT_ALREADY_IN_USE_ERROR || code === codes.RECEIPT_IN_USE_BY_OTHER_SUBSCRIBER_ERROR
     ? 'receipt_in_use'

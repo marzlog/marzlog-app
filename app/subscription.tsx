@@ -116,6 +116,8 @@ export default function SubscriptionScreen() {
   const handleRestore = async () => {
     if (restoring) return;
     setRestoring(true);
+    // B-PAYWALL-HANG: 안내 대화상자는 restoring(버튼 스피너)이 풀린 뒤에 — 대화상자가 안 떠도 화면이 잠기지 않게
+    let notice: 'paywall.identityMismatch' | 'paywall.failed' | 'paywall.restoreNone' | 'paywall.restoreChecked' | null = null;
     try {
       const result = await runRestore({
         waitReflected: async () =>
@@ -128,16 +130,17 @@ export default function SubscriptionScreen() {
       });
       // reflected 는 /auth/me 가 plus 로 바뀌어 화면이 Plus 상태로 다시 그려진다 + 상단 안내
       if (result === 'reflected') setRestoredNotice(true);
-      else if (result === 'identity_mismatch') await alert(t('subscription.title'), t('paywall.identityMismatch'));
-      else if (result === 'failed') await alert(t('subscription.title'), t('paywall.failed'));
-      else if (result === 'restored-none') await alert(t('subscription.title'), t('paywall.restoreNone'));
-      else if (result === 'not-reflected') await alert(t('subscription.title'), t('paywall.restoreChecked'));
+      else if (result === 'identity_mismatch') notice = 'paywall.identityMismatch';
+      else if (result === 'failed') notice = 'paywall.failed';
+      else if (result === 'restored-none') notice = 'paywall.restoreNone';
+      else if (result === 'not-reflected') notice = 'paywall.restoreChecked';
     } catch (e) {
       captureError(e instanceof Error ? e : new Error(String(e)), { scope: 'subscription.restore' });
-      await alert(t('subscription.title'), t('paywall.failed'));
+      notice = 'paywall.failed';
     } finally {
       setRestoring(false);
     }
+    if (notice) await alert(t('subscription.title'), t(notice));
   };
 
   const handleManage = async () => {

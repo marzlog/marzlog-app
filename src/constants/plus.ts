@@ -11,6 +11,15 @@ export const PLUS_STORAGE_GB = 100;
 /** 상품 조회(getOfferings·체험 자격) 시간 제한 — 부트 /auth/me(10초)와 같은 수준 */
 export const PAYWALL_OFFER_TIMEOUT_MS = 10_000;
 
+/** 구매 복원(신원 대조 + restorePurchases) 전체 시간 제한 — 초과하면 잠금 해제 + 실패 안내(B-PAYWALL-HANG) */
+export const PAYWALL_RESTORE_TIMEOUT_MS = 20_000;
+
+/**
+ * purchasePackage 시간 제한(B-PAYWALL-HANG) — 결제 시트에서 인증하는 시간까지 포함하므로 넉넉히.
+ * 초과 뒤 거래가 끝나도 결제 화면 복귀 때 자격 확인(B-PURCHASE-ERROR-AFTER-SUCCESS ②)이 반영 확인을 시작한다.
+ */
+export const PAYWALL_PURCHASE_TIMEOUT_MS = 60_000;
+
 /**
  * 결제·복원 후 서버 반영(/auth/me plan) 확인 — 마감 시각 기준(D5-b).
  * 구매 → 첫 웹훅 지연 실측 5.8 / 14.3 / 17.4 / 6.6초(2026-10-12~13) → 최대 30초면 실측 최대의 약 1.7배.

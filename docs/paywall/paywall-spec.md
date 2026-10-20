@@ -1,6 +1,7 @@
 # Marzlog Plus 결제 화면(PAYWALL) 구현 명세서
 
-- 판: v1.8 (2026-10-14, D9 — 레거시 plans 정리·탈퇴 판정 정렬·vi·th 1차 검수, PW-9 종결, §9 정리) · 대상: Build 34 (marzlog-app 1.0.3, develop)
+- 판: v1.9 (2026-10-20, B-PAYWALL-HANG — 잠금 안 대화상자 대기 금지·복원 판정 `plus` 자격만·시간 제한 3종·대화상자 표시 지연) · 대상: Build 34 (marzlog-app 1.0.3, develop)
+- 이전 판: v1.8 (2026-10-14, D9 — 레거시 plans 정리·탈퇴 판정 정렬·vi·th 1차 검수, PW-9 종결, §9 정리)
 - 이전 판: v1.7 (2026-10-14, D7·D8 — Plus 안내 시트·재생성 진입점 ②·용량 초과 진입점 ⑤)
 - 이전 판: v1.6 (2026-10-14, D6 — 설정 구독 화면 §3.3 전면 개정·진입점 정리·표기 정리·복원 훅)
 - 이전 판: v1.5 (2026-10-13, D5-b — 반영 확인 30초·미반영 화면·신원 대조, PW-14·PW-15 / D5-b-4 주기 재확인·복원 안전장치 / D5-b-5 결제 화면 잠금 안전장치 / D5-c 이미 구독 중 안내, PW-16) · 대상: Build 34 (marzlog-app 1.0.3, develop)
@@ -40,7 +41,7 @@
 | PW-11 | 서버는 샌드박스 구매 알림을 **항상 받는다**(`RC_ACCEPT_SANDBOX_EVENTS=true` 상시). 9/28 G0의 `false`를 되돌린다. | 심사는 업데이트마다 있고 심사자는 샌드박스로 구매한다. 샌드박스 구매는 TestFlight·개발 빌드·Play 라이선스 테스터만 가능해 명단이 통제됨. 통계에서는 `subscriptions.environment = 'sandbox'` 행을 제외한다(기존 컬럼, 마이그레이션 없음) |
 | PW-12 | `PLUS_GATE_ENABLED=true` 전환은 **심사 제출 전**에 한다(공개일이 아님). 선행 조건은 8.2의 측정 2건. | 꺼져 있으면 Plus 결제자도 2GB로 집행됨. 첫 결제가 가능해지기 전에 켜져 있어야 함 |
 | PW-13 | `/auth/me`의 `plan`은 집행과 **같은 만료 판정**을 쓴다. 만료 시각 뒤 여유 시간(`PLAN_EXPIRY_GRACE_SECONDS`) 동안은 Plus로 본다. 표시·집행 모두 같은 함수. | EXPIRATION 알림이 누락되면 "표시는 Plus, 집행은 무료"가 됨. 여유 시간은 갱신 알림 지연 대비 |
-| PW-14 | 복원 후: RC 응답(`CustomerInfo`)에 활성 구독이 없으면 즉시 `paywall.restoreNone`. 있으면 구매와 같은 반영 확인(최대 30초) → 반영되면 완료 화면, 안 되면 완료 화면 "반영 중"(복원 확인 안내). **SDK 결과는 대기 생략 판단에만 쓰고 Plus 부여·표시에는 쓰지 않는다(PW-1 유지).** | 복원도 웹훅을 거쳐 반영되므로 즉시 1회 조회는 대부분 "내역 없음"으로 오판. 내역 없는 사용자를 30초 기다리게 하지 않기 위해 SDK 결과로 대기만 생략 |
+| PW-14 | 복원 후: RC 응답(`CustomerInfo`)의 `entitlements.active["plus"]`가 활성이 아니면(만료 영수증만 있는 경우 포함) 즉시 `paywall.restoreNone`(B-PAYWALL-HANG, 순수 함수 `resolveRestoreOutcome`). 있으면 구매와 같은 반영 확인(최대 30초) → 반영되면 완료 화면, 안 되면 완료 화면 "반영 중"(복원 확인 안내). **SDK 결과는 대기 생략 판단에만 쓰고 Plus 부여·표시에는 쓰지 않는다(PW-1 유지).** | 복원도 웹훅을 거쳐 반영되므로 즉시 1회 조회는 대부분 "내역 없음"으로 오판. 내역 없는 사용자를 30초 기다리게 하지 않기 위해 SDK 결과로 대기만 생략 |
 | PW-15 | 구매·복원 직전 신원 대조: ① 식별 큐 대기 → ② RC `appUserID`와 서버 `user.id` 대조(대소문자 무시·공백 유지), 다르면 재 `logIn` 1회 후 재대조 → ③ 그래도 다르면 스토어 호출 전에 차단 + Sentry. 로그인 때 `logIn`이 실패한 채면 앱 복귀 때 재시도. (④ 보류) | 익명·다른 id로 산 구매는 웹훅이 사용자에 매핑하지 못해 영원히 미반영 |
 | PW-16 | 이 기기의 스토어 계정이 이미 구독 중이면(`PRODUCT_ALREADY_PURCHASED`) 실패가 아니라 `already_owned`로 보고 [구매 복원]/[닫기]를 안내한다. 복원하면 구독이 지금 계정으로 옮겨지고 이전 계정은 Plus가 해제됨을 문구로 알린다. **RevenueCat 이전 정책 = Transfer 전제**(대시보드 설정, JJ 확인 항목). 헤더의 일반 "구매 복원"에는 복원 전 확인 창을 넣지 않는다. | 2026-10-13 Android 실측: 같은 Play 계정·다른 앱 계정에서 구매 시 "실패" 안내, 복원 시 TRANSFER(A→B) 처리 |
 | PW-10 | 새 의존성 0건. 바텀시트는 앱에 이미 있는 모달 패턴으로 만든다. | 네이티브 모듈 추가는 빌드·심사 리스크 |
@@ -140,7 +141,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 
 ### 2.4 상수: `src/constants/plus.ts` (신규)
 
-`FREE_STORAGE_GB`, `PLUS_STORAGE_GB`, `PAYWALL_OFFER_TIMEOUT_MS`, `PLUS_REFLECT_INTERVAL_MS`(2초), `PLUS_REFLECT_MAX_WAIT_MS`(30초), `PLUS_REFLECT_ATTEMPT_TIMEOUT_MS`(5초), `PLUS_REFLECT_LONG_AFTER_MS`(10초). 값은 diff 보고에서 제안 → JJ 확정(반영 확인 4개는 2026-10-13 확정, 구 `PLUS_REFLECT_RETRY_COUNT` 삭제).
+`FREE_STORAGE_GB`, `PLUS_STORAGE_GB`, `PAYWALL_OFFER_TIMEOUT_MS`, `PLUS_REFLECT_INTERVAL_MS`(2초), `PLUS_REFLECT_MAX_WAIT_MS`(30초), `PLUS_REFLECT_ATTEMPT_TIMEOUT_MS`(5초), `PLUS_REFLECT_LONG_AFTER_MS`(10초), `PAYWALL_RESTORE_TIMEOUT_MS`(20초)·`PAYWALL_PURCHASE_TIMEOUT_MS`(60초, B-PAYWALL-HANG). 값은 diff 보고에서 제안 → JJ 확정(반영 확인 4개는 2026-10-13 확정, 구 `PLUS_REFLECT_RETRY_COUNT` 삭제).
 
 - 반영 확인은 **마감 시각 기준**: 시도는 2초마다 시작, 시도별 제한 5초(마지막 시도는 남은 시간으로 자름), 전체 ≤ 30초. 근거 = 구매→첫 웹훅 지연 실측 5.8 / 14.3 / 17.4 / 6.6초(2026-10-12~13)의 약 1.7배.
 - 완료 화면 "반영 중" 주기 재확인(D5-b-4): `PLUS_PENDING_RECHECK_INTERVAL_MS`(5초), `PLUS_PENDING_RECHECK_MAX_MS`(2분, 앱이 앞에 있는 동안 쓴 시간만 셈). 시도별 제한은 `PLUS_REFLECT_ATTEMPT_TIMEOUT_MS` 재사용. 같은 `waitForPlusReflected`에 `shouldContinue`로 중단 조건을 넘긴다.
@@ -189,6 +190,12 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 구매 `completed` 뒤 → 실패 안내 대신 `/plus-success` 반영 중(`reflected=0`) — "실패"를 보고 다시 결제하는 일을 막는다.
 - 복원 `restored-active` 뒤 → `/plus-success?restore=1`.
 - 완료 화면으로 넘어가지 않은 채 잠금이 풀리면 반영 확인 단계를 `idle`로 되돌린다(정상 경로의 "넘어갈 때까지 고정"은 유지).
+
+잠금 안 대화상자 금지·시간 제한(B-PAYWALL-HANG, 2026-10-20):
+- 잠금(`runLocked`, 구독 화면 `restoring`) 안에서는 **대화상자를 기다리지 않는다**. 작업은 안내 문구 키(`paywall.failed`·`identityMismatch`·`restoreNone`)만 돌려주고, 대화상자는 잠금이 풀린 뒤에 띄운다(이미 구독 중 대화상자와 같은 방식). 근거 = 10/20 iPhone 복원·구매 무한 스피너 — 시스템 시트가 닫히는 중이라 대화상자(RN `Modal`)가 안 뜨면 잠금 안의 `await`가 끝나지 않았다.
+- 시간 제한(모두 잠금은 `finally`에서 해제): 복원 전체(신원 대조 + `restorePurchases`) 20초 → `failed`, Sentry `purchases.restore` reason `timeout` / 구매 `purchasePackage` 60초 → `failed`(자격 재확인 10초는 기존 그대로, reason `timeout`) / 반영 중 화면 복원도 같은 래퍼라 20초. 공용 유틸 `src/utils/withTimeout.ts`.
+- 구매 60초 초과 뒤 거래가 끝나도 결제 화면 복귀 때 자격 확인(B-PURCHASE-ERROR-AFTER-SUCCESS ②)이 반영 확인을 시작한다.
+- 대화상자 표시(`useDialog`): 다음 프레임 → 상호작용 종료 뒤(최대 0.5초), 앱이 active 가 아니면 active 복귀 + 0.35초 뒤(`scheduleDialogPresentation`). promise 는 항상 끝난다 — 새 대화상자가 앞 것을 대체하거나 Provider 가 해제되면 앞 것은 "닫힘"(alert 완료·confirm `false`·choose `null`).
 
 구매 오류 뒤 자격 재확인(B-PURCHASE-ERROR-AFTER-SUCCESS, 2026-10-19): 결제 시트 승인 뒤 `purchasePackage` 가 거부돼도(예: "A network error has occurred") 스토어 거래는 끝났을 수 있다 — 10/19 실측 RC RENEWAL 웹훅 200·서버 Plus 반영, 앱은 실패 안내·`/auth/me` 요청 0건.
 - 구매 catch: 사용자 취소가 아닌 모든 오류에서 `Purchases.getCustomerInfo()` 1회(시간 제한 `PAYWALL_OFFER_TIMEOUT_MS`). entitlement `plus` 활성이면 `completed` 로 돌려 기존 반영 확인(`waitReflected`) → 완료 화면. 아니면·조회 실패면 기존 `paywall.failed`(문구 변경 0). 판정 = 순수 함수 `shouldRecoverAfterPurchaseError(code, customerInfo)`(`src/services/purchaseRecovery.ts`). 복구 시 `purchases.purchase` 이벤트에 tag `recovered=true`, 원래 `code` 유지.
@@ -315,7 +322,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 구매 시작·결과 | breadcrumb `purchase` + `kind` + 결과 |
 | 구매 `failed` | `captureError`, tags `area: 'paywall'`, `kind`, `source`, `reason`(`receipt_in_use`/`other`) |
 | 구매 `already_owned` | `captureMessage` **info**(알림 없음), fingerprint `['purchases-already-owned']`, tags `area`·`stage`(purchase)·`store`(apple·google). 사용자 상황이지 오류가 아니다 |
-| 복원 `failed` | `captureError` scope `purchases.restore`, tags `area`·`stage`(restore)·`reason` |
+| 복원 `failed` | `captureError` scope `purchases.restore`, tags `area`·`stage`(restore)·`reason`(`timeout` = 20초 초과, B-PAYWALL-HANG) |
 | 이미 구독 중 대화상자 선택 | breadcrumb `already-owned` + `choice`(restore·close) |
 | 업로드를 `rejected`로 버림 | `captureMessage` warning, fingerprint `upload-rejected`, tags 상태 코드·경로 종류. 파일명·사용자 식별값 금지 |
 | 업로드를 `quota`·`oversize`로 버림 | breadcrumb만. `quota`면 직접 업로드에서 용량 초과 시트(breadcrumb `sheet` + `variant: storage`) |
@@ -392,6 +399,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D9-2 | vi·th 1차 검수 반영(vi 2키 수정, ko·en·vi 마침표 6키) | app | 4개 언어 캡처 |
 | D9 | (D9-1·D9-2·D9-3으로 분할) 레거시 `plans` 정리 + vi·th 검수 반영 | app | — |
 | B-PURCHASE-ERROR-AFTER-SUCCESS | 구매 오류 뒤 RC 자격 재확인 → 반영 확인으로(§3.1), 결제 화면 포커스·복귀 시 자동 반영 확인, Sentry `recovered=true` | app | 체크리스트 28(결제 시트 승인 직후 비행기 모드) |
+| B-PAYWALL-HANG | 잠금 안 대화상자 대기 제거(결제·구독 화면) · 복원 판정 `plus` 자격만(`resolveRestoreOutcome`) · 시간 제한 복원 20초·구매 60초 · 대화상자 표시 지연(`scheduleDialogPresentation`)·promise 항상 settle | app | 체크리스트 6·28 재확인, 29(복원 중 비행기 모드) · 30(만료 영수증만 → 즉시 내역 없음) · 31(구매 중 비행기 모드 60초) |
 
 ### 8.2 운영 절차 (코드 diff 아님, 각각 게이트)
 
