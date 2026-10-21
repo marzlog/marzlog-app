@@ -24,6 +24,11 @@ describe('resolveRestoreOutcome', () => {
     expect(resolveRestoreOutcome({ kind: 'result', info: null })).toEqual({ outcome: 'restored-none' });
   });
 
+  it('기기에서 계산된 CustomerInfo(VERIFIED_ON_DEVICE) → 자격이 있어도 failed(offline)', () => {
+    const info = { entitlements: { verification: 'VERIFIED_ON_DEVICE', active: { plus: { isActive: true } } } };
+    expect(resolveRestoreOutcome({ kind: 'result', info })).toEqual({ outcome: 'failed', failure: 'offline' });
+  });
+
   it('시간 초과 → failed(timeout)', () => {
     expect(resolveRestoreOutcome({ kind: 'error', error: new TimeoutError('PAYWALL_RESTORE') })).toEqual({
       outcome: 'failed',

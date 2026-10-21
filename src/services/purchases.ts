@@ -400,7 +400,7 @@ export type { RestoreOutcome } from './purchasesRestore';
 
 /**
  * 구매 복원 — 구매와 같은 신원 대조를 먼저 한다(익명·다른 id 로 복원하면 영수증이 엉뚱한 RC 사용자에 붙는다).
- * 결과 판정은 resolveRestoreOutcome(Plus entitlement 활성만 restored-active). 신원 대조부터 복원까지 전체에
+ * 결과 판정은 resolveRestoreOutcome(Plus entitlement 활성만 restored-active, 기기 계산이면 failed — B-RESTORE-OFFLINE). 신원 대조부터 복원까지 전체에
  * PAYWALL_RESTORE_TIMEOUT_MS 시간 제한(B-PAYWALL-HANG) — 초과는 failed, Sentry reason=timeout.
  */
 export async function restorePaywallPurchases(serverUserId: string | null | undefined): Promise<RestoreOutcome> {
@@ -427,7 +427,21 @@ export async function restorePaywallPurchases(serverUserId: string | null | unde
       { tags: { area: 'paywall', stage: 'restore', reason: purchaseFailureReason(e, PURCHASES_ERROR_CODE) } },
     );
   }
-  return resolveRestoreOutcome(run).outcome;
+  if (__DEV__ && run.kind === 'result') {
+    // B-RESTORE-OFFLINE: 하이브리드 계층이 verification 을 넘기는지 dev 빌드에서 확인(식별값 없음)
+    // eslint-disable-next-line no-console
+    console.log('[paywall] restore customerInfo', {
+      verification: run.info?.entitlements?.verification ?? null,
+      plusActive: !!run.info?.entitlements?.active?.plus,
+    });
+  }
+  const resolved = resolveRestoreOutcome(run);
+  if (resolved.failure === 'offline') {
+    captureError(new Error('restore customer info computed on device'), { scope: 'purchases.restore' }, {
+      tags: { area: 'paywall', stage: 'restore', reason: 'offline' },
+    });
+  }
+  return resolved.outcome;
 }
 
 /**

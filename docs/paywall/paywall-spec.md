@@ -41,7 +41,7 @@
 | PW-11 | 서버는 샌드박스 구매 알림을 **항상 받는다**(`RC_ACCEPT_SANDBOX_EVENTS=true` 상시). 9/28 G0의 `false`를 되돌린다. | 심사는 업데이트마다 있고 심사자는 샌드박스로 구매한다. 샌드박스 구매는 TestFlight·개발 빌드·Play 라이선스 테스터만 가능해 명단이 통제됨. 통계에서는 `subscriptions.environment = 'sandbox'` 행을 제외한다(기존 컬럼, 마이그레이션 없음) |
 | PW-12 | `PLUS_GATE_ENABLED=true` 전환은 **심사 제출 전**에 한다(공개일이 아님). 선행 조건은 8.2의 측정 2건. | 꺼져 있으면 Plus 결제자도 2GB로 집행됨. 첫 결제가 가능해지기 전에 켜져 있어야 함 |
 | PW-13 | `/auth/me`의 `plan`은 집행과 **같은 만료 판정**을 쓴다. 만료 시각 뒤 여유 시간(`PLAN_EXPIRY_GRACE_SECONDS`) 동안은 Plus로 본다. 표시·집행 모두 같은 함수. | EXPIRATION 알림이 누락되면 "표시는 Plus, 집행은 무료"가 됨. 여유 시간은 갱신 알림 지연 대비 |
-| PW-14 | 복원 후: RC 응답(`CustomerInfo`)의 `entitlements.active["plus"]`가 활성이 아니면(만료 영수증만 있는 경우 포함) 즉시 `paywall.restoreNone`(B-PAYWALL-HANG, 순수 함수 `resolveRestoreOutcome`). 있으면 구매와 같은 반영 확인(최대 30초) → 반영되면 완료 화면, 안 되면 완료 화면 "반영 중"(복원 확인 안내). **SDK 결과는 대기 생략 판단에만 쓰고 Plus 부여·표시에는 쓰지 않는다(PW-1 유지).** | 복원도 웹훅을 거쳐 반영되므로 즉시 1회 조회는 대부분 "내역 없음"으로 오판. 내역 없는 사용자를 30초 기다리게 하지 않기 위해 SDK 결과로 대기만 생략 |
+| PW-14 | 복원 후: RC 응답(`CustomerInfo`)의 `entitlements.active["plus"]`가 활성이 아니면(만료 영수증만 있는 경우 포함) 즉시 `paywall.restoreNone`(B-PAYWALL-HANG, 순수 함수 `resolveRestoreOutcome`). RC 가 기기에서 계산한 응답(`VERIFIED_ON_DEVICE`)은 확정하지 않고 `failed`(B-RESTORE-OFFLINE). 있으면 구매와 같은 반영 확인(최대 30초) → 반영되면 완료 화면, 안 되면 완료 화면 "반영 중"(복원 확인 안내). **SDK 결과는 대기 생략 판단에만 쓰고 Plus 부여·표시에는 쓰지 않는다(PW-1 유지).** | 복원도 웹훅을 거쳐 반영되므로 즉시 1회 조회는 대부분 "내역 없음"으로 오판. 내역 없는 사용자를 30초 기다리게 하지 않기 위해 SDK 결과로 대기만 생략 |
 | PW-15 | 구매·복원 직전 신원 대조: ① 식별 큐 대기 → ② RC `appUserID`와 서버 `user.id` 대조(대소문자 무시·공백 유지), 다르면 재 `logIn` 1회 후 재대조 → ③ 그래도 다르면 스토어 호출 전에 차단 + Sentry. 로그인 때 `logIn`이 실패한 채면 앱 복귀 때 재시도. (④ 보류) | 익명·다른 id로 산 구매는 웹훅이 사용자에 매핑하지 못해 영원히 미반영 |
 | PW-16 | 이 기기의 스토어 계정이 이미 구독 중이면(`PRODUCT_ALREADY_PURCHASED`) 실패가 아니라 `already_owned`로 보고 [구매 복원]/[닫기]를 안내한다. 복원하면 구독이 지금 계정으로 옮겨지고 이전 계정은 Plus가 해제됨을 문구로 알린다. **RevenueCat 이전 정책 = Transfer 전제**(대시보드 설정, JJ 확인 항목). 헤더의 일반 "구매 복원"에는 복원 전 확인 창을 넣지 않는다. | 2026-10-13 Android 실측: 같은 Play 계정·다른 앱 계정에서 구매 시 "실패" 안내, 복원 시 TRANSFER(A→B) 처리 |
 | PW-10 | 새 의존성 0건. 바텀시트는 앱에 이미 있는 모달 패턴으로 만든다. | 네이티브 모듈 추가는 빌드·심사 리스크 |
@@ -400,6 +400,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | D9 | (D9-1·D9-2·D9-3으로 분할) 레거시 `plans` 정리 + vi·th 검수 반영 | app | — |
 | B-PURCHASE-ERROR-AFTER-SUCCESS | 구매 오류 뒤 RC 자격 재확인 → 반영 확인으로(§3.1), 결제 화면 포커스·복귀 시 자동 반영 확인, Sentry `recovered=true` | app | 체크리스트 28(결제 시트 승인 직후 비행기 모드) |
 | B-PAYWALL-HANG | 잠금 안 대화상자 대기 제거(결제·구독 화면) · 복원 판정 `plus` 자격만(`resolveRestoreOutcome`) · 시간 제한 복원 20초·구매 60초 · 대화상자 표시 지연(`scheduleDialogPresentation`)·promise 항상 settle | app | 체크리스트 6·28 재확인, 29(복원 중 비행기 모드) · 30(만료 영수증만 → 즉시 내역 없음) · 31(구매 중 비행기 모드 60초) |
+| B-RESTORE-OFFLINE | 복원 응답 CustomerInfo 가 기기 계산(`entitlements.verification` = `VERIFIED_ON_DEVICE`, RC 서버 5xx 때 SDK 가 로컬 거래로 계산)이면 있음·없음 대신 `failed`(failure `offline`) → `paywall.failed`, Sentry `purchases.restore` reason `offline`. `__DEV__` 로그 `[paywall] restore customerInfo`(verification·plusActive)로 하이브리드 값 전달 확인 | app | dev 빌드 복원 1회 — Metro 로그의 verification 값(`VERIFIED`·`NOT_REQUESTED`·`VERIFIED_ON_DEVICE`) 확인 |
 
 ### 8.2 운영 절차 (코드 diff 아님, 각각 게이트)
 
