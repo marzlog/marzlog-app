@@ -27,7 +27,7 @@ import {
   PLUS_REFLECT_MAX_WAIT_MS,
 } from '@src/constants/plus';
 import { PRIVACY_URL, TERMS_URL } from '@src/constants/legal';
-import { borderRadius, darkTheme, lightTheme, spacing, typography, type Theme } from '@src/theme';
+import { borderRadius, darkTheme, fontScaleCap, lightTheme, spacing, typography, type Theme } from '@src/theme';
 
 /**
  * 설정 구독 화면 (PAYWALL 명세 §3.3, 시안 04-subscription-settings.png, D6-1).
@@ -158,7 +158,7 @@ export default function SubscriptionScreen() {
       accessibilityState={{ busy: !!opts.loading }}
       style={[styles.row, !opts.last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border.light }]}
     >
-      <Text style={[styles.rowLabel, { color: theme.text.primary }]}>{label}</Text>
+      <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.rowLabel, { color: theme.text.primary }]}>{label}</Text>
       {opts.loading ? (
         <ActivityIndicator size="small" color={theme.text.secondary} />
       ) : (
@@ -173,7 +173,7 @@ export default function SubscriptionScreen() {
         <TouchableOpacity onPress={goBack} style={styles.headerTouch} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <Ionicons name="chevron-back" size={28} color={theme.icon.primary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.text.primary }]} accessibilityRole="header">
+        <Text maxFontSizeMultiplier={fontScaleCap.title} style={[styles.headerTitle, { color: theme.text.primary }]} accessibilityRole="header">
           {t('subscription.title')}
         </Text>
         <View style={styles.headerTouch} />
@@ -187,25 +187,25 @@ export default function SubscriptionScreen() {
             accessibilityRole="alert"
           >
             <Ionicons name="checkmark-circle" size={20} color={theme.text.primary} />
-            <Text style={[styles.noticeText, { color: theme.text.primary }]}>{t('subscription.restored')}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.noticeText, { color: theme.text.primary }]}>{t('subscription.restored')}</Text>
           </View>
         )}
         {/* 현재 플랜 + 저장 공간 */}
         <View style={[styles.card, { backgroundColor: theme.surface.primary, borderColor: theme.border.light }]}>
           <View style={styles.planRow}>
-            <Text style={[styles.cardLabel, { color: theme.text.secondary }]}>{t('subscription.currentPlan')}</Text>
-            <Text style={[styles.planValue, { color: theme.text.primary }]}>{tx(vm.planLabel)}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.cardLabel, { color: theme.text.secondary }]}>{t('subscription.currentPlan')}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.planValue, { color: theme.text.primary }]}>{tx(vm.planLabel)}</Text>
           </View>
           {vm.statusLines.map((line) => (
-            <Text key={line.key} style={[styles.statusLine, { color: theme.text.secondary }]}>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} key={line.key} style={[styles.statusLine, { color: theme.text.secondary }]}>
               {tx(line)}
             </Text>
           ))}
           {vm.storage && (
             <View style={styles.storageBlock}>
               <View style={styles.planRow}>
-                <Text style={[styles.cardLabel, { color: theme.text.secondary }]}>{t('subscription.storage')}</Text>
-                <Text style={[styles.storageValue, { color: theme.text.primary }]}>{tx(vm.storage.usage)}</Text>
+                <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.cardLabel, { color: theme.text.secondary }]}>{t('subscription.storage')}</Text>
+                <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.storageValue, { color: theme.text.primary }]}>{tx(vm.storage.usage)}</Text>
               </View>
               <View style={[styles.barTrack, { backgroundColor: theme.border.light }]}>
                 <View style={[styles.barFill, { backgroundColor: theme.text.primary, width: `${vm.storage.percent}%` }]} />
@@ -217,10 +217,10 @@ export default function SubscriptionScreen() {
         {/* 무료: Plus 카드 */}
         {vm.plusCard && (
           <View style={[styles.plusCard, { backgroundColor: accent.selectedCardBackground, borderColor: accent.selectedCardBorder }]}>
-            <Text style={[styles.plusTitle, { color: theme.text.primary }]}>{tx(vm.plusCard.title)}</Text>
-            <Text style={[styles.plusDesc, { color: theme.text.secondary }]}>{tx(vm.plusCard.description)}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.title} style={[styles.plusTitle, { color: theme.text.primary }]}>{tx(vm.plusCard.title)}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.plusDesc, { color: theme.text.secondary }]}>{tx(vm.plusCard.description)}</Text>
             {vm.plusCard.priceLine && (
-              <Text style={[styles.plusPrice, { color: theme.text.primary }]}>{tx(vm.plusCard.priceLine)}</Text>
+              <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.plusPrice, { color: theme.text.primary }]}>{tx(vm.plusCard.priceLine)}</Text>
             )}
             <PlusCta label={tx(vm.plusCard.cta)} onPress={openPaywall} colors={accent} />
           </View>
@@ -235,11 +235,11 @@ export default function SubscriptionScreen() {
         </View>
 
         {vm.otherStore && (
-          <Text style={[styles.note, { color: theme.text.secondary }]}>
+          <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.note, { color: theme.text.secondary }]}>
             {t(vm.otherStore.key, { store: t(vm.otherStore.storeNameKey) })}
           </Text>
         )}
-        <Text style={[styles.note, { color: theme.text.secondary }]}>{tx(vm.footnote)}</Text>
+        <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.note, { color: theme.text.secondary }]}>{tx(vm.footnote)}</Text>
       </ScrollView>
     </View>
   );

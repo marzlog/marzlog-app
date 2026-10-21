@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -12,7 +12,7 @@ import { addBreadcrumb } from '@/src/utils/sentry';
 import { loadPaywallOffer, type PaywallTrial } from '@/src/services/purchases';
 import { buildUpsellSheetVM, sheetTrialFromOffer } from '@/src/utils/plusSheetViewModel';
 import type { TextRef } from '@/src/utils/paywallViewModel';
-import { borderRadius, darkTheme, lightTheme, spacing, typography, type Theme } from '@/src/theme';
+import { borderRadius, darkTheme, fontScaleCap, lightTheme, spacing, typography, type Theme } from '@/src/theme';
 import { PlusCta } from './PlusCta';
 import { plusColors } from './plusColors';
 
@@ -25,6 +25,8 @@ import { plusColors } from './plusColors';
  * 바깥 누름·Android 뒤로가기로 닫으면 "다음에 할게요"와 같다.
  */
 const MIN_TOUCH = 44;
+/** 본문 스크롤 영역 최대 높이 = 화면 높이의 비율(B-SHEET-FONT-SCALE) — 버튼은 이 영역 밖에 고정 */
+const BODY_MAX_HEIGHT_RATIO = 0.7;
 
 export function PlusUpsellSheet() {
   const request = usePlusSheetStore((s) => s.request);
@@ -32,6 +34,7 @@ export function PlusUpsellSheet() {
   const isPlus = useAuthStore((s) => s.user?.plan === 'plus');
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const { t } = useTranslation();
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
@@ -82,42 +85,47 @@ export function PlusUpsellSheet() {
           onStartShouldSetResponder={() => true}
         >
           <View style={[styles.handle, { backgroundColor: theme.border.default }]} />
-          {/* 글자 확대에서 버튼이 화면 밖으로 밀리지 않게 내용 전체를 스크롤 */}
-          <ScrollView contentContainerStyle={styles.content} bounces={false}>
-            <Text style={[styles.brand, { color: theme.text.secondary }]}>{tx(vm.brand)}</Text>
-            <Text style={[styles.title, { color: theme.text.primary }]} accessibilityRole="header">
+          {/* B-SHEET-FONT-SCALE: 본문만 스크롤(최대 화면 높이 70%), 버튼은 스크롤 밖에 고정 — 글자 최대에서도 항상 보인다.
+              ScrollView 는 flexGrow 0 + flexShrink 1 + maxHeight 로 높이를 묶어야 내용보다 짧아져 스크롤된다 */}
+          <ScrollView
+            style={[styles.bodyScroll, { maxHeight: windowHeight * BODY_MAX_HEIGHT_RATIO }]}
+            contentContainerStyle={styles.content}
+            bounces={false}
+          >
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.brand, { color: theme.text.secondary }]}>{tx(vm.brand)}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.title} style={[styles.title, { color: theme.text.primary }]} accessibilityRole="header">
               {tx(vm.title)}
             </Text>
-            <Text style={[styles.body, { color: theme.text.secondary }]}>{tx(vm.body)}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.body, { color: theme.text.secondary }]}>{tx(vm.body)}</Text>
 
             {vm.trialNote && (
               <View style={[styles.infoBox, { backgroundColor: theme.surface.secondary }]}>
                 <Ionicons name="calendar-outline" size={20} color={theme.icon.primary} />
-                <Text style={[styles.infoText, { color: theme.text.primary }]}>{tx(vm.trialNote)}</Text>
+                <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.infoText, { color: theme.text.primary }]}>{tx(vm.trialNote)}</Text>
               </View>
             )}
 
             {vm.usage && (
               <View style={[styles.usageBox, { backgroundColor: theme.surface.secondary }]}>
                 <View style={styles.usageRow}>
-                  <Text style={[styles.usageLabel, { color: theme.text.secondary }]}>{tx(vm.usage.label)}</Text>
-                  <Text style={[styles.usageValue, { color: theme.text.primary }]}>{tx(vm.usage.value)}</Text>
+                  <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.usageLabel, { color: theme.text.secondary }]}>{tx(vm.usage.label)}</Text>
+                  <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.usageValue, { color: theme.text.primary }]}>{tx(vm.usage.value)}</Text>
                 </View>
                 <View style={[styles.barTrack, { backgroundColor: theme.border.light }]}>
                   <View style={[styles.barFill, { backgroundColor: theme.text.primary, width: `${vm.usage.percent}%` }]} />
                 </View>
               </View>
             )}
-
-            <View style={styles.buttons}>
-              <PlusCta label={tx(vm.primary.label)} onPress={onPrimary} colors={accent} />
-              {vm.secondary && (
-                <TouchableOpacity onPress={dismiss} style={styles.secondary} accessibilityRole="button">
-                  <Text style={[styles.secondaryText, { color: theme.text.secondary }]}>{tx(vm.secondary)}</Text>
-                </TouchableOpacity>
-              )}
-            </View>
           </ScrollView>
+
+          <View style={styles.buttons}>
+            <PlusCta label={tx(vm.primary.label)} onPress={onPrimary} colors={accent} />
+            {vm.secondary && (
+              <TouchableOpacity onPress={dismiss} style={styles.secondary} accessibilityRole="button">
+                <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.secondaryText, { color: theme.text.secondary }]}>{tx(vm.secondary)}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     </Modal>
@@ -140,7 +148,9 @@ const styles = StyleSheet.create({
   usageValue: { fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.bold },
   barTrack: { height: 8, borderRadius: borderRadius.full, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: borderRadius.full, minWidth: 4 },
-  buttons: { gap: spacing.xs, marginTop: spacing.sm },
+  // flexShrink: 화면이 짧아 본문 70% + 버튼이 시트 최대 높이(90%)를 넘으면 본문이 줄어든다(버튼은 잘리지 않음)
+  bodyScroll: { flexGrow: 0, flexShrink: 1 },
+  buttons: { gap: spacing.xs, marginTop: spacing.sm, paddingHorizontal: spacing.lg },
   secondary: { minHeight: MIN_TOUCH, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.medium },
 });

@@ -67,7 +67,7 @@ import {
   PLUS_REFLECT_MAX_WAIT_MS,
 } from '@src/constants/plus';
 import { PRIVACY_URL, TERMS_URL } from '@src/constants/legal';
-import { borderRadius, darkTheme, lightTheme, palette, spacing, typography, type Theme } from '@src/theme';
+import { borderRadius, darkTheme, fontScaleCap, lightTheme, palette, spacing, typography, type Theme } from '@src/theme';
 
 /**
  * Marzlog Plus 결제 화면 (PAYWALL 명세 §3.1, 시안 01-paywall.png).
@@ -383,23 +383,23 @@ export default function PaywallScreen() {
     ready ? (
       <View style={styles.disclosureBlock}>
         {ready.noChargeToday && (
-          <Text style={[styles.noCharge, { color: theme.text.primary }]}>{t('paywall.noChargeToday')}</Text>
+          <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.noCharge, { color: theme.text.primary }]}>{t('paywall.noChargeToday')}</Text>
         )}
-        <Text style={[styles.disclosure, { color: theme.text.secondary }]}>{tx(ready.disclosure)}</Text>
+        <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.disclosure, { color: theme.text.secondary }]}>{tx(ready.disclosure)}</Text>
         <View style={styles.links}>
           <TouchableOpacity
             style={styles.linkTouch}
             onPress={() => WebBrowser.openBrowserAsync(TERMS_URL)}
             accessibilityRole="link"
           >
-            <Text style={[styles.linkText, { color: theme.text.secondary }]}>{t('paywall.terms')}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.linkText, { color: theme.text.secondary }]}>{t('paywall.terms')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.linkTouch}
             onPress={() => WebBrowser.openBrowserAsync(PRIVACY_URL)}
             accessibilityRole="link"
           >
-            <Text style={[styles.linkText, { color: theme.text.secondary }]}>{t('paywall.privacy')}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.linkText, { color: theme.text.secondary }]}>{t('paywall.privacy')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -433,18 +433,18 @@ export default function PaywallScreen() {
       </View>
       <View style={styles.planMain}>
         <View style={styles.planTitleRow}>
-          <Text style={[styles.planTitle, { color: theme.text.primary }]}>{tx(plan.title)}</Text>
+          <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.planTitle, { color: theme.text.primary }]}>{tx(plan.title)}</Text>
           {plan.discount && (
             <View style={[styles.badge, { backgroundColor: accent.badgeBackground }]}>
-              <Text style={[styles.badgeText, { color: accent.badgeText }]}>{tx(plan.discount)}</Text>
+              <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.badgeText, { color: accent.badgeText }]}>{tx(plan.discount)}</Text>
             </View>
           )}
         </View>
-        {plan.perMonth && <Text style={[styles.planSub, { color: theme.text.secondary }]}>{tx(plan.perMonth)}</Text>}
+        {plan.perMonth && <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.planSub, { color: theme.text.secondary }]}>{tx(plan.perMonth)}</Text>}
       </View>
-      <Text style={[styles.planPrice, { color: theme.text.primary }]}>
+      <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.planPrice, { color: theme.text.primary }]}>
         {plan.price}
-        <Text style={[styles.planPeriod, { color: theme.text.secondary }]}> {tx(plan.period)}</Text>
+        <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.planPeriod, { color: theme.text.secondary }]}> {tx(plan.period)}</Text>
       </Text>
     </TouchableOpacity>
   );
@@ -457,9 +457,9 @@ export default function PaywallScreen() {
         const until = user?.plan_expires_at ? new Date(user.plan_expires_at).toLocaleDateString() : null;
         return (
           <View style={[styles.card, { backgroundColor: theme.surface.primary, borderColor: theme.border.light }]}>
-            <Text style={[styles.planTitle, { color: theme.text.primary }]}>{t('paywall.active')}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.planTitle, { color: theme.text.primary }]}>{t('paywall.active')}</Text>
             {until && (
-              <Text style={[styles.planSub, { color: theme.text.secondary }]}>{t('paywall.activeUntil', { date: until })}</Text>
+              <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.planSub, { color: theme.text.secondary }]}>{t('paywall.activeUntil', { date: until })}</Text>
             )}
           </View>
         );
@@ -470,9 +470,9 @@ export default function PaywallScreen() {
       case 'load-failed':
         return (
           <View style={styles.stateBox}>
-            <Text style={[styles.stateText, { color: theme.text.secondary }]}>{tx(body.message)}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.stateText, { color: theme.text.secondary }]}>{tx(body.message)}</Text>
             <TouchableOpacity onPress={loadOffer} style={styles.linkTouch} accessibilityRole="button">
-              <Text style={[styles.retryText, { color: theme.primary.default }]}>{t('paywall.retry')}</Text>
+              <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.retryText, { color: theme.primary.default }]}>{t('paywall.retry')}</Text>
             </TouchableOpacity>
           </View>
         );
@@ -503,40 +503,40 @@ export default function PaywallScreen() {
           style={[styles.headerTouch, styles.headerRight, !vm.header.restoreEnabled && styles.dimmed]}
           accessibilityRole="button"
         >
-          <Text style={[styles.restoreText, { color: theme.text.secondary }]}>{t('paywall.restore')}</Text>
+          <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.restoreText, { color: theme.text.secondary }]}>{t('paywall.restore')}</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.brandRow}>
           <Logo iconOnly size={32} color={theme.text.primary} />
-          <Text style={[styles.brand, { color: theme.text.primary }]}>{t('paywall.brand')}</Text>
+          <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.brand, { color: theme.text.primary }]}>{t('paywall.brand')}</Text>
         </View>
-        <Text style={[styles.headline, { color: theme.text.primary }]}>{t('paywall.headline')}</Text>
-        <Text style={[styles.subhead, { color: theme.text.secondary }]}>{tx(PAYWALL_SUBHEAD)}</Text>
+        <Text maxFontSizeMultiplier={fontScaleCap.title} style={[styles.headline, { color: theme.text.primary }]}>{t('paywall.headline')}</Text>
+        <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.subhead, { color: theme.text.secondary }]}>{tx(PAYWALL_SUBHEAD)}</Text>
 
         <View style={[styles.card, { backgroundColor: theme.surface.primary, borderColor: theme.border.light }]}>
           <View style={[styles.compareRow, { borderBottomColor: theme.border.light }]}>
             <View style={styles.compareLabel} />
-            <Text style={[styles.compareHead, styles.colFree, { color: theme.text.secondary }]}>{t('paywall.compare.free')}</Text>
-            <Text style={[styles.compareHead, styles.colPlus, styles.strong, { color: theme.text.primary }]}>{t('paywall.compare.plus')}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.compareHead, styles.colFree, { color: theme.text.secondary }]}>{t('paywall.compare.free')}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.compareHead, styles.colPlus, styles.strong, { color: theme.text.primary }]}>{t('paywall.compare.plus')}</Text>
           </View>
           <View style={[styles.compareRow, { borderBottomColor: theme.border.light }]}>
-            <Text style={[styles.compareLabel, { color: theme.text.primary }]}>{t('paywall.compare.diaryWrite')}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.compareLabel, { color: theme.text.primary }]}>{t('paywall.compare.diaryWrite')}</Text>
             <View style={[styles.compareCell, styles.colFree]}>{check}</View>
             <View style={[styles.compareCell, styles.colPlus]}>{check}</View>
           </View>
           <View style={[styles.compareRow, { borderBottomColor: theme.border.light }]}>
-            <Text style={[styles.compareLabel, { color: theme.text.primary }]}>{t('paywall.compare.diaryRegen')}</Text>
-            <Text style={[styles.compareCellText, styles.colFree, { color: theme.text.secondary }]}>–</Text>
-            <Text style={[styles.compareCellText, styles.colPlus, styles.strong, { color: theme.text.primary }]}>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.compareLabel, { color: theme.text.primary }]}>{t('paywall.compare.diaryRegen')}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.compareCellText, styles.colFree, { color: theme.text.secondary }]}>–</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.compareCellText, styles.colPlus, styles.strong, { color: theme.text.primary }]}>
               {t('paywall.compare.unlimited')}
             </Text>
           </View>
           <View style={[styles.compareRow, styles.compareRowLast]}>
-            <Text style={[styles.compareLabel, { color: theme.text.primary }]}>{t('paywall.compare.storage')}</Text>
-            <Text style={[styles.compareCellText, styles.colFree, { color: theme.text.secondary }]}>{tx(PAYWALL_COMPARE_STORAGE.free)}</Text>
-            <Text style={[styles.compareCellText, styles.colPlus, styles.strong, { color: theme.text.primary }]}>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.compareLabel, { color: theme.text.primary }]}>{t('paywall.compare.storage')}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.compareCellText, styles.colFree, { color: theme.text.secondary }]}>{tx(PAYWALL_COMPARE_STORAGE.free)}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.compareCellText, styles.colPlus, styles.strong, { color: theme.text.primary }]}>
               {tx(PAYWALL_COMPARE_STORAGE.plus)}
             </Text>
           </View>
@@ -554,7 +554,7 @@ export default function PaywallScreen() {
         >
           <PlusCta label={tx(ready.cta)} onPress={handlePurchase} loading={ready.locked} colors={accent} />
           {ready.status && (
-            <Text style={[styles.reflectStatus, { color: theme.text.secondary }]} accessibilityLiveRegion="polite">
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.reflectStatus, { color: theme.text.secondary }]} accessibilityLiveRegion="polite">
               {tx(ready.status)}
             </Text>
           )}

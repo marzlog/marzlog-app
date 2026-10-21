@@ -407,6 +407,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | B-PAYWALL-HANG | 잠금 안 대화상자 대기 제거(결제·구독 화면) · 복원 판정 `plus` 자격만(`resolveRestoreOutcome`) · 시간 제한 복원 20초·구매 60초 · 대화상자 표시 지연(`scheduleDialogPresentation`)·promise 항상 settle | app | 체크리스트 6·28 재확인, 29(복원 중 비행기 모드) · 30(만료 영수증만 → 즉시 내역 없음) · 31(구매 중 비행기 모드 60초) |
 | B-RESTORE-OFFLINE | 복원 응답 CustomerInfo 가 기기 계산(`entitlements.verification` = `VERIFIED_ON_DEVICE`, RC 서버 5xx 때 SDK 가 로컬 거래로 계산)이면 있음·없음 대신 `failed`(failure `offline`) → `paywall.failed`, Sentry `purchases.restore` reason `offline`. `__DEV__` 로그 `[paywall] restore customerInfo`(verification·plusActive)로 하이브리드 값 전달 확인 | app | dev 빌드 복원 1회 — Metro 로그의 verification 값(`VERIFIED`·`NOT_REQUESTED`·`VERIFIED_ON_DEVICE`) 확인 |
 | B-REFLECT-ON-RECONNECT | 네트워크 복귀(NetInfo, 연결 없음 확정 → 연결)를 자동 반영 확인 트리거에 추가(결제 화면·반영 중 화면) · 대기 중 오프라인을 겪은 미반영은 화면당 1회에 세지 않음(`countsAsAutoReflectAttempt`) · 구매 결과 미확인(`unconfirmed` = 네트워크·스토어 문제·오프라인·시간 초과)은 실패 안내 + 복귀 때 RC 캐시 비우고 조용히 자격 1회 확인 → 있으면 구매 완료 경로 | app | 체크리스트 32(구매 직후 비행기 모드 → 결제 화면 복귀 → 해제 → 자동 "결제를 확인하고 있어요" → 완료), 28 Android 재확인 |
+| B-SHEET-FONT-SCALE | 결제 관련 5곳(Plus 안내 시트 — 용량 초과·재생성 공용, 결제 화면, 완료·반영 중 화면, 구독 화면, `PlusCta`)의 모든 Text 에 `maxFontSizeMultiplier` = 공용 `fontScaleCap`(제목 1.3 · 본문·버튼 1.5, `src/theme/typography.ts`). 시트는 본문만 `ScrollView`(최대 화면 높이 70%, `flexGrow 0`·`flexShrink 1`), 버튼 2개는 스크롤 밖 고정. 결제·완료·구독 화면은 이미 스크롤 — 상한만 | app | 체크리스트 24b 재확인 · 33(글자 최대에서 두 시트·결제 화면 버튼 보임·눌림) |
 
 ### 8.2 운영 절차 (코드 diff 아님, 각각 게이트)
 

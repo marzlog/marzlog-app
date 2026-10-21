@@ -33,7 +33,7 @@ import {
   PLUS_REFLECT_INTERVAL_MS,
   PLUS_REFLECT_MAX_WAIT_MS,
 } from '@src/constants/plus';
-import { borderRadius, darkTheme, lightTheme, palette, spacing, typography, type Theme } from '@src/theme';
+import { borderRadius, darkTheme, fontScaleCap, lightTheme, palette, spacing, typography, type Theme } from '@src/theme';
 
 /**
  * 구독 시작 완료 화면 (PAYWALL 명세 §3.2, 시안 03-success.png).
@@ -237,10 +237,10 @@ export default function PlusSuccessScreen() {
         <View style={[styles.icon, { backgroundColor: theme.primary.default }]}>
           <Ionicons name={vm.icon === 'time' ? 'time-outline' : 'checkmark'} size={48} color={palette.neutral[0]} />
         </View>
-        <Text style={[styles.title, { color: theme.text.primary }]} accessibilityRole="header">
+        <Text maxFontSizeMultiplier={fontScaleCap.title} style={[styles.title, { color: theme.text.primary }]} accessibilityRole="header">
           {tx(vm.title)}
         </Text>
-        <Text style={[styles.body, { color: theme.text.secondary }]}>{tx(vm.body)}</Text>
+        <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.body, { color: theme.text.secondary }]}>{tx(vm.body)}</Text>
 
         {vm.rows.length > 0 && (
           <View style={[styles.card, { backgroundColor: theme.surface.primary, borderColor: theme.border.light }]}>
@@ -252,8 +252,8 @@ export default function PlusSuccessScreen() {
                   i < vm.rows.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.border.light },
                 ]}
               >
-                <Text style={[styles.rowLabel, { color: theme.text.secondary }]}>{tx(row.label)}</Text>
-                <Text style={[styles.rowValue, { color: theme.text.primary }]}>
+                <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.rowLabel, { color: theme.text.secondary }]}>{tx(row.label)}</Text>
+                <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.rowValue, { color: theme.text.primary }]}>
                   {typeof row.value === 'string' ? row.value : tx(row.value)}
                 </Text>
               </View>
@@ -261,9 +261,9 @@ export default function PlusSuccessScreen() {
           </View>
         )}
 
-        {vm.note && <Text style={[styles.note, { color: theme.text.secondary }]}>{tx(vm.note)}</Text>}
+        {vm.note && <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.note, { color: theme.text.secondary }]}>{tx(vm.note)}</Text>}
         {vm.pending?.notice && (
-          <Text style={[styles.note, { color: theme.text.primary }]} accessibilityLiveRegion="polite">
+          <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.note, { color: theme.text.primary }]} accessibilityLiveRegion="polite">
             {tx(vm.pending.notice)}
           </Text>
         )}
@@ -283,14 +283,14 @@ export default function PlusSuccessScreen() {
             style={[styles.manageTouch, !vm.pending.closeEnabled && styles.dimmed]}
             accessibilityRole="button"
           >
-            <Text style={[styles.manageText, { color: theme.text.secondary }]}>{t('plusSuccess.close')}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.manageText, { color: theme.text.secondary }]}>{t('plusSuccess.close')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.footer}>
           <PlusCta label={t('plusSuccess.cta')} onPress={goHome} colors={plusColors(theme, isDark)} />
           <TouchableOpacity onPress={openManage} style={styles.manageTouch} accessibilityRole="button">
-            <Text style={[styles.manageText, { color: theme.text.secondary }]}>{t('plusSuccess.manage')}</Text>
+            <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.manageText, { color: theme.text.secondary }]}>{t('plusSuccess.manage')}</Text>
           </TouchableOpacity>
         </View>
       )}

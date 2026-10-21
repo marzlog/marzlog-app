@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { borderRadius, palette, spacing, typography } from '@/src/theme';
+import { borderRadius, fontScaleCap, palette, spacing, typography } from '@/src/theme';
 import type { PlusColors } from './plusColors';
 
 /**
@@ -30,7 +30,7 @@ export function PlusCta({ label, onPress, colors, loading = false, disabled = fa
       {loading ? (
         <ActivityIndicator color={palette.neutral[0]} />
       ) : (
-        <Text style={[styles.text, { color: palette.neutral[0] }]}>{label}</Text>
+        <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.text, { color: palette.neutral[0] }]}>{label}</Text>
       )}
     </TouchableOpacity>
   );
