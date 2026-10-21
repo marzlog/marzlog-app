@@ -20,7 +20,7 @@ import {
   type IdentityVerdict,
 } from './purchasesIdentity';
 import { resolveRestoreOutcome, type RestoreOutcome, type RestoreRun } from './purchasesRestore';
-import { classifyPurchaseError, purchaseFailureReason } from './purchaseErrors';
+import { classifyPurchaseError, isUnconfirmedPurchaseError, purchaseFailureReason } from './purchaseErrors';
 import { hasPlusEntitlement, shouldRecoverAfterPurchaseError } from './purchaseRecovery';
 import { PAYWALL_OFFERING_ID, pickPaywallPackages, type PaywallPlanKind } from './paywallPackages';
 import { annualDiscountPercent, trialPeriodToDays } from './paywallOffer';
@@ -310,8 +310,10 @@ export async function loadPaywallOffer(): Promise<PaywallOfferResult> {
 /**
  * identity_mismatch = 신원 대조 차단(구매 시트를 띄우지 않았다)
  * already_owned = 이 기기의 스토어 계정이 이미 구독 중(PRODUCT_ALREADY_PURCHASED) → 화면이 복원을 안내(D5-c)
+ * unconfirmed = 네트워크·스토어 문제·시간 초과로 결과를 못 받음 → 화면은 failed 와 같은 안내 + 네트워크 복귀 때 조용히 재확인
+ *   (B-REFLECT-ON-RECONNECT)
  */
-export type PurchaseOutcome = 'completed' | 'cancelled' | 'failed' | 'identity_mismatch' | 'already_owned';
+export type PurchaseOutcome = 'completed' | 'cancelled' | 'failed' | 'unconfirmed' | 'identity_mismatch' | 'already_owned';
 
 /** Sentry tag store — 현재 기기의 스토어 */
 const deviceStore = (): 'apple' | 'google' => (Platform.OS === 'ios' ? 'apple' : 'google');
@@ -367,7 +369,7 @@ export async function purchasePaywallPlan(
       { scope: 'purchases.purchase', kind, code: e?.code },
       { tags: { ...tags, reason: purchaseFailureReason(e, PURCHASES_ERROR_CODE) } },
     );
-    return 'failed';
+    return isUnconfirmedPurchaseError(e, PURCHASES_ERROR_CODE) ? 'unconfirmed' : 'failed';
   }
 }
 
@@ -394,6 +396,20 @@ export async function hasPlusEntitlementForUser(serverUserId: string | null | un
     return false;
   }
   return hasPlusEntitlement(await readCustomerInfo());
+}
+
+/**
+ * 네트워크 복귀 때(B-REFLECT-ON-RECONNECT): RC 캐시를 비우고 자격을 다시 읽는다. 오프라인 동안 받은 CustomerInfo 가
+ * 캐시에 남아 있으면 복귀 직후 getCustomerInfo 가 그 값을 돌려준다(최대 5분). 캐시 비우기 실패는 무시하고 읽는다.
+ */
+export async function hasPlusEntitlementForUserFresh(serverUserId: string | null | undefined): Promise<boolean> {
+  if (!configured) return false;
+  try {
+    await Purchases.invalidateCustomerInfoCache();
+  } catch {
+    // 아래 읽기는 캐시 값일 수 있다 — 다음 복귀·포커스에서 다시 본다
+  }
+  return hasPlusEntitlementForUser(serverUserId);
 }
 
 export type { RestoreOutcome } from './purchasesRestore';

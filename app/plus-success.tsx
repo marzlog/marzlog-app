@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
+import { isNetworkRestored, isOnline } from '@src/services/reconnectRecheck';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useReturnHome } from '@src/hooks/useReturnHome';
@@ -162,6 +164,20 @@ export default function PlusSuccessScreen() {
     });
     return () => sub.remove();
   }, [refreshOnce, startRecheck]);
+
+  // B-REFLECT-ON-RECONNECT: 네트워크 복귀도 앱 복귀와 같게 — 오프라인 동안 재확인 시간을 다 써도 복귀 때 1회는 다시 읽는다
+  const lastOnlineRef = useRef<boolean | null>(null);
+  useEffect(
+    () =>
+      NetInfo.addEventListener((state) => {
+        const online = isOnline(state);
+        const restored = isNetworkRestored(lastOnlineRef.current, online);
+        if (online !== null) lastOnlineRef.current = online;
+        if (!restored || !pendingRef.current) return;
+        if (!startRecheck()) refreshOnce();
+      }),
+    [refreshOnce, startRecheck],
+  );
 
   const goHome = returnHome;
 

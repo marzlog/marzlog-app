@@ -36,6 +36,18 @@ export function classifyPurchaseError(e: unknown, codes: PurchaseErrorCodes): Pu
   return 'failed';
 }
 
+/** 결과 미확인 계열 — 시트 승인 뒤 거래가 끝났을 수 있다(B-REFLECT-ON-RECONNECT: 네트워크 복귀 때 조용히 재확인) */
+export type UnconfirmedErrorCodes = Pick<
+  typeof PURCHASES_ERROR_CODE,
+  'NETWORK_ERROR' | 'STORE_PROBLEM_ERROR' | 'OFFLINE_CONNECTION_ERROR'
+>;
+
+export function isUnconfirmedPurchaseError(e: unknown, codes: UnconfirmedErrorCodes): boolean {
+  if (isTimeoutError(e)) return true;
+  const code = codeOf(e);
+  return code === codes.NETWORK_ERROR || code === codes.STORE_PROBLEM_ERROR || code === codes.OFFLINE_CONNECTION_ERROR;
+}
+
 export function purchaseFailureReason(e: unknown, codes: PurchaseErrorCodes): PurchaseFailureReason {
   if (isTimeoutError(e)) return 'timeout';
   const code = codeOf(e);

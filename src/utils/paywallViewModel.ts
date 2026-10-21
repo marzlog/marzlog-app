@@ -223,6 +223,7 @@ export function resolvePurchaseFollowUp(outcome: PurchaseOutcome): PurchaseFollo
       return 'alert-identity';
     case 'already_owned':
       return 'offer-restore';
+    // unconfirmed(결과 미확인)도 안내는 실패와 같다 — 네트워크 복귀 재확인은 화면이 따로 건다(B-REFLECT-ON-RECONNECT)
     default:
       return 'alert-failed';
   }

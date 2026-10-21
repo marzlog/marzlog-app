@@ -16,6 +16,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect, usePreventRemove } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
+import NetInfo from '@react-native-community/netinfo';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@src/store/settingsStore';
 import { useAuthStore } from '@src/store/authStore';
@@ -27,12 +28,14 @@ import { plusColors } from '@/src/components/plus/plusColors';
 import { addBreadcrumb, captureError, captureMessage } from '@/src/utils/sentry';
 import {
   hasPlusEntitlementForUser,
+  hasPlusEntitlementForUserFresh,
   loadPaywallOffer,
   purchasePaywallPlan,
   type PaywallOfferResult,
   type PaywallPlanKind,
 } from '@src/services/purchases';
 import { shouldCheckEntitlementOnResume } from '@src/services/purchaseRecovery';
+import { countsAsAutoReflectAttempt, isNetworkRestored, isOnline } from '@src/services/reconnectRecheck';
 import {
   PAYWALL_COMPARE_STORAGE,
   PAYWALL_DEFAULT_PLAN,
@@ -218,6 +221,9 @@ export default function PaywallScreen() {
       addBreadcrumb('paywall', 'purchase', { kind, phase: 'start', source });
       const outcome = await purchasePaywallPlan(kind, useAuthStore.getState().user?.id, source);
       addBreadcrumb('paywall', 'purchase', { kind, outcome, source });
+      // B-REFLECT-ON-RECONNECT: 결과를 못 받았으면(네트워크·스토어 문제·시간 초과) 안내는 실패와 같고, 네트워크 복귀 때 조용히 재확인
+      unconfirmedPurchaseRef.current =
+        outcome === 'unconfirmed' ? { kind, trial: plan?.trial.eligible === true, price: plan?.priceString ?? '' } : null;
       const followUp = resolvePurchaseFollowUp(outcome);
       if (followUp === 'none') return;
       // 구매 시트는 뜨지 않았다. 기록(tags reason)은 래퍼가 한 번 남겼다
@@ -258,30 +264,63 @@ export default function PaywallScreen() {
 
   // B-PURCHASE-ERROR-AFTER-SUCCESS ②: 결제 화면 포커스·앱 복귀 때 RC 에 Plus 자격이 있는데 서버가 아직 free 면
   // 기존 반영 확인(waitReflected)을 자동으로 시작한다. 화면당 1회(미반영이 계속돼도 복귀마다 30초 잠그지 않게)
+  // B-REFLECT-ON-RECONNECT: 네트워크 복귀도 트리거(빠른 설정에서 비행기 모드를 끄면 포커스·AppState 변화가 없다).
+  // 대기 중 오프라인을 겪고 미반영이면 1회에 세지 않고 결제 화면에 남는다 → 다음 복귀 때 다시 시도
   const autoReflectDoneRef = useRef(false);
-  const autoReflectIfEntitled = useCallback(async (trigger: 'focus' | 'foreground') => {
-    const canCheck = () => {
-      const auth = useAuthStore.getState();
-      return shouldCheckEntitlementOnResume({
-        isAuthenticated: auth.isAuthenticated,
-        isPlus: auth.user?.plan === 'plus',
-        busy: busyRef.current,
-        autoReflectDone: autoReflectDoneRef.current,
-      });
-    };
-    if (!canCheck()) return;
-    const entitled = await hasPlusEntitlementForUser(useAuthStore.getState().user?.id);
-    if (!entitled || !canCheck()) return;
+  const offlineSeenRef = useRef(false);
+  const lastOnlineRef = useRef<boolean | null>(null);
+  // 결과를 못 받은 구매(unconfirmed) — 네트워크 복귀 때 조용한 재확인 대상. 자격이 확인되면 구매 완료 경로로
+  const unconfirmedPurchaseRef = useRef<{ kind: PaywallPlanKind; trial: boolean; price: string } | null>(null);
+  const canAutoCheck = () => {
+    const auth = useAuthStore.getState();
+    return shouldCheckEntitlementOnResume({
+      isAuthenticated: auth.isAuthenticated,
+      isPlus: auth.user?.plan === 'plus',
+      busy: busyRef.current,
+      autoReflectDone: autoReflectDoneRef.current,
+    });
+  };
+  const autoReflectIfEntitled = useCallback(async (trigger: 'focus' | 'foreground' | 'reconnect') => {
+    if (!canAutoCheck()) return;
+    const userId = useAuthStore.getState().user?.id;
+    const entitled = trigger === 'reconnect' ? await hasPlusEntitlementForUserFresh(userId) : await hasPlusEntitlementForUser(userId);
+    if (!entitled || !canAutoCheck()) return;
     autoReflectDoneRef.current = true;
     addBreadcrumb('paywall', 'auto-reflect', { trigger, source });
     await runLocked(async (progress) => {
       progress.current = { stage: 'restore-active' };
+      offlineSeenRef.current = false;
       const reflected = await waitReflected();
+      if (!countsAsAutoReflectAttempt({ reflected, offlineDuringWait: offlineSeenRef.current })) {
+        autoReflectDoneRef.current = false;
+        addBreadcrumb('paywall', 'auto-reflect-offline', { trigger, source });
+        return;
+      }
       const target = autoReflectExitTarget(reflected);
       goToSuccess(target.params, target.pathname);
     });
     // runLocked·waitReflected 는 매 렌더 새로 만들어지지만 ref·스토어만 읽는다
   }, [source]);
+
+  // 네트워크 복귀: 결과를 못 받은 구매가 있으면 조용히(스피너 없이) 자격 1회 확인 → 있으면 구매 완료 경로, 없으면 자동 반영 확인
+  const recheckOnReconnect = useCallback(async () => {
+    const pendingPurchase = unconfirmedPurchaseRef.current;
+    if (!pendingPurchase) {
+      await autoReflectIfEntitled('reconnect');
+      return;
+    }
+    if (!canAutoCheck()) return;
+    const entitled = await hasPlusEntitlementForUserFresh(useAuthStore.getState().user?.id);
+    addBreadcrumb('paywall', 'reconnect-recheck', { entitled, source });
+    if (!entitled || !canAutoCheck() || unconfirmedPurchaseRef.current !== pendingPurchase) return;
+    unconfirmedPurchaseRef.current = null;
+    autoReflectDoneRef.current = true;
+    await runLocked(async (progress) => {
+      progress.current = { stage: 'purchase-completed', ...pendingPurchase };
+      const reflected = await waitReflected();
+      goToSuccess(toPlusSuccessRouteParams({ ...pendingPurchase, reflected }));
+    });
+  }, [autoReflectIfEntitled, source]);
 
   useFocusEffect(
     useCallback(() => {
@@ -295,6 +334,18 @@ export default function PaywallScreen() {
     });
     return () => sub.remove();
   }, [autoReflectIfEntitled]);
+
+  useEffect(
+    () =>
+      NetInfo.addEventListener((state) => {
+        const online = isOnline(state);
+        if (online === false) offlineSeenRef.current = true;
+        const restored = isNetworkRestored(lastOnlineRef.current, online);
+        if (online !== null) lastOnlineRef.current = online;
+        if (restored) recheckOnReconnect();
+      }),
+    [recheckOnReconnect],
+  );
 
   const handleRestore = () =>
     runLocked(async (progress) => {

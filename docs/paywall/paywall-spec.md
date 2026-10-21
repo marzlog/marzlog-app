@@ -195,6 +195,11 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 잠금(`runLocked`, 구독 화면 `restoring`) 안에서는 **대화상자를 기다리지 않는다**. 작업은 안내 문구 키(`paywall.failed`·`identityMismatch`·`restoreNone`)만 돌려주고, 대화상자는 잠금이 풀린 뒤에 띄운다(이미 구독 중 대화상자와 같은 방식). 근거 = 10/20 iPhone 복원·구매 무한 스피너 — 시스템 시트가 닫히는 중이라 대화상자(RN `Modal`)가 안 뜨면 잠금 안의 `await`가 끝나지 않았다.
 - 시간 제한(모두 잠금은 `finally`에서 해제): 복원 전체(신원 대조 + `restorePurchases`) 20초 → `failed`, Sentry `purchases.restore` reason `timeout` / 구매 `purchasePackage` 60초 → `failed`(자격 재확인 10초는 기존 그대로, reason `timeout`) / 반영 중 화면 복원도 같은 래퍼라 20초. 공용 유틸 `src/utils/withTimeout.ts`.
 - 구매 60초 초과 뒤 거래가 끝나도 결제 화면 복귀 때 자격 확인(B-PURCHASE-ERROR-AFTER-SUCCESS ②)이 반영 확인을 시작한다.
+
+네트워크 복귀 재확인(B-REFLECT-ON-RECONNECT, 2026-10-21):
+- 근거 = Android 실기: 결제 시트 승인 직후 비행기 모드 5초 → 실패 안내 → 해제. Google 결제·RC `INITIAL_PURCHASE`(4초 뒤)·서버 Plus 반영은 끝났지만 앱 `/auth/me` 재조회 0건 — 빠른 설정에서 비행기 모드를 끄는 것은 포커스·AppState 변화가 아니다.
+- 결제 화면: NetInfo 가 "연결 없음 확정 → 연결"로 바뀌면 ① 결과 미확인 구매(`unconfirmed`)가 있으면 RC 캐시를 비우고(`invalidateCustomerInfoCache`) 자격 1회 조용히 확인 → 있으면 구매 완료 경로(반영 확인 → `/plus-success`) ② 없으면 자동 반영 확인(포커스·복귀와 같은 조건, 캐시 비운 뒤 읽기). 반영 확인 대기 중 오프라인을 겪고 미반영이면 화면당 1회에 세지 않고 결제 화면에 남는다.
+- 반영 중 화면: 네트워크 복귀를 앱 복귀와 같게 — 남은 재확인 시간이 있으면 이어 가고, 없으면 1회 재조회.
 - 대화상자 표시(`useDialog`): 다음 프레임 → 상호작용 종료 뒤(최대 0.5초), 앱이 active 가 아니면 active 복귀 + 0.35초 뒤(`scheduleDialogPresentation`). promise 는 항상 끝난다 — 새 대화상자가 앞 것을 대체하거나 Provider 가 해제되면 앞 것은 "닫힘"(alert 완료·confirm `false`·choose `null`).
 
 구매 오류 뒤 자격 재확인(B-PURCHASE-ERROR-AFTER-SUCCESS, 2026-10-19): 결제 시트 승인 뒤 `purchasePackage` 가 거부돼도(예: "A network error has occurred") 스토어 거래는 끝났을 수 있다 — 10/19 실측 RC RENEWAL 웹훅 200·서버 Plus 반영, 앱은 실패 안내·`/auth/me` 요청 0건.
@@ -401,6 +406,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | B-PURCHASE-ERROR-AFTER-SUCCESS | 구매 오류 뒤 RC 자격 재확인 → 반영 확인으로(§3.1), 결제 화면 포커스·복귀 시 자동 반영 확인, Sentry `recovered=true` | app | 체크리스트 28(결제 시트 승인 직후 비행기 모드) |
 | B-PAYWALL-HANG | 잠금 안 대화상자 대기 제거(결제·구독 화면) · 복원 판정 `plus` 자격만(`resolveRestoreOutcome`) · 시간 제한 복원 20초·구매 60초 · 대화상자 표시 지연(`scheduleDialogPresentation`)·promise 항상 settle | app | 체크리스트 6·28 재확인, 29(복원 중 비행기 모드) · 30(만료 영수증만 → 즉시 내역 없음) · 31(구매 중 비행기 모드 60초) |
 | B-RESTORE-OFFLINE | 복원 응답 CustomerInfo 가 기기 계산(`entitlements.verification` = `VERIFIED_ON_DEVICE`, RC 서버 5xx 때 SDK 가 로컬 거래로 계산)이면 있음·없음 대신 `failed`(failure `offline`) → `paywall.failed`, Sentry `purchases.restore` reason `offline`. `__DEV__` 로그 `[paywall] restore customerInfo`(verification·plusActive)로 하이브리드 값 전달 확인 | app | dev 빌드 복원 1회 — Metro 로그의 verification 값(`VERIFIED`·`NOT_REQUESTED`·`VERIFIED_ON_DEVICE`) 확인 |
+| B-REFLECT-ON-RECONNECT | 네트워크 복귀(NetInfo, 연결 없음 확정 → 연결)를 자동 반영 확인 트리거에 추가(결제 화면·반영 중 화면) · 대기 중 오프라인을 겪은 미반영은 화면당 1회에 세지 않음(`countsAsAutoReflectAttempt`) · 구매 결과 미확인(`unconfirmed` = 네트워크·스토어 문제·오프라인·시간 초과)은 실패 안내 + 복귀 때 RC 캐시 비우고 조용히 자격 1회 확인 → 있으면 구매 완료 경로 | app | 체크리스트 32(구매 직후 비행기 모드 → 결제 화면 복귀 → 해제 → 자동 "결제를 확인하고 있어요" → 완료), 28 Android 재확인 |
 
 ### 8.2 운영 절차 (코드 diff 아님, 각각 게이트)
 
