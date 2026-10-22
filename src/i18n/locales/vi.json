@@ -830,6 +830,7 @@
     "ctaTrialGeneric": "Bắt đầu dùng thử miễn phí",
     "reflecting": "Đang xác nhận thanh toán",
     "reflectingLong": "Việc này mất thêm một chút thời gian. Vui lòng chờ trong giây lát.",
+    "unconfirmedPending": "Đang kiểm tra — sẽ tự động xác nhận khi có kết nối",
     "identityMismatch": "Không thể xác minh tài khoản. Vui lòng mở lại ứng dụng và thử lại.",
     "alreadyOwnedTitle": "Tài khoản cửa hàng này đã đăng ký Plus",
     "alreadyOwned": "Tài khoản {{store}} trên thiết bị này đã có gói Plus. Nhấn 'Khôi phục giao dịch' để chuyển gói sang tài khoản bạn đang đăng nhập. Tài khoản được liên kết trước đó sẽ không còn Plus."

@@ -200,6 +200,14 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 근거 = Android 실기: 결제 시트 승인 직후 비행기 모드 5초 → 실패 안내 → 해제. Google 결제·RC `INITIAL_PURCHASE`(4초 뒤)·서버 Plus 반영은 끝났지만 앱 `/auth/me` 재조회 0건 — 빠른 설정에서 비행기 모드를 끄는 것은 포커스·AppState 변화가 아니다.
 - 결제 화면: NetInfo 가 "연결 없음 확정 → 연결"로 바뀌면 ① 결과 미확인 구매(`unconfirmed`)가 있으면 RC 캐시를 비우고(`invalidateCustomerInfoCache`) 자격 1회 조용히 확인 → 있으면 구매 완료 경로(반영 확인 → `/plus-success`) ② 없으면 자동 반영 확인(포커스·복귀와 같은 조건, 캐시 비운 뒤 읽기). 반영 확인 대기 중 오프라인을 겪고 미반영이면 화면당 1회에 세지 않고 결제 화면에 남는다.
 - 반영 중 화면: 네트워크 복귀를 앱 복귀와 같게 — 남은 재확인 시간이 있으면 이어 가고, 없으면 1회 재조회.
+
+결과 미확인 구매 경쟁(B-UNCONFIRMED-RACE, 2026-10-22 — 위 ①②를 대체):
+- 근거 = iPhone 실기(`321fd4a`, 07:49 KST): 월간 → Apple 완료 → 비행기 모드 ON 5초 → OFF → 스피너가 풀리고 버튼 복귀("결제를 확인하고 있어요" 없음) → 자동으로 구독 화면 → 그 위에 "완료하지 못했어요" 대화상자. 원인 ① `unconfirmed` 도 실패 안내를 바로 예약했고, 앱이 inactive(제어 센터)라 표시가 active 복귀 + 0.35초 뒤로 미뤄졌다 — 전역 대화상자라 이동한 구독 화면 위에 떴다 ② 포그라운드 복귀(AppState `active`)의 자동 반영 확인(→ `/subscription`)과 네트워크 복귀의 미확인 재확인(→ `/plus-success`)이 둘 다 등록돼 있었고, 자동 반영 확인은 미확인 구매를 보지 않았다 — 먼저 잠금을 잡은 쪽(자동 반영 확인)이 이겼다 ③ 반영 확인이 첫 조회에서 바로 Plus 라 "결제를 확인하고 있어요"가 보일 틈이 없었고, 그 전 구간은 잠금이 풀린 실패 경로였다.
+- `unconfirmed` 는 실패 안내 대신 CTA 아래 문구 `paywall.unconfirmedPending`("확인 중 — 연결되면 자동으로 확인해요"), 잠금 없음(버튼·복원 활성). `resolvePurchaseFollowUp` → `await-confirmation`.
+- 포커스·포그라운드 복귀·네트워크 복귀는 한 경로(`resolveRecheckRoute`): 미확인 구매가 있으면 그 재확인만(자동 반영 확인 건너뜀), 연결 없음 확정이면 다음 복귀까지 대기, 확인 진행 중이면 뒤 트리거는 건너뜀.
+- 재확인(`checkPlusEntitlementForUserFresh` — RC 캐시 비우고 1회): 있음 → "결제를 확인하고 있어요" → `/plus-success`(구매 상품 그대로) / 없음 → 그때 `paywall.failed` 1회 / 확인 불가(읽기 실패·시간 초과·`VERIFIED_ON_DEVICE`) → 문구 유지, 다음 복귀 때 다시(`resolveUnconfirmedRecheck`).
+- 미확인 대기 중 다른 경로로 서버 plan 이 plus 가 되면 구독 화면 대신 `/plus-success`(reflected).
+- 완료 화면 이동이 정해지면(`goToSuccess`) 표시 대기 중인 안내는 취소 — `alert(…, { signal })`, abort 면 예약 취소·떠 있으면 닫힘(`scheduleDialogPresentation` signal).
 - 대화상자 표시(`useDialog`): 다음 프레임 → 상호작용 종료 뒤(최대 0.5초), 앱이 active 가 아니면 active 복귀 + 0.35초 뒤(`scheduleDialogPresentation`). promise 는 항상 끝난다 — 새 대화상자가 앞 것을 대체하거나 Provider 가 해제되면 앞 것은 "닫힘"(alert 완료·confirm `false`·choose `null`).
 
 구매 오류 뒤 자격 재확인(B-PURCHASE-ERROR-AFTER-SUCCESS, 2026-10-19): 결제 시트 승인 뒤 `purchasePackage` 가 거부돼도(예: "A network error has occurred") 스토어 거래는 끝났을 수 있다 — 10/19 실측 RC RENEWAL 웹훅 200·서버 Plus 반영, 앱은 실패 안내·`/auth/me` 요청 0건.
@@ -407,6 +415,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | B-PAYWALL-HANG | 잠금 안 대화상자 대기 제거(결제·구독 화면) · 복원 판정 `plus` 자격만(`resolveRestoreOutcome`) · 시간 제한 복원 20초·구매 60초 · 대화상자 표시 지연(`scheduleDialogPresentation`)·promise 항상 settle | app | 체크리스트 6·28 재확인, 29(복원 중 비행기 모드) · 30(만료 영수증만 → 즉시 내역 없음) · 31(구매 중 비행기 모드 60초) |
 | B-RESTORE-OFFLINE | 복원 응답 CustomerInfo 가 기기 계산(`entitlements.verification` = `VERIFIED_ON_DEVICE`, RC 서버 5xx 때 SDK 가 로컬 거래로 계산)이면 있음·없음 대신 `failed`(failure `offline`) → `paywall.failed`, Sentry `purchases.restore` reason `offline`. `__DEV__` 로그 `[paywall] restore customerInfo`(verification·plusActive)로 하이브리드 값 전달 확인 | app | dev 빌드 복원 1회 — Metro 로그의 verification 값(`VERIFIED`·`NOT_REQUESTED`·`VERIFIED_ON_DEVICE`) 확인 |
 | B-REFLECT-ON-RECONNECT | 네트워크 복귀(NetInfo, 연결 없음 확정 → 연결)를 자동 반영 확인 트리거에 추가(결제 화면·반영 중 화면) · 대기 중 오프라인을 겪은 미반영은 화면당 1회에 세지 않음(`countsAsAutoReflectAttempt`) · 구매 결과 미확인(`unconfirmed` = 네트워크·스토어 문제·오프라인·시간 초과)은 실패 안내 + 복귀 때 RC 캐시 비우고 조용히 자격 1회 확인 → 있으면 구매 완료 경로 | app | 체크리스트 32(구매 직후 비행기 모드 → 결제 화면 복귀 → 해제 → 자동 "결제를 확인하고 있어요" → 완료), 28 Android 재확인 |
+| B-UNCONFIRMED-RACE | 결과 미확인 구매는 실패 안내 대신 "확인 중" 문구(`paywall.unconfirmedPending`, 4개 언어) · 포커스·포그라운드·네트워크 복귀 트리거 단일화(`resolveRecheckRoute` — 미확인 재확인 우선, 연결 없음·진행 중 건너뜀) · 재확인 3분기(`resolveUnconfirmedRecheck` — 있음 → 완료 화면 / 없음 → 실패 안내 1회 / 확인 불가 → 대기) · 완료 화면 이동 시 대기 중 안내 취소(`alert` signal) | app | 체크리스트 28·32 iPhone 재확인 — 구독 화면이 아니라 완료 화면, 실패 대화상자 없음 |
 | B-SHEET-FONT-SCALE | 결제 관련 5곳(Plus 안내 시트 — 용량 초과·재생성 공용, 결제 화면, 완료·반영 중 화면, 구독 화면, `PlusCta`)의 모든 Text 에 `maxFontSizeMultiplier` = 공용 `fontScaleCap`(제목 1.3 · 본문·버튼 1.5, `src/theme/typography.ts`). 시트는 본문만 `ScrollView`(최대 화면 높이 70%, `flexGrow 0`·`flexShrink 1`), 버튼 2개는 스크롤 밖 고정. 결제·완료·구독 화면은 이미 스크롤 — 상한만 | app | 체크리스트 24b 재확인 · 33(글자 최대에서 두 시트·결제 화면 버튼 보임·눌림) |
 
 ### 8.2 운영 절차 (코드 diff 아님, 각각 게이트)

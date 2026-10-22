@@ -6,6 +6,7 @@
  *  - 앱이 active 가 아니면(시트가 떠 있는 동안 inactive) active 로 돌아온 뒤 AFTER_ACTIVE_DELAY_MS 를 더 기다린다.
  *  - 상호작용 종료가 오지 않아도(핸들 누수) INTERACTIONS_FALLBACK_MS 뒤에는 표시한다.
  * 돌려주는 함수로 예약을 취소한다(새 대화상자가 앞 예약을 대체할 때·Provider 해제 때).
+ * signal 을 넘기면 abort 때도 취소된다 — 표시 전에 안내가 무의미해진 경우(B-UNCONFIRMED-RACE: 재확인 성공 뒤 실패 안내).
  */
 export const DIALOG_AFTER_ACTIVE_DELAY_MS = 350;
 export const DIALOG_INTERACTIONS_FALLBACK_MS = 500;
@@ -20,10 +21,11 @@ export interface DialogPresentationDeps {
   delay: (ms: number, cb: () => void) => void;
 }
 
-export function scheduleDialogPresentation(show: () => void, deps: DialogPresentationDeps): () => void {
-  let cancelled = false;
+export function scheduleDialogPresentation(show: () => void, deps: DialogPresentationDeps, signal?: AbortSignal): () => void {
+  let cancelled = signal?.aborted === true;
   let done = false;
   let unsubscribe: (() => void) | null = null;
+  if (cancelled) return () => {};
 
   const present = () => {
     if (cancelled || done) return;
@@ -51,9 +53,12 @@ export function scheduleDialogPresentation(show: () => void, deps: DialogPresent
     afterFrame();
   }
 
-  return () => {
+  const cancel = () => {
     cancelled = true;
     unsubscribe?.();
     unsubscribe = null;
+    signal?.removeEventListener('abort', cancel);
   };
+  signal?.addEventListener('abort', cancel);
+  return cancel;
 }

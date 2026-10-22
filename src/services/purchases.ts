@@ -19,7 +19,8 @@ import {
   verifyPurchaseIdentity,
   type IdentityVerdict,
 } from './purchasesIdentity';
-import { resolveRestoreOutcome, type RestoreOutcome, type RestoreRun } from './purchasesRestore';
+import { isComputedOnDevice, resolveRestoreOutcome, type RestoreOutcome, type RestoreRun } from './purchasesRestore';
+import type { EntitlementCheck } from './reconnectRecheck';
 import { classifyPurchaseError, isUnconfirmedPurchaseError, purchaseFailureReason } from './purchaseErrors';
 import { hasPlusEntitlement, shouldRecoverAfterPurchaseError } from './purchaseRecovery';
 import { PAYWALL_OFFERING_ID, pickPaywallPackages, type PaywallPlanKind } from './paywallPackages';
@@ -310,8 +311,8 @@ export async function loadPaywallOffer(): Promise<PaywallOfferResult> {
 /**
  * identity_mismatch = 신원 대조 차단(구매 시트를 띄우지 않았다)
  * already_owned = 이 기기의 스토어 계정이 이미 구독 중(PRODUCT_ALREADY_PURCHASED) → 화면이 복원을 안내(D5-c)
- * unconfirmed = 네트워크·스토어 문제·시간 초과로 결과를 못 받음 → 화면은 failed 와 같은 안내 + 네트워크 복귀 때 조용히 재확인
- *   (B-REFLECT-ON-RECONNECT)
+ * unconfirmed = 네트워크·스토어 문제·시간 초과로 결과를 못 받음 → 화면은 실패 안내 대신 "확인 중" 문구, 네트워크 복귀 때 재확인
+ *   (B-REFLECT-ON-RECONNECT · B-UNCONFIRMED-RACE)
  */
 export type PurchaseOutcome = 'completed' | 'cancelled' | 'failed' | 'unconfirmed' | 'identity_mismatch' | 'already_owned';
 
@@ -410,6 +411,28 @@ export async function hasPlusEntitlementForUserFresh(serverUserId: string | null
     // 아래 읽기는 캐시 값일 수 있다 — 다음 복귀·포커스에서 다시 본다
   }
   return hasPlusEntitlementForUser(serverUserId);
+}
+
+/**
+ * 결과 미확인 구매의 재확인(B-UNCONFIRMED-RACE): RC 캐시를 비우고 자격을 읽되, 읽기 실패·기기 계산은 '없음'이 아니라 unknown —
+ * 연결 직후 아직 통신이 안 되는 순간에 실패 안내를 띄우지 않게. 다른 사용자면 none(이 사용자의 구매로 볼 수 없다)
+ */
+export async function checkPlusEntitlementForUserFresh(serverUserId: string | null | undefined): Promise<EntitlementCheck> {
+  if (!configured || !normalizeAppUserId(serverUserId)) return 'unknown';
+  try {
+    await Purchases.invalidateCustomerInfoCache();
+  } catch {
+    // 아래 읽기가 캐시 값이면 기기 계산 여부로 거른다
+  }
+  try {
+    await identityQueue;
+    if (normalizeAppUserId(await Purchases.getAppUserID()) !== normalizeAppUserId(serverUserId)) return 'none';
+  } catch {
+    return 'unknown';
+  }
+  const info = await readCustomerInfo();
+  if (!info || isComputedOnDevice(info)) return 'unknown';
+  return hasPlusEntitlement(info) ? 'active' : 'none';
 }
 
 export type { RestoreOutcome } from './purchasesRestore';

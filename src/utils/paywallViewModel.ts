@@ -34,6 +34,8 @@ export interface PaywallVMInput {
   busy: boolean;
   /** 구매 후 서버 반영 확인 단계(D5-b) — idle 이 아니면 화면을 잠그고 대기 문구를 보인다 */
   reflecting: PaywallReflectPhase;
+  /** 결과 미확인 구매(unconfirmed)가 재확인을 기다리는 중(B-UNCONFIRMED-RACE) — 잠그지 않고 CTA 아래 "확인 중" 문구만 */
+  awaitingConfirmation?: boolean;
 }
 
 /** checking → PLUS_REFLECT_LONG_AFTER_MS 뒤 checking-long. 완료 화면으로 넘어갈 때까지 되돌리지 않는다 */
@@ -68,7 +70,7 @@ export type PaywallBodyVM =
       disclosure: TextRef;
       /** 구매 중 — 플랜 카드·닫기·복원 비활성, 뒤로가기 차단, CTA 스피너 */
       locked: boolean;
-      /** 반영 확인 중 CTA 아래 문구(reflecting → reflectingLong). 그 외 null */
+      /** CTA 아래 문구 — 반영 확인 중(reflecting → reflectingLong), 결과 미확인 대기(unconfirmedPending). 그 외 null */
       status: TextRef | null;
     };
 
@@ -133,6 +135,8 @@ const REFLECT_STATUS: Record<PaywallReflectPhase, TextRef | null> = {
   'checking-long': { key: 'paywall.reflectingLong' },
 };
 
+const UNCONFIRMED_STATUS: TextRef = { key: 'paywall.unconfirmedPending' };
+
 export function buildPaywallVM(input: PaywallVMInput): PaywallVM {
   const reflecting = input.reflecting !== 'idle';
   const locked = input.busy || reflecting;
@@ -164,7 +168,7 @@ export function buildPaywallVM(input: PaywallVMInput): PaywallVM {
       plans,
       ...ctaAndDisclosure(input.selected, offer[input.selected]),
       locked,
-      status: REFLECT_STATUS[input.reflecting],
+      status: REFLECT_STATUS[input.reflecting] ?? (input.awaitingConfirmation ? UNCONFIRMED_STATUS : null),
     },
   };
 }
@@ -210,8 +214,9 @@ export function resolveLockedErrorAction(progress: PaywallLockedProgress): Paywa
 /**
  * 구매 결과 뒤 화면이 할 일(D5-c 포함). completed 만 반영 확인으로 간다.
  *  - offer-restore: 이미 구독 중인 스토어 계정 → 잠금이 풀린 뒤 [구매 복원]/[닫기] 대화상자, 복원은 새 잠금으로
+ *  - await-confirmation: 결과 미확인 → 실패 안내 없이 "확인 중" 문구, 재확인 결과가 '없음'일 때만 실패 안내(B-UNCONFIRMED-RACE)
  */
-export type PurchaseFollowUp = 'none' | 'alert-failed' | 'alert-identity' | 'offer-restore' | 'reflect';
+export type PurchaseFollowUp = 'none' | 'alert-failed' | 'alert-identity' | 'offer-restore' | 'reflect' | 'await-confirmation';
 
 export function resolvePurchaseFollowUp(outcome: PurchaseOutcome): PurchaseFollowUp {
   switch (outcome) {
@@ -223,7 +228,8 @@ export function resolvePurchaseFollowUp(outcome: PurchaseOutcome): PurchaseFollo
       return 'alert-identity';
     case 'already_owned':
       return 'offer-restore';
-    // unconfirmed(결과 미확인)도 안내는 실패와 같다 — 네트워크 복귀 재확인은 화면이 따로 건다(B-REFLECT-ON-RECONNECT)
+    case 'unconfirmed':
+      return 'await-confirmation';
     default:
       return 'alert-failed';
   }
@@ -258,8 +264,10 @@ export function shouldRedirectToSubscription(input: {
   isPlus: boolean;
   reflecting: PaywallReflectPhase;
   busy: boolean;
+  /** 결과 미확인 구매가 있으면 구독 화면 대신 구매 완료 화면으로(화면이 따로 보낸다, B-UNCONFIRMED-RACE) */
+  awaitingConfirmation?: boolean;
 }): boolean {
-  return input.isAuthenticated && input.isPlus && input.reflecting === 'idle' && !input.busy;
+  return input.isAuthenticated && input.isPlus && input.reflecting === 'idle' && !input.busy && !input.awaitingConfirmation;
 }
 
 export type PaywallExitTarget = { pathname: '/plus-success' | '/subscription'; params: Record<string, string> };

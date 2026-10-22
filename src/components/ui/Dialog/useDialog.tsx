@@ -8,7 +8,7 @@
  *
  * B-PAYWALL-HANG: 표시는 scheduleDialogPresentation 으로 다음 프레임·상호작용 종료(앱 비활성이면 active 복귀) 뒤로
  * 미룬다. promise 는 어떤 경우에도 끝난다 — 새 대화상자가 앞 것을 대체하거나 Provider 가 해제되면 앞 것은
- * '닫힘'(alert: void · confirm: false · choose: null)으로 끝난다.
+ * '닫힘'(alert: void · confirm: false · choose: null)으로 끝난다. alert 의 signal 이 abort 돼도 '닫힘'(B-UNCONFIRMED-RACE).
  */
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { AppState, InteractionManager } from 'react-native';
@@ -38,8 +38,8 @@ interface ChooseOptions {
 export type ChooseResult = 'confirm' | 'destructive' | null;
 
 interface DialogContextType {
-  /** 알림 다이얼로그 (확인 버튼만) */
-  alert: (title: string, description?: string) => Promise<void>;
+  /** 알림 다이얼로그 (확인 버튼만). signal 이 abort 되면 표시 전이면 띄우지 않고, 떠 있으면 닫는다 */
+  alert: (title: string, description?: string, options?: { signal?: AbortSignal }) => Promise<void>;
   /** 확인 다이얼로그 (취소/확인 버튼) */
   confirm: (options: DialogOptions) => Promise<boolean>;
   /** 삭제 확인 다이얼로그 */
@@ -125,17 +125,28 @@ export function DialogProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => dropCurrent, [dropCurrent]);
 
-  const open = useCallback(<T,>(next: Omit<DialogState, 'visible'>, closed: T): Promise<T> => {
+  const open = useCallback(<T,>(next: Omit<DialogState, 'visible'>, closed: T, signal?: AbortSignal): Promise<T> => {
     return new Promise<T>((resolve) => {
       dropCurrent();
       setState((prev) => (prev.visible ? { ...prev, visible: false } : prev));
-      pendingRef.current = { resolve, closed };
+      if (signal?.aborted) {
+        resolve(closed);
+        return;
+      }
+      const pending: PendingDialog = { resolve, closed };
+      pendingRef.current = pending;
       cancelScheduleRef.current = scheduleDialogPresentation(() => {
         cancelScheduleRef.current = null;
         setState({ ...next, visible: true });
-      }, presentationDeps);
+      }, presentationDeps, signal);
+      // 표시 예약은 scheduleDialogPresentation 이 취소한다 — 여기서는 이 대화상자가 아직 현재 것이면 '닫힘'으로 끝내고 내린다
+      signal?.addEventListener('abort', () => {
+        if (pendingRef.current !== pending) return;
+        settle(closed);
+        setState((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+      }, { once: true });
     });
-  }, [dropCurrent]);
+  }, [dropCurrent, settle]);
 
   const isDark = themeMode === 'system'
     ? systemColorScheme === 'dark'
@@ -148,7 +159,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
     cancelText?: string;
     variant?: DialogVariant;
     hasCancel?: boolean;
-  }): Promise<boolean> => {
+  }, signal?: AbortSignal): Promise<boolean> => {
     return open({
       title: options.title,
       description: options.description,
@@ -158,7 +169,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
       variant: options.variant || 'confirm',
       hasCancel: options.hasCancel !== false,
       hasDestructive: false,
-    }, false);
+    }, false, signal);
   }, [t, open]);
 
   const handleConfirm = useCallback(() => {
@@ -177,13 +188,13 @@ export function DialogProvider({ children }: { children: ReactNode }) {
   }, [settle]);
 
   // alert: 단일 확인 버튼
-  const alert = useCallback(async (title: string, description?: string): Promise<void> => {
+  const alert = useCallback(async (title: string, description?: string, options?: { signal?: AbortSignal }): Promise<void> => {
     await showDialog({
       title,
       description,
       variant: 'alert',
       hasCancel: false,
-    });
+    }, options?.signal);
   }, [showDialog]);
 
   // confirm: 취소/확인 버튼

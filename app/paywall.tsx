@@ -27,6 +27,7 @@ import { PlusCta } from '@/src/components/plus/PlusCta';
 import { plusColors } from '@/src/components/plus/plusColors';
 import { addBreadcrumb, captureError, captureMessage } from '@/src/utils/sentry';
 import {
+  checkPlusEntitlementForUserFresh,
   hasPlusEntitlementForUser,
   hasPlusEntitlementForUserFresh,
   loadPaywallOffer,
@@ -35,7 +36,13 @@ import {
   type PaywallPlanKind,
 } from '@src/services/purchases';
 import { shouldCheckEntitlementOnResume } from '@src/services/purchaseRecovery';
-import { countsAsAutoReflectAttempt, isNetworkRestored, isOnline } from '@src/services/reconnectRecheck';
+import {
+  countsAsAutoReflectAttempt,
+  isNetworkRestored,
+  isOnline,
+  resolveRecheckRoute,
+  resolveUnconfirmedRecheck,
+} from '@src/services/reconnectRecheck';
 import {
   PAYWALL_COMPARE_STORAGE,
   PAYWALL_DEFAULT_PLAN,
@@ -88,6 +95,8 @@ const MIN_TOUCH = 44;
 /** 잠금이 풀린 뒤 띄울 안내(B-PAYWALL-HANG) */
 type PaywallNoticeKey = 'paywall.failed' | 'paywall.identityMismatch' | 'paywall.restoreNone';
 
+type RecheckTrigger = 'focus' | 'foreground' | 'reconnect';
+
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -120,8 +129,24 @@ export default function PaywallScreen() {
   const [exitTarget, setExitTarget] = useState<PaywallExitTarget | null>(null);
   // 구매 후 서버 반영 확인 단계 — 완료 화면으로 넘어갈 때까지 idle 로 되돌리지 않는다(VM 고정)
   const [reflectPhase, setReflectPhase] = useState<PaywallReflectPhase>('idle');
+  // 결과 미확인 구매(unconfirmed) — 재확인 대상. 렌더용(CTA 아래 "확인 중" 문구)은 state, 핸들러 판단은 ref
+  const unconfirmedPurchaseRef = useRef<{ kind: PaywallPlanKind; trial: boolean; price: string } | null>(null);
+  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const setUnconfirmedPurchase = (pending: { kind: PaywallPlanKind; trial: boolean; price: string } | null) => {
+    unconfirmedPurchaseRef.current = pending;
+    setAwaitingConfirmation(pending !== null);
+  };
 
-  const vm = buildPaywallVM({ isAuthenticated, isPlus, loading, offerResult, selected, busy, reflecting: reflectPhase });
+  const vm = buildPaywallVM({
+    isAuthenticated,
+    isPlus,
+    loading,
+    offerResult,
+    selected,
+    busy,
+    reflecting: reflectPhase,
+    awaitingConfirmation,
+  });
   const tx = (ref: TextRef) => t(ref.key, ref.params);
 
   useEffect(() => {
@@ -156,16 +181,49 @@ export default function PaywallScreen() {
   }, [busy, exitTarget, router]);
 
   // D6-2: 이미 Plus 면 구독 화면으로(반영 확인 중·잠금 중 제외 — 구매·복원 직후 이동은 각 흐름이 정한다)
-  const redirectToSubscription = shouldRedirectToSubscription({ isAuthenticated, isPlus, reflecting: reflectPhase, busy });
+  const redirectToSubscription = shouldRedirectToSubscription({
+    isAuthenticated,
+    isPlus,
+    reflecting: reflectPhase,
+    busy,
+    awaitingConfirmation,
+  });
   useEffect(() => {
     if (redirectToSubscription && !goingToSuccessRef.current) router.replace('/subscription');
   }, [redirectToSubscription, router]);
+
+  // B-UNCONFIRMED-RACE: 결과 미확인 구매를 기다리는 중에 다른 경로로 Plus 가 반영되면 구독 화면이 아니라 구매 완료 화면으로
+  const plusWhileAwaiting = isAuthenticated && isPlus && awaitingConfirmation && !busy && reflectPhase === 'idle';
+  useEffect(() => {
+    const pending = unconfirmedPurchaseRef.current;
+    if (!plusWhileAwaiting || !pending || goingToSuccessRef.current) return;
+    setUnconfirmedPurchase(null);
+    addBreadcrumb('paywall', 'unconfirmed-reflected', { source });
+    goToSuccess(toPlusSuccessRouteParams({ ...pending, reflected: true }));
+    // goToSuccess·setUnconfirmedPurchase 는 ref·setState 만 쓴다
+  }, [plusWhileAwaiting, source]);
 
   // 완료 화면으로 보내기로 정했는지 — 아니면 잠금이 풀릴 때 반영 확인 단계를 idle 로 되돌린다
   const goingToSuccessRef = useRef(false);
   const goToSuccess = (params: Record<string, string>, pathname: PaywallExitTarget['pathname'] = '/plus-success') => {
     goingToSuccessRef.current = true;
+    // 표시 대기 중인 안내(실패 등)는 무의미해졌다 — 띄우지 않는다(떠 있으면 닫는다, B-UNCONFIRMED-RACE)
+    noticeAbortRef.current?.abort();
+    noticeAbortRef.current = null;
     setExitTarget({ pathname, params });
+  };
+
+  // 잠금 밖 안내 — 이동(goToSuccess)이 정해지면 취소된다. 새 안내는 앞 안내를 대체한다
+  const noticeAbortRef = useRef<AbortController | null>(null);
+  const showNotice = async (notice: PaywallNoticeKey) => {
+    noticeAbortRef.current?.abort();
+    const controller = new AbortController();
+    noticeAbortRef.current = controller;
+    try {
+      await alert(t('paywall.title'), t(notice), { signal: controller.signal });
+    } finally {
+      if (noticeAbortRef.current === controller) noticeAbortRef.current = null;
+    }
   };
 
   // D5-b-5: 예상 밖 오류에도 잠금이 풀리고, 스토어 거래가 끝난 뒤의 오류면 "실패" 대신 완료 화면 반영 중으로 보낸다
@@ -191,7 +249,7 @@ export default function PaywallScreen() {
       busyRef.current = false;
       setBusy(false);
     }
-    if (notice) await alert(t('paywall.title'), t(notice));
+    if (notice) await showNotice(notice);
   };
 
   // 서버 반영 확인(최대 PLUS_REFLECT_MAX_WAIT_MS) — 대기 문구 단계는 완료 화면으로 넘어갈 때까지 유지
@@ -221,11 +279,13 @@ export default function PaywallScreen() {
       addBreadcrumb('paywall', 'purchase', { kind, phase: 'start', source });
       const outcome = await purchasePaywallPlan(kind, useAuthStore.getState().user?.id, source);
       addBreadcrumb('paywall', 'purchase', { kind, outcome, source });
-      // B-REFLECT-ON-RECONNECT: 결과를 못 받았으면(네트워크·스토어 문제·시간 초과) 안내는 실패와 같고, 네트워크 복귀 때 조용히 재확인
-      unconfirmedPurchaseRef.current =
-        outcome === 'unconfirmed' ? { kind, trial: plan?.trial.eligible === true, price: plan?.priceString ?? '' } : null;
+      // B-UNCONFIRMED-RACE: 결과를 못 받았으면(네트워크·스토어 문제·시간 초과) 실패 안내 대신 "확인 중" 문구를 두고,
+      // 네트워크 복귀·포그라운드 복귀 때 재확인 → 있으면 구매 완료 경로, '없음'이면 그때 실패 안내 1회
+      setUnconfirmedPurchase(
+        outcome === 'unconfirmed' ? { kind, trial: plan?.trial.eligible === true, price: plan?.priceString ?? '' } : null,
+      );
       const followUp = resolvePurchaseFollowUp(outcome);
-      if (followUp === 'none') return;
+      if (followUp === 'none' || followUp === 'await-confirmation') return;
       // 구매 시트는 뜨지 않았다. 기록(tags reason)은 래퍼가 한 번 남겼다
       if (followUp === 'alert-identity') return 'paywall.identityMismatch';
       // captureError(tags area·kind·source·reason)는 purchasePaywallPlan 이 한 번 남겼다
@@ -269,8 +329,6 @@ export default function PaywallScreen() {
   const autoReflectDoneRef = useRef(false);
   const offlineSeenRef = useRef(false);
   const lastOnlineRef = useRef<boolean | null>(null);
-  // 결과를 못 받은 구매(unconfirmed) — 네트워크 복귀 때 조용한 재확인 대상. 자격이 확인되면 구매 완료 경로로
-  const unconfirmedPurchaseRef = useRef<{ kind: PaywallPlanKind; trial: boolean; price: string } | null>(null);
   const canAutoCheck = () => {
     const auth = useAuthStore.getState();
     return shouldCheckEntitlementOnResume({
@@ -280,11 +338,11 @@ export default function PaywallScreen() {
       autoReflectDone: autoReflectDoneRef.current,
     });
   };
-  const autoReflectIfEntitled = useCallback(async (trigger: 'focus' | 'foreground' | 'reconnect') => {
+  const autoReflectIfEntitled = async (trigger: RecheckTrigger) => {
     if (!canAutoCheck()) return;
     const userId = useAuthStore.getState().user?.id;
     const entitled = trigger === 'reconnect' ? await hasPlusEntitlementForUserFresh(userId) : await hasPlusEntitlementForUser(userId);
-    if (!entitled || !canAutoCheck()) return;
+    if (!entitled || !canAutoCheck() || unconfirmedPurchaseRef.current) return;
     autoReflectDoneRef.current = true;
     addBreadcrumb('paywall', 'auto-reflect', { trigger, source });
     await runLocked(async (progress) => {
@@ -299,41 +357,65 @@ export default function PaywallScreen() {
       const target = autoReflectExitTarget(reflected);
       goToSuccess(target.params, target.pathname);
     });
-    // runLocked·waitReflected 는 매 렌더 새로 만들어지지만 ref·스토어만 읽는다
-  }, [source]);
+  };
 
-  // 네트워크 복귀: 결과를 못 받은 구매가 있으면 조용히(스피너 없이) 자격 1회 확인 → 있으면 구매 완료 경로, 없으면 자동 반영 확인
-  const recheckOnReconnect = useCallback(async () => {
-    const pendingPurchase = unconfirmedPurchaseRef.current;
-    if (!pendingPurchase) {
-      await autoReflectIfEntitled('reconnect');
+  // 결과 미확인 구매의 재확인 — RC 캐시를 비우고 자격 1회. 있으면 구매 완료 경로("결제를 확인하고 있어요" → /plus-success),
+  // '없음'이면 그때 실패 안내 1회, 확인 불가(통신 전·기기 계산)면 "확인 중" 문구를 둔 채 다음 복귀를 기다린다
+  const recheckUnconfirmed = async (trigger: RecheckTrigger) => {
+    const pending = unconfirmedPurchaseRef.current;
+    if (!pending || busyRef.current || !useAuthStore.getState().isAuthenticated) return;
+    const check = await checkPlusEntitlementForUserFresh(useAuthStore.getState().user?.id);
+    addBreadcrumb('paywall', 'unconfirmed-recheck', { trigger, check, source });
+    if (unconfirmedPurchaseRef.current !== pending || busyRef.current) return;
+    const action = resolveUnconfirmedRecheck(check);
+    if (action === 'keep-waiting') return;
+    setUnconfirmedPurchase(null);
+    if (action === 'alert-failed') {
+      await showNotice('paywall.failed');
       return;
     }
-    if (!canAutoCheck()) return;
-    const entitled = await hasPlusEntitlementForUserFresh(useAuthStore.getState().user?.id);
-    addBreadcrumb('paywall', 'reconnect-recheck', { entitled, source });
-    if (!entitled || !canAutoCheck() || unconfirmedPurchaseRef.current !== pendingPurchase) return;
-    unconfirmedPurchaseRef.current = null;
     autoReflectDoneRef.current = true;
     await runLocked(async (progress) => {
-      progress.current = { stage: 'purchase-completed', ...pendingPurchase };
+      progress.current = { stage: 'purchase-completed', ...pending };
       const reflected = await waitReflected();
-      goToSuccess(toPlusSuccessRouteParams({ ...pendingPurchase, reflected }));
+      goToSuccess(toPlusSuccessRouteParams({ ...pending, reflected }));
     });
-  }, [autoReflectIfEntitled, source]);
+  };
+
+  // 포커스·포그라운드 복귀·네트워크 복귀 공용 — 미확인 구매가 있으면 그 재확인만(자동 반영 확인과 경쟁하지 않게,
+  // B-UNCONFIRMED-RACE). 확인이 진행 중이면 뒤 트리거는 건너뛴다
+  const recheckInFlightRef = useRef(false);
+  const recheck = async (trigger: RecheckTrigger) => {
+    const route = resolveRecheckRoute({
+      hasUnconfirmed: unconfirmedPurchaseRef.current !== null,
+      online: lastOnlineRef.current,
+      inFlight: recheckInFlightRef.current,
+    });
+    if (route === 'skip') return;
+    recheckInFlightRef.current = true;
+    try {
+      if (route === 'unconfirmed') await recheckUnconfirmed(trigger);
+      else await autoReflectIfEntitled(trigger);
+    } finally {
+      recheckInFlightRef.current = false;
+    }
+  };
+  // 리스너는 한 번만 등록하고 최신 클로저를 부른다(recheck 는 ref·스토어만 읽는다)
+  const recheckRef = useRef(recheck);
+  recheckRef.current = recheck;
 
   useFocusEffect(
     useCallback(() => {
-      autoReflectIfEntitled('focus');
-    }, [autoReflectIfEntitled]),
+      recheckRef.current('focus');
+    }, []),
   );
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') autoReflectIfEntitled('foreground');
+      if (state === 'active') recheckRef.current('foreground');
     });
     return () => sub.remove();
-  }, [autoReflectIfEntitled]);
+  }, []);
 
   useEffect(
     () =>
@@ -342,9 +424,9 @@ export default function PaywallScreen() {
         if (online === false) offlineSeenRef.current = true;
         const restored = isNetworkRestored(lastOnlineRef.current, online);
         if (online !== null) lastOnlineRef.current = online;
-        if (restored) recheckOnReconnect();
+        if (restored) recheckRef.current('reconnect');
       }),
-    [recheckOnReconnect],
+    [],
   );
 
   const handleRestore = () =>
