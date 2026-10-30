@@ -4,7 +4,7 @@ import { useFonts } from 'expo-font';
 import { Stack, router, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, Platform, View } from 'react-native';
+import { ActivityIndicator, AppState, DevSettings, Dimensions, Platform, View } from 'react-native';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -35,6 +35,9 @@ import { ensureInstallMarker } from '@src/utils/installMarker';
 import { BOOT_ROUTE_PATHS, isBootRouteReached, resolveBootRoute } from '@src/utils/bootRoute';
 import { BOOT_SPLASH_MAX_WAIT_MS } from '@src/constants/boot';
 import { resolveOtaCheckFailure } from '@src/utils/otaCheckFailure';
+import { fontScaleChanged, handOffPendingPicker, takeHandedOffPicker } from '@src/utils/fontScaleReload';
+import { takePendingPickerResult } from '@src/utils/imagePickerSafe';
+import { galleryAssetsToItems } from '@src/hooks/useImageUpload';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -59,6 +62,23 @@ useAuthStore.subscribe((state, prev) => syncPurchasesIdentity(prev.user?.id, sta
 // D5-b-3: 로그인 때 RC logIn 이 실패한 채 남았으면 앱 복귀 때 다시 시도(다른 복귀 리스너와 분리)
 AppState.addEventListener('change', (nextState) => {
   if (nextState === 'active') retryPurchasesIdentity();
+});
+// D11-c · B-FONT-SCALE-STALE-LAYOUT: 기동 후 시스템 글자 크기가 바뀌었으면 복귀 시 JS 리로드.
+// 리로드 전에 피커 pending 결과를 1회 회수해 넘긴다(리로드 뒤 루트가 /upload 로 전달).
+const BOOT_FONT_SCALE = Dimensions.get('window').fontScale;
+let fontScaleReloading = false;
+AppState.addEventListener('change', async (nextState) => {
+  if (nextState !== 'active' || fontScaleReloading || Platform.OS === 'web') return;
+  if (!fontScaleChanged(BOOT_FONT_SCALE, Dimensions.get('window').fontScale)) return;
+  fontScaleReloading = true;
+  try {
+    await handOffPendingPicker(() => takePendingPickerResult('reload'), AsyncStorage);
+    if (Updates.isEnabled) await Updates.reloadAsync();
+    else DevSettings.reload();
+  } catch (error) {
+    fontScaleReloading = false;
+    captureError(error instanceof Error ? error : new Error(String(error)), { context: 'FontScaleReload' });
+  }
 });
 
 export const unstable_settings = {
@@ -87,6 +107,8 @@ export default function RootLayout() {
   } = useAuthStore();
   const colorScheme = useColorScheme();
   const pathname = usePathname();
+  // D11-c: 글자 크기 리로드 인계분(picker:pending)은 기동 후 1회만 확인한다
+  const pickerHandoffCheckedRef = useRef(false);
   const { loadSettings } = useSettingsStore();
   const { isLocked, isEnabled: appLockEnabled, initialize: initAppLock, lock: lockApp } = useAppLockStore();
   const [initialReady, setInitialReady] = useState(false);
@@ -376,6 +398,15 @@ export default function RootLayout() {
       authCheckDeferred,
       user: useAuthStore.getState().user,
     });
+    // D11-c: 글자 크기 리로드 전에 넘겨 둔 피커 사진이 있으면, 홈에 들어간 뒤 1회 업로드 화면으로 전달
+    if (target === 'tabs' && !pickerHandoffCheckedRef.current) {
+      pickerHandoffCheckedRef.current = true;
+      void takeHandedOffPicker(AsyncStorage).then(async (assets) => {
+        if (!assets) return;
+        const items = await galleryAssetsToItems(assets);
+        if (items.length) router.push({ pathname: '/upload', params: { images: JSON.stringify(items) } });
+      });
+    }
     if (target === 'language-select') {
       // B-EN-GATE(안 A): 이미 language-select면 재replace 금지 → 재진입 루프 차단
       if (!pathname.startsWith('/language-select')) {

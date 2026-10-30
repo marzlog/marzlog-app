@@ -101,7 +101,7 @@ function toSource(item: UploadItem): uploadQueue.QueueSourceItem {
 }
 
 // 갤러리 asset → UploadItem (선택·회수 공통)
-async function galleryAssetsToItems(assets: ImagePicker.ImagePickerAsset[]): Promise<UploadItem[]> {
+export async function galleryAssetsToItems(assets: ImagePicker.ImagePickerAsset[]): Promise<UploadItem[]> {
   return Promise.all(assets.map(async (asset, index) => {
     const { gps, warning } = await resolveAssetLocation(asset);
     if (__DEV__ && warning) {

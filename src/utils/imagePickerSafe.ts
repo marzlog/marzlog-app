@@ -24,7 +24,7 @@ export const PICKER_BREADCRUMB_CATEGORY = 'image-picker';
 /** 포커스 시 회수 시도 시각(ms). 결과를 받으면 남은 시도는 취소한다. */
 export const PENDING_RECOVERY_DELAYS_MS = [0, 1500, 4000] as const;
 
-export type PickerSource = 'gallery' | 'camera' | 'focus';
+export type PickerSource = 'gallery' | 'camera' | 'focus' | 'reload';
 
 function hasAssets(
   result: ImagePicker.ImagePickerResult | ImagePicker.ImagePickerErrorResult | null,
