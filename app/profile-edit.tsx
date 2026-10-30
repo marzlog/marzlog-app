@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { FloatingInput } from '@/src/components/common/FloatingInput';
 import { NICKNAME_MAX_LENGTH, nicknameCounter } from '@/src/utils/nickname';
+import { launchPickerSafe, usePendingPickerRecovery } from '@/src/utils/imagePickerSafe';
 
 export default function ProfileEditScreen() {
   const insets = useSafeAreaInsets();
@@ -65,27 +66,9 @@ export default function ProfileEditScreen() {
   const displayInitial = (user?.nickname || user?.email || 'U').charAt(0).toUpperCase();
   const avatarUrl = user?.avatar_url;
 
-  const handlePickAvatar = async () => {
-    if (Platform.OS !== 'web') {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        showToast(t('profileEdit.photoPermission'));
-        return;
-      }
-    }
-
+  // 고른 사진 1장을 아바타로 올린다 (갤러리·카메라·D11 회수 공통). 실패 시 기존 오류 토스트.
+  const uploadAvatarAsset = async (asset: ImagePicker.ImagePickerAsset) => {
     try {
-      const pickerOptions: ImagePicker.ImagePickerOptions = {
-        mediaTypes: ['images'],
-        quality: 0.8,
-      };
-      // Samsung Android에서 allowsEditing 크롭 UI가 완료 버튼을 렌더링하지 못하는 버그 회피
-      // 프로필 사진은 원형으로 표시되므로 크롭 없이 원본 사용
-
-      const result = await ImagePicker.launchImageLibraryAsync(pickerOptions);
-      if (result.canceled || !result.assets?.length) return;
-
-      const asset = result.assets[0];
       setAvatarUploading(true);
       setAvatarStatus(t('upload.uploading'));
 
@@ -103,6 +86,36 @@ export default function ProfileEditScreen() {
     }
   };
 
+  // D11: Android 액티비티 재생성 뒤 포커스 복귀 시 남은 피커 결과를 아바타로 회수
+  usePendingPickerRecovery((result) => uploadAvatarAsset(result.assets[0]));
+
+  const handlePickAvatar = async () => {
+    if (Platform.OS !== 'web') {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showToast(t('profileEdit.photoPermission'));
+        return;
+      }
+    }
+
+    try {
+      const pickerOptions: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ['images'],
+        quality: 0.8,
+      };
+      // Samsung Android에서 allowsEditing 크롭 UI가 완료 버튼을 렌더링하지 못하는 버그 회피
+      // 프로필 사진은 원형으로 표시되므로 크롭 없이 원본 사용
+
+      const result = await launchPickerSafe(
+        () => ImagePicker.launchImageLibraryAsync(pickerOptions), 'gallery');
+      if (result.canceled || !result.assets?.length) return;
+      await uploadAvatarAsset(result.assets[0]);
+    } catch (error: any) {
+      setAvatarStatus('');
+      showToast(t('profileEdit.photoUploadFailed'));
+    }
+  };
+
   const handleTakePhoto = async () => {
     if (Platform.OS === 'web') return;
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -112,28 +125,16 @@ export default function ProfileEditScreen() {
     }
 
     try {
-      const result = await ImagePicker.launchCameraAsync({
+      const result = await launchPickerSafe(() => ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         allowsEditing: false,
         quality: 0.9,
-      });
+      }), 'camera');
       if (result.canceled || !result.assets?.length) return;
-
-      const asset = result.assets[0];
-      setAvatarUploading(true);
-      setAvatarStatus(t('upload.uploading'));
-
-      const response = await authApi.uploadAvatar(asset.uri, asset.mimeType || 'image/jpeg');
-      setUser(response.user);
-
-      setAvatarStatus('');
-      showToast(t('profileEdit.photoChanged'));
-      setTimeout(() => scrollRef.current?.scrollToPosition(0, 0, true), 300);
+      await uploadAvatarAsset(result.assets[0]);
     } catch (error: any) {
       setAvatarStatus('');
       showToast(t('profileEdit.photoUploadFailed'));
-    } finally {
-      setAvatarUploading(false);
     }
   };
 

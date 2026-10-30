@@ -19,6 +19,7 @@ import { colors } from '@/src/theme';
 import { useColorScheme } from '@/components/useColorScheme';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload, ImagePickerItem, MAX_SELECTION } from '@/src/hooks/useImageUpload';
+import { usePendingPickerRecovery } from '@/src/utils/imagePickerSafe';
 import { ImageSelector, EmotionPicker, IntensityChips } from '@/src/components/upload';
 import { resolveEmotion } from '@/constants/emotions';
 import { INTENSITY_NORMAL, initialIntensity } from '@/src/utils/emotionIntensity';
@@ -87,7 +88,15 @@ export default function UploadScreen() {
   // 반영되기 전 프레임 동안 뚫릴 수 있다(disabled 미적용 창). ref는 즉시 반영.
   const submittingRef = useRef(false);
 
-  const { startUpload, startGroupUpload, addToExistingGroup, pickFromGallery, takePhoto, error: uploadError } = useImageUpload();
+  const { startUpload, startGroupUpload, addToExistingGroup, pickFromGallery, takePhoto, addRecoveredAssets, error: uploadError } = useImageUpload();
+
+  // D11: Android 액티비티 재생성 뒤 포커스 복귀 시 남은 피커 결과를 사진 추가로 회수
+  usePendingPickerRecovery(async (result) => {
+    const recovered = await addRecoveredAssets(result.assets);
+    if (recovered?.length) {
+      setImages(prev => [...prev, ...recovered].slice(0, MAX_SELECTION));
+    }
+  });
 
   // 현재 시간
   const getCurrentTime = () => {

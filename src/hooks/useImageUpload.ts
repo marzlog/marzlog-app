@@ -15,6 +15,7 @@ import { updateMedia } from '../api/media';
 import type { SelectedImage, UploadItem, UploadCompleteResponse, UploadStatus, GroupUploadCompleteResponse, GroupUploadItem } from '../types/upload';
 import { getErrorMessage } from '../utils/errorMessages';
 import { captureError } from '../utils/sentry';
+import { launchPickerSafe } from '../utils/imagePickerSafe';
 import { resolveAssetLocation } from '../utils/exif/resolveAssetLocation';
 import { resolveCurrentLocation } from '../utils/exif/resolveCurrentLocation';
 import { t } from '../i18n';
@@ -99,6 +100,29 @@ function toSource(item: UploadItem): uploadQueue.QueueSourceItem {
   };
 }
 
+// 갤러리 asset → UploadItem (선택·회수 공통)
+async function galleryAssetsToItems(assets: ImagePicker.ImagePickerAsset[]): Promise<UploadItem[]> {
+  return Promise.all(assets.map(async (asset, index) => {
+    const { gps, warning } = await resolveAssetLocation(asset);
+    if (__DEV__ && warning) {
+      console.warn(`[useImageUpload] resolveAssetLocation: ${warning}`);
+    }
+    return {
+      id: `upload_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
+      uri: asset.uri,
+      filename: asset.fileName ?? `photo_${Date.now()}_${index}.jpg`,
+      fileSize: asset.fileSize ?? 0,
+      mimeType: asset.mimeType ?? 'image/jpeg',
+      width: asset.width,
+      height: asset.height,
+      status: 'idle' as UploadStatus,
+      progress: 0,
+      isExisting: false, // 새 이미지임을 명시
+      clientExif: { ...(asset.exif ?? {}), ...gps },  // iOS quality<1.0 fallback + PHPicker GPS strip 우회
+    } as UploadItem;
+  }));
+}
+
 export function useImageUpload() {
   const [items, setItems] = useState<UploadItem[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -127,39 +151,33 @@ export function useImageUpload() {
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
+    // D11: Android 액티비티 재생성으로 결과가 비거나 예외면 pending 결과를 회수한다.
+    const result = await launchPickerSafe(() => ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsMultipleSelection: allowMultiple,
       selectionLimit: remainingSlots,
       quality: 1.0,  // EXIF 보존을 위해 재인코딩 방지
       exif: true,
-    });
+    }), 'gallery');
 
     if (result.canceled || !result.assets?.length) return;
 
-    const newItems: UploadItem[] = await Promise.all(result.assets.map(async (asset, index) => {
-      const { gps, warning } = await resolveAssetLocation(asset);
-      if (__DEV__ && warning) {
-        console.warn(`[useImageUpload] resolveAssetLocation: ${warning}`);
-      }
-      return {
-        id: `upload_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`,
-        uri: asset.uri,
-        filename: asset.fileName ?? `photo_${Date.now()}_${index}.jpg`,
-        fileSize: asset.fileSize ?? 0,
-        mimeType: asset.mimeType ?? 'image/jpeg',
-        width: asset.width,
-        height: asset.height,
-        status: 'idle' as UploadStatus,
-        progress: 0,
-        isExisting: false, // 새 이미지임을 명시
-        clientExif: { ...(asset.exif ?? {}), ...gps },  // iOS quality<1.0 fallback + PHPicker GPS strip 우회
-      } as UploadItem;
-    }));
-
+    const newItems = await galleryAssetsToItems(result.assets);
     setItems((prev) => [...prev, ...newItems]);
     return newItems;
   }, [items.length, requestPermission]);
+
+  // D11: 화면 포커스 복귀 때 회수한 피커 결과(usePendingPickerRecovery)를 갤러리 선택과 같은 항목으로 만든다.
+  // (액티비티가 다시 만들어져 화면이 새로 마운트된 경우 — launch 의 promise 는 이미 사라졌다)
+  const addRecoveredAssets = useCallback(async (
+    assets: ImagePicker.ImagePickerAsset[],
+  ): Promise<UploadItem[] | undefined> => {
+    const newItems = await galleryAssetsToItems(assets.slice(0, Math.max(0, MAX_SELECTION - items.length)));
+    if (!newItems.length) return;
+    setItems((prev) => [...prev, ...newItems]);
+    return newItems;
+  }, [items.length]);
+
 
   // 카메라로 촬영
   const takePhoto = useCallback(async (): Promise<UploadItem | undefined> => {
@@ -174,10 +192,10 @@ export function useImageUpload() {
       return;
     }
 
-    const result = await ImagePicker.launchCameraAsync({
+    const result = await launchPickerSafe(() => ImagePicker.launchCameraAsync({
       quality: 1.0,  // EXIF 보존을 위해 재인코딩 방지
       exif: true,
-    });
+    }), 'camera');
 
     if (result.canceled || !result.assets?.length) return;
 
@@ -835,6 +853,7 @@ export function useImageUpload() {
     stats,
     pickFromGallery,
     takePhoto,
+    addRecoveredAssets,
     startUpload,
     startGroupUpload,
     addToExistingGroup,

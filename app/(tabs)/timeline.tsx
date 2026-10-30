@@ -25,6 +25,7 @@ import { palette, lightTheme, darkTheme, Theme } from '@/src/theme/colors';
 import { useAuthStore } from '@/src/store/authStore';
 import { useSettingsStore } from '@/src/store/settingsStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
+import { usePendingPickerRecovery } from '@/src/utils/imagePickerSafe';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useNetworkResume } from '@/src/hooks/useNetworkResume';
 import { resolveDisplayTitle } from '@/src/utils/i18n';
@@ -270,6 +271,7 @@ export default function TimelineScreen() {
     stats: uploadStats,
     pickFromGallery,
     takePhoto,
+    addRecoveredAssets,
     startUpload,
     removeItem,
     reset: resetUpload,
@@ -580,9 +582,8 @@ export default function TimelineScreen() {
     setShowUploadModal(true);
   };
 
-  const handlePickFromGallery = async () => {
-    setShowUploadModal(false);
-    const pickedItems = await pickFromGallery(true);
+  // 선택(또는 회수)한 사진을 바로 업로드
+  const handlePickedItems = async (pickedItems: Awaited<ReturnType<typeof pickFromGallery>>) => {
     if (pickedItems && pickedItems.length > 0) {
       // 선택한 아이템을 직접 전달하여 업로드 시작
       const results = await startUpload(pickedItems);
@@ -595,6 +596,16 @@ export default function TimelineScreen() {
       }
     }
   };
+
+  const handlePickFromGallery = async () => {
+    setShowUploadModal(false);
+    await handlePickedItems(await pickFromGallery(true));
+  };
+
+  // D11: Android 액티비티 재생성 뒤 포커스 복귀 시 남은 피커 결과를 같은 흐름으로 회수
+  usePendingPickerRecovery(async (result) => {
+    await handlePickedItems(await addRecoveredAssets(result.assets));
+  });
 
   const handleTakePhoto = async () => {
     setShowUploadModal(false);
