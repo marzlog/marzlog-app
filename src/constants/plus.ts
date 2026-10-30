@@ -41,3 +41,17 @@ export const PLUS_PENDING_RECHECK_INTERVAL_MS = 5_000;
 
 /** 주기 재확인 총 시간 — 앱이 앞에 있는 동안 쓴 시간만 센다(백그라운드에서 멈췄다가 복귀하면 남은 만큼 이어 감) */
 export const PLUS_PENDING_RECHECK_MAX_MS = 120_000;
+
+/**
+ * 결과 미확인 구매(unconfirmed)의 유예(D12) — **복귀 후 첫 재확인 시각**부터 이 안에서는 재확인이 '없음'이어도 실패로
+ * 보지 않고 RC(캐시 비운 읽기)와 서버 /auth/me plan 을 UNCONFIRMED_POLL_MS 간격으로 다시 본다. 오프라인 동안은 거래가
+ * RC 로 갈 수 없으므로 연결이 돌아온 뒤부터 센다. 구매 → RC 수신 실측 13초(2026-10-30 iPhone, purchased_at 10:17:48Z →
+ * webhook 10:18:01Z)와 첫 웹훅 지연 최대 17.4초의 약 3.5배.
+ */
+export const UNCONFIRMED_GRACE_MS = 60_000;
+
+/** 미확인 시각부터의 총 상한 — 유예(첫 재확인 + 60초)와 이 상한 중 먼저 끝나는 쪽까지만 폴링한다 */
+export const UNCONFIRMED_MAX_MS = 180_000;
+
+/** 유예 중 재확인 간격 */
+export const UNCONFIRMED_POLL_MS = 5_000;

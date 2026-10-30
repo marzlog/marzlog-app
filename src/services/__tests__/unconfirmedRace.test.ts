@@ -63,10 +63,12 @@ describe('B-UNCONFIRMED-RACE', () => {
     if (checking.body.kind !== 'ready') throw new Error(checking.body.kind);
     expect(checking.body.status).toEqual({ key: 'paywall.reflecting' });
 
-    expect(resolveUnconfirmedRecheck('active')).toBe('confirm');
-    expect(resolveUnconfirmedRecheck('none')).toBe('alert-failed');
+    expect(resolveUnconfirmedRecheck('active', 0, 60_000)).toBe('confirm');
+    // D12: '없음'은 더 이상 즉시 실패가 아니다 — 유예 안이면 폴링, 유예 뒤면 구매 복원 제안
+    expect(resolveUnconfirmedRecheck('none', 0, 60_000)).toBe('poll');
+    expect(resolveUnconfirmedRecheck('none', 60_000, 60_000)).toBe('suggest-restore');
     // 연결 직후 통신 전·기기 계산 → 실패 안내 없이 계속 대기
-    expect(resolveUnconfirmedRecheck('unknown')).toBe('keep-waiting');
+    expect(resolveUnconfirmedRecheck('unknown', 0, 60_000)).toBe('keep-waiting');
   });
 
   it('성공 시 취소 — 표시 대기 중인 실패 대화상자는 abort 되면 앱이 돌아와도 뜨지 않는다', () => {

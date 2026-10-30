@@ -28,6 +28,7 @@ import { plusColors } from '@/src/components/plus/plusColors';
 import { addBreadcrumb, captureError, captureMessage } from '@/src/utils/sentry';
 import {
   checkPlusEntitlementForUserFresh,
+  ensurePurchasesIdentityForRecheck,
   hasPlusEntitlementForUser,
   hasPlusEntitlementForUserFresh,
   loadPaywallOffer,
@@ -40,6 +41,8 @@ import {
   countsAsAutoReflectAttempt,
   isNetworkRestored,
   isOnline,
+  pollUnconfirmedWithinGrace,
+  resolveGraceWindow,
   resolveRecheckRoute,
   resolveUnconfirmedRecheck,
 } from '@src/services/reconnectRecheck';
@@ -72,6 +75,9 @@ import {
   PLUS_REFLECT_INTERVAL_MS,
   PLUS_REFLECT_LONG_AFTER_MS,
   PLUS_REFLECT_MAX_WAIT_MS,
+  UNCONFIRMED_GRACE_MS,
+  UNCONFIRMED_MAX_MS,
+  UNCONFIRMED_POLL_MS,
 } from '@src/constants/plus';
 import { PRIVACY_URL, TERMS_URL } from '@src/constants/legal';
 import { borderRadius, darkTheme, fontScaleCap, lightTheme, palette, spacing, typography, type Theme } from '@src/theme';
@@ -132,8 +138,13 @@ export default function PaywallScreen() {
   // 결과 미확인 구매(unconfirmed) — 재확인 대상. 렌더용(CTA 아래 "확인 중" 문구)은 state, 핸들러 판단은 ref
   const unconfirmedPurchaseRef = useRef<{ kind: PaywallPlanKind; trial: boolean; price: string } | null>(null);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  // D12: 미확인이 된 시각(총 상한 UNCONFIRMED_MAX_MS 기준)과 복귀 후 첫 재확인 시각(유예 UNCONFIRMED_GRACE_MS 시작)
+  const unconfirmedAtRef = useRef<number | null>(null);
+  const firstRecheckAtRef = useRef<number | null>(null);
   const setUnconfirmedPurchase = (pending: { kind: PaywallPlanKind; trial: boolean; price: string } | null) => {
     unconfirmedPurchaseRef.current = pending;
+    unconfirmedAtRef.current = pending ? Date.now() : null;
+    firstRecheckAtRef.current = null;
     setAwaitingConfirmation(pending !== null);
   };
 
@@ -289,7 +300,10 @@ export default function PaywallScreen() {
       // 구매 시트는 뜨지 않았다. 기록(tags reason)은 래퍼가 한 번 남겼다
       if (followUp === 'alert-identity') return 'paywall.identityMismatch';
       // captureError(tags area·kind·source·reason)는 purchasePaywallPlan 이 한 번 남겼다
-      if (followUp === 'alert-failed') return 'paywall.failed';
+      if (followUp === 'alert-failed') {
+        void refreshUserQuietly(); // D12: 실패 안내 뒤에도 화면 플랜이 서버와 어긋나지 않게
+        return 'paywall.failed';
+      }
       if (followUp === 'offer-restore') {
         // 기록(info, purchases-already-owned)은 래퍼가 남겼다. 대화상자는 잠금이 풀린 뒤에
         offerRestore = true;
@@ -359,19 +373,74 @@ export default function PaywallScreen() {
     });
   };
 
-  // 결과 미확인 구매의 재확인 — RC 캐시를 비우고 자격 1회. 있으면 구매 완료 경로("결제를 확인하고 있어요" → /plus-success),
-  // '없음'이면 그때 실패 안내 1회, 확인 불가(통신 전·기기 계산)면 "확인 중" 문구를 둔 채 다음 복귀를 기다린다
+  // D12: 실패·복원 제안 뒤 /auth/me 1회 — 화면 플랜이 서버와 어긋나지 않게(실패는 무시, 다음 복귀가 다시 본다)
+  const refreshUserQuietly = async () => {
+    try {
+      await useAuthStore.getState().refreshUser(PLUS_REFLECT_ATTEMPT_TIMEOUT_MS);
+    } catch {
+      // 네트워크 등 — 표시는 다음 진입 때 맞춰진다
+    }
+  };
+
+  // 미확인 유예가 끝나도 확인되지 않으면 실패 대신 구매 복원을 제안한다 — 복원은 기존 경로(신원 대조·PW-14·완료 화면)
+  const suggestRestore = async () => {
+    void refreshUserQuietly();
+    addBreadcrumb('paywall', 'unconfirmed-suggest-restore', { source });
+    const restore = await confirm({
+      title: t('paywall.title'),
+      description: t('paywall.unconfirmedSuggestRestore'),
+      confirmText: t('paywall.restore'),
+      cancelText: t('common.cancel'),
+    });
+    addBreadcrumb('paywall', 'unconfirmed-suggest-restore', { choice: restore ? 'restore' : 'close', source });
+    if (restore) await handleRestore();
+  };
+
+  // 결과 미확인 구매의 재확인 — RC 캐시를 비우고 자격 1회. 있으면 구매 완료 경로("결제를 확인하고 있어요" → /plus-success).
+  // D12: '없음'이 유예 안이면 실패로 보지 않고 RC·서버 /auth/me 를 유예 끝까지 다시 본다(RC 사용자 불일치면 먼저 logIn 1회).
+  // 유예 뒤에도 없으면 구매 복원 제안. 확인 불가(통신 전·기기 계산)면 "확인 중" 문구를 둔 채 다음 복귀를 기다린다
   const recheckUnconfirmed = async (trigger: RecheckTrigger) => {
     const pending = unconfirmedPurchaseRef.current;
     if (!pending || busyRef.current || !useAuthStore.getState().isAuthenticated) return;
-    const check = await checkPlusEntitlementForUserFresh(useAuthStore.getState().user?.id);
+    if (firstRecheckAtRef.current === null) firstRecheckAtRef.current = Date.now();
+    const { startedAt, graceMs } = resolveGraceWindow({
+      unconfirmedAt: unconfirmedAtRef.current ?? firstRecheckAtRef.current,
+      firstRecheckAt: firstRecheckAtRef.current,
+      graceMs: UNCONFIRMED_GRACE_MS,
+      maxMs: UNCONFIRMED_MAX_MS,
+    });
+    const userId = useAuthStore.getState().user?.id;
+    const check = await checkPlusEntitlementForUserFresh(userId);
     addBreadcrumb('paywall', 'unconfirmed-recheck', { trigger, check, source });
     if (unconfirmedPurchaseRef.current !== pending || busyRef.current) return;
-    const action = resolveUnconfirmedRecheck(check);
+    let action = resolveUnconfirmedRecheck(check, Date.now() - startedAt, graceMs);
+    if (action === 'poll') {
+      const polled = await pollUnconfirmedWithinGrace(
+        startedAt,
+        {
+          now: () => Date.now(),
+          sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+          ensureIdentity: () => ensurePurchasesIdentityForRecheck(userId),
+          readRc: () => checkPlusEntitlementForUserFresh(userId),
+          readServerPlus: async () => {
+            try {
+              return (await useAuthStore.getState().refreshUser(PLUS_REFLECT_ATTEMPT_TIMEOUT_MS)).plan === 'plus';
+            } catch {
+              return null;
+            }
+          },
+          shouldStop: () => unconfirmedPurchaseRef.current !== pending || busyRef.current,
+        },
+        { graceMs, pollMs: UNCONFIRMED_POLL_MS },
+      );
+      addBreadcrumb('paywall', 'unconfirmed-poll', { trigger, result: polled, source });
+      if (polled === 'stopped' || polled === 'unknown') return;
+      action = polled === 'active' ? 'confirm' : 'suggest-restore';
+    }
     if (action === 'keep-waiting') return;
     setUnconfirmedPurchase(null);
-    if (action === 'alert-failed') {
-      await showNotice('paywall.failed');
+    if (action === 'suggest-restore') {
+      await suggestRestore();
       return;
     }
     autoReflectDoneRef.current = true;
