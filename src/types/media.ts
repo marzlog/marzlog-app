@@ -82,4 +82,6 @@ export interface MediaDetail {
   content_source?: 'user' | 'ai' | null;
   ai_title?: string | null;
   ai_content?: string | null;
+  /** D10: 일기를 쓴 문체(recall_cards.tone) — 구 API·톤 이전 카드는 없음/null. 상세 "문체" 라벨용 */
+  diary_tone?: string | null;
 }

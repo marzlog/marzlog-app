@@ -280,7 +280,8 @@
     "pushNotification": "Push Notifications",
     "aiModeWarningTitle": "Change AI analysis mode",
     "aiModeWarningMessage": "AI diaries are not generated in Fast mode. Continue?",
-    "subscriptionRow": "Subscription"
+    "subscriptionRow": "Subscription",
+    "diaryTone": "Default writing style"
   },
   "consent": {
     "errorAgeRequired": "Age 14+ confirmation is required.",
@@ -473,7 +474,8 @@
     "openInMap": "Open in Maps",
     "analysisPending": "Waiting for AI analysis...",
     "titleLabel": "Title",
-    "contentLabel": "Content"
+    "contentLabel": "Content",
+    "toneLabel": "Style: {{tone}}"
   },
   "emotions": {
     "joy": "Joy",
@@ -801,7 +803,7 @@
     "close": "Close",
     "brand": "Marzlog Plus",
     "headline": "Rewrite until it feels right,\nwith room to spare",
-    "subhead": "Unlimited AI diary rewrites + {{gb}}GB storage",
+    "subhead": "Unlimited AI diary rewrites · Writing style · {{gb}}GB storage",
     "compare": {
       "free": "Free",
       "plus": "Plus",
@@ -809,7 +811,8 @@
       "diaryRegen": "AI diary rewrites",
       "storage": "Storage",
       "unlimited": "Unlimited",
-      "storageValue": "{{gb}}GB"
+      "storageValue": "{{gb}}GB",
+      "toneSelect": "Writing style"
     },
     "discountBadge": "Save {{percent}}%",
     "perMonthEquivalent": "{{price}} / month",
@@ -838,13 +841,13 @@
   },
   "plusSheet": {
     "regenTitle": "AI diary rewrites\nare part of Plus",
-    "regenBody": "With Plus, rewrite as many times as you like. You also get {{gb}}GB of storage.",
+    "regenBody": "With Plus, rewrite as many times as you like and pick a writing style. You also get {{gb}}GB of storage.",
     "trialNote": "Free for {{days}} days when you first subscribe",
     "cta": "See Plus",
     "later": "Not now",
     "confirm": "OK",
     "storageTitle": "Your storage is full",
-    "storageBody": "Everything you've saved is still here. Plus gives you up to {{gb}}GB.",
+    "storageBody": "Everything you've saved is still here. Plus gives you up to {{gb}}GB, along with unlimited AI diary rewrites and writing styles.",
     "storageBodyPlus": "You've used all {{gb}}GB of Plus storage. Free up some space and try again.",
     "storageLabel": "Storage",
     "usage": "{{used}} / {{limit}}",
@@ -852,7 +855,7 @@
   },
   "plusSuccess": {
     "title": "Plus is on",
-    "body": "Rewrite your AI diary freely\nand keep up to {{gb}}GB.",
+    "body": "Rewrite your AI diary freely, pick a writing style,\nand keep up to {{gb}}GB.",
     "plan": "Plan",
     "planAnnual": "Plus Annual",
     "planMonthly": "Plus Monthly",
@@ -889,7 +892,21 @@
     "otherStore": "This subscription was started on {{store}}. Manage it there.",
     "storeApple": "App Store",
     "storeGoogle": "Google Play",
-    "footnote": "Your records stay even if you cancel Plus. If you're over the free {{gb}}GB, only new uploads are paused.",
+    "footnote": "If you cancel Plus, rewrites and writing styles stop, but your records stay. If you're over the free {{gb}}GB, only new uploads are paused.",
     "restored": "Your purchase has been restored"
+  },
+  "tone": {
+    "title": "Writing style",
+    "regenBody": "Choose a style for your rewritten diary.",
+    "settingsBody": "The style used by default when your diary is rewritten.",
+    "regenConfirm": "Rewrite in this style",
+    "defaultBadge": "Default",
+    "sincere": "Sincere",
+    "sincereDesc": "Honest and heartfelt",
+    "literary": "Literary",
+    "literaryDesc": "Vivid, descriptive, and literary",
+    "plain": "Plain",
+    "plainDesc": "Short and simple",
+    "saveFailed": "Couldn't save your writing style. Please try again later."
   }
 }

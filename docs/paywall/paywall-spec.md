@@ -168,7 +168,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | 이미 Plus | `user.plan === 'plus'` | 결제 UI 없이 `/subscription`으로 `replace`(D6-2). 반영 확인 중·잠금 중에는 하지 않는다(`shouldRedirectToSubscription`) — 구매·복원 직후 이동은 각 흐름이 정한다. "이용 중" 카드는 이동 전 대체 표시 |
 
 - 연간이 기본 선택. 할인 배지는 `annualDiscountPercent !== null`일 때만, "월 ○꼴"은 `perMonthPriceString !== null`일 때만 표시한다.
-- 비교표 3행은 고정 문구. 용량 숫자는 `FREE_STORAGE_GB`·`PLUS_STORAGE_GB`를 끼워 넣는다.
+- 비교표 4행(AI 일기 작성 · AI 일기 재생성 · 문체 선택(D10-c, 무료 – / Plus ✓) · 저장 공간)은 고정 문구. 용량 숫자는 `FREE_STORAGE_GB`·`PLUS_STORAGE_GB`를 끼워 넣는다.
 - 약관·개인정보처리방침 주소는 상수로 뽑아 `app/app-info.tsx`와 같이 쓴다(새 URL 0건, 여는 방식은 현행과 동일).
 - 고지문은 선택한 플랜에 따라 바뀐다. 가격은 `priceString`만 쓴다.
 
@@ -326,6 +326,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 - 값이 영어와 같은 키(`paywall.brand`, `paywall.compare.plus`, 스토어 이름)는 의도적 영어 유지 목록에 등록한다. 목록(v1.6): `paywall.brand` · `paywall.compare.plus` · `subscription.planPlus` · `subscription.storeApple`(App Store) · `subscription.storeGoogle`(Google Play) · `storage.planFree`(ko·th 배지 "Free" — 더보기 카드·마이페이지 플랜 표기, D6-a·D6-3). `paywall.alreadyOwned`의 `{{store}}`는 이 스토어 이름 키 값을 끼워 넣는다.
 - vi·th: **1차 검수 완료(2026-10-14, D9-2)** — copy 84키를 4열 표로 뽑아 JJ 검수. 반영: vi `paywall.noChargeToday`·`plusSheet.storageBodyPlus` 수정, ko·en·vi 문장 끝 마침표 통일 6키(`paywall.reflectingLong`·`identityMismatch`, `plusSuccess.pending`·`restoreChecked`·`restoreFailed`·`identityMismatch`). th 는 관례상 마침표 없음 — 그대로.
 - v1.5(D5-b): copy 72키 → **81키**. 추가 9개 = `paywall.reflecting`·`reflectingLong`·`identityMismatch`, `plusSuccess.pendingTitle`·`restore`·`close`·`restoreChecked`·`restoreFailed`·`identityMismatch`. 값 변경 1개 = `plusSuccess.pending`. vi·th 9개는 D9 검수 대상.
+- v1.8(D10-c): 84키 → **85키**. 추가 1개 = `paywall.compare.toneSelect`. 값 변경 5개 = `paywall.subhead`·`plusSheet.regenBody`·`plusSheet.storageBody`·`plusSuccess.body`·`subscription.footnote` — 혜택 기준 "AI 일기 재생성 무제한 · 문체 선택 · {{gb}}GB 저장 공간"(en "Unlimited AI diary rewrites · Writing style · {{gb}}GB storage"). vi·th 는 문체 UI 를 숨기므로 값 변경 5키를 기존 문구 그대로 두고, `compare.toneSelect` 키만 두되 비교표 행은 ko·en 에서만 그린다(`showToneRow`) — vi·th 1개 키는 검수 대상. 문체 UI 문구(`tone.*`·`settings.diaryTone`·`mediaDetail.toneLabel`)는 copy 묶음 밖.
 - v1.7(D8): 로케일 삭제 `storage.quotaExceeded`·`storage.quotaExceededCleanup`·`storage.quotaExceededDesc`(업로드 화면 배너 삭제로 사용처 0). 업로드 항목 오류 문구는 `plusSheet.storageTitle` 재사용. copy 84키 영향 없음.
 - v1.7(D7-2): 로케일 삭제 `plus.regenComingSoonTitle`·`plus.regenComingSoonBody`("곧 만나요" alert, 사용처 0) — `plus` 묶음이 비어 묶음째 삭제. copy 84키 영향 없음.
 - v1.6(D6-2): 83키 → **84키**. 추가 1개 = `subscription.restored`. 삭제(D6-3) = `storage.freeNotice`·`storage.upgrade`(로케일만, copy 묶음 밖이라 84키 계산에 영향 없음).
@@ -424,6 +425,7 @@ retryPurchasesIdentity(): void   // _layout 모듈 최상위 AppState 'active' �
 | B-REFLECT-ON-RECONNECT | 네트워크 복귀(NetInfo, 연결 없음 확정 → 연결)를 자동 반영 확인 트리거에 추가(결제 화면·반영 중 화면) · 대기 중 오프라인을 겪은 미반영은 화면당 1회에 세지 않음(`countsAsAutoReflectAttempt`) · 구매 결과 미확인(`unconfirmed` = 네트워크·스토어 문제·오프라인·시간 초과)은 실패 안내 + 복귀 때 RC 캐시 비우고 조용히 자격 1회 확인 → 있으면 구매 완료 경로 | app | 체크리스트 32(구매 직후 비행기 모드 → 결제 화면 복귀 → 해제 → 자동 "결제를 확인하고 있어요" → 완료), 28 Android 재확인 |
 | B-UNCONFIRMED-RACE | 결과 미확인 구매는 실패 안내 대신 "확인 중" 문구(`paywall.unconfirmedPending`, 4개 언어) · 포커스·포그라운드·네트워크 복귀 트리거 단일화(`resolveRecheckRoute` — 미확인 재확인 우선, 연결 없음·진행 중 건너뜀) · 재확인 3분기(`resolveUnconfirmedRecheck` — 있음 → 완료 화면 / 없음 → 실패 안내 1회 / 확인 불가 → 대기) · 완료 화면 이동 시 대기 중 안내 취소(`alert` signal) | app | 체크리스트 28·32 iPhone 재확인 — 구독 화면이 아니라 완료 화면, 실패 대화상자 없음 |
 | D12 | 결과 미확인 구매 유예(첫 재확인부터 `UNCONFIRMED_GRACE_MS` 60초, 미확인부터 총 `UNCONFIRMED_MAX_MS` 180초 상한): 유예 안 '없음'은 RC(캐시 비운 읽기)·서버 `/auth/me` plan 5초 폴링(RC 사용자 불일치면 logIn 1회) → Plus 면 완료 경로, 유예 뒤 '없음'은 구매 복원 제안(`paywall.unconfirmedSuggestRestore`) · `paywall.failed` 는 즉시 실패에만 · 실패·제안 뒤 `/auth/me` 1회 | app | 체크리스트 28 재실기(카카오 계정 고정): 구매 직후 비행기 모드 → 해제 → 실패 안내 없이 완료 화면 |
+| D10-c | 문체 선택(톤 `sincere`·`literary`·`plain`, ko·en 만 UI — vi·th 는 숨김·기본 톤): Plus 재생성 → 문체 시트 → body `{tone}`(복구 재생성은 시트 없이 tone 미전송) · 설정 "기본 문체" → PATCH `/auth/me/settings` `{diary_tone}`(Free 가 sincere 외 → regen 안내 시트, 변경 안 함) · 상세 "문체: ○○" 라벨(sincere 미표시) · 혜택 카피 5키·비교표 "문체 선택" 행(ko·en 만) | app | 백엔드 D10-a 배포 뒤 Plus·Free 각각 재생성·설정 확인 |
 | B-SHEET-FONT-SCALE | 결제 관련 5곳(Plus 안내 시트 — 용량 초과·재생성 공용, 결제 화면, 완료·반영 중 화면, 구독 화면, `PlusCta`)의 모든 Text 에 `maxFontSizeMultiplier` = 공용 `fontScaleCap`(제목 1.3 · 본문·버튼 1.5, `src/theme/typography.ts`). 시트는 본문만 `ScrollView`(최대 화면 높이 70%, `flexGrow 0`·`flexShrink 1`), 버튼 2개는 스크롤 밖 고정. 결제·완료·구독 화면은 이미 스크롤 — 상한만 | app | 체크리스트 24b 재확인 · 33(글자 최대에서 두 시트·결제 화면 버튼 보임·눌림) |
 
 ### 8.2 운영 절차 (코드 diff 아님, 각각 게이트)

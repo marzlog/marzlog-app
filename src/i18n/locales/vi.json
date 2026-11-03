@@ -280,7 +280,8 @@
     "pushNotification": "Cài đặt thông báo đẩy",
     "aiModeWarningTitle": "Thay đổi chế độ phân tích AI",
     "aiModeWarningMessage": "Chế độ Nhanh sẽ không tạo nhật ký AI. Bạn vẫn muốn tiếp tục?",
-    "subscriptionRow": "Gói đăng ký"
+    "subscriptionRow": "Gói đăng ký",
+    "diaryTone": "Giọng văn mặc định"
   },
   "consent": {
     "errorAgeRequired": "Cần xác nhận bạn từ 14 tuổi trở lên.",
@@ -473,7 +474,8 @@
     "openInMap": "Xem trên bản đồ",
     "analysisPending": "Đang chờ AI phân tích...",
     "titleLabel": "Tiêu đề",
-    "contentLabel": "Nội dung"
+    "contentLabel": "Nội dung",
+    "toneLabel": "Giọng văn: {{tone}}"
   },
   "emotions": {
     "joy": "Vui vẻ",
@@ -809,7 +811,8 @@
       "diaryRegen": "Viết lại nhật ký AI",
       "storage": "Dung lượng lưu trữ",
       "unlimited": "Không giới hạn",
-      "storageValue": "{{gb}}GB"
+      "storageValue": "{{gb}}GB",
+      "toneSelect": "Chọn giọng văn"
     },
     "discountBadge": "Giảm {{percent}}%",
     "perMonthEquivalent": "Tương đương {{price}} / tháng",
@@ -891,5 +894,19 @@
     "storeGoogle": "Google Play",
     "footnote": "Dữ liệu vẫn được giữ khi bạn hủy Plus. Nếu vượt quá {{gb}}GB miễn phí, chỉ việc tải ảnh mới bị tạm dừng.",
     "restored": "Đã khôi phục giao dịch của bạn"
+  },
+  "tone": {
+    "title": "Giọng văn",
+    "regenBody": "Chọn giọng văn cho nhật ký được viết lại.",
+    "settingsBody": "Giọng văn mặc định khi viết lại nhật ký.",
+    "regenConfirm": "Viết lại theo giọng này",
+    "defaultBadge": "Mặc định",
+    "sincere": "Chân thành",
+    "sincereDesc": "Mộc mạc, thật lòng",
+    "literary": "Văn chương",
+    "literaryDesc": "Giàu hình ảnh, đậm chất văn",
+    "plain": "Ngắn gọn",
+    "plainDesc": "Ngắn, không màu mè",
+    "saveFailed": "Không lưu được giọng văn. Vui lòng thử lại sau."
   }
 }

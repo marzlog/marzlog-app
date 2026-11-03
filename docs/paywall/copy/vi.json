@@ -11,7 +11,8 @@
       "diaryRegen": "Viết lại nhật ký AI",
       "storage": "Dung lượng lưu trữ",
       "unlimited": "Không giới hạn",
-      "storageValue": "{{gb}}GB"
+      "storageValue": "{{gb}}GB",
+      "toneSelect": "Chọn giọng văn"
     },
     "discountBadge": "Giảm {{percent}}%",
     "perMonthEquivalent": "Tương đương {{price}} / tháng",

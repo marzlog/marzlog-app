@@ -3,7 +3,7 @@
     "close": "닫기",
     "brand": "Marzlog Plus",
     "headline": "마음에 들 때까지,\n넉넉하게",
-    "subhead": "AI 일기 재생성 무제한 + {{gb}}GB 저장 공간",
+    "subhead": "AI 일기 재생성 무제한 · 문체 선택 · {{gb}}GB 저장 공간",
     "compare": {
       "free": "무료",
       "plus": "Plus",
@@ -11,7 +11,8 @@
       "diaryRegen": "AI 일기 재생성",
       "storage": "저장 공간",
       "unlimited": "무제한",
-      "storageValue": "{{gb}}GB"
+      "storageValue": "{{gb}}GB",
+      "toneSelect": "문체 선택"
     },
     "discountBadge": "{{percent}}% 할인",
     "perMonthEquivalent": "월 환산 {{price}}",
@@ -38,13 +39,13 @@
   },
   "plusSheet": {
     "regenTitle": "AI 일기 재생성은\nPlus에서 할 수 있어요",
-    "regenBody": "Plus에서는 마음에 들 때까지 다시 쓸 수 있어요. {{gb}}GB 저장 공간도 함께 드려요.",
+    "regenBody": "Plus에서는 마음에 들 때까지 다시 쓰고, 문체도 고를 수 있어요. {{gb}}GB 저장 공간도 함께 드려요.",
     "trialNote": "처음 구독하면 {{days}}일 동안 무료예요",
     "cta": "Plus 알아보기",
     "later": "다음에 할게요",
     "confirm": "확인",
     "storageTitle": "저장 공간이 가득 찼어요",
-    "storageBody": "지금까지의 기록은 그대로 볼 수 있어요. Plus에서는 {{gb}}GB까지 넉넉하게 기록할 수 있어요.",
+    "storageBody": "지금까지의 기록은 그대로 볼 수 있어요. Plus에서는 {{gb}}GB까지 넉넉하게 기록하고, AI 일기 재생성과 문체 선택도 쓸 수 있어요.",
     "storageBodyPlus": "Plus 저장 공간({{gb}}GB)을 모두 사용했어요. 기록을 정리한 뒤 다시 올려 주세요.",
     "storageLabel": "저장 공간",
     "usage": "{{used}} / {{limit}}",
@@ -52,7 +53,7 @@
   },
   "plusSuccess": {
     "title": "Plus가 시작됐어요",
-    "body": "이제 AI 일기를 마음껏 다시 쓰고,\n{{gb}}GB까지 넉넉하게 기록할 수 있어요.",
+    "body": "이제 AI 일기를 마음껏 다시 쓰고 문체도 고르며,\n{{gb}}GB까지 넉넉하게 기록할 수 있어요.",
     "plan": "플랜",
     "planAnnual": "Plus 연간",
     "planMonthly": "Plus 월간",
@@ -89,7 +90,7 @@
     "otherStore": "이 구독은 {{store}}에서 시작했어요. {{store}}에서 관리할 수 있어요.",
     "storeApple": "App Store",
     "storeGoogle": "Google Play",
-    "footnote": "Plus를 해지해도 기록은 그대로 남아요. 무료 저장 공간({{gb}}GB)을 넘은 경우 새 사진 올리기만 잠시 멈춰요.",
+    "footnote": "Plus를 해지하면 AI 일기 재생성과 문체 선택은 멈추지만 기록은 그대로 남아요. 무료 저장 공간({{gb}}GB)을 넘은 경우 새 사진 올리기만 잠시 멈춰요.",
     "restored": "구매를 복원했어요"
   },
   "settings": {

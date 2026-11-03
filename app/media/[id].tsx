@@ -54,6 +54,9 @@ import {
   resolvePlusRequiredFollowUp,
   resolveRegenAction,
 } from '@/src/utils/regenGate';
+import { resolveRegenToneFlow, toneDetailLabel } from '@/src/utils/toneViewModel';
+import type { DiaryTone } from '@/src/constants/diaryTones';
+import { ToneSheet } from '@/src/components/ToneSheet';
 import ErrorView from '@/src/components/common/ErrorView';
 import { AiNotice } from '@/src/components/common/AiNotice';
 import { isEnrichPlaceholderTitle } from '@/src/utils/i18n';
@@ -324,7 +327,7 @@ export default function MediaDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const systemColorScheme = useColorScheme();
-  const { themeMode } = useSettingsStore();
+  const { themeMode, language } = useSettingsStore();
   const { setLastViewedDate } = useTimelineStore();
   const { confirm, alert } = useDialog();
 
@@ -339,6 +342,8 @@ export default function MediaDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isGeneratingDiary, setIsGeneratingDiary] = useState(false);
+  // D10-c: Plus 재생성 문체 선택 시트
+  const [toneSheetOpen, setToneSheetOpen] = useState(false);
   const [isOcrLoading, setIsOcrLoading] = useState(false);
 
   // 일기/캡션 편집 모달 상태
@@ -747,10 +752,9 @@ export default function MediaDetailScreen() {
 
     // PAYWALL 진입점 ②(D7-2, 명세 §3.4): ① 실패 복구(서버 is_recovery_regeneration 기준) → 통과
     // ② Plus 아님(/auth/me plan, PW-1) → 안내 시트 ③ 그 외 → 재생성. 서버 403 이 최종 판단(아래 runGenerate)
-    const regenAction = resolveRegenAction({
-      isPlus: useAuthStore.getState().user?.plan === 'plus',
-      isRecovery: isRecoveryRegeneration(media),
-    });
+    const isPlus = useAuthStore.getState().user?.plan === 'plus';
+    const isRecovery = isRecoveryRegeneration(media);
+    const regenAction = resolveRegenAction({ isPlus, isRecovery });
     if (regenAction === 'sheet') {
       addBreadcrumb('paywall', 'regen-gate', { by: 'app' });
       usePlusSheetStore.getState().open({ variant: 'regen' });
@@ -768,10 +772,26 @@ export default function MediaDetailScreen() {
       if (!ok) return;
     }
 
+    // D10-c: Plus·비복구·문체 UI 언어(ko/en)면 문체 시트 → 확인 시 startRegenerate(tone). 복구·vi/th 는 tone 없이 기존대로
+    if (resolveRegenToneFlow({ isPlus, isRecovery, lang: language }) === 'tone-sheet') {
+      setToneSheetOpen(true);
+      return;
+    }
+    await startRegenerate();
+  };
+
+  const handleToneConfirm = (tone: DiaryTone) => {
+    setToneSheetOpen(false);
+    addBreadcrumb('diary', 'tone-regen', { tone });
+    void startRegenerate(tone);
+  };
+
+  const startRegenerate = async (tone?: DiaryTone) => {
+    if (isGeneratingDiary) return;
     // 서버 403 PLUS_REQUIRED → refreshUser → plus 면(반영 지연) 재시도 1회, 아니면 시트. 오류 alert·Sentry error 없음
     const runGenerate = async (alreadyRetried: boolean): Promise<'started' | 'sheet'> => {
       try {
-        await generateDiary(id!);
+        await generateDiary(id!, tone ? { tone } : undefined);
         return 'started';
       } catch (err) {
         if (!isPlusRequiredError(err)) throw err;
@@ -1040,6 +1060,8 @@ export default function MediaDetailScreen() {
   // 판정하고(구 응답엔 ai_* 가 없어 표시값으로 폴백), 사용자 제목이면 게이트를 우회한다.
   const diaryReady = !!media?.content;
   const aiDiaryShown = diaryReady && media?.content_source !== 'user';
+  // D10-c: "문체: 문학적" — sincere·값 없음·vi/th 는 표시 안 함. 사용자가 고친 본문(content_source user)은 위 aiDiaryShown 이 가린다
+  const toneLabel = toneDetailLabel(media?.diary_tone, language);
   const titleIsPlaceholder =
     media?.title_source !== 'user' &&
     isEnrichPlaceholderTitle(
@@ -1262,6 +1284,11 @@ export default function MediaDetailScreen() {
                   {t('mediaDetail.aiGenerated')}
                 </Text>
               </View>
+            )}
+            {aiDiaryShown && toneLabel && (
+              <Text style={[styles.aiProviderText, isDark && styles.textTertiaryDark]}>
+                {t(toneLabel.key, { tone: t(toneLabel.toneKey) })}
+              </Text>
             )}
             {aiDiaryShown && <AiNotice text={t('ai.draftNotice')} fontSize={12} isDark={isDark} />}
           </View>
@@ -1858,6 +1885,17 @@ export default function MediaDetailScreen() {
         caption={analysis?.caption_ko || analysis?.caption}
         diary={media?.title && media?.content ? { title: media.title, content: media.content } : null}
         cardViewRef={shareCardRef}
+      />
+
+      {/* D10-c: Plus 재생성 문체 선택 */}
+      <ToneSheet
+        visible={toneSheetOpen}
+        defaultTone={useAuthStore.getState().user?.diary_tone}
+        isPlus
+        body={{ key: 'tone.regenBody' }}
+        confirmLabel={{ key: 'tone.regenConfirm' }}
+        onConfirm={handleToneConfirm}
+        onClose={() => setToneSheetOpen(false)}
       />
 
       {/* 전체화면 줌 뷰어 (탭으로 진입, 핀치/더블탭/팬/스와이프) */}

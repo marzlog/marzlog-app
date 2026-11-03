@@ -2,6 +2,7 @@
 import { AxiosError, AxiosRequestConfig } from 'axios';
 import apiClient from './client';
 import { t } from '../i18n';
+import type { DiaryTone } from '../constants/diaryTones';
 import type {
   AuthResponse,
   GoogleAuthRequest,
@@ -455,8 +456,12 @@ export const authApi = {
   /**
    * 사용자 설정 변경
    */
-  async updateSettings(data: { analysis_mode?: string; app_lang?: string }): Promise<{ status: string; analysis_mode: string; app_lang?: string }> {
-    const response = await apiClient.patch<{ status: string; analysis_mode: string }>('/auth/me/settings', data);
+  async updateSettings(data: {
+    analysis_mode?: string;
+    app_lang?: string;
+    diary_tone?: DiaryTone;
+  }): Promise<{ status: string; analysis_mode: string; app_lang?: string; diary_tone?: string | null }> {
+    const response = await apiClient.patch<{ status: string; analysis_mode: string; diary_tone?: string | null }>('/auth/me/settings', data);
     return response.data;
   },
 
