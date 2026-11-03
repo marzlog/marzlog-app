@@ -442,11 +442,12 @@ export default function PaywallScreen() {
               return null;
             }
           },
-          shouldStop: () => unconfirmedPurchaseRef.current !== pending || busyRef.current,
+          shouldStop: () => !mountedRef.current || unconfirmedPurchaseRef.current !== pending || busyRef.current,
         },
         { graceMs, pollMs: UNCONFIRMED_POLL_MS },
       );
       addBreadcrumb('paywall', 'unconfirmed-poll', { trigger, result: polled, source });
+      if (!mountedRef.current) return;
       if (polled === 'stopped' || polled === 'unknown') return;
       action = polled === 'active' ? 'confirm' : 'suggest-restore';
     }
