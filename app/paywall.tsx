@@ -226,6 +226,18 @@ export default function PaywallScreen() {
     }
   };
 
+  // D11 · B-ASYNC-AFTER-UNMOUNT: 화면을 떠나면 대기 중인 안내를 닫고, 늦게 끝난 재확인이
+  // 다른 화면 위에 실패 안내를 띄우지 않게 한다(recheckUnconfirmed 의 mountedRef 가드)
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      noticeAbortRef.current?.abort();
+      noticeAbortRef.current = null;
+    };
+  }, []);
+
   // D5-b-5: 예상 밖 오류에도 잠금이 풀리고, 스토어 거래가 끝난 뒤의 오류면 "실패" 대신 완료 화면 반영 중으로 보낸다
   // B-PAYWALL-HANG: 잠금 안에서는 대화상자를 기다리지 않는다 — task 는 안내 문구 키만 돌려주고, 대화상자는 잠금이
   // 풀린 뒤에 띄운다(시스템 시트가 닫히는 중이라 대화상자가 안 뜨면 잠금 안의 await 가 끝나지 않아 화면이 영영 잠겼다)
@@ -366,6 +378,7 @@ export default function PaywallScreen() {
     if (!pending || busyRef.current || !useAuthStore.getState().isAuthenticated) return;
     const check = await checkPlusEntitlementForUserFresh(useAuthStore.getState().user?.id);
     addBreadcrumb('paywall', 'unconfirmed-recheck', { trigger, check, source });
+    if (!mountedRef.current) return;
     if (unconfirmedPurchaseRef.current !== pending || busyRef.current) return;
     const action = resolveUnconfirmedRecheck(check);
     if (action === 'keep-waiting') return;

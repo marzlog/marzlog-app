@@ -120,6 +120,7 @@
       "expo-video",
       "./plugins/withGradleMemory",
       "./plugins/withPrivacyManifest",
+      "./plugins/withAndroidFontScaleConfigChange",
       [
         "expo-media-library",
         {

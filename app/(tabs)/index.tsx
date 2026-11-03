@@ -30,6 +30,7 @@ import { triggerResume } from '@/src/services/resumeUploads';
 import { useTimelineStore } from '@/src/store/timelineStore';
 import { useMediaUpdatesStore } from '@/src/store/mediaUpdatesStore';
 import { useImageUpload } from '@/src/hooks/useImageUpload';
+import { usePendingPickerRecovery } from '@/src/utils/imagePickerSafe';
 import { useTranslation } from '@/src/hooks/useTranslation';
 import { useNetworkResume } from '@/src/hooks/useNetworkResume';
 import i18nInstance from '@/src/i18n';
@@ -408,6 +409,7 @@ export default function HomeScreen() {
     isUploading,
     pickFromGallery,
     takePhoto,
+    addRecoveredAssets,
   } = useImageUpload();
 
   // 날짜별 대표 감정 매핑 — 그날 감정이 있는 항목 중 **최신 등록분**이 대표다
@@ -790,12 +792,8 @@ export default function HomeScreen() {
     return false;
   };
 
-  // 갤러리에서 선택 후 업로드 화면으로 이동
-  const handlePickFromGallery = async () => {
-    setShowUploadModal(false);
-    try {
-      const pickedItems = await pickFromGallery(true);
-
+  // 선택(또는 회수)한 사진 → 형식 확인 후 업로드 화면으로 이동
+  const handlePickedItems = (pickedItems: Awaited<ReturnType<typeof pickFromGallery>>) => {
       if (pickedItems && pickedItems.length > 0) {
         // 지원하는 형식만 필터링
         const validItems: typeof pickedItems = [];
@@ -826,11 +824,23 @@ export default function HomeScreen() {
           });
         }
       }
+  };
+
+  // 갤러리에서 선택 후 업로드 화면으로 이동
+  const handlePickFromGallery = async () => {
+    setShowUploadModal(false);
+    try {
+      handlePickedItems(await pickFromGallery(true));
     } catch (error) {
       captureError(error instanceof Error ? error : new Error(String(error)), { context: 'Gallery.pickFromGallery' });
       showAlert(t('home.imagePickError'));
     }
   };
+
+  // D11: Android 액티비티 재생성 뒤 포커스 복귀 시 남은 피커 결과를 같은 흐름으로 회수
+  usePendingPickerRecovery(async (result) => {
+    handlePickedItems(await addRecoveredAssets(result.assets));
+  });
 
   // 카메라로 촬영 후 업로드 화면으로 이동
   const handleTakePhoto = async () => {

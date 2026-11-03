@@ -380,6 +380,14 @@ export default function MediaDetailScreen() {
   // 스와이프 시 analysis 캐시 (media_id → analysis)
   const analysisCacheRef = useRef<Record<string, MediaAnalysis | null>>({});
 
+  // D11 · B-ASYNC-AFTER-UNMOUNT: 재생성 후 10초 자동 새로고침 타이머 — 화면을 떠나거나 다른 id 로
+  // 바뀌면 취소한다(떠난 화면에 setMedia/setAnalysis 를 하지 않게)
+  const autoRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (autoRefreshTimerRef.current) clearTimeout(autoRefreshTimerRef.current);
+    autoRefreshTimerRef.current = null;
+  }, [id]);
+
   useEffect(() => {
     if (id) {
       loadData();
@@ -785,8 +793,10 @@ export default function MediaDetailScreen() {
       if ((await runGenerate(false)) === 'sheet') return;
       await alert(t('media.diaryStartedTitle'), t('media.diaryStarted'));
 
-      // 10초 후 자동 새로고침
-      setTimeout(async () => {
+      // 10초 후 자동 새로고침 (언마운트·id 변경 시 위 effect 가 취소)
+      if (autoRefreshTimerRef.current) clearTimeout(autoRefreshTimerRef.current);
+      autoRefreshTimerRef.current = setTimeout(async () => {
+        autoRefreshTimerRef.current = null;
         try {
           const [mediaData, analysisData] = await Promise.all([
             getMediaDetail(id!),
