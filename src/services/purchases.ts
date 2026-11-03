@@ -137,7 +137,7 @@ export function retryPurchasesIdentity(): void {
   });
 }
 
-export type IdentityStage = 'purchase' | 'restore';
+export type IdentityStage = 'purchase' | 'restore' | 'recheck';
 
 /**
  * 구매·복원 직전 신원 대조(신원 수리안 ①②③). 차단이면 여기서 한 번 기록한다 — 식별값(id)은 싣지 않는다.
@@ -433,6 +433,15 @@ export async function checkPlusEntitlementForUserFresh(serverUserId: string | nu
   const info = await readCustomerInfo();
   if (!info || isComputedOnDevice(info)) return 'unknown';
   return hasPlusEntitlement(info) ? 'active' : 'none';
+}
+
+/**
+ * D12: 미확인 구매 유예 폴링 전 신원 맞추기 — RC 현재 사용자가 로그인 사용자와 다르면 logIn 1회(구매·복원과 같은 대조).
+ * 맞춰졌으면 true. configure 전·비로그인이면 false(폴링의 RC 읽기가 unknown/none 으로 드러낸다).
+ */
+export async function ensurePurchasesIdentityForRecheck(serverUserId: string | null | undefined): Promise<boolean> {
+  if (!configured) return false;
+  return (await verifyIdentityFor('recheck', serverUserId)).ok;
 }
 
 export type { RestoreOutcome } from './purchasesRestore';
