@@ -280,7 +280,8 @@
     "pushNotification": "การตั้งค่าการแจ้งเตือนแบบพุช",
     "aiModeWarningTitle": "เปลี่ยนโหมดวิเคราะห์ AI",
     "aiModeWarningMessage": "ในโหมดเร็วจะไม่มีการสร้างไดอารี่ AI ต้องการดำเนินการต่อไหม",
-    "subscriptionRow": "การสมัครสมาชิก"
+    "subscriptionRow": "การสมัครสมาชิก",
+    "diaryTone": "สำนวนเริ่มต้น"
   },
   "consent": {
     "errorAgeRequired": "ยืนยันว่ามีอายุ 14 ปีขึ้นไป",
@@ -473,7 +474,8 @@
     "openInMap": "เปิดในแผนที่",
     "analysisPending": "กำลังรอการวิเคราะห์ด้วย AI...",
     "titleLabel": "ชื่อเรื่อง",
-    "contentLabel": "เนื้อหา"
+    "contentLabel": "เนื้อหา",
+    "toneLabel": "สำนวน: {{tone}}"
   },
   "emotions": {
     "joy": "ดีใจ",
@@ -809,7 +811,8 @@
       "diaryRegen": "เขียนไดอารี่ AI ใหม่",
       "storage": "พื้นที่จัดเก็บ",
       "unlimited": "ไม่จำกัด",
-      "storageValue": "{{gb}}GB"
+      "storageValue": "{{gb}}GB",
+      "toneSelect": "เลือกสำนวนการเขียน"
     },
     "discountBadge": "ลด {{percent}}%",
     "perMonthEquivalent": "เฉลี่ย {{price}} / เดือน",
@@ -891,5 +894,19 @@
     "storeGoogle": "Google Play",
     "footnote": "บันทึกของคุณยังอยู่แม้ยกเลิก Plus หากเกินพื้นที่ฟรี {{gb}}GB จะหยุดเฉพาะการอัปโหลดใหม่",
     "restored": "กู้คืนการซื้อเรียบร้อยแล้ว"
+  },
+  "tone": {
+    "title": "สำนวนการเขียน",
+    "regenBody": "เลือกสำนวนสำหรับไดอารี่ที่จะเขียนใหม่",
+    "settingsBody": "สำนวนที่ใช้เป็นค่าเริ่มต้นเมื่อเขียนไดอารี่ใหม่",
+    "regenConfirm": "เขียนใหม่ด้วยสำนวนนี้",
+    "defaultBadge": "ค่าเริ่มต้น",
+    "sincere": "จริงใจ",
+    "sincereDesc": "เรียบง่ายและจริงใจ",
+    "literary": "เชิงวรรณกรรม",
+    "literaryDesc": "บรรยายให้เห็นภาพแบบวรรณกรรม",
+    "plain": "กระชับ",
+    "plainDesc": "สั้นและไม่ปรุงแต่ง",
+    "saveFailed": "บันทึกสำนวนไม่สำเร็จ โปรดลองอีกครั้งภายหลัง"
   }
 }

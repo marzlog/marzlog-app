@@ -18,6 +18,10 @@ export interface User {
   // PAYWALL D2 — 구버전 서버·구독 행 없음이면 없음/null(앱은 날짜만 표시)
   plan_status?: 'active' | 'grace' | 'cancelled' | 'expired' | null;
   plan_store?: 'apple' | 'google' | null;
+  // D10 — 구버전 서버면 없음. diary_tone 은 sincere|literary|plain(허용 밖은 앱이 기본 톤으로 본다)
+  diary_tone?: string | null;
+  timezone?: string | null;
+  recall_enabled?: boolean | null;
   created_at: string;
   updated_at: string;
 }

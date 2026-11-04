@@ -11,7 +11,8 @@
       "diaryRegen": "เขียนไดอารี่ AI ใหม่",
       "storage": "พื้นที่จัดเก็บ",
       "unlimited": "ไม่จำกัด",
-      "storageValue": "{{gb}}GB"
+      "storageValue": "{{gb}}GB",
+      "toneSelect": "เลือกสำนวนการเขียน"
     },
     "discountBadge": "ลด {{percent}}%",
     "perMonthEquivalent": "เฉลี่ย {{price}} / เดือน",

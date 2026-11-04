@@ -67,6 +67,7 @@ import {
   type TextRef,
 } from '@src/utils/paywallViewModel';
 import { waitForPlusReflected } from '@src/utils/plusReflect';
+import { showToneRow } from '@src/utils/toneViewModel';
 import { usePlusRestore } from '@src/hooks/usePlusRestore';
 import { useReturnHome } from '@src/hooks/useReturnHome';
 import { toPlusSuccessRouteParams } from '@src/utils/plusSuccessViewModel';
@@ -109,7 +110,7 @@ export default function PaywallScreen() {
   const { height: windowHeight } = useWindowDimensions();
   const systemColorScheme = useColorScheme();
   const { themeMode } = useSettingsStore();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { alert, confirm } = useDialog();
   const params = useLocalSearchParams<{ source?: string | string[] }>();
   const source = normalizePaywallSource(params.source);
@@ -698,6 +699,13 @@ export default function PaywallScreen() {
               {t('paywall.compare.unlimited')}
             </Text>
           </View>
+          {showToneRow(language) && (
+            <View style={[styles.compareRow, { borderBottomColor: theme.border.light }]}>
+              <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.compareLabel, { color: theme.text.primary }]}>{t('paywall.compare.toneSelect')}</Text>
+              <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.compareCellText, styles.colFree, { color: theme.text.secondary }]}>–</Text>
+              <View style={[styles.compareCell, styles.colPlus]}>{check}</View>
+            </View>
+          )}
           <View style={[styles.compareRow, styles.compareRowLast]}>
             <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.compareLabel, { color: theme.text.primary }]}>{t('paywall.compare.storage')}</Text>
             <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.compareCellText, styles.colFree, { color: theme.text.secondary }]}>{tx(PAYWALL_COMPARE_STORAGE.free)}</Text>

@@ -3,6 +3,7 @@
  */
 import { apiClient } from './client';
 import type { MediaDetail, MediaAnalysis } from '../types/media';
+import type { DiaryTone } from '../constants/diaryTones';
 
 /**
  * 미디어 상세 조회
@@ -85,11 +86,15 @@ export async function setPrimaryImage(
 
 /**
  * AI 일기 생성/재생성 요청
+ * D10: tone 을 주면 body {tone} — 없으면 body 없이(서버가 users.diary_tone → sincere). 복구 재생성은 보내지 않는다.
  */
 export async function generateDiary(
-  mediaId: string
+  mediaId: string,
+  options?: { tone?: DiaryTone }
 ): Promise<{ success: boolean; job_id: string | null; message: string }> {
-  const response = await apiClient.post(`/media/${mediaId}/generate-diary`);
+  const response = options?.tone
+    ? await apiClient.post(`/media/${mediaId}/generate-diary`, { tone: options.tone })
+    : await apiClient.post(`/media/${mediaId}/generate-diary`);
   return response.data;
 }
 
