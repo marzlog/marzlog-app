@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,9 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
+  RefreshControl,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Image, type ImageLoadEventData } from 'expo-image';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -54,9 +56,11 @@ import {
   resolvePlusRequiredFollowUp,
   resolveRegenAction,
 } from '@/src/utils/regenGate';
-import { resolveRegenToneFlow, toneDetailLabel } from '@/src/utils/toneViewModel';
+import { resolveRegenToneFlow, resolveToneSaveResponse, shouldRememberTone, toneDetailLabel } from '@/src/utils/toneViewModel';
+import { authApi } from '@/src/api/auth';
 import type { DiaryTone } from '@/src/constants/diaryTones';
 import { ToneSheet } from '@/src/components/ToneSheet';
+import { pollDiaryUntilChanged } from '@/src/utils/diaryRefreshPoll';
 import ErrorView from '@/src/components/common/ErrorView';
 import { AiNotice } from '@/src/components/common/AiNotice';
 import { isEnrichPlaceholderTitle } from '@/src/utils/i18n';
@@ -387,17 +391,60 @@ export default function MediaDetailScreen() {
 
   // D11 · B-ASYNC-AFTER-UNMOUNT: 재생성 후 10초 자동 새로고침 타이머 — 화면을 떠나거나 다른 id 로
   // 바뀌면 취소한다(떠난 화면에 setMedia/setAnalysis 를 하지 않게)
-  const autoRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // B-DIARY-RESULT-NO-POLLING: 생성·재생성 결과 폴링 세대 — 언마운트·id 변경·새 폴링 시작이면 올려서 이전 폴링을 멈춘다
+  const diaryPollGenRef = useRef(0);
   useEffect(() => () => {
-    if (autoRefreshTimerRef.current) clearTimeout(autoRefreshTimerRef.current);
-    autoRefreshTimerRef.current = null;
+    diaryPollGenRef.current += 1;
   }, [id]);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (id) {
       loadData();
     }
   }, [id]);
+
+  // D10-c2: 다른 화면에서 돌아올 때(포커스) 상세를 조용히 다시 읽는다 — 첫 포커스는 위 loadData 가 맡는다.
+  // 화면이 스택에 남아 있으면 마운트 effect 가 다시 돌지 않아 재생성 결과·문체가 옛 값으로 남았다.
+  const hasFocusedRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasFocusedRef.current) {
+        hasFocusedRef.current = true;
+        return;
+      }
+      if (!id) return;
+      let alive = true;
+      getMediaDetail(id)
+        .then((mediaData) => {
+          if (alive) setMedia(mediaData);
+        })
+        .catch(() => {
+          // 조용한 재조회 — 실패는 화면 유지(당겨서 새로고침으로 다시 시도)
+        });
+      return () => {
+        alive = false;
+      };
+    }, [id]),
+  );
+
+  // 당겨서 새로고침 — 상세·분석 결과를 다시 읽는다
+  const handlePullRefresh = async () => {
+    if (!id || refreshing) return;
+    setRefreshing(true);
+    try {
+      const [mediaData, analysisData] = await Promise.all([
+        getMediaDetail(id),
+        getMediaAnalysis(id).catch(() => null),
+      ]);
+      setMedia(mediaData);
+      if (analysisData) setAnalysis(analysisData);
+    } catch (err) {
+      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.pullRefresh' });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -740,6 +787,43 @@ export default function MediaDetailScreen() {
     }
   };
 
+  // 최근 문체 저장 — PATCH /auth/me/settings {diary_tone} 응답이 그 값이면 스토어 갱신. 실패·불일치는 조용히 넘긴다
+  const rememberTone = async (tone: DiaryTone) => {
+    if (!shouldRememberTone(useAuthStore.getState().user?.diary_tone, tone)) return;
+    try {
+      const outcome = resolveToneSaveResponse(tone, await authApi.updateSettings({ diary_tone: tone }));
+      const latest = useAuthStore.getState().user;
+      if (outcome.ok && latest) useAuthStore.getState().setUser({ ...latest, diary_tone: outcome.diaryTone });
+      addBreadcrumb('diary', 'tone-remember', { tone, ok: outcome.ok });
+    } catch {
+      addBreadcrumb('diary', 'tone-remember', { tone, ok: false });
+    }
+  };
+
+  // 생성·재생성 결과 폴링 — 3초 간격, 바뀌면 멈춤, 최대 60초(DIARY_POLL_*). 끝나면 분석 결과도 한 번 다시 읽는다
+  const startDiaryPoll = async (before: MediaDetail | null) => {
+    if (!id) return;
+    const targetId = id;
+    const gen = ++diaryPollGenRef.current;
+    const result = await pollDiaryUntilChanged(before, {
+      now: () => Date.now(),
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+      fetch: () => getMediaDetail(targetId),
+      onFetched: (latest) => setMedia(latest),
+      isStopped: () => gen !== diaryPollGenRef.current,
+      onError: (err) =>
+        captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.diaryPoll' }),
+    });
+    addBreadcrumb('diary', 'result-poll', { result });
+    if (result === 'stopped') return;
+    try {
+      const analysisData = await getMediaAnalysis(targetId);
+      if (gen === diaryPollGenRef.current) setAnalysis(analysisData);
+    } catch {
+      // 분석 결과는 부가 정보 — 실패해도 일기 반영은 끝났다
+    }
+  };
+
   // AI 일기 재생성
   const handleRegenerateDiary = async () => {
     if (isGeneratingDiary || !media) return;
@@ -810,24 +894,13 @@ export default function MediaDetailScreen() {
 
     setIsGeneratingDiary(true);
     try {
+      const before = media;
       if ((await runGenerate(false)) === 'sheet') return;
+      // D10-c2 A안: 다시 쓰기 요청이 받아들여지면 고른 문체를 "최근"으로 저장 — 실패는 무시(재생성과 무관)
+      if (tone) void rememberTone(tone);
+      // 결과 폴링은 안내를 닫기 전부터 돈다(안내를 늦게 닫아도 결과가 반영되게) — B-DIARY-RESULT-NO-POLLING
+      void startDiaryPoll(before);
       await alert(t('media.diaryStartedTitle'), t('media.diaryStarted'));
-
-      // 10초 후 자동 새로고침 (언마운트·id 변경 시 위 effect 가 취소)
-      if (autoRefreshTimerRef.current) clearTimeout(autoRefreshTimerRef.current);
-      autoRefreshTimerRef.current = setTimeout(async () => {
-        autoRefreshTimerRef.current = null;
-        try {
-          const [mediaData, analysisData] = await Promise.all([
-            getMediaDetail(id!),
-            getMediaAnalysis(id!),
-          ]);
-          setMedia(mediaData);
-          setAnalysis(analysisData);
-        } catch (err) {
-          captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.autoRefresh' });
-        }
-      }, 10000);
     } catch (err: any) {
       captureError(err instanceof Error ? err : new Error(String(err)), { context: 'MediaDetail.diaryGeneration' });
       await alert(t('common.error'), getErrorMessage(err));
@@ -1060,7 +1133,7 @@ export default function MediaDetailScreen() {
   // 판정하고(구 응답엔 ai_* 가 없어 표시값으로 폴백), 사용자 제목이면 게이트를 우회한다.
   const diaryReady = !!media?.content;
   const aiDiaryShown = diaryReady && media?.content_source !== 'user';
-  // D10-c: "문체: 문학적" — sincere·값 없음·vi/th 는 표시 안 함. 사용자가 고친 본문(content_source user)은 위 aiDiaryShown 이 가린다
+  // D10-c2: "문체: ○○" — diary_tone 이 있으면 sincere 포함 표시(값 없음·vi/th 만 숨김)
   const toneLabel = toneDetailLabel(media?.diary_tone, language);
   const titleIsPlaceholder =
     media?.title_source !== 'user' &&
@@ -1145,6 +1218,7 @@ export default function MediaDetailScreen() {
         contentContainerStyle={styles.detailContentContainer}
         showsVerticalScrollIndicator={false}
         nestedScrollEnabled={true}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handlePullRefresh} />}
       >
         {/* Image Carousel */}
         <View style={[useSingleAspect ? styles.carouselWrapperAuto : styles.carouselWrapper, isDark && styles.carouselWrapperDark]}>
@@ -1277,18 +1351,24 @@ export default function MediaDetailScreen() {
                 </View>
               )}
             </View>
-            {aiDiaryShown && media.ai_provider && (
+            {((aiDiaryShown && media.ai_provider) || toneLabel) && (
               <View style={styles.aiProviderRow}>
-                <Ionicons name="sparkles" size={12} color={isDark ? '#9CA3AF' : colors.neutral[5]} />
-                <Text style={[styles.aiProviderText, isDark && styles.textTertiaryDark]}>
-                  {t('mediaDetail.aiGenerated')}
-                </Text>
+                {aiDiaryShown && media.ai_provider && (
+                  <>
+                    <Ionicons name="sparkles" size={12} color={isDark ? '#9CA3AF' : colors.neutral[5]} />
+                    <Text style={[styles.aiProviderText, isDark && styles.textTertiaryDark]}>
+                      {t('mediaDetail.aiGenerated')}
+                    </Text>
+                  </>
+                )}
+                {/* D10-c2: diary_tone 이 있으면 sincere 포함 항상(값 없음·vi/th 만 숨김) — "AI 작성" 옆 같은 줄 */}
+                {toneLabel && (
+                  <Text style={[styles.aiProviderText, isDark && styles.textTertiaryDark]}>
+                    {aiDiaryShown && media.ai_provider ? '· ' : ''}
+                    {t(toneLabel.key, { tone: t(toneLabel.toneKey) })}
+                  </Text>
+                )}
               </View>
-            )}
-            {aiDiaryShown && toneLabel && (
-              <Text style={[styles.aiProviderText, isDark && styles.textTertiaryDark]}>
-                {t(toneLabel.key, { tone: t(toneLabel.toneKey) })}
-              </Text>
             )}
             {aiDiaryShown && <AiNotice text={t('ai.draftNotice')} fontSize={12} isDark={isDark} />}
           </View>
@@ -1890,7 +1970,8 @@ export default function MediaDetailScreen() {
       {/* D10-c: Plus 재생성 문체 선택 */}
       <ToneSheet
         visible={toneSheetOpen}
-        defaultTone={useAuthStore.getState().user?.diary_tone}
+        lastUsedTone={useAuthStore.getState().user?.diary_tone}
+        currentTone={media?.diary_tone}
         isPlus
         body={{ key: 'tone.regenBody' }}
         confirmLabel={{ key: 'tone.regenConfirm' }}

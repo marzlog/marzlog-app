@@ -13,9 +13,10 @@ import { PlusCta } from './plus/PlusCta';
 import { plusColors } from './plus/plusColors';
 
 /**
- * 문체 선택 시트 (D10-c) — 재생성(Plus)·설정 기본 문체에서 쓴다.
+ * 문체 선택 시트 (D10-c · D10-c2) — Plus 재생성에서 쓴다.
  *
- * 3카드(정성·문학적·간결)에서 하나를 고르고 확인하면 onConfirm(tone). 저장·재생성·Plus 판정은 부르는 화면이 한다.
+ * 3카드(진솔·문학적·간결)에서 하나를 고르고 확인하면 onConfirm(tone). 열릴 때 최근에 고른 문체(users.diary_tone)가
+ * 미리 선택되고 "최근" 배지가 붙는다. 재생성·최근 문체 저장·Plus 판정은 부르는 화면이 한다.
  * 표시는 buildToneSheetVM(순수 함수). 레이아웃은 PlusUpsellSheet 와 같다(B-SHEET-FONT-SCALE —
  * 본문만 스크롤, 최대 화면 높이 70%, 버튼은 스크롤 밖 고정). 바깥 누름·Android 뒤로가기는 onClose.
  */
@@ -25,11 +26,13 @@ const BODY_MAX_HEIGHT_RATIO = 0.7;
 
 interface ToneSheetProps {
   visible: boolean;
-  /** 사용자 기본 문체(/auth/me diary_tone) — 열릴 때 선택값이고 "기본"으로 표시 */
-  defaultTone: unknown;
+  /** 최근에 고른 문체(/auth/me diary_tone) — 열릴 때 선택값이고 "최근"으로 표시 */
+  lastUsedTone: unknown;
   isPlus: boolean;
-  /** Free 에게 Plus 문체 잠금 표시 — 설정 true, 재생성 false */
+  /** Free 에게 Plus 문체 잠금 표시 — 재생성 시트는 Plus 만 열어 false(기본) */
   showLocks?: boolean;
+  /** 재생성할 카드의 현재 문체 — 있으면 제목 아래 "지금 문체: ○○" (D10-c2) */
+  currentTone?: unknown;
   /** 제목 아래 1줄 안내 */
   body: TextRef;
   confirmLabel: TextRef;
@@ -37,7 +40,7 @@ interface ToneSheetProps {
   onClose: () => void;
 }
 
-export function ToneSheet({ visible, defaultTone, isPlus, showLocks = false, body, confirmLabel, onConfirm, onClose }: ToneSheetProps) {
+export function ToneSheet({ visible, lastUsedTone, currentTone, isPlus, showLocks = false, body, confirmLabel, onConfirm, onClose }: ToneSheetProps) {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const { t } = useTranslation();
@@ -47,17 +50,17 @@ export function ToneSheet({ visible, defaultTone, isPlus, showLocks = false, bod
   const theme: Theme = isDark ? darkTheme : lightTheme;
   const accent = plusColors(theme, isDark);
 
-  const [selected, setSelected] = useState<DiaryTone>(resolveDiaryTone(defaultTone));
+  const [selected, setSelected] = useState<DiaryTone>(resolveDiaryTone(lastUsedTone));
 
-  // 열릴 때마다 기본 문체에서 시작한다
+  // 열릴 때마다 최근 문체에서 시작한다
   useEffect(() => {
-    if (visible) setSelected(resolveDiaryTone(defaultTone));
+    if (visible) setSelected(resolveDiaryTone(lastUsedTone));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   if (!visible) return null;
 
-  const vm = buildToneSheetVM({ defaultTone, selected, isPlus, showLocks });
+  const vm = buildToneSheetVM({ lastUsedTone, selected, isPlus, showLocks, currentTone });
   const tx = (ref: TextRef) => t(ref.key, ref.params);
 
   return (
@@ -76,6 +79,11 @@ export function ToneSheet({ visible, defaultTone, isPlus, showLocks = false, bod
             <Text maxFontSizeMultiplier={fontScaleCap.title} style={[styles.title, { color: theme.text.primary }]} accessibilityRole="header">
               {t('tone.title')}
             </Text>
+            {vm.current && (
+              <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.current, { color: theme.text.primary }]}>
+                {t(vm.current.key, { tone: t(vm.current.toneKey) })}
+              </Text>
+            )}
             <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.body, { color: theme.text.secondary }]}>{tx(body)}</Text>
 
             {vm.cards.map((card) => (
@@ -92,9 +100,9 @@ export function ToneSheet({ visible, defaultTone, isPlus, showLocks = false, bod
                 <View style={styles.cardText}>
                   <View style={styles.cardTitleRow}>
                     <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.cardLabel, { color: theme.text.primary }]}>{tx(card.label)}</Text>
-                    {card.isDefault && (
+                    {card.isLastUsed && (
                       <Text maxFontSizeMultiplier={fontScaleCap.body} style={[styles.chip, { color: theme.text.secondary, borderColor: theme.border.default }]}>
-                        {t('tone.defaultBadge')}
+                        {t('tone.lastUsedBadge')}
                       </Text>
                     )}
                     {card.locked && (
@@ -132,6 +140,7 @@ const styles = StyleSheet.create({
   handle: { alignSelf: 'center', width: 40, height: 4, borderRadius: borderRadius.full, marginBottom: spacing.sm },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, gap: spacing.md },
   title: { fontSize: typography.fontSize['2xl'], fontWeight: typography.fontWeight.bold },
+  current: { fontSize: typography.fontSize.base, fontWeight: typography.fontWeight.semiBold },
   body: { fontSize: typography.fontSize.base, lineHeight: typography.fontSize.base * typography.lineHeight.normal },
   card: {
     flexDirection: 'row',

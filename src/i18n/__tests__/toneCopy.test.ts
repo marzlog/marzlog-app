@@ -22,18 +22,16 @@ function leaves(obj: Json, prefix = ''): Record<string, string> {
 const TONE_KEYS = [
   'tone.title',
   'tone.regenBody',
-  'tone.settingsBody',
   'tone.regenConfirm',
-  'tone.defaultBadge',
+  'tone.lastUsedBadge',
   'tone.sincere',
   'tone.sincereDesc',
   'tone.literary',
   'tone.literaryDesc',
   'tone.plain',
   'tone.plainDesc',
-  'tone.saveFailed',
-  'settings.diaryTone',
   'mediaDetail.toneLabel',
+  'tone.currentLabel',
   'paywall.compare.toneSelect',
 ];
 
@@ -54,6 +52,7 @@ describe.each(LANGS)('%s', (lang) => {
 
   it('상세 라벨은 {{tone}} 을 끼워 넣는다', () => {
     expect(locale['mediaDetail.toneLabel']).toContain('{{tone}}');
+    expect(locale['tone.currentLabel']).toContain('{{tone}}');
   });
 
   it('최상위 키가 중복되지 않는다(JSON.parse 가 앞 값을 덮어쓰는 것 방지)', () => {
@@ -95,4 +94,24 @@ it('ko·en 혜택 한 줄은 지정 문구 그대로', () => {
   const en = leaves(JSON.parse(fs.readFileSync(path.join(ROOT, 'src/i18n/locales/en.json'), 'utf8')));
   expect(ko['paywall.subhead']).toBe('AI 일기 재생성 무제한 · 문체 선택 · {{gb}}GB 저장 공간');
   expect(en['paywall.subhead']).toBe('Unlimited AI diary rewrites · Writing style · {{gb}}GB storage');
+});
+
+it('ko 기본 문체 라벨은 "진솔"(D10-c2), en 은 그대로', () => {
+  const ko = leaves(JSON.parse(fs.readFileSync(path.join(ROOT, 'src/i18n/locales/ko.json'), 'utf8')));
+  const en = leaves(JSON.parse(fs.readFileSync(path.join(ROOT, 'src/i18n/locales/en.json'), 'utf8')));
+  expect(ko['tone.sincere']).toBe('진솔');
+  expect(ko['tone.sincereDesc']).toBe('담백하고 진솔하게, 마음 한 줄');
+  expect(en['tone.sincere']).toBe('Sincere');
+});
+
+it('설정 "기본 문체" 키는 없어졌다(D10-c2 A안), 시트 배지는 "최근"', () => {
+  for (const lang of LANGS) {
+    const locale = leaves(JSON.parse(fs.readFileSync(path.join(ROOT, `src/i18n/locales/${lang}.json`), 'utf8')));
+    for (const key of ['settings.diaryTone', 'tone.settingsBody', 'tone.defaultBadge', 'tone.saveFailed']) {
+      expect([lang, key, key in locale]).toEqual([lang, key, false]);
+    }
+  }
+  const ko = leaves(JSON.parse(fs.readFileSync(path.join(ROOT, 'src/i18n/locales/ko.json'), 'utf8')));
+  const en = leaves(JSON.parse(fs.readFileSync(path.join(ROOT, 'src/i18n/locales/en.json'), 'utf8')));
+  expect([ko['tone.lastUsedBadge'], en['tone.lastUsedBadge']]).toEqual(['최근', 'Last used']);
 });

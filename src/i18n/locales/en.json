@@ -280,8 +280,7 @@
     "pushNotification": "Push Notifications",
     "aiModeWarningTitle": "Change AI analysis mode",
     "aiModeWarningMessage": "AI diaries are not generated in Fast mode. Continue?",
-    "subscriptionRow": "Subscription",
-    "diaryTone": "Default writing style"
+    "subscriptionRow": "Subscription"
   },
   "consent": {
     "errorAgeRequired": "Age 14+ confirmation is required.",
@@ -898,15 +897,14 @@
   "tone": {
     "title": "Writing style",
     "regenBody": "Choose a style for your rewritten diary.",
-    "settingsBody": "The style used by default when your diary is rewritten.",
     "regenConfirm": "Rewrite in this style",
-    "defaultBadge": "Default",
+    "lastUsedBadge": "Last used",
     "sincere": "Sincere",
     "sincereDesc": "Honest and heartfelt",
     "literary": "Literary",
     "literaryDesc": "Vivid, descriptive, and literary",
     "plain": "Plain",
     "plainDesc": "Short and simple",
-    "saveFailed": "Couldn't save your writing style. Please try again later."
+    "currentLabel": "Current style: {{tone}}"
   }
 }
