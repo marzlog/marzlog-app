@@ -25,20 +25,12 @@ import { PinSetup } from '@/src/components/auth/PinSetup';
 import { PinInput } from '@/src/components/auth/PinInput';
 import { AppTouchable } from '@/src/components/common/AppTouchable';
 import { useDialog } from '@/src/components/ui/Dialog';
-import { ToneSheet } from '@/src/components/ToneSheet';
-import { authApi } from '@/src/api/auth';
-import { usePlusSheetStore } from '@/src/store/plusSheetStore';
-import { isToneUiEnabled, resolveDiaryTone, type DiaryTone } from '@/src/constants/diaryTones';
-import { TONE_LABEL_KEYS, resolveSettingsToneChange } from '@/src/utils/toneViewModel';
-import { addBreadcrumb, captureError } from '@/src/utils/sentry';
 
 const ICON_COLOR = '#8B5CF6';
-/** 문체 시트가 닫히는 애니메이션 뒤에 Plus 안내 시트를 띄운다 — RN Modal 이 닫히는 중에 다른 Modal 을 띄우면 iOS 에서 안 보일 수 있다 */
-const TONE_SHEET_HANDOFF_MS = 350;
 
 export default function SettingsScreen() {
   const systemColorScheme = useColorScheme();
-  const { t, language } = useTranslation();
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const {
@@ -58,12 +50,8 @@ export default function SettingsScreen() {
     disableReminder,
     setTime: setReminderTime,
   } = useReminderStore();
-  const { logout, user, setUser } = useAuthStore();
-  const { confirm: dialogConfirm, alert: dialogAlert } = useDialog();
-  // D10-c: 기본 문체(/auth/me diary_tone) — vi/th 는 행 자체를 숨긴다
-  const [toneSheetOpen, setToneSheetOpen] = useState(false);
-  const isPlus = user?.plan === 'plus';
-  const currentTone = resolveDiaryTone(user?.diary_tone);
+  const { logout } = useAuthStore();
+  const { confirm: dialogConfirm } = useDialog();
 
   const [pinModal, setPinModal] = useState<'setup' | 'disable' | 'change-verify' | 'change-new' | null>(null);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -82,26 +70,6 @@ export default function SettingsScreen() {
   const subColor = isDark ? '#9CA3AF' : '#6B7280';
   const sectionColor = isDark ? '#6B7280' : '#9CA3AF';
   const chevronColor = isDark ? '#4B5563' : '#9CA3AF';
-
-  const handleToneConfirm = async (tone: DiaryTone) => {
-    setToneSheetOpen(false);
-    const change = resolveSettingsToneChange({ current: user?.diary_tone, next: tone, isPlus });
-    if (change === 'noop') return;
-    if (change === 'upsell') {
-      // Free 의 Plus 문체 — 저장하지 않고 재생성 안내 시트(변형 regen)
-      addBreadcrumb('paywall', 'tone-gate', { tone });
-      setTimeout(() => usePlusSheetStore.getState().open({ variant: 'regen' }), TONE_SHEET_HANDOFF_MS);
-      return;
-    }
-    try {
-      const res = await authApi.updateSettings({ diary_tone: tone });
-      const latest = useAuthStore.getState().user;
-      if (latest) setUser({ ...latest, diary_tone: res.diary_tone ?? tone });
-    } catch (err) {
-      captureError(err instanceof Error ? err : new Error(String(err)), { context: 'Settings.diaryTone' });
-      await dialogAlert(t('common.error'), t('tone.saveFailed'));
-    }
-  };
 
   const handleAppLockToggle = useCallback(() => {
     if (appLockEnabled) {
@@ -298,21 +266,6 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={18} color={chevronColor} />
           </AppTouchable>
 
-          {/* D10-c: 기본 문체 (ko/en 만) */}
-          {isToneUiEnabled(language) && (
-            <AppTouchable
-              style={[styles.menuItem, { borderBottomColor: divider }]}
-              onPress={() => setToneSheetOpen(true)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.menuItemLeft}>
-                <Ionicons name="create-outline" size={24} color={ICON_COLOR} />
-                <Text style={[styles.menuLabel, { color: labelColor }]}>{t('settings.diaryTone')}</Text>
-              </View>
-              <Text style={[styles.settingValue, { color: subColor }]}>{t(TONE_LABEL_KEYS[currentTone])}</Text>
-            </AppTouchable>
-          )}
-
           {/* Dark Mode */}
           <AppTouchable
             style={[styles.menuItem, { borderBottomColor: divider }]}
@@ -449,17 +402,6 @@ export default function SettingsScreen() {
           <Text style={styles.logoutText}>{t('auth.logout')}</Text>
         </TouchableOpacity>
       </ScrollView>
-
-      <ToneSheet
-        visible={toneSheetOpen}
-        defaultTone={user?.diary_tone}
-        isPlus={isPlus}
-        showLocks
-        body={{ key: 'tone.settingsBody' }}
-        confirmLabel={{ key: 'common.save' }}
-        onConfirm={handleToneConfirm}
-        onClose={() => setToneSheetOpen(false)}
-      />
 
       {/* PIN Modals */}
       <Modal visible={pinModal === 'setup'} animationType="slide" presentationStyle="fullScreen">

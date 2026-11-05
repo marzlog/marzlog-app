@@ -280,8 +280,7 @@
     "version": "버전",
     "aiModeWarningTitle": "AI 분석 모드 변경",
     "aiModeWarningMessage": "빠름 모드에서는 AI 일기가 생성되지 않습니다. 계속하시겠습니까?",
-    "subscriptionRow": "구독",
-    "diaryTone": "기본 문체"
+    "subscriptionRow": "구독"
   },
   "consent": {
     "errorAgeRequired": "만 14세 이상 확인이 필요합니다.",
@@ -898,15 +897,14 @@
   "tone": {
     "title": "문체 선택",
     "regenBody": "다시 쓸 일기의 문체를 골라 주세요.",
-    "settingsBody": "일기를 다시 쓸 때 기본으로 쓸 문체예요.",
     "regenConfirm": "이 문체로 다시 쓰기",
-    "defaultBadge": "기본",
-    "sincere": "정성",
-    "sincereDesc": "담백하고 진솔하게",
+    "lastUsedBadge": "최근",
+    "sincere": "진솔",
+    "sincereDesc": "담백하고 진솔하게, 마음 한 줄",
     "literary": "문학적",
     "literaryDesc": "감각적인 묘사로 문학적으로",
     "plain": "간결",
     "plainDesc": "짧고 꾸밈없이",
-    "saveFailed": "문체를 저장하지 못했어요. 잠시 후 다시 시도해 주세요."
+    "currentLabel": "지금 문체: {{tone}}"
   }
 }

@@ -280,8 +280,7 @@
     "pushNotification": "Cài đặt thông báo đẩy",
     "aiModeWarningTitle": "Thay đổi chế độ phân tích AI",
     "aiModeWarningMessage": "Chế độ Nhanh sẽ không tạo nhật ký AI. Bạn vẫn muốn tiếp tục?",
-    "subscriptionRow": "Gói đăng ký",
-    "diaryTone": "Giọng văn mặc định"
+    "subscriptionRow": "Gói đăng ký"
   },
   "consent": {
     "errorAgeRequired": "Cần xác nhận bạn từ 14 tuổi trở lên.",
@@ -898,15 +897,14 @@
   "tone": {
     "title": "Giọng văn",
     "regenBody": "Chọn giọng văn cho nhật ký được viết lại.",
-    "settingsBody": "Giọng văn mặc định khi viết lại nhật ký.",
     "regenConfirm": "Viết lại theo giọng này",
-    "defaultBadge": "Mặc định",
+    "lastUsedBadge": "Gần đây",
     "sincere": "Chân thành",
     "sincereDesc": "Mộc mạc, thật lòng",
     "literary": "Văn chương",
     "literaryDesc": "Giàu hình ảnh, đậm chất văn",
     "plain": "Ngắn gọn",
     "plainDesc": "Ngắn, không màu mè",
-    "saveFailed": "Không lưu được giọng văn. Vui lòng thử lại sau."
+    "currentLabel": "Giọng văn hiện tại: {{tone}}"
   }
 }
