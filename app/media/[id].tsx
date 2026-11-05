@@ -1351,23 +1351,22 @@ export default function MediaDetailScreen() {
                 </View>
               )}
             </View>
-            {((aiDiaryShown && media.ai_provider) || toneLabel) && (
+            {/* D10-c3: 문체 칩 — 제목 바로 아래, 본문 보조 크기·강조색 배경("✍ 진솔"). diary_tone 이 있으면 sincere 포함 항상(값 없음·vi/th 만 숨김) */}
+            {toneLabel && (
+              <View
+                style={[styles.toneChip, isDark && styles.toneChipDark]}
+                accessible
+                accessibilityLabel={t(toneLabel.key, { tone: t(toneLabel.toneKey) })}
+              >
+                <Text style={[styles.toneChipText, isDark && styles.toneChipTextDark]}>✍ {t(toneLabel.toneKey)}</Text>
+              </View>
+            )}
+            {aiDiaryShown && media.ai_provider && (
               <View style={styles.aiProviderRow}>
-                {aiDiaryShown && media.ai_provider && (
-                  <>
-                    <Ionicons name="sparkles" size={12} color={isDark ? '#9CA3AF' : colors.neutral[5]} />
-                    <Text style={[styles.aiProviderText, isDark && styles.textTertiaryDark]}>
-                      {t('mediaDetail.aiGenerated')}
-                    </Text>
-                  </>
-                )}
-                {/* D10-c2: diary_tone 이 있으면 sincere 포함 항상(값 없음·vi/th 만 숨김) — "AI 작성" 옆 같은 줄 */}
-                {toneLabel && (
-                  <Text style={[styles.aiProviderText, isDark && styles.textTertiaryDark]}>
-                    {aiDiaryShown && media.ai_provider ? '· ' : ''}
-                    {t(toneLabel.key, { tone: t(toneLabel.toneKey) })}
-                  </Text>
-                )}
+                <Ionicons name="sparkles" size={12} color={isDark ? '#9CA3AF' : colors.neutral[5]} />
+                <Text style={[styles.aiProviderText, isDark && styles.textTertiaryDark]}>
+                  {t('mediaDetail.aiGenerated')}
+                </Text>
               </View>
             )}
             {aiDiaryShown && <AiNotice text={t('ai.draftNotice')} fontSize={12} isDark={isDark} />}
@@ -2427,6 +2426,26 @@ const styles = StyleSheet.create({
   },
   titleEmotionBadgeTextDark: {
     color: '#A5B4FC',
+  },
+  // D10-c3 문체 칩 — 감정 배지(인디고)와 구분되는 보라 계열, 본문 보조 크기
+  toneChip: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(139, 92, 246, 0.12)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  toneChipDark: {
+    backgroundColor: 'rgba(139, 92, 246, 0.25)',
+  },
+  toneChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#7C3AED',
+  },
+  toneChipTextDark: {
+    color: '#C4B5FD',
   },
   aiProviderRow: {
     flexDirection: 'row',
